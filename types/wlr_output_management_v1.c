@@ -122,6 +122,7 @@ static void config_head_handle_resource_destroy(struct wl_resource *resource) {
 
 static const struct zwlr_output_configuration_v1_interface config_impl;
 
+// Can return NULL if the config has been used
 static struct wlr_output_configuration_v1 *config_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource,
@@ -145,7 +146,12 @@ static void config_handle_enable_head(struct wl_client *client,
 		struct wl_resource *head_resource) {
 	struct wlr_output_configuration_v1 *config =
 		config_from_resource(config_resource);
-	// Can be NULL if the head no longer exists
+	if (config == NULL || config->finalized) {
+		wl_resource_post_error(config_resource,
+			ZWLR_OUTPUT_CONFIGURATION_V1_ERROR_ALREADY_USED,
+			"configuration object has already been used");
+		return;
+	}
 	struct wlr_output_head_v1 *head = head_from_resource(head_resource);
 
 	// Create an inert resource if the head no longer exists
@@ -179,6 +185,12 @@ static void config_handle_disable_head(struct wl_client *client,
 		struct wl_resource *head_resource) {
 	struct wlr_output_configuration_v1 *config =
 		config_from_resource(config_resource);
+	if (config == NULL || config->finalized) {
+		wl_resource_post_error(config_resource,
+			ZWLR_OUTPUT_CONFIGURATION_V1_ERROR_ALREADY_USED,
+			"configuration object has already been used");
+		return;
+	}
 	struct wlr_output_head_v1 *head = head_from_resource(head_resource);
 	if (head == NULL) {
 		return;
@@ -194,36 +206,97 @@ static void config_handle_disable_head(struct wl_client *client,
 	config_head->state.enabled = false;
 }
 
+static void config_finalize(struct wlr_output_configuration_v1 *config) {
+	if (config->finalized) {
+		return;
+	}
+
+	// Destroy config head resources now, the client is forbidden to use them at
+	// this point anyway
+	struct wlr_output_configuration_head_v1 *config_head, *tmp;
+	wl_list_for_each_safe(config_head, tmp, &config->heads, link) {
+		wl_resource_set_user_data(config_head->resource, NULL);
+		wl_resource_destroy(config_head->resource);
+		config_head->resource = NULL;
+	}
+
+	config->finalized = true;
+}
+
+// Destroys the config if serial is invalid
+static bool config_validate_serial(struct wlr_output_configuration_v1 *config) {
+	if (config->serial != config->manager->serial) {
+		wlr_log(WLR_DEBUG, "Ignored configuration request: invalid serial");
+		zwlr_output_configuration_v1_send_cancelled(config->resource);
+		wlr_output_configuration_v1_destroy(config);
+		return false;
+	}
+	return true;
+}
+
 static void config_handle_apply(struct wl_client *client,
 		struct wl_resource *config_resource) {
-	//struct wlr_output_configuration_v1 *config =
-	//	config_from_resource(config_resource);
-	// TODO: post already_used if needed
+	struct wlr_output_configuration_v1 *config =
+		config_from_resource(config_resource);
+	if (config == NULL || config->finalized) {
+		wl_resource_post_error(config_resource,
+			ZWLR_OUTPUT_CONFIGURATION_V1_ERROR_ALREADY_USED,
+			"configuration object has already been used");
+		return;
+	}
 
-	// TODO
+	config_finalize(config);
+	if (!config_validate_serial(config)) {
+		return;
+	}
+
+	wlr_signal_emit_safe(&config->manager->events.apply, config);
+}
+
+static void config_handle_test(struct wl_client *client,
+		struct wl_resource *config_resource) {
+	struct wlr_output_configuration_v1 *config =
+		config_from_resource(config_resource);
+	if (config == NULL || config->finalized) {
+		wl_resource_post_error(config_resource,
+			ZWLR_OUTPUT_CONFIGURATION_V1_ERROR_ALREADY_USED,
+			"configuration object has already been used");
+		return;
+	}
+
+	config_finalize(config);
+	if (!config_validate_serial(config)) {
+		return;
+	}
+
+	wlr_signal_emit_safe(&config->manager->events.test, config);
 }
 
 static void config_handle_destroy(struct wl_client *client,
 		struct wl_resource *config_resource) {
 	wl_resource_destroy(config_resource);
-	// TODO: destroy head configurations
 }
 
 static const struct zwlr_output_configuration_v1_interface config_impl = {
 	.enable_head = config_handle_enable_head,
 	.disable_head = config_handle_disable_head,
 	.apply = config_handle_apply,
-	// TODO: test
+	.test = config_handle_test,
 	.destroy = config_handle_destroy,
 };
 
-struct wlr_output_configuration_v1 *wlr_output_configuration_v1_create(void) {
+static struct wlr_output_configuration_v1 *config_create(bool finalized) {
 	struct wlr_output_configuration_v1 *config = calloc(1, sizeof(*config));
 	if (config == NULL) {
 		return NULL;
 	}
 	wl_list_init(&config->heads);
+	config->finalized = finalized;
 	return config;
+}
+
+struct wlr_output_configuration_v1 *wlr_output_configuration_v1_create(void) {
+	return config_create(true);
 }
 
 void wlr_output_configuration_v1_destroy(
@@ -231,33 +304,67 @@ void wlr_output_configuration_v1_destroy(
 	if (config == NULL) {
 		return;
 	}
-	struct wlr_output_configuration_head_v1 *head, *tmp;
-	wl_list_for_each_safe(head, tmp, &config->heads, link) {
-		config_head_destroy(head);
+	config_finalize(config);
+	if (config->resource != NULL) {
+		wl_resource_set_user_data(config->resource, NULL); // make inert
+	}
+	struct wlr_output_configuration_head_v1 *config_head, *tmp;
+	wl_list_for_each_safe(config_head, tmp, &config->heads, link) {
+		config_head_destroy(config_head);
 	}
 	free(config);
 }
 
 static void config_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_output_configuration_v1 *config = config_from_resource(resource);
-	wlr_output_configuration_v1_destroy(config);
+	if (config == NULL) {
+		return;
+	}
+	if (config->finalized) {
+		config->resource = NULL; // we no longer own the config
+	} else {
+		wlr_output_configuration_v1_destroy(config);
+	}
+}
+
+void wlr_output_configuration_v1_send_succeeded(
+		struct wlr_output_configuration_v1 *config) {
+	assert(!config->finished);
+	if (config->resource == NULL) {
+		return; // client destroyed the resource early
+	}
+	zwlr_output_configuration_v1_send_succeeded(config->resource);
+	config->finished = true;
+}
+
+void wlr_output_configuration_v1_send_failed(
+		struct wlr_output_configuration_v1 *config) {
+	assert(!config->finished);
+	if (config->resource == NULL) {
+		return; // client destroyed the resource early
+	}
+	zwlr_output_configuration_v1_send_failed(config->resource);
+	config->finished = true;
 }
 
 
 static void manager_handle_create_configuration(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id, uint32_t serial) {
-	struct wlr_output_configuration_v1 *config =
-		wlr_output_configuration_v1_create();
+	struct wlr_output_configuration_v1 *config = config_create(false);
+	if (config == NULL) {
+		wl_resource_post_no_memory(manager_resource);
+		return;
+	}
 	config->serial = serial;
 
 	uint32_t version = wl_resource_get_version(manager_resource);
-	struct wl_resource *resource = wl_resource_create(client,
+	config->resource = wl_resource_create(client,
 		&zwlr_output_configuration_v1_interface, version, id);
-	if (resource == NULL) {
+	if (config->resource == NULL) {
 		wl_client_post_no_memory(client);
 		return;
 	}
-	wl_resource_set_implementation(resource, &config_impl,
+	wl_resource_set_implementation(config->resource, &config_impl,
 		config, config_handle_resource_destroy);
 }
 
@@ -315,6 +422,8 @@ struct wlr_output_manager_v1 *wlr_output_manager_v1_create(
 	manager->display = display;
 
 	wl_signal_init(&manager->events.destroy);
+	wl_signal_init(&manager->events.apply);
+	wl_signal_init(&manager->events.test);
 
 	manager->global = wl_global_create(display,
 		&zwlr_output_manager_v1_interface, OUTPUT_MANAGER_VERSION,
