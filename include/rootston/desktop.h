@@ -7,6 +7,7 @@
 #include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 #include <wlr/types/wlr_gamma_control_v1.h>
 #include <wlr/types/wlr_gamma_control.h>
+#include <wlr/types/wlr_gtk_primary_selection.h>
 #include <wlr/types/wlr_idle_inhibit_v1.h>
 #include <wlr/types/wlr_idle.h>
 #include <wlr/types/wlr_input_inhibitor.h>
@@ -14,10 +15,10 @@
 #include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_output_management_v1.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_pointer_gestures_v1.h>
 #include <wlr/types/wlr_presentation_time.h>
-#include <wlr/types/wlr_gtk_primary_selection.h>
 #include <wlr/types/wlr_relative_pointer_v1.h>
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/types/wlr_screenshooter.h>
@@ -69,6 +70,7 @@ struct roots_desktop {
 	struct wlr_foreign_toplevel_manager_v1 *foreign_toplevel_manager_v1;
 	struct wlr_relative_pointer_manager_v1 *relative_pointer_manager;
 	struct wlr_pointer_gestures_v1 *pointer_gestures;
+	struct wlr_output_manager_v1 *output_manager_v1;
 
 	struct wl_listener new_output;
 	struct wl_listener layout_change;
@@ -81,6 +83,8 @@ struct roots_desktop {
 	struct wl_listener input_inhibit_deactivate;
 	struct wl_listener virtual_keyboard_new;
 	struct wl_listener pointer_constraint;
+	struct wl_listener output_manager_apply;
+	struct wl_listener output_manager_test;
 
 #if WLR_HAS_XWAYLAND
 	struct wlr_xwayland *xwayland;
