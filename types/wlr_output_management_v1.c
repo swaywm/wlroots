@@ -198,13 +198,14 @@ static void config_head_handle_set_transform(struct wl_client *client,
 }
 
 static void config_head_handle_set_scale(struct wl_client *client,
-		struct wl_resource *config_head_resource, int32_t scale) {
+		struct wl_resource *config_head_resource, wl_fixed_t scale_fixed) {
 	struct wlr_output_configuration_head_v1 *config_head =
 		config_head_from_resource(config_head_resource);
 	if (config_head == NULL) {
 		return;
 	}
 
+	double scale =  wl_fixed_to_double(scale_fixed);
 	if (scale <= 0) {
 		wl_resource_post_error(config_head_resource,
 			ZWLR_OUTPUT_CONFIGURATION_HEAD_V1_ERROR_INVALID_SCALE,
