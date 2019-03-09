@@ -132,12 +132,94 @@ static const struct zwlr_output_configuration_head_v1_interface config_head_impl
 static struct wlr_output_configuration_head_v1 *config_head_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource,
-		&zwlr_output_head_v1_interface, &config_head_impl));
+		&zwlr_output_configuration_head_v1_interface, &config_head_impl));
 	return wl_resource_get_user_data(resource);
 }
 
+static void config_head_handle_set_mode(struct wl_client *client,
+		struct wl_resource *config_head_resource,
+		struct wl_resource *mode_resource) {
+	struct wlr_output_configuration_head_v1 *config_head =
+		config_head_from_resource(config_head_resource);
+	if (config_head == NULL) {
+		return;
+	}
+
+	struct wlr_output_mode *mode = mode_from_resource(mode_resource);
+
+	bool found = false;
+	struct wlr_output_mode *m;
+	wl_list_for_each(m, &config_head->state.output->modes, link) {
+		if (mode == m) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		wl_resource_post_error(config_head_resource,
+			ZWLR_OUTPUT_CONFIGURATION_HEAD_V1_ERROR_INVALID_MODE,
+			"mode doesn't belong to head");
+		return;
+	}
+
+	config_head->state.mode = mode;
+}
+
+static void config_head_handle_set_position(struct wl_client *client,
+		struct wl_resource *config_head_resource, int32_t x, int32_t y) {
+	struct wlr_output_configuration_head_v1 *config_head =
+		config_head_from_resource(config_head_resource);
+	if (config_head == NULL) {
+		return;
+	}
+
+	config_head->state.x = x;
+	config_head->state.y = y;
+}
+
+static void config_head_handle_set_transform(struct wl_client *client,
+		struct wl_resource *config_head_resource, int32_t transform) {
+	struct wlr_output_configuration_head_v1 *config_head =
+		config_head_from_resource(config_head_resource);
+	if (config_head == NULL) {
+		return;
+	}
+
+	if (transform < WL_OUTPUT_TRANSFORM_NORMAL ||
+			transform > WL_OUTPUT_TRANSFORM_FLIPPED_270) {
+		wl_resource_post_error(config_head_resource,
+			ZWLR_OUTPUT_CONFIGURATION_HEAD_V1_ERROR_INVALID_TRANSFORM,
+			"invalid transform");
+		return;
+	}
+
+	config_head->state.transform = transform;
+}
+
+static void config_head_handle_set_scale(struct wl_client *client,
+		struct wl_resource *config_head_resource, int32_t scale) {
+	struct wlr_output_configuration_head_v1 *config_head =
+		config_head_from_resource(config_head_resource);
+	if (config_head == NULL) {
+		return;
+	}
+
+	if (scale <= 0) {
+		wl_resource_post_error(config_head_resource,
+			ZWLR_OUTPUT_CONFIGURATION_HEAD_V1_ERROR_INVALID_SCALE,
+			"invalid scale");
+		return;
+	}
+
+	config_head->state.scale = scale;
+}
+
 static const struct zwlr_output_configuration_head_v1_interface config_head_impl = {
-	0 // TODO
+	.set_mode = config_head_handle_set_mode,
+	.set_position = config_head_handle_set_position,
+	.set_transform = config_head_handle_set_transform,
+	.set_scale = config_head_handle_set_scale,
 };
 
 static void config_head_handle_resource_destroy(struct wl_resource *resource) {
@@ -252,9 +334,12 @@ static void config_finalize(struct wlr_output_configuration_v1 *config) {
 	// this point anyway
 	struct wlr_output_configuration_head_v1 *config_head, *tmp;
 	wl_list_for_each_safe(config_head, tmp, &config->heads, link) {
-		wl_resource_set_user_data(config_head->resource, NULL);
-		wl_resource_destroy(config_head->resource);
-		config_head->resource = NULL;
+		// Resource is NULL if head has been disabled
+		if (config_head->resource != NULL) {
+			wl_resource_set_user_data(config_head->resource, NULL);
+			wl_resource_destroy(config_head->resource);
+			config_head->resource = NULL;
+		}
 	}
 
 	config->finalized = true;
@@ -385,13 +470,26 @@ void wlr_output_configuration_v1_send_failed(
 }
 
 
+static const struct zwlr_output_manager_v1_interface manager_impl;
+
+static struct wlr_output_manager_v1 *manager_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource,
+		&zwlr_output_manager_v1_interface, &manager_impl));
+	return wl_resource_get_user_data(resource);
+}
+
 static void manager_handle_create_configuration(struct wl_client *client,
 		struct wl_resource *manager_resource, uint32_t id, uint32_t serial) {
+	struct wlr_output_manager_v1 *manager =
+		manager_from_resource(manager_resource);
+
 	struct wlr_output_configuration_v1 *config = config_create(false);
 	if (config == NULL) {
 		wl_resource_post_no_memory(manager_resource);
 		return;
 	}
+	config->manager = manager;
 	config->serial = serial;
 
 	uint32_t version = wl_resource_get_version(manager_resource);

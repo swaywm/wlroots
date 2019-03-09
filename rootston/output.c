@@ -430,12 +430,52 @@ static void update_output_manager_config(struct roots_desktop *desktop) {
 
 	struct roots_output *output;
 	wl_list_for_each(output, &desktop->outputs, link) {
-		struct wlr_output_configuration_head_v1 *head =
-			wlr_output_configuration_head_v1_create(config, output->wlr_output);
-		(void)head;
+		wlr_output_configuration_head_v1_create(config, output->wlr_output);
 	}
 
 	wlr_output_manager_v1_set_configuration(desktop->output_manager_v1, config);
+}
+
+void handle_output_manager_apply(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop =
+		wl_container_of(listener, desktop, output_manager_apply);
+	struct wlr_output_configuration_v1 *config = data;
+
+	bool ok = true;
+	struct wlr_output_configuration_head_v1 *config_head;
+	wl_list_for_each(config_head, &config->heads, link) {
+		struct wlr_output *wlr_output = config_head->state.output;
+		ok &= wlr_output_enable(wlr_output, config_head->state.enabled);
+		if (!config_head->state.enabled) {
+			continue;
+		}
+		if (config_head->state.mode != NULL) {
+			ok &= wlr_output_set_mode(wlr_output, config_head->state.mode);
+		}
+		wlr_output_layout_add(desktop->layout, wlr_output,
+			config_head->state.x, config_head->state.y);
+		wlr_output_set_transform(wlr_output, config_head->state.transform);
+		wlr_output_set_scale(wlr_output, config_head->state.scale);
+	}
+
+	if (ok) {
+		wlr_output_configuration_v1_send_succeeded(config);
+	} else {
+		wlr_output_configuration_v1_send_failed(config);
+	}
+	wlr_output_configuration_v1_destroy(config);
+
+	update_output_manager_config(desktop);
+}
+
+void handle_output_manager_test(struct wl_listener *listener, void *data) {
+	struct roots_desktop *desktop =
+		wl_container_of(listener, desktop, output_manager_test);
+	struct wlr_output_configuration_v1 *config = data;
+
+	// TODO: implement test-only mode
+	wlr_output_configuration_v1_send_succeeded(config);
+	wlr_output_configuration_v1_destroy(config);
 }
 
 static void output_destroy(struct roots_output *output) {
