@@ -61,6 +61,8 @@ void output_for_each_surface(struct roots_output *output,
 	roots_surface_iterator_func_t iterator, void *user_data);
 
 void handle_new_output(struct wl_listener *listener, void *data);
+void handle_output_manager_apply(struct wl_listener *listener, void *data);
+void handle_output_manager_test(struct wl_listener *listener, void *data);
 
 struct roots_view;
 struct roots_drag_icon;

@@ -56,11 +56,12 @@ struct wlr_output_head_v1 {
 struct wlr_output_configuration_v1 {
 	struct wl_list heads; // wlr_output_configuration_head_v1::link
 
+	// client state
 	struct wlr_output_manager_v1 *manager;
 	uint32_t serial;
 	bool finalized; // client has requested to apply the config
 	bool finished; // feedback has been sent by the compositor
-	struct wl_resource *resource; // can be NULL
+	struct wl_resource *resource; // can be NULL if destroyed early
 };
 
 struct wlr_output_configuration_head_v1 {
@@ -68,7 +69,8 @@ struct wlr_output_configuration_head_v1 {
 	struct wlr_output_configuration_v1 *config;
 	struct wl_list link; // wlr_output_configuration_v1::heads
 
-	struct wl_resource *resource; // can be NULL
+	// client state
+	struct wl_resource *resource; // can be NULL if finalized or disabled
 
 	struct wl_listener output_destroy;
 };
