@@ -26,7 +26,7 @@
   </copyright>
 
   <description summary="protocol to configure output devices">
-    This protocol exposes interfaces to get and change output device
+    This protocol exposes interfaces to obtain and modify output device
     configuration.
 
     Warning! The protocol described in this file is experimental and
@@ -46,15 +46,23 @@
 
       Output devices that display pixels (e.g. a physical monitor or a virtual
       output in a window) are represented as heads. Heads cannot be created nor
-      destroyed, but they can be enabled or disabled and their properties can be
-      changed. Each head may have one or more available modes.
+      destroyed by the client, but they can be enabled or disabled and their
+      properties can be changed. Each head may have one or more available modes.
 
-      Heads are advertised when the output manager is bound, and whenever they
-      appear.
+      Whenever a head appears (e.g. a monitor is plugged in), it will be
+      advertised via the head event. Immediately after the output manager is
+      bound, all current heads are advertised.
 
-      Whenever the number of heads or modes changes, the done event will be
-      sent. It carries a serial which can be used in a create_configuration
-      request to change heads properties.
+      Whenever a head's properties change, the relevant wlr_output_head events
+      will be sent. Not all head properties will be sent: only properties that
+      have changed need to.
+
+      Whenever a head disappears (e.g. a monitor is unplugged), a
+      wlr_output_head.finished event will be sent.
+
+      After one or more heads appear, change or disappear, the done event will
+      be sent. It carries a serial which can be used in a create_configuration
+      request to update heads properties.
 
       The information obtained from this protocol should only be used for output
       configuration purposes. This protocol is not designed to be a generic
@@ -64,7 +72,9 @@
 
     <event name="head">
       <description summary="introduce a new head">
-        This event introduces a new head.
+        This event introduces a new head. This happens whenever a new head
+        appears (e.g. a monitor is plugged in) or after the output manager is
+        bound.
       </description>
       <arg name="head" type="new_id" interface="zwlr_output_head_v1"/>
     </event>
@@ -75,7 +85,8 @@
         the output manager object and after any subsequent changes. This applies
         to child head and mode objects as well. In other words, this event is
         sent whenever a head or mode is created or destroyed and whenever one of
-        their properties has been changed.
+        their properties has been changed. Not all state is re-sent each time
+        the current configuration changes: only the actual changes are sent.
 
         This allows changes to the output configuration to be seen as atomic,
         even if they happen via multiple events.
@@ -116,27 +127,20 @@
 
   <interface name="zwlr_output_head_v1" version="1">
     <description summary="output device">
-      A head is an output device. The difference with wl_output is that heads
-      are advertized even if they are turned off. A head object only advertises
-      properties and cannot be used directly to change them. In order to update
-      some properties, one needs to create a wlr_output_configuration object.
+      A head is an output device. The difference between a wl_output object and
+      a head is that heads are advertised even if they are turned off. A head
+      object only advertises properties and cannot be used directly to change
+      them.
 
-      A head has some read-only properties: mode, name, description and
+      A head has some read-only properties: modes, name, description and
       physical_size. These cannot be changed by clients.
 
-      enabled and current_mode are physical properties. Updating them might take
-      some time, depending on hardware limitations.
+      Other properties can be updated via a wlr_output_configuration object.
 
-      position, transform and scale are logical properties. They describe how
-      the output is mapped in the global compositor space.
+      Properties sent via this interface are applied atomically via the
+      wlr_output_manager.done event. No guarantees are made regarding the order
+      in which properties are sent.
     </description>
-
-    <event name="mode">
-      <description summary="advertise a supported mode">
-        If the head supports modes, this event is sent once per supported mode.
-      </description>
-      <arg name="mode" type="new_id" interface="zwlr_output_mode_v1"/>
-    </event>
 
     <event name="name">
       <description summary="head name">
@@ -168,7 +172,9 @@
 
         The description is a UTF-8 string with no convention defined for its
         contents. Examples might include 'Foocorp 11" Display' or 'Virtual X11
-        output via :1'.
+        output via :1'. However, do not assume that the name is a reflection of
+        the make, model, serial of the underlying DRM connector or the display
+        name of the underlying X11 connection, etc.
 
         If the compositor implements xdg-output and this head is enabled,
         the xdg_output.description must report the same description.
@@ -190,6 +196,14 @@
       <arg name="height" type="int" summary="height in millimeters of the output"/>
     </event>
 
+    <event name="mode">
+      <description summary="introduce a mode">
+        This event introduces a mode for this head. It is sent once per
+        supported mode.
+      </description>
+      <arg name="mode" type="new_id" interface="zwlr_output_mode_v1"/>
+    </event>
+
     <event name="enabled">
       <description summary="head is enabled or disabled">
         This event describes whether the head is enabled. A disabled head is not
@@ -204,7 +218,7 @@
     <event name="current_mode">
       <description summary="current mode">
         This event describes the mode currently in use for this head. It is only
-        sent if the output is enabled and supports modes.
+        sent if the output is enabled.
       </description>
       <arg name="mode" type="object" interface="zwlr_output_mode_v1"/>
     </event>
@@ -251,6 +265,10 @@
 
       Some heads don't support output modes, in which case modes won't be
       advertised.
+
+      Properties sent via this interface are applied atomically via the
+      wlr_output_manager.done event. No guarantees are made regarding the order
+      in which properties are sent.
     </description>
 
     <event name="size">
@@ -266,7 +284,8 @@
 
     <event name="refresh">
       <description summary="mode refresh rate">
-        This event describes the mode's fixed vertical refresh rate, if any.
+        This event describes the mode's fixed vertical refresh rate. It is only
+        sent if the mode has a fixed refresh rate.
       </description>
       <arg name="refresh" type="int" summary="vertical refresh rate in mHz"/>
     </event>
@@ -322,7 +341,7 @@
 
     <request name="disable_head">
       <description summary="disable a head">
-        Disable a head. The head's properties are irrelevant in this case.
+        Disable a head.
       </description>
       <arg name="head" type="object" interface="zwlr_output_head_v1"
         summary="the head to be disabled"/>
@@ -363,6 +382,9 @@
         tested them.
 
         Upon receiving this event, the client should destroy this object.
+
+        If the current configuration has changed, events to describe the changes
+        will be sent followed by a wlr_output_manager.done event.
       </description>
     </event>
 
@@ -404,12 +426,16 @@
   <interface name="zwlr_output_configuration_head_v1" version="1">
     <description summary="head configuration">
       This object is used by the client to update a single head's configuration.
+
+      It is a protocol error to set the same property twice.
     </description>
 
     <enum name="error">
-      <entry name="invalid_mode" value="1" summary="mode doesn't belong to head"/>
-      <entry name="invalid_transform" value="2" summary="transform value outside enum"/>
-      <entry name="invalid_scale" value="3" summary="scale negative or zero"/>
+      <entry name="already_set" value="1" summary="property has already been set"/>
+      <entry name="invalid_mode" value="2" summary="mode doesn't belong to head"/>
+      <entry name="invalid_custom_mode" value="3" summary="mode is invalid"/>
+      <entry name="invalid_transform" value="4" summary="transform value outside enum"/>
+      <entry name="invalid_scale" value="5" summary="scale negative or zero"/>
     </enum>
 
     <request name="set_mode">
@@ -417,6 +443,19 @@
         This request sets the head's mode.
       </description>
       <arg name="mode" type="object" interface="zwlr_output_mode_v1"/>
+    </request>
+
+    <request name="set_custom_mode">
+      <description summary="set a custom mode">
+        This request assigns a custom mode to the head. The size is given in
+        physical hardware units of the output device. If set to zero, the
+        refresh rate is unspecified.
+
+        It is a protocol error to set both a mode and a custom mode.
+      </description>
+      <arg name="width" type="int" summary="width of the mode in hardware units"/>
+      <arg name="height" type="int" summary="height of the mode in hardware units"/>
+      <arg name="refresh" type="int" summary="vertical refresh rate in mHz or zero"/>
     </request>
 
     <request name="set_position">

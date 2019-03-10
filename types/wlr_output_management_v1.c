@@ -149,10 +149,11 @@ static void config_head_handle_set_mode(struct wl_client *client,
 	}
 
 	struct wlr_output_mode *mode = mode_from_resource(mode_resource);
+	struct wlr_output *output = config_head->state.output;
 
-	bool found = false;
+	bool found = (mode == NULL && wl_list_empty(&output->modes));
 	struct wlr_output_mode *m;
-	wl_list_for_each(m, &config_head->state.output->modes, link) {
+	wl_list_for_each(m, &output->modes, link) {
 		if (mode == m) {
 			found = true;
 			break;
@@ -167,6 +168,33 @@ static void config_head_handle_set_mode(struct wl_client *client,
 	}
 
 	config_head->state.mode = mode;
+	if (mode != NULL) {
+		config_head->state.custom_mode.width = 0;
+		config_head->state.custom_mode.height = 0;
+		config_head->state.custom_mode.refresh = 0;
+	}
+}
+
+static void config_head_handle_set_custom_mode(struct wl_client *client,
+		struct wl_resource *config_head_resource, int32_t width, int32_t height,
+		int32_t refresh) {
+	struct wlr_output_configuration_head_v1 *config_head =
+		config_head_from_resource(config_head_resource);
+	if (config_head == NULL) {
+		return;
+	}
+
+	if (width <= 0 || height <= 0 || refresh < 0) {
+		wl_resource_post_error(config_head_resource,
+			ZWLR_OUTPUT_CONFIGURATION_HEAD_V1_ERROR_INVALID_CUSTOM_MODE,
+			"invalid custom mode");
+		return;
+	}
+
+	config_head->state.mode = NULL;
+	config_head->state.custom_mode.width = width;
+	config_head->state.custom_mode.height = height;
+	config_head->state.custom_mode.refresh = refresh;
 }
 
 static void config_head_handle_set_position(struct wl_client *client,
@@ -221,6 +249,7 @@ static void config_head_handle_set_scale(struct wl_client *client,
 
 static const struct zwlr_output_configuration_head_v1_interface config_head_impl = {
 	.set_mode = config_head_handle_set_mode,
+	.set_custom_mode = config_head_handle_set_custom_mode,
 	.set_position = config_head_handle_set_position,
 	.set_transform = config_head_handle_set_transform,
 	.set_scale = config_head_handle_set_scale,
