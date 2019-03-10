@@ -451,6 +451,11 @@ void handle_output_manager_apply(struct wl_listener *listener, void *data) {
 		}
 		if (config_head->state.mode != NULL) {
 			ok &= wlr_output_set_mode(wlr_output, config_head->state.mode);
+		} else {
+			ok &= wlr_output_set_custom_mode(wlr_output,
+				config_head->state.custom_mode.width,
+				config_head->state.custom_mode.height,
+				config_head->state.custom_mode.refresh);
 		}
 		wlr_output_layout_add(desktop->layout, wlr_output,
 			config_head->state.x, config_head->state.y);
