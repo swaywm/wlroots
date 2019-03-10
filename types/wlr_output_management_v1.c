@@ -119,6 +119,9 @@ struct wlr_output_configuration_head_v1 *
 		config_head_create(config, output);
 	config_head->state.enabled = output->enabled;
 	config_head->state.mode = output->current_mode;
+	config_head->state.custom_mode.width = output->width;
+	config_head->state.custom_mode.height = output->height;
+	config_head->state.custom_mode.refresh = output->refresh;
 	config_head->state.x = output->lx;
 	config_head->state.y = output->ly;
 	config_head->state.transform = output->transform;
@@ -598,6 +601,41 @@ static struct wlr_output_configuration_head_v1 *configuration_get_head(
 	return NULL;
 }
 
+static void send_mode_state(struct wl_resource *mode_resource,
+		struct wlr_output_mode *mode) {
+	zwlr_output_mode_v1_send_size(mode_resource, mode->width, mode->height);
+	if (mode->refresh > 0) {
+		zwlr_output_mode_v1_send_refresh(mode_resource, mode->refresh);
+	}
+}
+
+static void mode_handle_resource_destroy(struct wl_resource *resource) {
+	wl_list_remove(wl_resource_get_link(resource));
+}
+
+static struct wl_resource *head_send_mode(struct wlr_output_head_v1 *head,
+		struct wl_resource *head_resource, struct wlr_output_mode *mode) {
+	struct wl_client *client = wl_resource_get_client(head_resource);
+	uint32_t version = wl_resource_get_version(head_resource);
+	struct wl_resource *mode_resource =
+		wl_resource_create(client, &zwlr_output_mode_v1_interface, version, 0);
+	if (mode_resource == NULL) {
+		wl_resource_post_no_memory(head_resource);
+		return NULL;
+	}
+	wl_resource_set_implementation(mode_resource, NULL, mode,
+		mode_handle_resource_destroy);
+	wl_list_insert(&head->mode_resources, wl_resource_get_link(mode_resource));
+
+	zwlr_output_head_v1_send_mode(head_resource, mode_resource);
+
+	if (mode != NULL) {
+		send_mode_state(mode_resource, mode);
+	}
+
+	return mode_resource;
+}
+
 static void head_send_state(struct wlr_output_head_v1 *head,
 		struct wl_resource *head_resource, uint32_t state) {
 	struct wl_client *client = wl_resource_get_client(head_resource);
@@ -610,7 +648,7 @@ static void head_send_state(struct wlr_output_head_v1 *head,
 		return;
 	}
 
-	if ((state & HEAD_STATE_MODE) && head->state.mode != NULL) {
+	if (state & HEAD_STATE_MODE) {
 		bool found = false;
 		struct wl_resource *mode_resource;
 		wl_resource_for_each(mode_resource, &head->mode_resources) {
@@ -619,6 +657,15 @@ static void head_send_state(struct wlr_output_head_v1 *head,
 				found = true;
 				break;
 			}
+		}
+
+		if (head->state.mode == NULL) {
+			struct wlr_output_mode virtual_mode = {
+				.width = head->state.custom_mode.width,
+				.height = head->state.custom_mode.height,
+				.refresh = head->state.custom_mode.refresh,
+			};
+			send_mode_state(mode_resource, &virtual_mode);
 		}
 
 		assert(found);
@@ -642,10 +689,6 @@ static void head_send_state(struct wlr_output_head_v1 *head,
 }
 
 static void head_handle_resource_destroy(struct wl_resource *resource) {
-	wl_list_remove(wl_resource_get_link(resource));
-}
-
-static void mode_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
@@ -681,23 +724,12 @@ static void manager_send_head(struct wlr_output_manager_v1 *manager,
 
 	struct wlr_output_mode *mode;
 	wl_list_for_each(mode, &output->modes, link) {
-		struct wl_resource *mode_resource = wl_resource_create(client,
-			&zwlr_output_mode_v1_interface, version, 0);
-		if (mode_resource == NULL) {
-			wl_resource_post_no_memory(manager_resource);
-			return;
-		}
-		wl_resource_set_implementation(mode_resource, NULL, mode,
-			mode_handle_resource_destroy);
-		wl_list_insert(&head->mode_resources,
-			wl_resource_get_link(mode_resource));
+		head_send_mode(head, head_resource, mode);
+	}
 
-		zwlr_output_head_v1_send_mode(head_resource, mode_resource);
-
-		zwlr_output_mode_v1_send_size(mode_resource, mode->width, mode->height);
-		if (mode->refresh > 0) {
-			zwlr_output_mode_v1_send_refresh(mode_resource, mode->refresh);
-		}
+	if (wl_list_empty(&output->modes)) {
+		// Output doesn't support modes. Send a virtual one.
+		head_send_mode(head, head_resource, NULL);
 	}
 
 	head_send_state(head, head_resource, HEAD_STATE_ALL);
@@ -713,6 +745,11 @@ static bool manager_update_head(struct wlr_output_manager_v1 *manager,
 		state |= HEAD_STATE_ENABLED;
 	}
 	if (current->mode != next->mode) {
+		state |= HEAD_STATE_MODE;
+	}
+	if (current->custom_mode.width != next->custom_mode.width ||
+			current->custom_mode.height != next->custom_mode.height ||
+			current->custom_mode.refresh != next->custom_mode.refresh) {
 		state |= HEAD_STATE_MODE;
 	}
 	if (current->x != next->x || current->y != next->y) {
