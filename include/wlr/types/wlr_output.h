@@ -111,9 +111,6 @@ struct wlr_output {
 	struct wlr_output_cursor *hardware_cursor;
 	int software_cursor_locks; // number of locks forcing software cursors
 
-	// the output position in layout space reported to clients
-	int32_t lx, ly;
-
 	struct wl_listener display_destroy;
 
 	void *data;
@@ -173,7 +170,6 @@ bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 	int32_t height, int32_t refresh);
 void wlr_output_set_transform(struct wlr_output *output,
 	enum wl_output_transform transform);
-void wlr_output_set_position(struct wlr_output *output, int32_t lx, int32_t ly);
 void wlr_output_set_scale(struct wlr_output *output, float scale);
 void wlr_output_set_subpixel(struct wlr_output *output, enum wl_output_subpixel subpixel);
 void wlr_output_destroy(struct wlr_output *output);
