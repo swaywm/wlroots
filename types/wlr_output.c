@@ -23,7 +23,7 @@ static void output_send_to_resource(struct wl_resource *resource) {
 	struct wlr_output *output = wlr_output_from_resource(resource);
 	const uint32_t version = wl_resource_get_version(resource);
 	if (version >= WL_OUTPUT_GEOMETRY_SINCE_VERSION) {
-		wl_output_send_geometry(resource, output->lx, output->ly,
+		wl_output_send_geometry(resource, 0, 0,
 			output->phys_width, output->phys_height, output->subpixel,
 			output->make, output->model, output->transform);
 	}
@@ -221,22 +221,6 @@ void wlr_output_set_transform(struct wlr_output *output,
 	}
 
 	wlr_signal_emit_safe(&output->events.transform, output);
-}
-
-void wlr_output_set_position(struct wlr_output *output, int32_t lx,
-		int32_t ly) {
-	if (lx == output->lx && ly == output->ly) {
-		return;
-	}
-
-	output->lx = lx;
-	output->ly = ly;
-
-	// TODO: only send geometry and done
-	struct wl_resource *resource;
-	wl_resource_for_each(resource, &output->resources) {
-		output_send_to_resource(resource);
-	}
 }
 
 void wlr_output_set_scale(struct wlr_output *output, float scale) {

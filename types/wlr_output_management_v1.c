@@ -122,8 +122,6 @@ struct wlr_output_configuration_head_v1 *
 	config_head->state.custom_mode.width = output->width;
 	config_head->state.custom_mode.height = output->height;
 	config_head->state.custom_mode.refresh = output->refresh;
-	config_head->state.x = output->lx;
-	config_head->state.y = output->ly;
 	config_head->state.transform = output->transform;
 	config_head->state.scale = output->scale;
 	return config_head;
