@@ -5,7 +5,9 @@
 #include <wlr/types/wlr_pointer.h>
 
 void wlr_pointer_init(struct wlr_pointer *pointer,
-		const struct wlr_pointer_impl *impl) {
+		const struct wlr_pointer_impl *impl,
+		bool is_touchpad) {
+	pointer->is_touchpad = is_touchpad;
 	pointer->impl = impl;
 	wl_signal_init(&pointer->events.motion);
 	wl_signal_init(&pointer->events.motion_absolute);

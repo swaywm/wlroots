@@ -16,7 +16,8 @@ struct wlr_pointer *create_libinput_pointer(
 		wlr_log(WLR_ERROR, "Unable to allocate wlr_pointer");
 		return NULL;
 	}
-	wlr_pointer_init(wlr_pointer, NULL);
+	wlr_pointer_init(wlr_pointer, NULL,
+		libinput_device_config_tap_get_finger_count(libinput_dev) > 0);
 	return wlr_pointer;
 }
 

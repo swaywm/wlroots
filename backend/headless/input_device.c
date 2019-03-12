@@ -51,7 +51,7 @@ struct wlr_input_device *wlr_headless_add_input_device(
 			wlr_log(WLR_ERROR, "Unable to allocate wlr_pointer");
 			goto error;
 		}
-		wlr_pointer_init(wlr_device->pointer, NULL);
+		wlr_pointer_init(wlr_device->pointer, NULL, false);
 		break;
 	case WLR_INPUT_DEVICE_TOUCH:
 		wlr_device->touch = calloc(1, sizeof(struct wlr_touch));

@@ -200,7 +200,7 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 	wlr_input_device_init(&output->pointer_dev, WLR_INPUT_DEVICE_POINTER,
 		&input_device_impl, "X11 pointer", 0, 0);
-	wlr_pointer_init(&output->pointer, &pointer_impl);
+	wlr_pointer_init(&output->pointer, &pointer_impl, false);
 	output->pointer_dev.pointer = &output->pointer;
 	output->pointer_dev.output_name = strdup(wlr_output->name);
 

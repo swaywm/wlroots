@@ -383,7 +383,7 @@ void create_wl_pointer(struct wl_pointer *wl_pointer, struct wlr_wl_output *outp
 	wlr_dev = &dev->wlr_input_device;
 	wlr_dev->pointer = &pointer->wlr_pointer;
 	wlr_dev->output_name = strdup(output->wlr_output.name);
-	wlr_pointer_init(wlr_dev->pointer, &pointer_impl);
+	wlr_pointer_init(wlr_dev->pointer, &pointer_impl, false);
 
 	wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_dev);
 }

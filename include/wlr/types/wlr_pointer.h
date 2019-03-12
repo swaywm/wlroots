@@ -18,6 +18,8 @@ struct wlr_pointer_impl;
 struct wlr_pointer {
 	const struct wlr_pointer_impl *impl;
 
+	bool is_touchpad;
+
 	struct {
 		struct wl_signal motion;
 		struct wl_signal motion_absolute;
