@@ -31,7 +31,6 @@ add_project_arguments(cc.get_supported_arguments([
 	'-Wpointer-arith',
 	'-Winit-self',
 	'-Wstrict-prototypes',
-	'-Wredundant-decls',
 	'-Wimplicit-fallthrough=2',
 	'-Wendif-labels',
 	'-Wstrict-aliasing=2',
