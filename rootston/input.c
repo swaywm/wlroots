@@ -17,12 +17,15 @@
 #include "rootston/seat.h"
 #include "rootston/server.h"
 
-static const char *device_type(enum wlr_input_device_type type) {
-	switch (type) {
+static const char *device_type(struct wlr_input_device *device) {
+	switch (device->type) {
 	case WLR_INPUT_DEVICE_KEYBOARD:
 		return "keyboard";
 	case WLR_INPUT_DEVICE_POINTER:
-		return "pointer";
+		if (device->pointer->is_touchpad) {
+			return "touchpad";
+		}
+		return "mouse";
 	case WLR_INPUT_DEVICE_SWITCH:
 		return "switch";
 	case WLR_INPUT_DEVICE_TOUCH:
@@ -65,7 +68,7 @@ static void handle_new_input(struct wl_listener *listener, void *data) {
 	}
 
 	wlr_log(WLR_DEBUG, "New input device: %s (%d:%d) %s seat:%s", device->name,
-			device->vendor, device->product, device_type(device->type), seat_name);
+			device->vendor, device->product, device_type(device), seat_name);
 
 	roots_seat_add_device(seat, device);
 
