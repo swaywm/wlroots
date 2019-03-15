@@ -8,6 +8,7 @@ struct wlr_noop_backend {
 	struct wlr_backend backend;
 	struct wl_display *display;
 	struct wl_list outputs;
+	size_t last_output_num;
 	bool started;
 };
 
