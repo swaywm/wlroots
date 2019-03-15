@@ -47,6 +47,7 @@ struct wlr_x11_backend {
 	xcb_screen_t *screen;
 
 	size_t requested_outputs;
+	size_t last_output_num;
 	struct wl_list outputs; // wlr_x11_output::link
 
 	struct wlr_keyboard keyboard;
