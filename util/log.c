@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 199506L
+#define _XOPEN_SOURCE 700 // for snprintf
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <wayland-server.h>
 #include <wlr/util/log.h>
 
 static bool colored = true;
@@ -49,6 +50,15 @@ static void log_stderr(enum wlr_log_importance verbosity, const char *fmt,
 
 static wlr_log_func_t log_callback = log_stderr;
 
+static void log_wl(const char *fmt, va_list args) {
+	static char wlr_fmt[1024];
+	int n = snprintf(wlr_fmt, sizeof(wlr_fmt), "[wayland] %s", fmt);
+	if (n > 0 && wlr_fmt[n - 1] == '\n') {
+		wlr_fmt[n - 1] = '\0';
+	}
+	_wlr_vlog(WLR_INFO, wlr_fmt, args);
+}
+
 void wlr_log_init(enum wlr_log_importance verbosity, wlr_log_func_t callback) {
 	if (verbosity < WLR_LOG_IMPORTANCE_LAST) {
 		log_importance = verbosity;
@@ -56,6 +66,8 @@ void wlr_log_init(enum wlr_log_importance verbosity, wlr_log_func_t callback) {
 	if (callback) {
 		log_callback = callback;
 	}
+
+	wl_log_set_handler_server(log_wl);
 }
 
 void _wlr_vlog(enum wlr_log_importance verbosity, const char *fmt, va_list args) {
