@@ -29,7 +29,7 @@ void handle_switch_toggle(struct libinput_event *event,
 		wlr_log(WLR_DEBUG, "Got a switch event for a device with no switch?");
 		return;
 	}
-	struct libinput_event_switch *sevent = 
+	struct libinput_event_switch *sevent =
 		libinput_event_get_switch_event	(event);
 	struct wlr_event_switch_toggle wlr_event = { 0 };
 	wlr_event.device = wlr_dev;
@@ -51,5 +51,5 @@ void handle_switch_toggle(struct libinput_event *event,
 	}
 	wlr_event.time_msec =
 		usec_to_msec(libinput_event_switch_get_time_usec(sevent));
-	wlr_signal_emit_safe(&wlr_dev->lid_switch->events.toggle, &wlr_event);
+	wlr_signal_emit_safe(&wlr_dev->switch_device->events.toggle, &wlr_event);
 }

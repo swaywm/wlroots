@@ -42,7 +42,7 @@ void wlr_input_device_destroy(struct wlr_input_device *dev) {
 			wlr_pointer_destroy(dev->pointer);
 			break;
 		case WLR_INPUT_DEVICE_SWITCH:
-			wlr_switch_destroy(dev->lid_switch);
+			wlr_switch_destroy(dev->switch_device);
 			break;
 		case WLR_INPUT_DEVICE_TOUCH:
 			wlr_touch_destroy(dev->touch);

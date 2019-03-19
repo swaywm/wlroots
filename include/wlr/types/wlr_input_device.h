@@ -48,7 +48,7 @@ struct wlr_input_device {
 		void *_device;
 		struct wlr_keyboard *keyboard;
 		struct wlr_pointer *pointer;
-		struct wlr_switch *lid_switch;
+		struct wlr_switch *switch_device;
 		struct wlr_touch *touch;
 		struct wlr_tablet *tablet;
 		struct wlr_tablet_pad *tablet_pad;

@@ -78,12 +78,12 @@ struct wlr_input_device *wlr_headless_add_input_device(
 		wlr_tablet_pad_init(wlr_device->tablet_pad, NULL);
 		break;
 	case WLR_INPUT_DEVICE_SWITCH:
-		wlr_device->lid_switch = calloc(1, sizeof(struct wlr_switch));
-		if (wlr_device->lid_switch == NULL) {
+		wlr_device->switch_device = calloc(1, sizeof(struct wlr_switch));
+		if (wlr_device->switch_device == NULL) {
 			wlr_log(WLR_ERROR, "Unable to allocate wlr_switch");
 			goto error;
 		}
-		wlr_switch_init(wlr_device->lid_switch, NULL);
+		wlr_switch_init(wlr_device->switch_device, NULL);
 	}
 
 	wl_list_insert(&backend->input_devices, &wlr_device->link);

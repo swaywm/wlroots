@@ -12,7 +12,7 @@ struct roots_switch {
 	struct wl_list link;
 };
 
-void roots_switch_handle_toggle(struct roots_switch *lid_switch,
+void roots_switch_handle_toggle(struct roots_switch *switch_device,
 		struct wlr_event_switch_toggle *event);
 
 #endif

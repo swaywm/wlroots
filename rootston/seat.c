@@ -147,12 +147,12 @@ static void handle_pinch_end(struct wl_listener *listener, void *data) {
 }
 
 static void handle_switch_toggle(struct wl_listener *listener, void *data) {
-	struct roots_switch *lid_switch =
-		wl_container_of(listener, lid_switch, toggle);
-	struct roots_desktop *desktop = lid_switch->seat->input->server->desktop;
-	wlr_idle_notify_activity(desktop->idle, lid_switch->seat->seat);
+	struct roots_switch *switch_device =
+		wl_container_of(listener, switch_device, toggle);
+	struct roots_desktop *desktop = switch_device->seat->input->server->desktop;
+	wlr_idle_notify_activity(desktop->idle, switch_device->seat->seat);
 	struct wlr_event_switch_toggle *event = data;
-	roots_switch_handle_toggle(lid_switch, event);
+	roots_switch_handle_toggle(switch_device, event);
 }
 
 static void handle_touch_down(struct wl_listener *listener, void *data) {
@@ -877,13 +877,13 @@ static void seat_add_pointer(struct roots_seat *seat,
 }
 
 static void handle_switch_destroy(struct wl_listener *listener, void *data) {
-	struct roots_switch *lid_switch =
-		wl_container_of(listener, lid_switch, device_destroy);
-	struct roots_seat *seat = lid_switch->seat;
+	struct roots_switch *switch_device =
+		wl_container_of(listener, switch_device, device_destroy);
+	struct roots_seat *seat = switch_device->seat;
 
-	wl_list_remove(&lid_switch->link);
-	wl_list_remove(&lid_switch->device_destroy.link);
-	free(lid_switch);
+	wl_list_remove(&switch_device->link);
+	wl_list_remove(&switch_device->device_destroy.link);
+	free(switch_device);
 
 	seat_update_capabilities(seat);
 }
@@ -891,19 +891,19 @@ static void handle_switch_destroy(struct wl_listener *listener, void *data) {
 static void seat_add_switch(struct roots_seat *seat,
 		struct wlr_input_device *device) {
 	assert(device->type == WLR_INPUT_DEVICE_SWITCH);
-		struct roots_switch *lid_switch = calloc(1, sizeof(struct roots_switch));
-	if (!lid_switch) {
+	struct roots_switch *switch_device = calloc(1, sizeof(struct roots_switch));
+	if (!switch_device) {
 		wlr_log(WLR_ERROR, "could not allocate switch for seat");
 		return;
 	}
-	device->data = lid_switch;
-	lid_switch->device = device;
-	lid_switch->seat = seat;
-	wl_list_insert(&seat->switches, &lid_switch->link);
-	lid_switch->device_destroy.notify = handle_switch_destroy;
+	device->data = switch_device;
+	switch_device->device = device;
+	switch_device->seat = seat;
+	wl_list_insert(&seat->switches, &switch_device->link);
+	switch_device->device_destroy.notify = handle_switch_destroy;
 
-	lid_switch->toggle.notify = handle_switch_toggle;
-	wl_signal_add(&lid_switch->device->lid_switch->events.toggle, &lid_switch->toggle);
+	switch_device->toggle.notify = handle_switch_toggle;
+	wl_signal_add(&switch_device->device->switch_device->events.toggle, &switch_device->toggle);
 }
 
 static void handle_touch_destroy(struct wl_listener *listener, void *data) {

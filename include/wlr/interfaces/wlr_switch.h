@@ -12,11 +12,11 @@
 #include <wlr/types/wlr_switch.h>
 
 struct wlr_switch_impl {
-	void (*destroy)(struct wlr_switch *lid_switch);
+	void (*destroy)(struct wlr_switch *switch_device);
 };
 
-void wlr_switch_init(struct wlr_switch *lid_switch,
+void wlr_switch_init(struct wlr_switch *switch_device,
 		struct wlr_switch_impl *impl);
-void wlr_switch_destroy(struct wlr_switch *lid_switch);
+void wlr_switch_destroy(struct wlr_switch *switch_device);
 
 #endif
