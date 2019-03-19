@@ -2,10 +2,10 @@
 #include <wlr/util/log.h>
 #include "rootston/bindings.h"
 
-void roots_switch_handle_toggle(struct roots_switch *lid_switch,
+void roots_switch_handle_toggle(struct roots_switch *switch_device,
 		struct wlr_event_switch_toggle *event) {
 	struct wl_list *bound_switches =
-		&lid_switch->seat->input->server->config->switches;
+		&switch_device->seat->input->server->config->switches;
 	struct roots_switch_config *sc;
 	wl_list_for_each(sc, bound_switches, link) {
 		if ((sc->name != NULL && strcmp(event->device->name, sc->name) != 0) &&
@@ -16,7 +16,7 @@ void roots_switch_handle_toggle(struct roots_switch *lid_switch,
 				event->switch_state != sc->switch_state) {
 			continue;
 		}
-		execute_binding_command(lid_switch->seat,
-			lid_switch->seat->input, sc->command);
+		execute_binding_command(switch_device->seat,
+			switch_device->seat->input, sc->command);
 	}
 }

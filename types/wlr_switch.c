@@ -4,19 +4,19 @@
 #include <wlr/interfaces/wlr_switch.h>
 #include <wlr/types/wlr_switch.h>
 
-void wlr_switch_init(struct wlr_switch *lid_switch,
+void wlr_switch_init(struct wlr_switch *switch_device,
 		struct wlr_switch_impl *impl) {
-	lid_switch->impl = impl;
-	wl_signal_init(&lid_switch->events.toggle);
+	switch_device->impl = impl;
+	wl_signal_init(&switch_device->events.toggle);
 }
 
-void wlr_switch_destroy(struct wlr_switch *lid_switch) {
-	if (!lid_switch) {
+void wlr_switch_destroy(struct wlr_switch *switch_device) {
+	if (!switch_device) {
 		return;
 	}
-	if (lid_switch->impl && lid_switch->impl->destroy) {
-		lid_switch->impl->destroy(lid_switch);
+	if (switch_device->impl && switch_device->impl->destroy) {
+		switch_device->impl->destroy(switch_device);
 	} else {
-		free(lid_switch);
+		free(switch_device);
 	}
 }

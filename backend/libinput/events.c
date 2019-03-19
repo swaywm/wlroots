@@ -174,8 +174,8 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 		if (!wlr_dev) {
 			goto fail;
 		}
-		wlr_dev->lid_switch = create_libinput_switch(libinput_dev);
-		if (!wlr_dev->lid_switch) {
+		wlr_dev->switch_device = create_libinput_switch(libinput_dev);
+		if (!wlr_dev->switch_device) {
 			free(wlr_dev);
 			goto fail;
 		}
