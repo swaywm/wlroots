@@ -73,6 +73,7 @@ lib_wlr_types = static_library(
 	include_directories: wlr_inc,
 	dependencies: [
 		drm.partial_dependency(compile_args: true), # <drm_fourcc.h>
+		libinput.partial_dependency(compile_args: true),
 		pixman,
 		wayland_server,
 		wlr_protos,
