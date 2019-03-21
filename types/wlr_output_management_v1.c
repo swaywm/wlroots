@@ -636,6 +636,9 @@ static void send_mode_state(struct wl_resource *mode_resource,
 	if (mode->refresh > 0) {
 		zwlr_output_mode_v1_send_refresh(mode_resource, mode->refresh);
 	}
+	if (mode->preferred) {
+		zwlr_output_mode_v1_send_preferred(mode_resource);
+	}
 }
 
 static void mode_handle_resource_destroy(struct wl_resource *resource) {
