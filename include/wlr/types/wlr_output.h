@@ -20,6 +20,7 @@ struct wlr_output_mode {
 	uint32_t flags; // enum wl_output_mode
 	int32_t width, height;
 	int32_t refresh; // mHz
+	bool preferred;
 	struct wl_list link;
 };
 
@@ -71,7 +72,7 @@ struct wlr_output {
 	int32_t phys_width, phys_height; // mm
 
 	// Note: some backends may have zero modes
-	struct wl_list modes;
+	struct wl_list modes; // wlr_output_mode::link
 	struct wlr_output_mode *current_mode;
 	int32_t width, height;
 	int32_t refresh; // mHz, may be zero

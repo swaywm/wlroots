@@ -1207,6 +1207,9 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				mode->wlr_mode.width = mode->drm_mode.hdisplay;
 				mode->wlr_mode.height = mode->drm_mode.vdisplay;
 				mode->wlr_mode.refresh = calculate_refresh_rate(&mode->drm_mode);
+				if (mode->drm_mode.type & DRM_MODE_TYPE_PREFERRED) {
+					mode->wlr_mode.preferred = true;
+				}
 
 				wlr_log(WLR_INFO, "  %"PRId32"x%"PRId32"@%"PRId32,
 					mode->wlr_mode.width, mode->wlr_mode.height,
