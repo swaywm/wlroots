@@ -164,6 +164,23 @@ void output_layer_for_each_surface(struct roots_output *output,
 		output_surface_for_each_surface(output, wlr_layer_surface_v1->surface,
 			layer_surface->geo.x, layer_surface->geo.y, iterator,
 			user_data);
+
+		struct wlr_xdg_popup *state;
+		wl_list_for_each(state, &wlr_layer_surface_v1->popups, link) {
+			struct wlr_xdg_surface *popup = state->base;
+			if (!popup->configured) {
+				continue;
+			}
+
+			double popup_sx, popup_sy;
+			popup_sx = layer_surface->geo.x;
+			popup_sx += popup->popup->geometry.x - popup->geometry.x;
+			popup_sy = layer_surface->geo.y;
+			popup_sy += popup->popup->geometry.y - popup->geometry.y;
+
+			output_surface_for_each_surface(output, popup->surface,
+				popup_sx, popup_sy, iterator, user_data);
+		}
 	}
 }
 
