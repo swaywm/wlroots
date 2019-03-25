@@ -105,6 +105,12 @@ struct wlr_xdg_toplevel_state {
 	uint32_t width, height;
 	uint32_t max_width, max_height;
 	uint32_t min_width, min_height;
+
+	// Since the fullscreen request may be made before the toplevel's surface
+	// is mapped, this is used to store the requested fullscreen output (if
+	// any) for wlr_xdg_toplevel::client_pending.
+	struct wlr_output *fullscreen_output;
+	struct wl_listener fullscreen_output_destroy;
 };
 
 struct wlr_xdg_toplevel {

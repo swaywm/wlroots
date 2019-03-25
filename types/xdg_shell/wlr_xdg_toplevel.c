@@ -375,6 +375,30 @@ static void xdg_toplevel_handle_unset_maximized(struct wl_client *client,
 	wlr_signal_emit_safe(&surface->toplevel->events.request_maximize, surface);
 }
 
+static void handle_fullscreen_output_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xdg_toplevel_state *state =
+		wl_container_of(listener, state, fullscreen_output_destroy);
+	state->fullscreen_output = NULL;
+	wl_list_remove(&state->fullscreen_output_destroy.link);
+}
+
+static void store_fullscreen_pending(struct wlr_xdg_surface *surface,
+		bool fullscreen, struct wlr_output *output) {
+	struct wlr_xdg_toplevel_state *state = &surface->toplevel->client_pending;
+	state->fullscreen = fullscreen;
+	if (state->fullscreen_output) {
+		wl_list_remove(&state->fullscreen_output_destroy.link);
+	}
+	state->fullscreen_output = output;
+	if (state->fullscreen_output) {
+		state->fullscreen_output_destroy.notify =
+			handle_fullscreen_output_destroy;
+		wl_signal_add(&state->fullscreen_output->events.destroy,
+				&state->fullscreen_output_destroy);
+	}
+}
+
 static void xdg_toplevel_handle_set_fullscreen(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *output_resource) {
 	struct wlr_xdg_surface *surface =
@@ -385,7 +409,7 @@ static void xdg_toplevel_handle_set_fullscreen(struct wl_client *client,
 		output = wlr_output_from_resource(output_resource);
 	}
 
-	surface->toplevel->client_pending.fullscreen = true;
+	store_fullscreen_pending(surface, true, output);
 
 	struct wlr_xdg_toplevel_set_fullscreen_event event = {
 		.surface = surface,
@@ -401,7 +425,7 @@ static void xdg_toplevel_handle_unset_fullscreen(struct wl_client *client,
 	struct wlr_xdg_surface *surface =
 		wlr_xdg_surface_from_toplevel_resource(resource);
 
-	surface->toplevel->client_pending.fullscreen = false;
+	store_fullscreen_pending(surface, false, NULL);
 
 	struct wlr_xdg_toplevel_set_fullscreen_event event = {
 		.surface = surface,
