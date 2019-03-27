@@ -3,7 +3,6 @@
 #endif
 
 #include <assert.h>
-#include <libinput.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server.h>
