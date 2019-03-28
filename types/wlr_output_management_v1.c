@@ -148,6 +148,8 @@ static void config_head_handle_set_mode(struct wl_client *client,
 		return;
 	}
 
+	// Mode can be NULL if the output doesn't support modes (in which case we
+	// expose only one "virtual" mode, the current mode)
 	struct wlr_output_mode *mode = mode_from_resource(mode_resource);
 	struct wlr_output *output = config_head->state.output;
 
@@ -272,6 +274,8 @@ static struct wlr_output_configuration_v1 *config_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
+// Checks that the head is unconfigured (ie. no enable_head/disable_head request
+// has yet been sent for this head), if not sends a protocol error.
 static bool config_check_head_is_unconfigured(
 		struct wlr_output_configuration_v1 *config, struct wlr_output *output) {
 	struct wlr_output_configuration_head_v1 *head;
@@ -358,6 +362,8 @@ static void config_handle_disable_head(struct wl_client *client,
 	config_head->state.enabled = false;
 }
 
+// Finalizes a configuration. This prevents the same config from being used
+// multiple times.
 static void config_finalize(struct wlr_output_configuration_v1 *config) {
 	if (config->finalized) {
 		return;
@@ -668,6 +674,7 @@ static struct wl_resource *head_send_mode(struct wlr_output_head_v1 *head,
 	return mode_resource;
 }
 
+// Sends new head state to a client.
 static void head_send_state(struct wlr_output_head_v1 *head,
 		struct wl_resource *head_resource, uint32_t state) {
 	struct wl_client *client = wl_resource_get_client(head_resource);
@@ -690,8 +697,10 @@ static void head_send_state(struct wlr_output_head_v1 *head,
 				break;
 			}
 		}
+		assert(found);
 
 		if (head->state.mode == NULL) {
+			// Fake a single output mode if output doesn't support modes
 			struct wlr_output_mode virtual_mode = {
 				.width = head->state.custom_mode.width,
 				.height = head->state.custom_mode.height,
@@ -700,7 +709,6 @@ static void head_send_state(struct wlr_output_head_v1 *head,
 			send_mode_state(mode_resource, &virtual_mode);
 		}
 
-		assert(found);
 		zwlr_output_head_v1_send_current_mode(head_resource, mode_resource);
 	}
 
@@ -767,6 +775,8 @@ static void manager_send_head(struct wlr_output_manager_v1 *manager,
 	head_send_state(head, head_resource, HEAD_STATE_ALL);
 }
 
+// Compute state that has changed and sends it to all clients. Then writes the
+// new state to the head.
 static bool manager_update_head(struct wlr_output_manager_v1 *manager,
 		struct wlr_output_head_v1 *head,
 		struct wlr_output_head_v1_state *next) {
