@@ -22,8 +22,19 @@ struct wlr_output_manager_v1 {
 	uint32_t serial;
 
 	struct {
+		/**
+		 * The `apply` and `test` events are emitted when a client requests a
+		 * configuration to be applied or tested. The compositor should send
+		 * feedback with `wlr_output_configuration_v1_send_succeeded` xor
+		 * `wlr_output_configuration_v1_send_failed`.
+		 *
+		 * The compositor gains ownership over the configuration (passed as the
+		 * event data). That is, the compositor is responsible for destroying
+		 * the configuration.
+		 */
 		struct wl_signal apply; // wlr_output_configuration_v1
 		struct wl_signal test; // wlr_output_configuration_v1
+
 		struct wl_signal destroy;
 	} events;
 
@@ -79,20 +90,52 @@ struct wlr_output_configuration_head_v1 {
 	struct wl_listener output_destroy;
 };
 
+/**
+ * Create a new output manager. The compositor is responsible for calling
+ * `wlr_output_manager_v1_set_configuration` whenever the current output
+ * configuration changes.
+ */
 struct wlr_output_manager_v1 *wlr_output_manager_v1_create(
 	struct wl_display *display);
+/**
+ * Updates the output manager's current configuration. This will broadcast any
+ * changes to all clients.
+ *
+ * This function takes ownership over `config`. That is, the compositor must not
+ * access the configuration anymore.
+ */
 void wlr_output_manager_v1_set_configuration(
 	struct wlr_output_manager_v1 *manager,
 	struct wlr_output_configuration_v1 *config);
 
+/**
+ * Create a new, empty output configuration. Compositors should add current head
+ * status with `wlr_output_configuration_head_v1_create`. They can then call
+ * `wlr_output_manager_v1_set_configuration`.
+ */
 struct wlr_output_configuration_v1 *wlr_output_configuration_v1_create(void);
 void wlr_output_configuration_v1_destroy(
 	struct wlr_output_configuration_v1 *config);
+/**
+ * If the configuration comes from a client request, this sends positive
+ * feedback to the client (configuration has been applied).
+ */
 void wlr_output_configuration_v1_send_succeeded(
 	struct wlr_output_configuration_v1 *config);
+/**
+ * If the configuration comes from a client request, this sends negative
+ * feedback to the client (configuration has not been applied).
+ */
 void wlr_output_configuration_v1_send_failed(
 	struct wlr_output_configuration_v1 *config);
 
+/**
+ * Create a new configuration head for the given output. This adds the head to
+ * the provided output configuration.
+ *
+ * The configuration head will be pre-filled with data from `output`. The
+ * compositor should adjust this data according to its current internal state.
+ */
 struct wlr_output_configuration_head_v1 *
 	wlr_output_configuration_head_v1_create(
 	struct wlr_output_configuration_v1 *config, struct wlr_output *output);
