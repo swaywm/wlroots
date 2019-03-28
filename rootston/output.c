@@ -443,12 +443,21 @@ void handle_output_manager_apply(struct wl_listener *listener, void *data) {
 
 	bool ok = true;
 	struct wlr_output_configuration_head_v1 *config_head;
+	// First disable outputs we need to disable
 	wl_list_for_each(config_head, &config->heads, link) {
 		struct wlr_output *wlr_output = config_head->state.output;
-		ok &= wlr_output_enable(wlr_output, config_head->state.enabled);
+		if (!config_head->state.enabled) {
+			ok &= wlr_output_enable(wlr_output, false);
+		}
+	}
+
+	// Then enable outputs that need to
+	wl_list_for_each(config_head, &config->heads, link) {
+		struct wlr_output *wlr_output = config_head->state.output;
 		if (!config_head->state.enabled) {
 			continue;
 		}
+		ok &= wlr_output_enable(wlr_output, true);
 		if (config_head->state.mode != NULL) {
 			ok &= wlr_output_set_mode(wlr_output, config_head->state.mode);
 		} else {
