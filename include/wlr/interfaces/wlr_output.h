@@ -34,6 +34,8 @@ struct wlr_output_impl {
 	bool (*export_dmabuf)(struct wlr_output *output,
 		struct wlr_dmabuf_attributes *attribs);
 	bool (*schedule_frame)(struct wlr_output *output);
+	bool (*set_dmabuf)(struct wlr_output *output,
+		struct wlr_dmabuf_attributes *attribs);
 };
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
