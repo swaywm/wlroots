@@ -243,6 +243,8 @@ bool wlr_output_preferred_read_format(struct wlr_output *output,
  */
 void wlr_output_set_damage(struct wlr_output *output,
 	pixman_region32_t *damage);
+bool wlr_output_set_dmabuf(struct wlr_output *output,
+	struct wlr_dmabuf_attributes *attribs);
 /**
  * Commit the pending output state. If `wlr_output_attach_render` has been
  * called, the pending frame will be submitted for display.
