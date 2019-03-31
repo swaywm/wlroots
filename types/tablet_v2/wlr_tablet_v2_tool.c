@@ -314,6 +314,8 @@ void wlr_send_tablet_v2_tablet_tool_proximity_in(
 		return;
 	}
 
+	wlr_send_tablet_v2_tablet_tool_proximity_out(tool);
+
 	struct wlr_tablet_client_v2 *tablet_tmp;
 	struct wlr_tablet_client_v2 *tablet_client = NULL;
 	wl_list_for_each(tablet_tmp, &tablet->clients, tablet_link) {
