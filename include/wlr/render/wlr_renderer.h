@@ -20,6 +20,7 @@ enum wlr_renderer_read_pixels_flags {
 };
 
 struct wlr_renderer_impl;
+struct wlr_drm_format_set;
 
 struct wlr_renderer {
 	const struct wlr_renderer_impl *impl;
@@ -87,15 +88,10 @@ bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *renderer,
 void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *renderer,
 	struct wl_resource *buffer, int *width, int *height);
 /**
- * Get the available dmabuf formats
+ * Get the available DMA-BUF formats.
  */
-int wlr_renderer_get_dmabuf_formats(struct wlr_renderer *renderer,
-	int **formats);
-/**
- * Get the available dmabuf modifiers for a given format
- */
-int wlr_renderer_get_dmabuf_modifiers(struct wlr_renderer *renderer, int format,
-	uint64_t **modifiers);
+const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_formats(
+	struct wlr_renderer *renderer);
 /**
  * Reads out of pixels of the currently bound surface into data. `stride` is in
  * bytes.
