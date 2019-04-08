@@ -68,7 +68,7 @@ struct wlr_output *wlr_noop_add_output(struct wlr_backend *wlr_backend) {
 
 	strncpy(wlr_output->make, "noop", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "noop", sizeof(wlr_output->model));
-	snprintf(wlr_output->name, sizeof(wlr_output->name), "NOOP-%ld",
+	snprintf(wlr_output->name, sizeof(wlr_output->name), "NOOP-%zd",
 		++backend->last_output_num);
 
 	wl_list_insert(&backend->outputs, &output->link);

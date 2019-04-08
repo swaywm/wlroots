@@ -128,7 +128,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 	output_set_custom_mode(wlr_output, width, height, 0);
 	strncpy(wlr_output->make, "headless", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "headless", sizeof(wlr_output->model));
-	snprintf(wlr_output->name, sizeof(wlr_output->name), "HEADLESS-%ld",
+	snprintf(wlr_output->name, sizeof(wlr_output->name), "HEADLESS-%zd",
 		++backend->last_output_num);
 
 	if (!wlr_egl_make_current(&output->backend->egl, output->egl_surface,
