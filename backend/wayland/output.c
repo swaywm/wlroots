@@ -290,7 +290,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 	wlr_output_update_custom_mode(wlr_output, 1280, 720, 0);
 	strncpy(wlr_output->make, "wayland", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "wayland", sizeof(wlr_output->model));
-	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%lu",
+	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%zd",
 		++backend->last_output_num);
 
 	output->backend = backend;
