@@ -12,6 +12,7 @@ lib_wlr_render = static_library(
 	files(
 		'dmabuf.c',
 		'egl.c',
+		'drm_format_set.c',
 		'gles2/pixel_format.c',
 		'gles2/renderer.c',
 		'gles2/shaders.c',
@@ -27,7 +28,7 @@ lib_wlr_render = static_library(
 		drm.partial_dependency(compile_args: true), # <drm_fourcc.h>
 		glesv2,
 		pixman,
-		wayland_server
+		wayland_server,
 	],
 )
 

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <wayland-server.h>
+#include <wlr/render/drm_format_set.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
@@ -386,45 +387,39 @@ struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_from_resource(
 
 static void linux_dmabuf_send_formats(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
 		struct wl_resource *resource, uint32_t version) {
-	struct wlr_renderer *renderer = linux_dmabuf->renderer;
 	uint64_t modifier_invalid = DRM_FORMAT_MOD_INVALID;
-	int *formats = NULL;
-	int num_formats = wlr_renderer_get_dmabuf_formats(renderer, &formats);
-	if (num_formats < 0) {
+	const struct wlr_drm_format_set *formats =
+		wlr_renderer_get_dmabuf_formats(linux_dmabuf->renderer);
+	if (formats == NULL) {
 		return;
 	}
 
-	for (int i = 0; i < num_formats; i++) {
-		uint64_t *modifiers = NULL;
-		int num_modifiers = wlr_renderer_get_dmabuf_modifiers(renderer,
-			formats[i], &modifiers);
-		if (num_modifiers < 0) {
-			return;
-		}
-		/* send DRM_FORMAT_MOD_INVALID token when no modifiers are supported
-		 * for this format */
-		if (num_modifiers == 0) {
-			num_modifiers = 1;
+	for (size_t i = 0; i < formats->len; i++) {
+		struct wlr_drm_format *fmt = formats->formats[i];
+
+		size_t modifiers_len = fmt->len;
+		uint64_t *modifiers = fmt->modifiers;
+
+		// Send DRM_FORMAT_MOD_INVALID token when no modifiers are supported
+		// for this format
+		if (modifiers_len == 0) {
+			modifiers_len = 1;
 			modifiers = &modifier_invalid;
 		}
-		for (int j = 0; j < num_modifiers; j++) {
+		for (size_t j = 0; j < modifiers_len; j++) {
 			if (version >= ZWP_LINUX_DMABUF_V1_MODIFIER_SINCE_VERSION) {
 				uint32_t modifier_lo = modifiers[j] & 0xFFFFFFFF;
 				uint32_t modifier_hi = modifiers[j] >> 32;
 				zwp_linux_dmabuf_v1_send_modifier(resource,
-					formats[i],
+					fmt->format,
 					modifier_hi,
 					modifier_lo);
 			} else if (modifiers[j] == DRM_FORMAT_MOD_LINEAR ||
-				   modifiers == &modifier_invalid) {
-				zwp_linux_dmabuf_v1_send_format(resource, formats[i]);
+					modifiers == &modifier_invalid) {
+				zwp_linux_dmabuf_v1_send_format(resource, fmt->format);
 			}
 		}
-		if (modifiers != &modifier_invalid) {
-			free(modifiers);
-		}
 	}
-	free(formats);
 }
 
 static void linux_dmabuf_resource_destroy(struct wl_resource *resource) {

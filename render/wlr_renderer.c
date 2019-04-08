@@ -123,20 +123,12 @@ void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *r,
 	return r->impl->wl_drm_buffer_get_size(r, buffer, width, height);
 }
 
-int wlr_renderer_get_dmabuf_formats(struct wlr_renderer *r,
-		int **formats) {
+const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_formats(
+		struct wlr_renderer *r) {
 	if (!r->impl->get_dmabuf_formats) {
-		return -1;
+		return NULL;
 	}
-	return r->impl->get_dmabuf_formats(r, formats);
-}
-
-int wlr_renderer_get_dmabuf_modifiers(struct wlr_renderer *r, int format,
-		uint64_t **modifiers) {
-	if (!r->impl->get_dmabuf_modifiers) {
-		return -1;
-	}
-	return r->impl->get_dmabuf_modifiers(r, format, modifiers);
+	return r->impl->get_dmabuf_formats(r);
 }
 
 bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,

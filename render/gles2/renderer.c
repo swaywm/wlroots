@@ -247,16 +247,10 @@ static void gles2_wl_drm_buffer_get_size(struct wlr_renderer *wlr_renderer,
 	eglQueryWaylandBufferWL(renderer->egl->display, buffer, EGL_HEIGHT, height);
 }
 
-static int gles2_get_dmabuf_formats(struct wlr_renderer *wlr_renderer,
-		int **formats) {
+static const struct wlr_drm_format_set *gles2_get_dmabuf_formats(
+		struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	return wlr_egl_get_dmabuf_formats(renderer->egl, formats);
-}
-
-static int gles2_get_dmabuf_modifiers(struct wlr_renderer *wlr_renderer,
-		int format, uint64_t **modifiers) {
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	return wlr_egl_get_dmabuf_modifiers(renderer->egl, format, modifiers);
+	return wlr_egl_get_dmabuf_formats(renderer->egl);
 }
 
 static enum wl_shm_format gles2_preferred_read_format(
@@ -402,7 +396,6 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.resource_is_wl_drm_buffer = gles2_resource_is_wl_drm_buffer,
 	.wl_drm_buffer_get_size = gles2_wl_drm_buffer_get_size,
 	.get_dmabuf_formats = gles2_get_dmabuf_formats,
-	.get_dmabuf_modifiers = gles2_get_dmabuf_modifiers,
 	.preferred_read_format = gles2_preferred_read_format,
 	.read_pixels = gles2_read_pixels,
 	.texture_from_pixels = gles2_texture_from_pixels,

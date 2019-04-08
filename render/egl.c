@@ -1,7 +1,7 @@
-#include <assert.h>
-#include <drm_fourcc.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <assert.h>
+#include <drm_fourcc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <wlr/render/egl.h>
@@ -77,24 +77,49 @@ static bool check_egl_ext(const char *exts, const char *ext) {
 	return false;
 }
 
-static void print_dmabuf_formats(struct wlr_egl *egl) {
-	/* Avoid log msg if extension is not present */
-	if (!egl->exts.image_dmabuf_import_modifiers_ext) {
-		return;
-	}
+static int get_egl_dmabuf_formats(struct wlr_egl *egl, int **formats);
+static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
+	uint64_t **modifiers);
 
+static void init_dmabuf_formats(struct wlr_egl *egl) {
 	int *formats;
-	int num = wlr_egl_get_dmabuf_formats(egl, &formats);
-	if (num < 0) {
+	int formats_len = get_egl_dmabuf_formats(egl, &formats);
+	if (formats_len < 0) {
 		return;
 	}
 
-	char str_formats[num * 5 + 1];
-	for (int i = 0; i < num; i++) {
-		snprintf(&str_formats[i*5], (num - i) * 5 + 1, "%.4s ",
+	for (int i = 0; i < formats_len; i++) {
+		uint32_t fmt = formats[i];
+
+		uint64_t *modifiers;
+		int modifiers_len = get_egl_dmabuf_modifiers(egl, fmt, &modifiers);
+		if (modifiers_len < 0) {
+			continue;
+		}
+
+		if (modifiers_len == 0) {
+			wlr_drm_format_set_add(&egl->dmabuf_formats, fmt, DRM_FORMAT_MOD_INVALID);
+		}
+
+		for (int j = 0; j < modifiers_len; j++) {
+			wlr_drm_format_set_add(&egl->dmabuf_formats, fmt, modifiers[j]);
+		}
+
+		free(modifiers);
+	}
+
+	char *str_formats = malloc(formats_len * 5 + 1);
+	if (str_formats == NULL) {
+		goto out;
+	}
+	for (int i = 0; i < formats_len; i++) {
+		snprintf(&str_formats[i*5], (formats_len - i) * 5 + 1, "%.4s ",
 			(char*)&formats[i]);
 	}
 	wlr_log(WLR_DEBUG, "Supported dmabuf buffer formats: %s", str_formats);
+	free(str_formats);
+
+out:
 	free(formats);
 }
 
@@ -173,7 +198,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		check_egl_ext(egl->exts_str, "EGL_MESA_image_dma_buf_export") &&
 		eglExportDMABUFImageQueryMESA && eglExportDMABUFImageMESA;
 
-	print_dmabuf_formats(egl);
+	init_dmabuf_formats(egl);
 
 	egl->exts.bind_wayland_display_wl =
 		check_egl_ext(egl->exts_str, "EGL_WL_bind_wayland_display")
@@ -241,6 +266,8 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 	if (egl == NULL) {
 		return;
 	}
+
+	wlr_drm_format_set_finish(&egl->dmabuf_formats);
 
 	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	if (egl->wl_display) {
@@ -486,10 +513,9 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
 }
 
-int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
-		int **formats) {
+static int get_egl_dmabuf_formats(struct wlr_egl *egl, int **formats) {
 	if (!egl->exts.image_dmabuf_import_ext) {
-		wlr_log(WLR_DEBUG, "dmabuf import extension not present");
+		wlr_log(WLR_DEBUG, "DMA-BUF import extension not present");
 		return -1;
 	}
 
@@ -518,7 +544,7 @@ int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
 
 	EGLint num;
 	if (!eglQueryDmaBufFormatsEXT(egl->display, 0, NULL, &num)) {
-		wlr_log(WLR_ERROR, "failed to query number of dmabuf formats");
+		wlr_log(WLR_ERROR, "Failed to query number of dmabuf formats");
 		return -1;
 	}
 
@@ -529,17 +555,17 @@ int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl,
 	}
 
 	if (!eglQueryDmaBufFormatsEXT(egl->display, num, *formats, &num)) {
-		wlr_log(WLR_ERROR, "failed to query dmabuf format");
+		wlr_log(WLR_ERROR, "Failed to query dmabuf format");
 		free(*formats);
 		return -1;
 	}
 	return num;
 }
 
-int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl,
-		int format, uint64_t **modifiers) {
+static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
+		uint64_t **modifiers) {
 	if (!egl->exts.image_dmabuf_import_ext) {
-		wlr_log(WLR_DEBUG, "dmabuf extension not present");
+		wlr_log(WLR_DEBUG, "DMA-BUF extension not present");
 		return -1;
 	}
 
@@ -551,7 +577,7 @@ int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl,
 	EGLint num;
 	if (!eglQueryDmaBufModifiersEXT(egl->display, format, 0,
 			NULL, NULL, &num)) {
-		wlr_log(WLR_ERROR, "failed to query dmabuf number of modifiers");
+		wlr_log(WLR_ERROR, "Failed to query dmabuf number of modifiers");
 		return -1;
 	}
 
@@ -563,11 +589,15 @@ int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl,
 
 	if (!eglQueryDmaBufModifiersEXT(egl->display, format, num,
 		*modifiers, NULL, &num)) {
-		wlr_log(WLR_ERROR, "failed to query dmabuf modifiers");
+		wlr_log(WLR_ERROR, "Failed to query dmabuf modifiers");
 		free(*modifiers);
 		return -1;
 	}
 	return num;
+}
+
+const struct wlr_drm_format_set *wlr_egl_get_dmabuf_formats(struct wlr_egl *egl) {
+	return &egl->dmabuf_formats;
 }
 
 bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,

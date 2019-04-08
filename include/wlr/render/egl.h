@@ -21,6 +21,7 @@
 #include <stdbool.h>
 #include <wayland-server.h>
 #include <wlr/render/dmabuf.h>
+#include <wlr/render/drm_format_set.h>
 
 struct wlr_egl {
 	EGLenum platform;
@@ -42,6 +43,8 @@ struct wlr_egl {
 	} exts;
 
 	struct wl_display *wl_display;
+
+	struct wlr_drm_format_set dmabuf_formats;
 };
 
 // TODO: Allocate and return a wlr_egl
@@ -88,13 +91,7 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 /**
  * Get the available dmabuf formats
  */
-int wlr_egl_get_dmabuf_formats(struct wlr_egl *egl, int **formats);
-
-/**
- * Get the available dmabuf modifiers for a given format
- */
-int wlr_egl_get_dmabuf_modifiers(struct wlr_egl *egl, int format,
-	uint64_t **modifiers);
+const struct wlr_drm_format_set *wlr_egl_get_dmabuf_formats(struct wlr_egl *egl);
 
 bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
 	int32_t width, int32_t height, uint32_t flags,
