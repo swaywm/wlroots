@@ -17,6 +17,12 @@ static void output_transform(struct wlr_output *wlr_output,
 	// empty
 }
 
+static bool output_set_custom_mode(struct wlr_output *wlr_output,
+		int32_t width, int32_t height, int32_t refresh) {
+	wlr_output_update_custom_mode(wlr_output, width, height, refresh);
+	return true;
+}
+
 static bool output_make_current(struct wlr_output *wlr_output, int *buffer_age) {
 	return true;
 }
@@ -37,6 +43,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 static const struct wlr_output_impl output_impl = {
 	.transform = output_transform,
+	.set_custom_mode = output_set_custom_mode,
 	.destroy = output_destroy,
 	.make_current = output_make_current,
 	.swap_buffers = output_swap_buffers,
