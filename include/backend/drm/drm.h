@@ -11,6 +11,7 @@
 #include <wayland-util.h>
 #include <wlr/backend/drm.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/drm_format_set.h>
 #include <wlr/render/egl.h>
 #include <xf86drmMode.h>
 #include "iface.h"
@@ -27,6 +28,7 @@ struct wlr_drm_plane {
 	struct wlr_drm_surface mgpu_surf;
 
 	uint32_t drm_format; // ARGB8888 or XRGB8888
+	struct wlr_drm_format_set formats;
 
 	// Only used by cursor
 	float matrix[9];
