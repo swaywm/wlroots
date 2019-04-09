@@ -123,6 +123,8 @@ static bool init_planes(struct wlr_drm_backend *drm) {
 		uint32_t rgb_format = DRM_FORMAT_INVALID;
 		for (size_t j = 0; j < plane->count_formats; ++j) {
 			uint32_t fmt = plane->formats[j];
+			wlr_drm_format_set_add(&p->formats, fmt, DRM_FORMAT_MOD_INVALID);
+
 			if (fmt == DRM_FORMAT_ARGB8888) {
 				// Prefer formats with alpha channel
 				rgb_format = fmt;
@@ -140,6 +142,38 @@ static bool init_planes(struct wlr_drm_backend *drm) {
 			goto error_planes;
 		}
 		p->drm_format = rgb_format;
+
+		if (p->props.in_formats) {
+			uint64_t blob_id;
+			if (!get_drm_prop(drm->fd, p->id, p->props.in_formats, &blob_id)) {
+				wlr_log(WLR_ERROR, "Failed to read IN_FORMATS property");
+				drmModeFreePlane(plane);
+				goto error_planes;
+			}
+
+			drmModePropertyBlobRes *blob =
+				drmModeGetPropertyBlob(drm->fd, blob_id);
+			if (!blob) {
+				wlr_log(WLR_ERROR, "Failed to read IN_FORMATS blob");
+				drmModeFreePlane(plane);
+				goto error_planes;
+			}
+
+			struct drm_format_modifier_blob *data = blob->data;
+			uint32_t *fmts = (uint32_t *)((char *)data + data->formats_offset);
+			struct drm_format_modifier *mods = (struct drm_format_modifier *)
+				((char *)data + data->modifiers_offset);
+			for (uint32_t i = 0; i < data->count_modifiers; ++i) {
+				for (int j = 0; j < 64; ++j) {
+					if (mods[i].formats & ((uint64_t)1 << j)) {
+						wlr_drm_format_set_add(&p->formats,
+							fmts[j + mods[i].offset], mods[i].modifier);
+					}
+				}
+			}
+
+			drmModeFreePropertyBlob(blob);
+		}
 
 		drmModeFreePlane(plane);
 	}
@@ -213,6 +247,11 @@ error_res:
 void finish_drm_resources(struct wlr_drm_backend *drm) {
 	if (!drm) {
 		return;
+	}
+
+	for (size_t i = 0; i < drm->num_planes; ++i) {
+		struct wlr_drm_plane *p = &drm->planes[i];
+		wlr_drm_format_set_finish(&p->formats);
 	}
 
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
@@ -833,9 +872,11 @@ static bool drm_connector_set_dmabuf(struct wlr_output *output,
 		return false;
 	}
 
-	// TODO: check plane input formats
-
 	if (attribs->width != output->width || attribs->height != output->height) {
+		return false;
+	}
+	if (!wlr_drm_format_set_has(&crtc->primary->formats,
+			attribs->format, attribs->modifier)) {
 		return false;
 	}
 

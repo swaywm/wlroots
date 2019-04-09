@@ -35,6 +35,26 @@ const struct wlr_drm_format *wlr_drm_format_set_get(
 	return ptr ? *ptr : NULL;
 }
 
+bool wlr_drm_format_set_has(const struct wlr_drm_format_set *set,
+		uint32_t format, uint64_t modifier) {
+	const struct wlr_drm_format *fmt = wlr_drm_format_set_get(set, format);
+	if (!fmt) {
+		return false;
+	}
+
+	if (modifier == DRM_FORMAT_MOD_INVALID) {
+		return true;
+	}
+
+	for (size_t i = 0; i < fmt->len; ++i) {
+		if (fmt->modifiers[i] == modifier) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool wlr_drm_format_set_add(struct wlr_drm_format_set *set, uint32_t format,
 		uint64_t modifier) {
 	struct wlr_drm_format **ptr = format_set_get_ref(set, format);

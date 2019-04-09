@@ -44,6 +44,7 @@ union wlr_drm_plane_props {
 	struct {
 		uint32_t type;
 		uint32_t rotation; // Not guaranteed to exist
+		uint32_t in_formats; // Not guaranteed to exist
 
 		// atomic-modesetting only
 
@@ -58,7 +59,7 @@ union wlr_drm_plane_props {
 		uint32_t fb_id;
 		uint32_t crtc_id;
 	};
-	uint32_t props[12];
+	uint32_t props[13];
 };
 
 bool get_drm_connector_props(int fd, uint32_t id,

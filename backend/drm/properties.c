@@ -19,38 +19,39 @@ struct prop_info {
 
 static const struct prop_info connector_info[] = {
 #define INDEX(name) (offsetof(union wlr_drm_connector_props, name) / sizeof(uint32_t))
-	{ "CRTC_ID",     INDEX(crtc_id) },
-	{ "DPMS",        INDEX(dpms) },
-	{ "EDID",        INDEX(edid) },
-	{ "PATH",        INDEX(path) },
+	{ "CRTC_ID", INDEX(crtc_id) },
+	{ "DPMS", INDEX(dpms) },
+	{ "EDID", INDEX(edid) },
+	{ "PATH", INDEX(path) },
 	{ "link-status", INDEX(link_status) },
 #undef INDEX
 };
 
 static const struct prop_info crtc_info[] = {
 #define INDEX(name) (offsetof(union wlr_drm_crtc_props, name) / sizeof(uint32_t))
-	{ "ACTIVE",         INDEX(active) },
-	{ "GAMMA_LUT",      INDEX(gamma_lut) },
+	{ "ACTIVE", INDEX(active) },
+	{ "GAMMA_LUT", INDEX(gamma_lut) },
 	{ "GAMMA_LUT_SIZE", INDEX(gamma_lut_size) },
-	{ "MODE_ID",        INDEX(mode_id) },
-	{ "rotation",       INDEX(rotation) },
-	{ "scaling mode",   INDEX(scaling_mode) },
+	{ "MODE_ID", INDEX(mode_id) },
+	{ "rotation", INDEX(rotation) },
+	{ "scaling mode", INDEX(scaling_mode) },
 #undef INDEX
 };
 
 static const struct prop_info plane_info[] = {
 #define INDEX(name) (offsetof(union wlr_drm_plane_props, name) / sizeof(uint32_t))
-	{ "CRTC_H",  INDEX(crtc_h) },
+	{ "CRTC_H", INDEX(crtc_h) },
 	{ "CRTC_ID", INDEX(crtc_id) },
-	{ "CRTC_W",  INDEX(crtc_w) },
-	{ "CRTC_X",  INDEX(crtc_x) },
-	{ "CRTC_Y",  INDEX(crtc_y) },
-	{ "FB_ID",   INDEX(fb_id) },
-	{ "SRC_H",   INDEX(src_h) },
-	{ "SRC_W",   INDEX(src_w) },
-	{ "SRC_X",   INDEX(src_x) },
-	{ "SRC_Y",   INDEX(src_y) },
-	{ "type",    INDEX(type) },
+	{ "CRTC_W", INDEX(crtc_w) },
+	{ "CRTC_X", INDEX(crtc_x) },
+	{ "CRTC_Y", INDEX(crtc_y) },
+	{ "FB_ID", INDEX(fb_id) },
+	{ "IN_FORMATS", INDEX(in_formats) },
+	{ "SRC_H", INDEX(src_h) },
+	{ "SRC_W", INDEX(src_w) },
+	{ "SRC_X", INDEX(src_x) },
+	{ "SRC_Y", INDEX(src_y) },
+	{ "type", INDEX(type) },
 #undef INDEX
 };
 

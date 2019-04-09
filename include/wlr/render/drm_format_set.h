@@ -21,6 +21,9 @@ void wlr_drm_format_set_finish(struct wlr_drm_format_set *set);
 const struct wlr_drm_format *wlr_drm_format_set_get(
 	const struct wlr_drm_format_set *set, uint32_t format);
 
+bool wlr_drm_format_set_has(const struct wlr_drm_format_set *set,
+	uint32_t format, uint64_t modifier);
+
 bool wlr_drm_format_set_add(struct wlr_drm_format_set *set, uint32_t format,
 	uint64_t modifier);
 
