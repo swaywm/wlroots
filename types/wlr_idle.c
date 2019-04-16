@@ -100,6 +100,76 @@ static void handle_input_notification(struct wl_listener *listener, void *data) 
 	}
 }
 
+/* Creates a new timer. If idle_resource is not NULL, then id is used to create
+ * a new idle resource for the timer */
+static struct wlr_idle_timeout *create_timer(struct wlr_idle *idle,
+		struct wlr_seat *seat, uint32_t timeout,
+		struct wl_resource *idle_resource, uint32_t id) {
+	struct wlr_idle_timeout *timer =
+		calloc(1, sizeof(struct wlr_idle_timeout));
+	if (!timer) {
+		if (idle_resource) {
+			wl_resource_post_no_memory(idle_resource);
+		}
+		return NULL;
+	}
+
+	if (idle_resource)
+	{
+		timer->resource = wl_resource_create(
+				wl_resource_get_client(idle_resource),
+				&org_kde_kwin_idle_timeout_interface,
+				wl_resource_get_version(idle_resource), id);
+		if (timer->resource == NULL) {
+			free(timer);
+			wl_resource_post_no_memory(idle_resource);
+			return NULL;
+		}
+		wl_resource_set_implementation(timer->resource, &idle_timeout_impl,
+				timer, handle_timer_resource_destroy);
+	}
+
+	timer->seat = seat;
+	timer->timeout = timeout;
+	timer->idle_state = false;
+	timer->enabled = idle->enabled;
+
+	wl_list_insert(&idle->idle_timers, &timer->link);
+	wl_signal_init(&timer->events.idle);
+	wl_signal_init(&timer->events.resume);
+	wl_signal_init(&timer->events.destroy);
+
+	timer->seat_destroy.notify = handle_seat_destroy;
+	wl_signal_add(&timer->seat->events.destroy, &timer->seat_destroy);
+
+	timer->input_listener.notify = handle_input_notification;
+	wl_signal_add(&idle->events.activity_notify, &timer->input_listener);
+	// create the timer
+	timer->idle_source =
+		wl_event_loop_add_timer(idle->event_loop, idle_notify, timer);
+	if (timer->idle_source == NULL) {
+		wl_list_remove(&timer->link);
+		wl_list_remove(&timer->input_listener.link);
+		wl_list_remove(&timer->seat_destroy.link);
+		if (timer->resource) {
+			wl_resource_set_user_data(timer->resource, NULL);
+			wl_resource_post_no_memory(idle_resource);
+		}
+		free(timer);
+		return NULL;
+	}
+
+	if (timer->enabled) {
+		// arm the timer
+		wl_event_source_timer_update(timer->idle_source, timer->timeout);
+		if (timer->timeout == 0) {
+			idle_notify(timer);
+		}
+	}
+
+	return timer;
+}
+
 static void create_idle_timer(struct wl_client *client,
 		struct wl_resource *idle_resource, uint32_t id,
 		struct wl_resource *seat_resource, uint32_t timeout) {
@@ -107,23 +177,7 @@ static void create_idle_timer(struct wl_client *client,
 	struct wlr_seat_client *client_seat =
 		wlr_seat_client_from_resource(seat_resource);
 
-	struct wlr_idle_timeout *timer =
-		wlr_idle_timeout_create(idle, client_seat->seat, timeout);
-	if (!timer) {
-		wl_resource_post_no_memory(idle_resource);
-		return;
-	}
-
-	timer->resource = wl_resource_create(client,
-		&org_kde_kwin_idle_timeout_interface,
-		wl_resource_get_version(idle_resource), id);
-	if (timer->resource == NULL) {
-		wlr_idle_timeout_destroy(timer);
-		wl_resource_post_no_memory(idle_resource);
-		return;
-	}
-	wl_resource_set_implementation(timer->resource, &idle_timeout_impl, timer,
-			handle_timer_resource_destroy);
+	create_timer(idle, client_seat->seat, timeout, idle_resource, id);
 }
 
 static const struct org_kde_kwin_idle_interface idle_impl = {
@@ -219,49 +273,7 @@ void wlr_idle_notify_activity(struct wlr_idle *idle, struct wlr_seat *seat) {
 
 struct wlr_idle_timeout *wlr_idle_timeout_create(struct wlr_idle *idle,
 		struct wlr_seat *seat, uint32_t timeout) {
-	struct wlr_idle_timeout *timer =
-		calloc(1, sizeof(struct wlr_idle_timeout));
-	if (!timer) {
-		return NULL;
-	}
-
-	timer->seat = seat;
-	timer->timeout = timeout;
-	timer->idle_state = false;
-	timer->enabled = idle->enabled;
-
-	wl_list_insert(&idle->idle_timers, &timer->link);
-	wl_signal_init(&timer->events.idle);
-	wl_signal_init(&timer->events.resume);
-	wl_signal_init(&timer->events.destroy);
-
-	timer->seat_destroy.notify = handle_seat_destroy;
-	wl_signal_add(&timer->seat->events.destroy, &timer->seat_destroy);
-
-	timer->input_listener.notify = handle_input_notification;
-	wl_signal_add(&idle->events.activity_notify, &timer->input_listener);
-	// create the timer
-	timer->idle_source =
-		wl_event_loop_add_timer(idle->event_loop, idle_notify, timer);
-	if (timer->idle_source == NULL) {
-		wl_list_remove(&timer->link);
-		wl_list_remove(&timer->input_listener.link);
-		wl_list_remove(&timer->seat_destroy.link);
-		wl_resource_set_user_data(timer->resource, NULL);
-		free(timer);
-
-		return NULL;
-	}
-
-	if (timer->enabled) {
-		// arm the timer
-		wl_event_source_timer_update(timer->idle_source, timer->timeout);
-		if (timer->timeout == 0) {
-			idle_notify(timer);
-		}
-	}
-
-	return timer;
+	return create_timer(idle, seat, timeout, NULL, 0);
 }
 
 void wlr_idle_timeout_destroy(struct wlr_idle_timeout *timer) {

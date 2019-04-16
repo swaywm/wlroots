@@ -46,15 +46,16 @@ struct wlr_idle_timeout {
 	bool enabled;
 	uint32_t timeout; // milliseconds
 
-	struct wl_listener input_listener;
-	struct wl_listener seat_destroy;
-
-	void *data;
 	struct {
 		struct wl_signal idle;
 		struct wl_signal resume;
 		struct wl_signal destroy;
 	} events;
+
+	struct wl_listener input_listener;
+	struct wl_listener seat_destroy;
+
+	void *data;
 };
 
 struct wlr_idle *wlr_idle_create(struct wl_display *display);
