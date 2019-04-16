@@ -100,33 +100,12 @@ static void handle_input_notification(struct wl_listener *listener, void *data) 
 	}
 }
 
-/* Creates a new timer. If idle_resource is not NULL, then id is used to create
- * a new idle resource for the timer */
 static struct wlr_idle_timeout *create_timer(struct wlr_idle *idle,
-		struct wlr_seat *seat, uint32_t timeout,
-		struct wl_resource *idle_resource, uint32_t id) {
+		struct wlr_seat *seat, uint32_t timeout, struct wl_resource *resource) {
 	struct wlr_idle_timeout *timer =
 		calloc(1, sizeof(struct wlr_idle_timeout));
 	if (!timer) {
-		if (idle_resource) {
-			wl_resource_post_no_memory(idle_resource);
-		}
 		return NULL;
-	}
-
-	if (idle_resource)
-	{
-		timer->resource = wl_resource_create(
-				wl_resource_get_client(idle_resource),
-				&org_kde_kwin_idle_timeout_interface,
-				wl_resource_get_version(idle_resource), id);
-		if (timer->resource == NULL) {
-			free(timer);
-			wl_resource_post_no_memory(idle_resource);
-			return NULL;
-		}
-		wl_resource_set_implementation(timer->resource, &idle_timeout_impl,
-				timer, handle_timer_resource_destroy);
 	}
 
 	timer->seat = seat;
@@ -151,12 +130,13 @@ static struct wlr_idle_timeout *create_timer(struct wlr_idle *idle,
 		wl_list_remove(&timer->link);
 		wl_list_remove(&timer->input_listener.link);
 		wl_list_remove(&timer->seat_destroy.link);
-		if (timer->resource) {
-			wl_resource_set_user_data(timer->resource, NULL);
-			wl_resource_post_no_memory(idle_resource);
-		}
 		free(timer);
 		return NULL;
+	}
+
+	if (resource) {
+		timer->resource = resource;
+		wl_resource_set_user_data(resource, timer);
 	}
 
 	if (timer->enabled) {
@@ -177,7 +157,19 @@ static void create_idle_timer(struct wl_client *client,
 	struct wlr_seat_client *client_seat =
 		wlr_seat_client_from_resource(seat_resource);
 
-	create_timer(idle, client_seat->seat, timeout, idle_resource, id);
+	struct wl_resource *resource = wl_resource_create(client,
+		&org_kde_kwin_idle_timeout_interface,
+		wl_resource_get_version(idle_resource), id);
+	if (resource == NULL) {
+		wl_resource_post_no_memory(idle_resource);
+		return;
+	}
+	wl_resource_set_implementation(resource, &idle_timeout_impl,
+		NULL, handle_timer_resource_destroy);
+
+	if (!create_timer(idle, client_seat->seat, timeout, resource)) {
+		wl_resource_post_no_memory(resource);
+	}
 }
 
 static const struct org_kde_kwin_idle_interface idle_impl = {
@@ -273,7 +265,7 @@ void wlr_idle_notify_activity(struct wlr_idle *idle, struct wlr_seat *seat) {
 
 struct wlr_idle_timeout *wlr_idle_timeout_create(struct wlr_idle *idle,
 		struct wlr_seat *seat, uint32_t timeout) {
-	return create_timer(idle, seat, timeout, NULL, 0);
+	return create_timer(idle, seat, timeout, NULL);
 }
 
 void wlr_idle_timeout_destroy(struct wlr_idle_timeout *timer) {
