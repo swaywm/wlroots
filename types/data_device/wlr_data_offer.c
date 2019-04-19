@@ -82,6 +82,12 @@ static void data_offer_handle_accept(struct wl_client *client,
 		return;
 	}
 
+	if (offer->type != WLR_DATA_OFFER_DRAG) {
+		wlr_log(WLR_DEBUG, "Ignoring wl_data_offer.accept request on a "
+			"non-drag-and-drop offer");
+		return;
+	}
+
 	wlr_data_source_accept(offer->source, serial, mime_type);
 }
 
