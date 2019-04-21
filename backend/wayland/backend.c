@@ -5,8 +5,6 @@
 
 #include <wlr/config.h>
 
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <wayland-server.h>
 
 #include <wlr/backend/interface.h>

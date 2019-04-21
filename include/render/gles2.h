@@ -1,8 +1,6 @@
 #ifndef RENDER_GLES2_H
 #define RENDER_GLES2_H
 
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <stdbool.h>

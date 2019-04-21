@@ -1,6 +1,4 @@
 #include <assert.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/wlr_renderer.h>
