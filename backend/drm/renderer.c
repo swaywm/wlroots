@@ -1,6 +1,4 @@
 #include <assert.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <gbm.h>
 #include <stdbool.h>
 #include <stdlib.h>

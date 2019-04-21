@@ -2,8 +2,6 @@
 #include <assert.h>
 #include <drm_fourcc.h>
 #include <drm_mode.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <errno.h>
 #include <gbm.h>
 #include <GLES2/gl2.h>

@@ -1,5 +1,3 @@
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <assert.h>
 #include <drm_fourcc.h>
 #include <stdio.h>
