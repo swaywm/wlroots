@@ -73,7 +73,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	int32_t width, height;
 	wlr_output_effective_resolution(wlr_output, &width, &height);
 
-	wlr_output_make_current(wlr_output, NULL);
+	wlr_output_attach_render(wlr_output, NULL);
 	wlr_renderer_begin(sample->renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
@@ -89,7 +89,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	}
 
 	wlr_renderer_end(sample->renderer);
-	wlr_output_swap_buffers(wlr_output, NULL, NULL);
+	wlr_output_commit(wlr_output);
 	sample->last_frame = now;
 }
 

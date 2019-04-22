@@ -94,14 +94,14 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct sample_state *sample = output->sample;
 	struct wlr_output *wlr_output = output->output;
 
-	wlr_output_make_current(wlr_output, NULL);
+	wlr_output_attach_render(wlr_output, NULL);
 
 	glClearColor(sample->clear_color[0], sample->clear_color[1],
 		sample->clear_color[2], sample->clear_color[3]);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	wlr_output_render_software_cursors(wlr_output, NULL);
-	wlr_output_swap_buffers(wlr_output, NULL, NULL);
+	wlr_output_commit(wlr_output);
 }
 
 static void handle_cursor_motion(struct wl_listener *listener, void *data) {

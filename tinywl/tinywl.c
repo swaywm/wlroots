@@ -591,8 +591,8 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
-	/* wlr_output_make_current makes the OpenGL context current. */
-	if (!wlr_output_make_current(output->wlr_output, NULL)) {
+	/* wlr_output_attach_render makes the OpenGL context current. */
+	if (!wlr_output_attach_render(output->wlr_output, NULL)) {
 		return;
 	}
 	/* The "effective" resolution can change if you rotate your outputs. */
@@ -635,7 +635,7 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	/* Conclude rendering and swap the buffers, showing the final frame
 	 * on-screen. */
 	wlr_renderer_end(renderer);
-	wlr_output_swap_buffers(output->wlr_output, NULL, NULL);
+	wlr_output_commit(output->wlr_output);
 }
 
 static void server_new_output(struct wl_listener *listener, void *data) {

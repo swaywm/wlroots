@@ -115,7 +115,7 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 
 	struct wlr_output *wlr_output = output->output;
 
-	wlr_output_make_current(wlr_output, NULL);
+	wlr_output_attach_render(wlr_output, NULL);
 	wlr_renderer_begin(sample->renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
@@ -137,7 +137,7 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 	}
 
 	wlr_renderer_end(sample->renderer);
-	wlr_output_swap_buffers(wlr_output, NULL, NULL);
+	wlr_output_commit(wlr_output);
 }
 
 static void update_velocities(struct sample_state *sample,
