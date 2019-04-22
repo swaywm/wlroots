@@ -158,6 +158,11 @@ bool wlr_output_enable(struct wlr_output *output, bool enable);
 void wlr_output_create_global(struct wlr_output *output);
 void wlr_output_destroy_global(struct wlr_output *output);
 /**
+ * Returns the preferred mode for this output. If the output doesn't support
+ * modes, returns NULL.
+ */
+struct wlr_output_mode *wlr_output_preferred_mode(struct wlr_output *output);
+/**
  * Sets the output mode. Enables the output if it's currently disabled.
  */
 bool wlr_output_set_mode(struct wlr_output *output,
