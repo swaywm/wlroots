@@ -344,6 +344,22 @@ void wlr_output_effective_resolution(struct wlr_output *output,
 	*height /= output->scale;
 }
 
+struct wlr_output_mode *wlr_output_preferred_mode(struct wlr_output *output) {
+	if (wl_list_empty(&output->modes)) {
+		return NULL;
+	}
+
+	struct wlr_output_mode *mode;
+	wl_list_for_each(mode, &output->modes, link) {
+		if (mode->preferred) {
+			return mode;
+		}
+	}
+
+	// No preferred mode, choose the last one
+	return mode;
+}
+
 bool wlr_output_make_current(struct wlr_output *output, int *buffer_age) {
 	return output->impl->make_current(output, buffer_age);
 }
