@@ -859,6 +859,15 @@ static bool drm_connector_schedule_frame(struct wlr_output *output) {
 	return true;
 }
 
+static uint32_t strip_alpha_channel(uint32_t format) {
+	switch (format) {
+	case DRM_FORMAT_ARGB8888:
+		return DRM_FORMAT_XRGB8888;
+	default:
+		return DRM_FORMAT_INVALID;
+	}
+}
+
 static bool drm_connector_set_dmabuf(struct wlr_output *output,
 		struct wlr_dmabuf_attributes *attribs) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
@@ -875,9 +884,21 @@ static bool drm_connector_set_dmabuf(struct wlr_output *output,
 	if (attribs->width != output->width || attribs->height != output->height) {
 		return false;
 	}
+
+	struct wlr_dmabuf_attributes attribs_stripped_alpha;
 	if (!wlr_drm_format_set_has(&crtc->primary->formats,
 			attribs->format, attribs->modifier)) {
-		return false;
+		// The format isn't supported by the plane. Try stripping the alpha
+		// channel, if any.
+		uint32_t format = strip_alpha_channel(attribs->format);
+		if (format != DRM_FORMAT_INVALID && wlr_drm_format_set_has(
+				&crtc->primary->formats, format, attribs->modifier)) {
+			attribs_stripped_alpha = *attribs;
+			attribs_stripped_alpha.format = format;
+			attribs = &attribs_stripped_alpha;
+		} else {
+			return false;
+		}
 	}
 
 	struct gbm_bo *bo = import_gbm_bo(&drm->renderer, attribs);
