@@ -643,12 +643,8 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 	struct roots_output_config *output_config =
 		roots_config_get_output(config, wlr_output);
 
-	if ((!output_config || output_config->enable) && !wl_list_empty(&wlr_output->modes)) {
-		struct wlr_output_mode *mode =
-			wl_container_of(wlr_output->modes.prev, mode, link);
-		wlr_output_set_mode(wlr_output, mode);
-	}
-
+	struct wlr_output_mode *preferred_mode =
+		wlr_output_preferred_mode(wlr_output);
 	if (output_config) {
 		if (output_config->enable) {
 			if (wlr_output_is_drm(wlr_output)) {
@@ -662,6 +658,8 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 
 			if (output_config->mode.width) {
 				set_mode(wlr_output, output_config);
+			} else if (preferred_mode != NULL) {
+				wlr_output_set_mode(wlr_output, preferred_mode);
 			}
 
 			wlr_output_set_scale(wlr_output, output_config->scale);
@@ -672,6 +670,9 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 			wlr_output_enable(wlr_output, false);
 		}
 	} else {
+		if (preferred_mode != NULL) {
+			wlr_output_set_mode(wlr_output, preferred_mode);
+		}
 		wlr_output_layout_add_auto(desktop->layout, wlr_output);
 	}
 
