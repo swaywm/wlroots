@@ -46,16 +46,31 @@ struct wlr_output_cursor {
 	} events;
 };
 
+enum wlr_output_state_field {
+	WLR_OUTPUT_STATE_BUFFER = 1 << 0,
+	WLR_OUTPUT_STATE_DAMAGE = 1 << 1,
+};
+
+/**
+ * Holds the double-buffered output state.
+ */
+struct wlr_output_state {
+	uint32_t committed; // enum wlr_output_state_field
+	pixman_region32_t damage;
+};
+
 struct wlr_output_impl;
 
 /**
  * A compositor output region. This typically corresponds to a monitor that
  * displays part of the compositor space.
  *
- * Compositors should listen to the `frame` event to render an output. They
- * should call `wlr_output_make_current`, render and then call
- * `wlr_output_swap_buffers`. No rendering should happen outside a `frame` event
- * handler.
+ * The `frame` event will be emitted when it is a good time for the compositor
+ * to submit a new frame.
+ *
+ * To render a new frame, compositors should call `wlr_output_attach_render`,
+ * render and call `wlr_output_commit`. No rendering should happen outside a
+ * `frame` event handler or before `wlr_output_attach_render`.
  */
 struct wlr_output {
 	const struct wlr_output_impl *impl;
@@ -87,6 +102,8 @@ struct wlr_output {
 	pixman_region32_t damage;
 	bool frame_pending;
 	float transform_matrix[9];
+
+	struct wlr_output_state pending;
 
 	struct {
 		// Request to render a frame
@@ -189,12 +206,14 @@ void wlr_output_transformed_resolution(struct wlr_output *output,
 void wlr_output_effective_resolution(struct wlr_output *output,
 	int *width, int *height);
 /**
- * Makes the output rendering context current.
+ * Attach the renderer's buffer to the output. Compositors must call this
+ * function before rendering. After they are done rendering, they should call
+ * `wlr_output_commit` to submit the new frame.
  *
- * `buffer_age` is set to the drawing buffer age in number of frames or -1 if
- * unknown. This is useful for damage tracking.
+ * If non-NULL, `buffer_age` is set to the drawing buffer age in number of
+ * frames or -1 if unknown. This is useful for damage tracking.
  */
-bool wlr_output_make_current(struct wlr_output *output, int *buffer_age);
+bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age);
 /**
  * Get the preferred format for reading pixels.
  * This function might change the current rendering context.
@@ -202,17 +221,21 @@ bool wlr_output_make_current(struct wlr_output *output, int *buffer_age);
 bool wlr_output_preferred_read_format(struct wlr_output *output,
 	enum wl_shm_format *fmt);
 /**
- * Swaps the output buffers. If the time of the frame isn't known, set `when` to
- * NULL. If the compositor doesn't support damage tracking, set `damage` to
- * NULL.
+ * Set the damage region for the frame to be submitted.
  *
- * Damage is given in output-buffer-local coordinates (ie. scaled and
+ * Compositors implementing damage tracking should call this function with the
+ * damaged region in output-buffer-local coordinates (ie. scaled and
  * transformed).
- *
- * Swapping buffers schedules a `frame` event.
  */
-bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
+void wlr_output_set_damage(struct wlr_output *output,
 	pixman_region32_t *damage);
+/**
+ * Commit the pending output state. If `wlr_output_attach_render` has been
+ * called, the pending frame will be submitted for display.
+ *
+ * This function schedules a `frame` event.
+ */
+bool wlr_output_commit(struct wlr_output *output);
 /**
  * Manually schedules a `frame` event. If a `frame` event is already pending,
  * it is a no-op.

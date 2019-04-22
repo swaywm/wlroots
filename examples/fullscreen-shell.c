@@ -89,7 +89,7 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 	int width, height;
 	wlr_output_effective_resolution(output->wlr_output, &width, &height);
 
-	if (!wlr_output_make_current(output->wlr_output, NULL)) {
+	if (!wlr_output_attach_render(output->wlr_output, NULL)) {
 		return;
 	}
 
@@ -108,7 +108,7 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 	}
 
 	wlr_renderer_end(renderer);
-	wlr_output_swap_buffers(output->wlr_output, NULL, NULL);
+	wlr_output_commit(output->wlr_output);
 }
 
 static void output_set_surface(struct fullscreen_output *output,

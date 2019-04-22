@@ -282,6 +282,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.transform);
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->damage);
+	pixman_region32_init(&output->pending.damage);
 
 	const char *no_hardware_cursors = getenv("WLR_NO_HARDWARE_CURSORS");
 	if (no_hardware_cursors != NULL && strcmp(no_hardware_cursors, "1") == 0) {
@@ -317,6 +318,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 		wl_event_source_remove(output->idle_frame);
 	}
 
+	pixman_region32_fini(&output->pending.damage);
 	pixman_region32_fini(&output->damage);
 
 	if (output->impl && output->impl->destroy) {
@@ -360,13 +362,18 @@ struct wlr_output_mode *wlr_output_preferred_mode(struct wlr_output *output) {
 	return mode;
 }
 
-bool wlr_output_make_current(struct wlr_output *output, int *buffer_age) {
-	return output->impl->make_current(output, buffer_age);
+bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age) {
+	if (!output->impl->make_current(output, buffer_age)) {
+		return false;
+	}
+
+	output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
+	return true;
 }
 
 bool wlr_output_preferred_read_format(struct wlr_output *output,
 		enum wl_shm_format *fmt) {
-	if (!wlr_output_make_current(output, NULL)) {
+	if (!output->impl->make_current(output, NULL)) {
 		return false;
 	}
 
@@ -378,10 +385,21 @@ bool wlr_output_preferred_read_format(struct wlr_output *output,
 	return true;
 }
 
-bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
+void wlr_output_set_damage(struct wlr_output *output,
 		pixman_region32_t *damage) {
+	pixman_region32_intersect_rect(&output->pending.damage, damage,
+		0, 0, output->width, output->height);
+	output->pending.committed |= WLR_OUTPUT_STATE_DAMAGE;
+}
+
+static void output_state_clear(struct wlr_output_state *state) {
+	state->committed = 0;
+	pixman_region32_clear(&state->damage);
+}
+
+bool wlr_output_commit(struct wlr_output *output) {
 	if (output->frame_pending) {
-		wlr_log(WLR_ERROR, "Tried to swap buffers when a frame is pending");
+		wlr_log(WLR_ERROR, "Tried to commit when a frame is pending");
 		return false;
 	}
 	if (output->idle_frame != NULL) {
@@ -389,46 +407,43 @@ bool wlr_output_swap_buffers(struct wlr_output *output, struct timespec *when,
 		output->idle_frame = NULL;
 	}
 
-	struct timespec now;
-	if (when == NULL) {
+	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+		struct timespec now;
 		clock_gettime(CLOCK_MONOTONIC, &now);
-		when = &now;
-	}
 
-	struct wlr_output_event_swap_buffers event = {
-		.output = output,
-		.when = when,
-		.damage = damage,
-	};
-	wlr_signal_emit_safe(&output->events.swap_buffers, &event);
+		pixman_region32_t *damage = NULL;
+		if (output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
+			damage = &output->pending.damage;
+		}
 
-	pixman_region32_t render_damage;
-	pixman_region32_init(&render_damage);
-	pixman_region32_union_rect(&render_damage, &render_damage, 0, 0,
-		output->width, output->height);
-	if (damage != NULL) {
-		// Damage tracking supported
-		pixman_region32_intersect(&render_damage, &render_damage, damage);
-	}
+		struct wlr_output_event_swap_buffers event = {
+			.output = output,
+			.when = &now,
+			.damage = damage,
+		};
+		wlr_signal_emit_safe(&output->events.swap_buffers, &event);
 
-	if (!output->impl->swap_buffers(output, damage ? &render_damage : NULL)) {
-		pixman_region32_fini(&render_damage);
+		if (!output->impl->swap_buffers(output, damage)) {
+			return false;
+		}
+
+		struct wlr_output_cursor *cursor;
+		wl_list_for_each(cursor, &output->cursors, link) {
+			if (!cursor->enabled || !cursor->visible || cursor->surface == NULL) {
+				continue;
+			}
+			wlr_surface_send_frame_done(cursor->surface, &now);
+		}
+
+		output->frame_pending = true;
+		output->needs_swap = false;
+		output_state_clear(&output->pending);
+		return true;
+	} else {
+		wlr_log(WLR_ERROR, "Tried to commit without attaching a buffer");
 		return false;
 	}
 
-	pixman_region32_fini(&render_damage);
-
-	struct wlr_output_cursor *cursor;
-	wl_list_for_each(cursor, &output->cursors, link) {
-		if (!cursor->enabled || !cursor->visible || cursor->surface == NULL) {
-			continue;
-		}
-		wlr_surface_send_frame_done(cursor->surface, when);
-	}
-
-	output->frame_pending = true;
-	output->needs_swap = false;
-	pixman_region32_clear(&output->damage);
 	return true;
 }
 

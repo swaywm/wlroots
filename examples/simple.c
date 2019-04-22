@@ -56,12 +56,12 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 		sample->dec = inc;
 	}
 
-	wlr_output_make_current(sample_output->output, NULL);
+	wlr_output_attach_render(sample_output->output, NULL);
 
 	glClearColor(sample->color[0], sample->color[1], sample->color[2], 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	wlr_output_swap_buffers(sample_output->output, NULL, NULL);
+	wlr_output_commit(sample_output->output);
 	sample->last_frame = now;
 }
 
