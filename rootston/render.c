@@ -220,10 +220,10 @@ void output_render(struct roots_output *output) {
 		clear_color[0] = clear_color[1] = clear_color[2] = 0;
 	}
 
-	bool needs_swap;
+	bool needs_frame;
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
-	if (!wlr_output_damage_attach_render(output->damage, &needs_swap, &damage)) {
+	if (!wlr_output_damage_attach_render(output->damage, &needs_frame, &damage)) {
 		return;
 	}
 
@@ -232,7 +232,7 @@ void output_render(struct roots_output *output) {
 		.alpha = 1.0,
 	};
 
-	if (!needs_swap) {
+	if (!needs_frame) {
 		// Output doesn't need swap and isn't damaged, skip rendering completely
 		goto damage_finish;
 	}

@@ -338,7 +338,7 @@ bool set_drm_connector_gamma(struct wlr_output *output, size_t size,
 
 	bool ok = drm->iface->crtc_set_gamma(drm, conn->crtc, size, _r, _g, _b);
 	if (ok) {
-		wlr_output_update_needs_commit(output);
+		wlr_output_update_needs_frame(output);
 
 		free(conn->crtc->gamma_table);
 		conn->crtc->gamma_table = gamma_table;
@@ -677,7 +677,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		wlr_output_update_needs_commit(output);
+		wlr_output_update_needs_frame(output);
 	}
 
 	if (!update_texture) {
@@ -737,7 +737,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 	}
 	bool ok = drm->iface->crtc_set_cursor(drm, crtc, bo);
 	if (ok) {
-		wlr_output_update_needs_commit(output);
+		wlr_output_update_needs_frame(output);
 	}
 	return ok;
 }
@@ -774,7 +774,7 @@ static bool drm_connector_move_cursor(struct wlr_output *output,
 
 	bool ok = drm->iface->crtc_move_cursor(drm, conn->crtc, box.x, box.y);
 	if (ok) {
-		wlr_output_update_needs_commit(output);
+		wlr_output_update_needs_frame(output);
 	}
 	return ok;
 }
@@ -1435,7 +1435,7 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 			wl_event_source_remove(conn->output.idle_frame);
 			conn->output.idle_frame = NULL;
 		}
-		conn->output.needs_commit = false;
+		conn->output.needs_frame = false;
 		conn->output.frame_pending = false;
 
 		/* Fallthrough */

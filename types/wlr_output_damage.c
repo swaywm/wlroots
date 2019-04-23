@@ -31,10 +31,10 @@ static void output_handle_scale(struct wl_listener *listener, void *data) {
 	wlr_output_damage_add_whole(output_damage);
 }
 
-static void output_handle_needs_commit(struct wl_listener *listener,
+static void output_handle_needs_frame(struct wl_listener *listener,
 		void *data) {
 	struct wlr_output_damage *output_damage =
-		wl_container_of(listener, output_damage, output_needs_commit);
+		wl_container_of(listener, output_damage, output_needs_frame);
 	pixman_region32_union(&output_damage->current, &output_damage->current,
 		&output_damage->output->damage);
 	wlr_output_schedule_frame(output_damage->output);
@@ -93,8 +93,8 @@ struct wlr_output_damage *wlr_output_damage_create(struct wlr_output *output) {
 	output_damage->output_transform.notify = output_handle_transform;
 	wl_signal_add(&output->events.scale, &output_damage->output_scale);
 	output_damage->output_scale.notify = output_handle_scale;
-	wl_signal_add(&output->events.needs_commit, &output_damage->output_needs_commit);
-	output_damage->output_needs_commit.notify = output_handle_needs_commit;
+	wl_signal_add(&output->events.needs_frame, &output_damage->output_needs_frame);
+	output_damage->output_needs_frame.notify = output_handle_needs_frame;
 	wl_signal_add(&output->events.frame, &output_damage->output_frame);
 	output_damage->output_frame.notify = output_handle_frame;
 	wl_signal_add(&output->events.commit, &output_damage->output_commit);
@@ -112,7 +112,7 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage) {
 	wl_list_remove(&output_damage->output_mode.link);
 	wl_list_remove(&output_damage->output_transform.link);
 	wl_list_remove(&output_damage->output_scale.link);
-	wl_list_remove(&output_damage->output_needs_commit.link);
+	wl_list_remove(&output_damage->output_needs_frame.link);
 	wl_list_remove(&output_damage->output_frame.link);
 	pixman_region32_fini(&output_damage->current);
 	for (size_t i = 0; i < WLR_OUTPUT_DAMAGE_PREVIOUS_LEN; ++i) {
@@ -122,7 +122,7 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage) {
 }
 
 bool wlr_output_damage_attach_render(struct wlr_output_damage *output_damage,
-		bool *needs_commit, pixman_region32_t *damage) {
+		bool *needs_frame, pixman_region32_t *damage) {
 	struct wlr_output *output = output_damage->output;
 
 	int buffer_age = -1;
@@ -156,7 +156,7 @@ bool wlr_output_damage_attach_render(struct wlr_output_damage *output_damage,
 		}
 	}
 
-	*needs_commit = output->needs_commit || pixman_region32_not_empty(damage);
+	*needs_frame = output->needs_frame || pixman_region32_not_empty(damage);
 	return true;
 }
 
