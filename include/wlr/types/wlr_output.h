@@ -111,8 +111,10 @@ struct wlr_output {
 		// Emitted when buffers need to be swapped (because software cursors or
 		// fullscreen damage or because of backend-specific logic)
 		struct wl_signal needs_commit;
-		// Emitted right before buffer commit
+		// Emitted right before commit
 		struct wl_signal precommit; // wlr_output_event_precommit
+		// Emitted right after commit
+		struct wl_signal commit;
 		// Emitted right after the buffer has been presented to the user
 		struct wl_signal present; // wlr_output_event_present
 		struct wl_signal enable;

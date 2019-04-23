@@ -24,10 +24,13 @@
 /**
  * Tracks damage for an output.
  *
- * When a `frame` event is emitted, `wlr_output_damage_make_current` should be
- * called. If necessary, the output should be repainted and
- * `wlr_output_damage_swap_buffers` should be called. No rendering should happen
- * outside a `frame` event handler.
+ * The `frame` event will be emitted when it is a good time for the compositor
+ * to submit a new frame.
+ *
+ * To render a new frame, compositors should call
+ * `wlr_output_damage_attach_render`, render and call `wlr_output_commit`. No
+ * rendering should happen outside a `frame` event handler or before
+ * `wlr_output_damage_attach_render`.
  */
 struct wlr_output_damage {
 	struct wlr_output *output;
@@ -50,25 +53,22 @@ struct wlr_output_damage {
 	struct wl_listener output_scale;
 	struct wl_listener output_needs_commit;
 	struct wl_listener output_frame;
+	struct wl_listener output_commit;
 };
 
 struct wlr_output_damage *wlr_output_damage_create(struct wlr_output *output);
 void wlr_output_damage_destroy(struct wlr_output_damage *output_damage);
 /**
- * Makes the output rendering context current. `needs_swap` is set to true if
- * `wlr_output_damage_swap_buffers` needs to be called. The region of the output
- * that needs to be repainted is added to `damage`.
- */
-bool wlr_output_damage_make_current(struct wlr_output_damage *output_damage,
-	bool *needs_swap, pixman_region32_t *damage);
-/**
- * Swaps the output buffers. If the time of the frame isn't known, set `when` to
- * NULL.
+ * Attach the renderer's buffer to the output. Compositors must call this
+ * function before rendering. After they are done rendering, they should call
+ * `wlr_output_set_damage` and `wlr_output_commit` to submit the new frame.
  *
- * Swapping buffers schedules a `frame` event.
+ * `needs_commit` will be set to true if a frame should be submitted. `damage`
+ * will be set to the region of the output that needs to be repainted, in
+ * output-buffer-local coordinates.
  */
-bool wlr_output_damage_swap_buffers(struct wlr_output_damage *output_damage,
-	struct timespec *when, pixman_region32_t *damage);
+bool wlr_output_damage_attach_render(struct wlr_output_damage *output_damage,
+	bool *needs_commit, pixman_region32_t *damage);
 /**
  * Accumulates damage and schedules a `frame` event.
  */
