@@ -275,6 +275,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.needs_commit);
 	wl_signal_init(&output->events.precommit);
+	wl_signal_init(&output->events.commit);
 	wl_signal_init(&output->events.present);
 	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.mode);
@@ -432,6 +433,8 @@ bool wlr_output_commit(struct wlr_output *output) {
 		}
 		wlr_surface_send_frame_done(cursor->surface, &now);
 	}
+
+	wlr_signal_emit_safe(&output->events.commit, output);
 
 	output->frame_pending = true;
 	output->needs_commit = false;

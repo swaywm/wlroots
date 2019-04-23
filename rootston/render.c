@@ -223,7 +223,7 @@ void output_render(struct roots_output *output) {
 	bool needs_swap;
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
-	if (!wlr_output_damage_make_current(output->damage, &needs_swap, &damage)) {
+	if (!wlr_output_damage_attach_render(output->damage, &needs_swap, &damage)) {
 		return;
 	}
 
@@ -310,7 +310,8 @@ renderer_end:
 		wlr_output_transform_invert(wlr_output->transform);
 	wlr_region_transform(&damage, &damage, transform, width, height);
 
-	if (!wlr_output_damage_swap_buffers(output->damage, &now, &damage)) {
+	wlr_output_set_damage(wlr_output, &damage);
+	if (!wlr_output_commit(wlr_output)) {
 		goto damage_finish;
 	}
 	output->last_frame = desktop->last_frame = now;
@@ -319,6 +320,5 @@ damage_finish:
 	pixman_region32_fini(&damage);
 
 	// Send frame done events to all surfaces
-	output_for_each_surface(output, surface_send_frame_done_iterator,
-		&now);
+	output_for_each_surface(output, surface_send_frame_done_iterator, &now);
 }

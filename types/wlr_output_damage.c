@@ -51,6 +51,23 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 	wlr_signal_emit_safe(&output_damage->events.frame, output_damage);
 }
 
+static void output_handle_commit(struct wl_listener *listener, void *data) {
+	struct wlr_output_damage *output_damage =
+		wl_container_of(listener, output_damage, output_commit);
+
+	if (!(output_damage->output->pending.committed & WLR_OUTPUT_STATE_BUFFER)) {
+		return;
+	}
+
+	// same as decrementing, but works on unsigned integers
+	output_damage->previous_idx += WLR_OUTPUT_DAMAGE_PREVIOUS_LEN - 1;
+	output_damage->previous_idx %= WLR_OUTPUT_DAMAGE_PREVIOUS_LEN;
+
+	pixman_region32_copy(&output_damage->previous[output_damage->previous_idx],
+		&output_damage->current);
+	pixman_region32_clear(&output_damage->current);
+}
+
 struct wlr_output_damage *wlr_output_damage_create(struct wlr_output *output) {
 	struct wlr_output_damage *output_damage =
 		calloc(1, sizeof(struct wlr_output_damage));
@@ -80,6 +97,8 @@ struct wlr_output_damage *wlr_output_damage_create(struct wlr_output *output) {
 	output_damage->output_needs_commit.notify = output_handle_needs_commit;
 	wl_signal_add(&output->events.frame, &output_damage->output_frame);
 	output_damage->output_frame.notify = output_handle_frame;
+	wl_signal_add(&output->events.commit, &output_damage->output_commit);
+	output_damage->output_commit.notify = output_handle_commit;
 
 	return output_damage;
 }
@@ -102,7 +121,7 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage) {
 	free(output_damage);
 }
 
-bool wlr_output_damage_make_current(struct wlr_output_damage *output_damage,
+bool wlr_output_damage_attach_render(struct wlr_output_damage *output_damage,
 		bool *needs_commit, pixman_region32_t *damage) {
 	struct wlr_output *output = output_damage->output;
 
@@ -138,26 +157,6 @@ bool wlr_output_damage_make_current(struct wlr_output_damage *output_damage,
 	}
 
 	*needs_commit = output->needs_commit || pixman_region32_not_empty(damage);
-	return true;
-}
-
-bool wlr_output_damage_swap_buffers(struct wlr_output_damage *output_damage,
-		struct timespec *when, pixman_region32_t *damage) {
-	if (damage != NULL) {
-		wlr_output_set_damage(output_damage->output, damage);
-	}
-	if (!wlr_output_commit(output_damage->output)) {
-		return false;
-	}
-
-	// same as decrementing, but works on unsigned integers
-	output_damage->previous_idx += WLR_OUTPUT_DAMAGE_PREVIOUS_LEN - 1;
-	output_damage->previous_idx %= WLR_OUTPUT_DAMAGE_PREVIOUS_LEN;
-
-	pixman_region32_copy(&output_damage->previous[output_damage->previous_idx],
-		&output_damage->current);
-	pixman_region32_clear(&output_damage->current);
-
 	return true;
 }
 
