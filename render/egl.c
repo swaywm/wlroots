@@ -367,7 +367,7 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 		int nrects;
 		pixman_box32_t *rects =
 			pixman_region32_rectangles(&flipped_damage, &nrects);
-		EGLint egl_damage[4 * nrects];
+		EGLint egl_damage[4 * nrects + 1];
 		for (int i = 0; i < nrects; ++i) {
 			egl_damage[4*i] = rects[i].x1;
 			egl_damage[4*i + 1] = rects[i].y1;
