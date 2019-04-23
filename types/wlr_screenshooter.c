@@ -150,7 +150,7 @@ static void screenshooter_shoot(struct wl_client *client,
 	wl_signal_add(&output->events.precommit, &state->frame_listener);
 
 	// Schedule a buffer commit
-	output->needs_commit = true;
+	output->needs_frame = true;
 	wlr_output_schedule_frame(output);
 }
 

@@ -97,7 +97,7 @@ struct wlr_output {
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;
 
-	bool needs_commit;
+	bool needs_frame;
 	// damage for cursors and fullscreen surface, in output-local coordinates
 	pixman_region32_t damage;
 	bool frame_pending;
@@ -110,7 +110,7 @@ struct wlr_output {
 		struct wl_signal frame;
 		// Emitted when buffers need to be swapped (because software cursors or
 		// fullscreen damage or because of backend-specific logic)
-		struct wl_signal needs_commit;
+		struct wl_signal needs_frame;
 		// Emitted right before commit
 		struct wl_signal precommit; // wlr_output_event_precommit
 		// Emitted right after commit

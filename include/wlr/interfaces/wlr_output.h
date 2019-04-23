@@ -43,7 +43,7 @@ void wlr_output_update_mode(struct wlr_output *output,
 void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 	int32_t height, int32_t refresh);
 void wlr_output_update_enabled(struct wlr_output *output, bool enabled);
-void wlr_output_update_needs_commit(struct wlr_output *output);
+void wlr_output_update_needs_frame(struct wlr_output *output);
 void wlr_output_damage_whole(struct wlr_output *output);
 void wlr_output_send_frame(struct wlr_output *output);
 void wlr_output_send_present(struct wlr_output *output,

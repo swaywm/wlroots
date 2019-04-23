@@ -51,7 +51,7 @@ struct wlr_output_damage {
 	struct wl_listener output_mode;
 	struct wl_listener output_transform;
 	struct wl_listener output_scale;
-	struct wl_listener output_needs_commit;
+	struct wl_listener output_needs_frame;
 	struct wl_listener output_frame;
 	struct wl_listener output_commit;
 };
@@ -63,12 +63,12 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage);
  * function before rendering. After they are done rendering, they should call
  * `wlr_output_set_damage` and `wlr_output_commit` to submit the new frame.
  *
- * `needs_commit` will be set to true if a frame should be submitted. `damage`
+ * `needs_frame` will be set to true if a frame should be submitted. `damage`
  * will be set to the region of the output that needs to be repainted, in
  * output-buffer-local coordinates.
  */
 bool wlr_output_damage_attach_render(struct wlr_output_damage *output_damage,
-	bool *needs_commit, pixman_region32_t *damage);
+	bool *needs_frame, pixman_region32_t *damage);
 /**
  * Accumulates damage and schedules a `frame` event.
  */

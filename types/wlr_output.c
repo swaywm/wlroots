@@ -273,7 +273,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_list_init(&output->cursors);
 	wl_list_init(&output->resources);
 	wl_signal_init(&output->events.frame);
-	wl_signal_init(&output->events.needs_commit);
+	wl_signal_init(&output->events.needs_frame);
 	wl_signal_init(&output->events.precommit);
 	wl_signal_init(&output->events.commit);
 	wl_signal_init(&output->events.present);
@@ -437,7 +437,7 @@ bool wlr_output_commit(struct wlr_output *output) {
 	wlr_signal_emit_safe(&output->events.commit, output);
 
 	output->frame_pending = true;
-	output->needs_commit = false;
+	output->needs_frame = false;
 	output_state_clear(&output->pending);
 	return true;
 }
@@ -517,9 +517,9 @@ bool wlr_output_export_dmabuf(struct wlr_output *output,
 	return output->impl->export_dmabuf(output, attribs);
 }
 
-void wlr_output_update_needs_commit(struct wlr_output *output) {
-	output->needs_commit = true;
-	wlr_signal_emit_safe(&output->events.needs_commit, output);
+void wlr_output_update_needs_frame(struct wlr_output *output) {
+	output->needs_frame = true;
+	wlr_signal_emit_safe(&output->events.needs_frame, output);
 }
 
 void wlr_output_damage_whole(struct wlr_output *output) {
@@ -528,7 +528,7 @@ void wlr_output_damage_whole(struct wlr_output *output) {
 
 	pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
 		width, height);
-	wlr_output_update_needs_commit(output);
+	wlr_output_update_needs_frame(output);
 }
 
 struct wlr_output *wlr_output_from_resource(struct wl_resource *resource) {
@@ -674,7 +674,7 @@ static void output_cursor_damage_whole(struct wlr_output_cursor *cursor) {
 	output_cursor_get_box(cursor, &box);
 	pixman_region32_union_rect(&cursor->output->damage, &cursor->output->damage,
 		box.x, box.y, box.width, box.height);
-	wlr_output_update_needs_commit(cursor->output);
+	wlr_output_update_needs_frame(cursor->output);
 }
 
 static void output_cursor_reset(struct wlr_output_cursor *cursor) {
