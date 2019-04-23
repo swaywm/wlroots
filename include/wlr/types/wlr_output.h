@@ -56,7 +56,7 @@ enum wlr_output_state_field {
  */
 struct wlr_output_state {
 	uint32_t committed; // enum wlr_output_state_field
-	pixman_region32_t damage;
+	pixman_region32_t damage; // output-buffer-local coordinates
 };
 
 struct wlr_output_impl;
@@ -111,8 +111,8 @@ struct wlr_output {
 		// Emitted when buffers need to be swapped (because software cursors or
 		// fullscreen damage or because of backend-specific logic)
 		struct wl_signal needs_commit;
-		// Emitted right before buffer swap
-		struct wl_signal swap_buffers; // wlr_output_event_swap_buffers
+		// Emitted right before buffer commit
+		struct wl_signal precommit; // wlr_output_event_precommit
 		// Emitted right after the buffer has been presented to the user
 		struct wl_signal present; // wlr_output_event_present
 		struct wl_signal enable;
@@ -133,10 +133,9 @@ struct wlr_output {
 	void *data;
 };
 
-struct wlr_output_event_swap_buffers {
+struct wlr_output_event_precommit {
 	struct wlr_output *output;
 	struct timespec *when;
-	pixman_region32_t *damage; // output-buffer-local coordinates
 };
 
 enum wlr_output_present_flag {

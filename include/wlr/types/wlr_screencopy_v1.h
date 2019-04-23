@@ -42,7 +42,7 @@ struct wlr_screencopy_frame_v1 {
 	struct wl_listener buffer_destroy;
 
 	struct wlr_output *output;
-	struct wl_listener output_swap_buffers;
+	struct wl_listener output_precommit;
 
 	void *data;
 };
