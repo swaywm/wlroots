@@ -135,8 +135,8 @@ static void frame_handle_copy(struct wl_client *client,
 	wl_resource_add_destroy_listener(buffer_resource, &frame->buffer_destroy);
 	frame->buffer_destroy.notify = frame_handle_buffer_destroy;
 
-	// Schedule a buffer swap
-	output->needs_swap = true;
+	// Schedule a buffer commit
+	output->needs_commit = true;
 	wlr_output_schedule_frame(output);
 
 	if (frame->overlay_cursor) {

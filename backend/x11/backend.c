@@ -46,7 +46,7 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		struct wlr_x11_output *output =
 			get_x11_output_from_window_id(x11, ev->window);
 		if (output != NULL) {
-			wlr_output_update_needs_swap(&output->wlr_output);
+			wlr_output_update_needs_commit(&output->wlr_output);
 		}
 		break;
 	}

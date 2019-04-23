@@ -145,8 +145,8 @@ static void screenshooter_shoot(struct wl_client *client,
 	state->frame_listener.notify = output_handle_frame;
 	wl_signal_add(&output->events.swap_buffers, &state->frame_listener);
 
-	// Schedule a buffer swap
-	output->needs_swap = true;
+	// Schedule a buffer commit
+	output->needs_commit = true;
 	wlr_output_schedule_frame(output);
 }
 

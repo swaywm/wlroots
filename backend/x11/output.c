@@ -95,7 +95,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	free(output);
 }
 
-static bool output_make_current(struct wlr_output *wlr_output,
+static bool output_attach_render(struct wlr_output *wlr_output,
 		int *buffer_age) {
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
 	struct wlr_x11_backend *x11 = output->x11;
@@ -103,10 +103,14 @@ static bool output_make_current(struct wlr_output *wlr_output,
 	return wlr_egl_make_current(&x11->egl, output->surf, buffer_age);
 }
 
-static bool output_swap_buffers(struct wlr_output *wlr_output,
-		pixman_region32_t *damage) {
-	struct wlr_x11_output *output = (struct wlr_x11_output *)wlr_output;
+static bool output_commit(struct wlr_output *wlr_output) {
+	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
 	struct wlr_x11_backend *x11 = output->x11;
+
+	pixman_region32_t *damage = NULL;
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
+		damage = &wlr_output->pending.damage;
+	}
 
 	if (!wlr_egl_swap_buffers(&x11->egl, output->surf, damage)) {
 		return false;
@@ -120,8 +124,8 @@ static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
-	.make_current = output_make_current,
-	.swap_buffers = output_swap_buffers,
+	.attach_render = output_attach_render,
+	.commit = output_commit,
 };
 
 struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
