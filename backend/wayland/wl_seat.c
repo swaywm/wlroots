@@ -331,6 +331,11 @@ struct wlr_wl_pointer *pointer_get_wl(struct wlr_pointer *wlr_pointer) {
 
 static void pointer_destroy(struct wlr_pointer *wlr_pointer) {
 	struct wlr_wl_pointer *pointer = pointer_get_wl(wlr_pointer);
+
+	if (pointer->output->backend->current_pointer == pointer) {
+		pointer->output->backend->current_pointer = NULL;
+	}
+
 	wl_list_remove(&pointer->output_destroy.link);
 	free(pointer);
 }
