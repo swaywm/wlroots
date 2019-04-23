@@ -38,7 +38,7 @@ static void frame_destroy(struct wlr_export_dmabuf_frame_v1 *frame) {
 		wlr_output_lock_software_cursors(frame->output, false);
 	}
 	wl_list_remove(&frame->link);
-	wl_list_remove(&frame->output_swap_buffers.link);
+	wl_list_remove(&frame->output_precommit.link);
 	wlr_dmabuf_attributes_finish(&frame->attribs);
 	// Make the frame resource inert
 	wl_resource_set_user_data(frame->resource, NULL);
@@ -50,14 +50,18 @@ static void frame_handle_resource_destroy(struct wl_resource *resource) {
 	frame_destroy(frame);
 }
 
-static void frame_output_handle_swap_buffers(struct wl_listener *listener,
+static void frame_output_handle_precommit(struct wl_listener *listener,
 		void *data) {
 	struct wlr_export_dmabuf_frame_v1 *frame =
-		wl_container_of(listener, frame, output_swap_buffers);
-	struct wlr_output_event_swap_buffers *event = data;
+		wl_container_of(listener, frame, output_precommit);
+	struct wlr_output_event_precommit *event = data;
 
-	wl_list_remove(&frame->output_swap_buffers.link);
-	wl_list_init(&frame->output_swap_buffers.link);
+	if (!(event->output->pending.committed & WLR_OUTPUT_STATE_BUFFER)) {
+		return;
+	}
+
+	wl_list_remove(&frame->output_precommit.link);
+	wl_list_init(&frame->output_precommit.link);
 
 	time_t tv_sec = event->when->tv_sec;
 	uint32_t tv_sec_hi = (sizeof(tv_sec) > 4) ? tv_sec >> 32 : 0;
@@ -92,7 +96,7 @@ static void manager_handle_capture_output(struct wl_client *client,
 	}
 	frame->manager = manager;
 	frame->output = output;
-	wl_list_init(&frame->output_swap_buffers.link);
+	wl_list_init(&frame->output_precommit.link);
 
 	uint32_t version = wl_resource_get_version(manager_resource);
 	frame->resource = wl_resource_create(client,
@@ -142,9 +146,9 @@ static void manager_handle_capture_output(struct wl_client *client,
 			attribs->fd[i], size, attribs->offset[i], attribs->stride[i], i);
 	}
 
-	wl_list_remove(&frame->output_swap_buffers.link);
-	wl_signal_add(&output->events.swap_buffers, &frame->output_swap_buffers);
-	frame->output_swap_buffers.notify = frame_output_handle_swap_buffers;
+	wl_list_remove(&frame->output_precommit.link);
+	wl_signal_add(&output->events.precommit, &frame->output_precommit);
+	frame->output_precommit.notify = frame_output_handle_precommit;
 }
 
 static void manager_handle_destroy(struct wl_client *client,

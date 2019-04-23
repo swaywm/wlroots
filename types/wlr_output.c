@@ -274,7 +274,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_list_init(&output->resources);
 	wl_signal_init(&output->events.frame);
 	wl_signal_init(&output->events.needs_commit);
-	wl_signal_init(&output->events.swap_buffers);
+	wl_signal_init(&output->events.precommit);
 	wl_signal_init(&output->events.present);
 	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.mode);
@@ -415,17 +415,11 @@ bool wlr_output_commit(struct wlr_output *output) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
-	pixman_region32_t *damage = NULL;
-	if (output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
-		damage = &output->pending.damage;
-	}
-
-	struct wlr_output_event_swap_buffers event = {
+	struct wlr_output_event_precommit event = {
 		.output = output,
 		.when = &now,
-		.damage = damage,
 	};
-	wlr_signal_emit_safe(&output->events.swap_buffers, &event);
+	wlr_signal_emit_safe(&output->events.precommit, &event);
 
 	if (!output->impl->commit(output)) {
 		return false;

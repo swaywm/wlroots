@@ -27,24 +27,28 @@ static void frame_destroy(struct wlr_screencopy_frame_v1 *frame) {
 		wlr_output_lock_software_cursors(frame->output, false);
 	}
 	wl_list_remove(&frame->link);
-	wl_list_remove(&frame->output_swap_buffers.link);
+	wl_list_remove(&frame->output_precommit.link);
 	wl_list_remove(&frame->buffer_destroy.link);
 	// Make the frame resource inert
 	wl_resource_set_user_data(frame->resource, NULL);
 	free(frame);
 }
 
-static void frame_handle_output_swap_buffers(struct wl_listener *listener,
+static void frame_handle_output_precommit(struct wl_listener *listener,
 		void *_data) {
 	struct wlr_screencopy_frame_v1 *frame =
-		wl_container_of(listener, frame, output_swap_buffers);
-	struct wlr_output_event_swap_buffers *event = _data;
+		wl_container_of(listener, frame, output_precommit);
+	struct wlr_output_event_precommit *event = _data;
 	struct wlr_output *output = frame->output;
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	assert(renderer);
 
-	wl_list_remove(&frame->output_swap_buffers.link);
-	wl_list_init(&frame->output_swap_buffers.link);
+	if (!(output->pending.committed & WLR_OUTPUT_STATE_BUFFER)) {
+		return;
+	}
+
+	wl_list_remove(&frame->output_precommit.link);
+	wl_list_init(&frame->output_precommit.link);
 
 	int x = frame->box.x;
 	int y = frame->box.y;
@@ -119,7 +123,7 @@ static void frame_handle_copy(struct wl_client *client,
 		return;
 	}
 
-	if (!wl_list_empty(&frame->output_swap_buffers.link) ||
+	if (!wl_list_empty(&frame->output_precommit.link) ||
 			frame->buffer != NULL) {
 		wl_resource_post_error(frame->resource,
 			ZWLR_SCREENCOPY_FRAME_V1_ERROR_ALREADY_USED,
@@ -129,8 +133,8 @@ static void frame_handle_copy(struct wl_client *client,
 
 	frame->buffer = buffer;
 
-	wl_signal_add(&output->events.swap_buffers, &frame->output_swap_buffers);
-	frame->output_swap_buffers.notify = frame_handle_output_swap_buffers;
+	wl_signal_add(&output->events.precommit, &frame->output_precommit);
+	frame->output_precommit.notify = frame_handle_output_precommit;
 
 	wl_resource_add_destroy_listener(buffer_resource, &frame->buffer_destroy);
 	frame->buffer_destroy.notify = frame_handle_buffer_destroy;
@@ -213,7 +217,7 @@ static void capture_output(struct wl_client *client,
 
 	wl_list_insert(&manager->frames, &frame->link);
 
-	wl_list_init(&frame->output_swap_buffers.link);
+	wl_list_init(&frame->output_precommit.link);
 	wl_list_init(&frame->buffer_destroy.link);
 
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);

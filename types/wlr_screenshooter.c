@@ -45,6 +45,10 @@ static void output_handle_frame(struct wl_listener *listener, void *_data) {
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	struct wl_shm_buffer *shm_buffer = state->shm_buffer;
 
+	if (!(output->pending.committed & WLR_OUTPUT_STATE_BUFFER)) {
+		return;
+	}
+
 	enum wl_shm_format format = wl_shm_buffer_get_format(shm_buffer);
 	int32_t width = wl_shm_buffer_get_width(shm_buffer);
 	int32_t height = wl_shm_buffer_get_height(shm_buffer);
@@ -143,7 +147,7 @@ static void screenshooter_shoot(struct wl_client *client,
 	state->shm_buffer = shm_buffer;
 	state->screenshot = screenshot;
 	state->frame_listener.notify = output_handle_frame;
-	wl_signal_add(&output->events.swap_buffers, &state->frame_listener);
+	wl_signal_add(&output->events.precommit, &state->frame_listener);
 
 	// Schedule a buffer commit
 	output->needs_commit = true;
