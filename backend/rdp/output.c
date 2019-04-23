@@ -69,7 +69,8 @@ static void output_transform(struct wlr_output *wlr_output,
 	output->wlr_output.transform = transform;
 }
 
-static bool output_make_current(struct wlr_output *wlr_output, int *buffer_age) {
+static bool output_attach_render(struct wlr_output *wlr_output,
+		int *buffer_age) {
 	struct wlr_rdp_output *output =
 		rdp_output_from_output(wlr_output);
 	return wlr_egl_make_current(&output->backend->egl, output->egl_surface,
@@ -169,31 +170,39 @@ static bool nsc_swap_buffers(
 	return true;
 }
 
-static bool output_swap_buffers(
-		struct wlr_output *wlr_output, pixman_region32_t *damage) {
-	if (!pixman_region32_not_empty(damage)) {
-		return true;
-	}
-
+static bool output_commit(struct wlr_output *wlr_output) {
 	struct wlr_rdp_output *output =
 		rdp_output_from_output(wlr_output);
+	bool ret = false;
 
-	// Update shadow buffer
+	pixman_region32_t output_region;
+	pixman_region32_init(&output_region);
+	pixman_region32_union_rect(&output_region, &output_region,
+		0, 0, wlr_output->width, wlr_output->height);
+
+	pixman_region32_t *damage = &output_region;
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
+		damage = &wlr_output->pending.damage;
+	}
+
+	int x = damage->extents.x1;
+	int y = damage->extents.y1;
 	int width = damage->extents.x2 - damage->extents.x1;
 	int height = damage->extents.y2 - damage->extents.y1;
+
+	// Update shadow buffer
 	struct wlr_renderer *renderer =
 		wlr_backend_get_renderer(&output->backend->backend);
 	// TODO performance: add support for flags
-	if (!wlr_renderer_read_pixels(renderer, WL_SHM_FORMAT_XRGB8888,
-				NULL, pixman_image_get_stride(output->shadow_surface),
-				width, height, damage->extents.x1, damage->extents.y1,
-				damage->extents.x1, damage->extents.y1,
-				pixman_image_get_data(output->shadow_surface))) {
-		return false;
+	ret = wlr_renderer_read_pixels(renderer, WL_SHM_FORMAT_XRGB8888,
+		NULL, pixman_image_get_stride(output->shadow_surface),
+		width, height, x, y, x, y,
+		pixman_image_get_data(output->shadow_surface));
+	if (!ret) {
+		goto out;
 	}
 
 	// Send along to clients
-	bool ret = false;
 	rdpSettings *settings = output->context->peer->settings;
 	if (settings->RemoteFxCodec) {
 		ret = rfx_swap_buffers(output, damage);
@@ -202,8 +211,16 @@ static bool output_swap_buffers(
 	} else {
 		// This would perform like ass so why bother
 		wlr_log(WLR_ERROR, "Raw updates are not supported; use rfx or nsc");
+		ret = false;
 	}
+	if (!ret) {
+		goto out;
+	}
+
 	wlr_output_send_present(wlr_output, NULL);
+
+out:
+	pixman_region32_fini(&output_region);
 	return ret;
 }
 
@@ -224,8 +241,8 @@ static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
-	.make_current = output_make_current,
-	.swap_buffers = output_swap_buffers,
+	.attach_render = output_attach_render,
+	.commit = output_commit,
 };
 
 bool wlr_output_is_rdp(struct wlr_output *wlr_output) {

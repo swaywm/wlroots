@@ -238,14 +238,13 @@ static struct wlr_drm_connector *get_drm_connector_from_output(
 	return (struct wlr_drm_connector *)wlr_output;
 }
 
-static bool drm_connector_make_current(struct wlr_output *output,
+static bool drm_connector_attach_render(struct wlr_output *output,
 		int *buffer_age) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	return make_drm_surface_current(&conn->crtc->primary->surf, buffer_age);
 }
 
-static bool drm_connector_swap_buffers(struct wlr_output *output,
-		pixman_region32_t *damage) {
+static bool drm_connector_commit(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 	if (!drm->session->active) {
@@ -257,6 +256,11 @@ static bool drm_connector_swap_buffers(struct wlr_output *output,
 		return false;
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
+
+	pixman_region32_t *damage = NULL;
+	if (output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
+		damage = &output->pending.damage;
+	}
 
 	struct gbm_bo *bo = swap_drm_surface_buffers(&plane->surf, damage);
 	if (drm->parent) {
@@ -334,7 +338,7 @@ bool set_drm_connector_gamma(struct wlr_output *output, size_t size,
 
 	bool ok = drm->iface->crtc_set_gamma(drm, conn->crtc, size, _r, _g, _b);
 	if (ok) {
-		wlr_output_update_needs_swap(output);
+		wlr_output_update_needs_commit(output);
 
 		free(conn->crtc->gamma_table);
 		conn->crtc->gamma_table = gamma_table;
@@ -673,7 +677,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		wlr_output_update_needs_swap(output);
+		wlr_output_update_needs_commit(output);
 	}
 
 	if (!update_texture) {
@@ -733,7 +737,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 	}
 	bool ok = drm->iface->crtc_set_cursor(drm, crtc, bo);
 	if (ok) {
-		wlr_output_update_needs_swap(output);
+		wlr_output_update_needs_commit(output);
 	}
 	return ok;
 }
@@ -770,7 +774,7 @@ static bool drm_connector_move_cursor(struct wlr_output *output,
 
 	bool ok = drm->iface->crtc_move_cursor(drm, conn->crtc, box.x, box.y);
 	if (ok) {
-		wlr_output_update_needs_swap(output);
+		wlr_output_update_needs_commit(output);
 	}
 	return ok;
 }
@@ -832,8 +836,8 @@ static const struct wlr_output_impl output_impl = {
 	.set_cursor = drm_connector_set_cursor,
 	.move_cursor = drm_connector_move_cursor,
 	.destroy = drm_connector_destroy,
-	.make_current = drm_connector_make_current,
-	.swap_buffers = drm_connector_swap_buffers,
+	.attach_render = drm_connector_attach_render,
+	.commit = drm_connector_commit,
 	.set_gamma = set_drm_connector_gamma,
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.export_dmabuf = drm_connector_export_dmabuf,
@@ -1431,7 +1435,7 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 			wl_event_source_remove(conn->output.idle_frame);
 			conn->output.idle_frame = NULL;
 		}
-		conn->output.needs_swap = false;
+		conn->output.needs_commit = false;
 		conn->output.frame_pending = false;
 
 		/* Fallthrough */

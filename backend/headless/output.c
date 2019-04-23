@@ -56,15 +56,15 @@ static void output_transform(struct wlr_output *wlr_output,
 	output->wlr_output.transform = transform;
 }
 
-static bool output_make_current(struct wlr_output *wlr_output, int *buffer_age) {
+static bool output_attach_render(struct wlr_output *wlr_output,
+		int *buffer_age) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
 	return wlr_egl_make_current(&output->backend->egl, output->egl_surface,
 		buffer_age);
 }
 
-static bool output_swap_buffers(struct wlr_output *wlr_output,
-		pixman_region32_t *damage) {
+static bool output_commit(struct wlr_output *wlr_output) {
 	// Nothing needs to be done for pbuffers
 	wlr_output_send_present(wlr_output, NULL);
 	return true;
@@ -86,8 +86,8 @@ static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
-	.make_current = output_make_current,
-	.swap_buffers = output_swap_buffers,
+	.attach_render = output_attach_render,
+	.commit = output_commit,
 };
 
 bool wlr_output_is_headless(struct wlr_output *wlr_output) {

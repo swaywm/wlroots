@@ -50,7 +50,7 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output,
 	return true;
 }
 
-static bool output_make_current(struct wlr_output *wlr_output,
+static bool output_attach_render(struct wlr_output *wlr_output,
 		int *buffer_age) {
 	struct wlr_wl_output *output =
 		get_wl_output_from_output(wlr_output);
@@ -58,8 +58,7 @@ static bool output_make_current(struct wlr_output *wlr_output,
 		buffer_age);
 }
 
-static bool output_swap_buffers(struct wlr_output *wlr_output,
-		pixman_region32_t *damage) {
+static bool output_commit(struct wlr_output *wlr_output) {
 	struct wlr_wl_output *output =
 		get_wl_output_from_output(wlr_output);
 
@@ -70,6 +69,11 @@ static bool output_swap_buffers(struct wlr_output *wlr_output,
 
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
+
+	pixman_region32_t *damage = NULL;
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
+		damage = &wlr_output->pending.damage;
+	}
 
 	if (!wlr_egl_swap_buffers(&output->backend->egl,
 			output->egl_surface, damage)) {
@@ -220,8 +224,8 @@ static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.transform = output_transform,
 	.destroy = output_destroy,
-	.make_current = output_make_current,
-	.swap_buffers = output_swap_buffers,
+	.attach_render = output_attach_render,
+	.commit = output_commit,
 	.set_cursor = output_set_cursor,
 	.move_cursor = output_move_cursor,
 	.schedule_frame = output_schedule_frame,
