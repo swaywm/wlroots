@@ -114,6 +114,7 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage) {
 	wl_list_remove(&output_damage->output_scale.link);
 	wl_list_remove(&output_damage->output_needs_frame.link);
 	wl_list_remove(&output_damage->output_frame.link);
+	wl_list_remove(&output_damage->output_commit.link);
 	pixman_region32_fini(&output_damage->current);
 	for (size_t i = 0; i < WLR_OUTPUT_DAMAGE_PREVIOUS_LEN; ++i) {
 		pixman_region32_fini(&output_damage->previous[i]);
