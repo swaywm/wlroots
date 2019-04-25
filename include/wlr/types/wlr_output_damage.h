@@ -66,9 +66,13 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage);
  * `needs_frame` will be set to true if a frame should be submitted. `damage`
  * will be set to the region of the output that needs to be repainted, in
  * output-buffer-local coordinates.
+ *
+ * The buffer damage region accumulates all damage since the buffer has last
+ * been swapped. This is not to be confused with the output surface damage,
+ * which only contains the changes between two frames.
  */
 bool wlr_output_damage_attach_render(struct wlr_output_damage *output_damage,
-	bool *needs_frame, pixman_region32_t *damage);
+	bool *needs_frame, pixman_region32_t *buffer_damage);
 /**
  * Accumulates damage and schedules a `frame` event.
  */
