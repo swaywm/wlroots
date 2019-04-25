@@ -222,11 +222,16 @@ bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age);
 bool wlr_output_preferred_read_format(struct wlr_output *output,
 	enum wl_shm_format *fmt);
 /**
- * Set the damage region for the frame to be submitted.
+ * Set the damage region for the frame to be submitted. This is the region of
+ * the screen that has changed since the last frame.
  *
  * Compositors implementing damage tracking should call this function with the
  * damaged region in output-buffer-local coordinates (ie. scaled and
  * transformed).
+ *
+ * This region is not to be confused with the renderer's buffer damage, ie. the
+ * region compositors need to repaint. Compositors usually need to repaint more
+ * than what changed since last frame since multiple render buffers are used.
  */
 void wlr_output_set_damage(struct wlr_output *output,
 	pixman_region32_t *damage);
