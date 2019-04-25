@@ -377,6 +377,14 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 
 		pixman_region32_fini(&flipped_damage);
 
+		if (nrects == 0) {
+			// Swapping with no rects is the same as swapping with the entire
+			// surface damaged. To swap with no damage, we set the damage region
+			// to a single empty rectangle.
+			nrects = 1;
+			memset(egl_damage, 0, sizeof(egl_damage));
+		}
+
 		if (egl->exts.swap_buffers_with_damage_ext) {
 			ret = eglSwapBuffersWithDamageEXT(egl->display, surface, egl_damage,
 				nrects);
