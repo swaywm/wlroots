@@ -21,7 +21,6 @@
 #include <wlr/types/wlr_primary_selection_v1.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_tablet_v2.h>
-#include <wlr/types/wlr_wl_shell.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
@@ -38,13 +37,6 @@
 
 static bool view_at(struct roots_view *view, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy) {
-	if (view->type == ROOTS_WL_SHELL_VIEW) {
-		struct wlr_wl_shell_surface *wl_shell_surface =
-			roots_wl_shell_surface_from_view(view)->wl_shell_surface;
-		if (wl_shell_surface->state == WLR_WL_SHELL_SURFACE_STATE_POPUP) {
-			return false;
-		}
-	}
 	if (view->wlr_surface == NULL) {
 		return false;
 	}
@@ -68,12 +60,6 @@ static bool view_at(struct roots_view *view, double lx, double ly,
 			roots_xdg_surface_from_view(view);
 		_surface = wlr_xdg_surface_surface_at(xdg_surface->xdg_surface,
 			view_sx, view_sy, &_sx, &_sy);
-		break;
-	case ROOTS_WL_SHELL_VIEW:;
-		struct roots_wl_shell_surface *wl_shell_surface =
-			roots_wl_shell_surface_from_view(view);
-		_surface = wlr_wl_shell_surface_surface_at(
-			wl_shell_surface->wl_shell_surface, view_sx, view_sy, &_sx, &_sy);
 		break;
 #if WLR_HAS_XWAYLAND
 	case ROOTS_XWAYLAND_VIEW:
@@ -329,11 +315,6 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	wl_signal_add(&desktop->xdg_shell->events.new_surface,
 		&desktop->xdg_shell_surface);
 	desktop->xdg_shell_surface.notify = handle_xdg_shell_surface;
-
-	desktop->wl_shell = wlr_wl_shell_create(server->wl_display);
-	wl_signal_add(&desktop->wl_shell->events.new_surface,
-		&desktop->wl_shell_surface);
-	desktop->wl_shell_surface.notify = handle_wl_shell_surface;
 
 	desktop->layer_shell = wlr_layer_shell_v1_create(server->wl_display);
 	wl_signal_add(&desktop->layer_shell->events.new_surface,
