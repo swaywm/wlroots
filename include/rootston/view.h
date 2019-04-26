@@ -67,6 +67,7 @@ struct roots_view {
 	struct wlr_foreign_toplevel_handle_v1 *toplevel_handle;
 	struct wl_listener toplevel_handle_request_maximize;
 	struct wl_listener toplevel_handle_request_activate;
+	struct wl_listener toplevel_handle_request_fullscreen;
 	struct wl_listener toplevel_handle_request_close;
 
 	struct wl_listener new_subsurface;
