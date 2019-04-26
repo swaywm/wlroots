@@ -9,7 +9,7 @@
 #include "util/signal.h"
 #include "wlr-foreign-toplevel-management-unstable-v1-protocol.h"
 
-#define FOREIGN_TOPLEVEL_MANAGEMENT_V1_VERSION 1
+#define FOREIGN_TOPLEVEL_MANAGEMENT_V1_VERSION 2
 
 static const struct zwlr_foreign_toplevel_handle_v1_interface toplevel_handle_impl;
 
@@ -68,6 +68,36 @@ static void foreign_toplevel_handle_set_minimized(struct wl_client *client,
 static void foreign_toplevel_handle_unset_minimized(struct wl_client *client,
 		struct wl_resource *resource) {
 	toplevel_send_minimized_event(resource, false);
+}
+
+static void toplevel_send_fullscreen_event(struct wl_resource *resource,
+		bool state, struct wl_resource *output_resource) {
+	struct wlr_foreign_toplevel_handle_v1 *toplevel =
+		toplevel_handle_from_resource(resource);
+	if (!toplevel) {
+		return;
+	}
+
+	struct wlr_output *output = NULL;
+	if (output_resource) {
+		output = wlr_output_from_resource(output_resource);
+	}
+	struct wlr_foreign_toplevel_handle_v1_fullscreen_event event = {
+		.toplevel = toplevel,
+		.fullscreen = state,
+		.output = output,
+	};
+	wlr_signal_emit_safe(&toplevel->events.request_fullscreen, &event);
+}
+
+static void foreign_toplevel_handle_set_fullscreen(struct wl_client *client,
+		struct wl_resource *resource, struct wl_resource *output) {
+	toplevel_send_fullscreen_event(resource, true, output);
+}
+
+static void foreign_toplevel_handle_unset_fullscreen(struct wl_client *client,
+		struct wl_resource *resource) {
+	toplevel_send_fullscreen_event(resource, false, NULL);
 }
 
 static void foreign_toplevel_handle_activate(struct wl_client *client,
@@ -136,7 +166,9 @@ static const struct zwlr_foreign_toplevel_handle_v1_interface toplevel_handle_im
 	.activate = foreign_toplevel_handle_activate,
 	.close = foreign_toplevel_handle_close,
 	.set_rectangle = foreign_toplevel_handle_set_rectangle,
-	.destroy = foreign_toplevel_handle_destroy
+	.destroy = foreign_toplevel_handle_destroy,
+	.set_fullscreen = foreign_toplevel_handle_set_fullscreen,
+	.unset_fullscreen = foreign_toplevel_handle_unset_fullscreen,
 };
 
 static void toplevel_idle_send_done(void *data) {
@@ -299,6 +331,13 @@ static bool fill_array_from_toplevel_state(struct wl_array *array,
 		}
 		*index = ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED;
 	}
+	if (state & WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN) {
+		uint32_t *index = wl_array_add(array, sizeof(uint32_t));
+		if (index == NULL) {
+			return false;
+		}
+		*index = ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN;
+	}
 
 	return true;
 }
@@ -352,6 +391,16 @@ void wlr_foreign_toplevel_handle_v1_set_activated(
 		toplevel->state |= WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED;
 	} else {
 		toplevel->state &= ~WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED;
+	}
+	toplevel_send_state(toplevel);
+}
+
+void wlr_foreign_toplevel_handle_v1_set_fullscreen(
+		struct wlr_foreign_toplevel_handle_v1 * toplevel, bool fullscreen) {
+	if (fullscreen) {
+		toplevel->state |= WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN;
+	} else {
+		toplevel->state &= ~WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN;
 	}
 	toplevel_send_state(toplevel);
 }
@@ -430,6 +479,7 @@ wlr_foreign_toplevel_handle_v1_create(
 	wl_signal_init(&toplevel->events.request_maximize);
 	wl_signal_init(&toplevel->events.request_minimize);
 	wl_signal_init(&toplevel->events.request_activate);
+	wl_signal_init(&toplevel->events.request_fullscreen);
 	wl_signal_init(&toplevel->events.request_close);
 	wl_signal_init(&toplevel->events.set_rectangle);
 	wl_signal_init(&toplevel->events.destroy);

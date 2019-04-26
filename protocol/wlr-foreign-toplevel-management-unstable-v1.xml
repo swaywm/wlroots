@@ -25,7 +25,7 @@
     THIS SOFTWARE.
   </copyright>
 
-  <interface name="zwlr_foreign_toplevel_manager_v1" version="1">
+  <interface name="zwlr_foreign_toplevel_manager_v1" version="2">
     <description summary="list and control opened apps">
       The purpose of this protocol is to enable the creation of taskbars
       and docks by providing them with a list of opened applications and
@@ -68,7 +68,7 @@
     </event>
   </interface>
 
-  <interface name="zwlr_foreign_toplevel_handle_v1" version="1">
+  <interface name="zwlr_foreign_toplevel_handle_v1" version="2">
     <description summary="an opened toplevel">
       A zwlr_foreign_toplevel_handle_v1 object represents an opened toplevel
       window. Each app may have multiple opened toplevels.
@@ -150,9 +150,10 @@
         as the states with the same names defined in xdg-toplevel
       </description>
 
-      <entry name="maximized" value="0" summary="the toplevel is maximized"/>
-      <entry name="minimized" value="1" summary="the toplevel is minimized"/>
-      <entry name="activated" value="2" summary="the toplevel is active"/>
+      <entry name="maximized"  value="0" summary="the toplevel is maximized"/>
+      <entry name="minimized"  value="1" summary="the toplevel is minimized"/>
+      <entry name="activated"  value="2" summary="the toplevel is active"/>
+      <entry name="fullscreen" value="3" summary="the toplevel is fullscreen" since="2"/>
     </enum>
 
     <event name="state">
@@ -229,6 +230,29 @@
         This request should be called either when the client does not want to
         use the toplevel anymore or after the closed event to finalize the
         destruction of the object.
+      </description>
+    </request>
+
+    <!-- Version 2 additions -->
+
+    <request name="set_fullscreen" since="2">
+      <description summary="request that the toplevel be fullscreened">
+        Requests that the toplevel be fullscreened on the given output. If the
+        fullscreen state and/or the outputs the toplevel is visible on actually
+        change, this will be indicated by the state and output_enter/leave
+        events.
+
+        The output parameter is only a hint to the compositor. Also, if output
+        is NULL, the compositor should decide which output the toplevel will be
+        fullscreened on, if at all.
+      </description>
+      <arg name="output" type="object" interface="wl_output" allow-null="true"/>
+    </request>
+
+    <request name="unset_fullscreen" since="2">
+      <description summary="request that the toplevel be unfullscreened">
+        Requests that the toplevel be unfullscreened. If the fullscreen state
+        actually changes, this will be indicated by the state event.
       </description>
     </request>
   </interface>

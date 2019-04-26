@@ -28,9 +28,10 @@ struct wlr_foreign_toplevel_manager_v1 {
 };
 
 enum wlr_foreign_toplevel_handle_v1_state {
-	WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED = 1,
-	WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED = 2,
-	WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED = 4,
+	WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED = (1 << 0),
+	WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED = (1 << 1),
+	WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED = (1 << 2),
+	WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN = (1 << 3),
 };
 
 struct wlr_foreign_toplevel_handle_v1_output {
@@ -59,6 +60,8 @@ struct wlr_foreign_toplevel_handle_v1 {
 		struct wl_signal request_minimize;
 		//wlr_foreign_toplevel_handle_v1_activated_event
 		struct wl_signal request_activate;
+		//wlr_foreign_toplevel_handle_v1_fullscreen_event
+		struct wl_signal request_fullscreen;
 		struct wl_signal request_close;
 
 		//wlr_foreign_toplevel_handle_v1_set_rectangle_event
@@ -82,6 +85,12 @@ struct wlr_foreign_toplevel_handle_v1_minimized_event {
 struct wlr_foreign_toplevel_handle_v1_activated_event {
 	struct wlr_foreign_toplevel_handle_v1 *toplevel;
 	struct wlr_seat *seat;
+};
+
+struct wlr_foreign_toplevel_handle_v1_fullscreen_event {
+	struct wlr_foreign_toplevel_handle_v1 *toplevel;
+	bool fullscreen;
+	struct wlr_output *output;
 };
 
 struct wlr_foreign_toplevel_handle_v1_set_rectangle_event {
@@ -116,5 +125,7 @@ void wlr_foreign_toplevel_handle_v1_set_minimized(
 	struct wlr_foreign_toplevel_handle_v1 *toplevel, bool minimized);
 void wlr_foreign_toplevel_handle_v1_set_activated(
 	struct wlr_foreign_toplevel_handle_v1 *toplevel, bool activated);
+void wlr_foreign_toplevel_handle_v1_set_fullscreen(
+	struct wlr_foreign_toplevel_handle_v1* toplevel, bool fullscreen);
 
 #endif
