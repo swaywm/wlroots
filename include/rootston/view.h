@@ -26,7 +26,6 @@ struct roots_view_interface {
 };
 
 enum roots_view_type {
-	ROOTS_WL_SHELL_VIEW,
 	ROOTS_XDG_SHELL_V6_VIEW,
 	ROOTS_XDG_SHELL_VIEW,
 #if WLR_HAS_XWAYLAND
@@ -76,24 +75,6 @@ struct roots_view {
 		struct wl_signal unmap;
 		struct wl_signal destroy;
 	} events;
-};
-
-struct roots_wl_shell_surface {
-	struct roots_view view;
-
-	struct wlr_wl_shell_surface *wl_shell_surface;
-
-	struct wl_listener destroy;
-	struct wl_listener new_popup;
-	struct wl_listener request_move;
-	struct wl_listener request_resize;
-	struct wl_listener request_maximize;
-	struct wl_listener request_fullscreen;
-	struct wl_listener set_state;
-	struct wl_listener set_title;
-	struct wl_listener set_class;
-
-	struct wl_listener surface_commit;
 };
 
 struct roots_xdg_surface_v6 {
@@ -187,14 +168,6 @@ struct roots_subsurface {
 	struct wl_listener unmap;
 };
 
-struct roots_wl_shell_popup {
-	struct roots_view_child view_child;
-	struct wlr_wl_shell_surface *wlr_wl_shell_surface;
-	struct wl_listener destroy;
-	struct wl_listener set_state;
-	struct wl_listener new_popup;
-};
-
 struct roots_xdg_popup_v6 {
 	struct roots_view_child view_child;
 	struct wlr_xdg_popup_v6 *wlr_popup;
@@ -255,8 +228,6 @@ void view_get_deco_box(const struct roots_view *view, struct wlr_box *box);
 void view_for_each_surface(struct roots_view *view,
 	wlr_surface_iterator_func_t iterator, void *user_data);
 
-struct roots_wl_shell_surface *roots_wl_shell_surface_from_view(
-	struct roots_view *view);
 struct roots_xdg_surface *roots_xdg_surface_from_view(struct roots_view *view);
 struct roots_xdg_surface_v6 *roots_xdg_surface_v6_from_view(
 	struct roots_view *view);
