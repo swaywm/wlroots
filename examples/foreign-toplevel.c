@@ -7,6 +7,8 @@
 #include <wayland-client.h>
 #include "wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
 
+#define WLR_FOREIGN_TOPLEVEL_MANAGEMENT_VERSION 2
+
 /**
  * Usage:
  * 1. foreign-toplevel
@@ -29,10 +31,11 @@
  */
 
 enum toplevel_state_field {
-	TOPLEVEL_STATE_MAXIMIZED = 1,
-	TOPLEVEL_STATE_MINIMIZED = 2,
-	TOPLEVEL_STATE_ACTIVATED = 4,
-	TOPLEVEL_STATE_INVALID = 8,
+	TOPLEVEL_STATE_MAXIMIZED = (1 << 0),
+	TOPLEVEL_STATE_MINIMIZED = (1 << 1),
+	TOPLEVEL_STATE_ACTIVATED = (1 << 2),
+	TOPLEVEL_STATE_FULLSCREEN = (1 << 3),
+	TOPLEVEL_STATE_INVALID = (1 << 4),
 };
 
 struct toplevel_state {
@@ -102,6 +105,9 @@ static void print_toplevel_state(struct toplevel_v1 *toplevel, bool print_endl) 
 	} else {
 		printf(" inactive");
 	}
+	if (toplevel->current.state & TOPLEVEL_STATE_FULLSCREEN) {
+		printf(" fullscreen");
+	}
 
 	if (print_endl) {
 		printf("\n");
@@ -152,6 +158,8 @@ static uint32_t array_to_state(struct wl_array *array) {
 			state |= TOPLEVEL_STATE_MINIMIZED;
 		if (*entry == ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED)
 			state |= TOPLEVEL_STATE_ACTIVATED;
+		if (*entry == ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN)
+			state |= TOPLEVEL_STATE_FULLSCREEN;
 	}
 
 	return state;
@@ -236,7 +244,8 @@ static void handle_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(interface,
 			zwlr_foreign_toplevel_manager_v1_interface.name) == 0) {
 		toplevel_manager = wl_registry_bind(registry, name,
-				&zwlr_foreign_toplevel_manager_v1_interface, 1);
+				&zwlr_foreign_toplevel_manager_v1_interface,
+				WLR_FOREIGN_TOPLEVEL_MANAGEMENT_VERSION);
 
 		wl_list_init(&toplevel_list);
 		zwlr_foreign_toplevel_manager_v1_add_listener(toplevel_manager,
@@ -278,11 +287,12 @@ int main(int argc, char **argv) {
 	int focus_id = -1, close_id = -1;
 	int maximize_id = -1, unmaximize_id = -1;
 	int minimize_id = -1, restore_id = -1;
+	int fullscreen_id = -1, unfullscreen_id = -1;
 	int one_shot = 1;
 	int c;
 
 	// TODO maybe print usage with -h?
-	while ((c = getopt(argc, argv, "f:a:u:i:r:c:m")) != -1) {
+	while ((c = getopt(argc, argv, "f:a:u:i:r:c:s:S:m")) != -1) {
 		switch (c) {
 		case 'f':
 			focus_id = atoi(optarg);
@@ -301,6 +311,12 @@ int main(int argc, char **argv) {
 			break;
 		case 'c':
 			close_id = atoi(optarg);
+			break;
+		case 's':
+			fullscreen_id = atoi(optarg);
+			break;
+		case 'S':
+			unfullscreen_id = atoi(optarg);
 			break;
 		case 'm':
 			one_shot = 0;
@@ -341,6 +357,12 @@ int main(int argc, char **argv) {
 	}
 	if ((toplevel = toplevel_by_id_or_bail(restore_id))) {
 		zwlr_foreign_toplevel_handle_v1_unset_minimized(toplevel->zwlr_toplevel);
+	}
+	if ((toplevel = toplevel_by_id_or_bail(fullscreen_id))) {
+		zwlr_foreign_toplevel_handle_v1_set_fullscreen(toplevel->zwlr_toplevel, NULL);
+	}
+	if ((toplevel = toplevel_by_id_or_bail(unfullscreen_id))) {
+		zwlr_foreign_toplevel_handle_v1_unset_fullscreen(toplevel->zwlr_toplevel);
 	}
 	if ((toplevel = toplevel_by_id_or_bail(close_id))) {
 		zwlr_foreign_toplevel_handle_v1_close(toplevel->zwlr_toplevel);
