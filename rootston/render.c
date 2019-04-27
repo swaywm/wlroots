@@ -303,21 +303,21 @@ renderer_end:
 	int width, height;
 	wlr_output_transformed_resolution(wlr_output, &width, &height);
 
-	pixman_region32_t output_damage;
-	pixman_region32_init(&output_damage);
-
-	if (server->config->debug_damage_tracking) {
-		pixman_region32_union_rect(&output_damage, &output_damage,
-			0, 0, width, height);
-	}
+	pixman_region32_t frame_damage;
+	pixman_region32_init(&frame_damage);
 
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(wlr_output->transform);
-	wlr_region_transform(&output_damage, &output->damage->current,
+	wlr_region_transform(&frame_damage, &output->damage->current,
 		transform, width, height);
 
-	wlr_output_set_damage(wlr_output, &output_damage);
-	pixman_region32_fini(&output_damage);
+	if (server->config->debug_damage_tracking) {
+		pixman_region32_union_rect(&frame_damage, &frame_damage,
+			0, 0, wlr_output->width, wlr_output->height);
+	}
+
+	wlr_output_set_damage(wlr_output, &frame_damage);
+	pixman_region32_fini(&frame_damage);
 
 	if (!wlr_output_commit(wlr_output)) {
 		goto buffer_damage_finish;
