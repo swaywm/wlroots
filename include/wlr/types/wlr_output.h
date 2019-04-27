@@ -125,6 +125,7 @@ struct wlr_output {
 	} events;
 
 	struct wl_event_source *idle_frame;
+	struct wl_event_source *idle_done;
 
 	struct wl_list cursors; // wlr_output_cursor::link
 	struct wlr_output_cursor *hardware_cursor;
@@ -194,7 +195,14 @@ bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 void wlr_output_set_transform(struct wlr_output *output,
 	enum wl_output_transform transform);
 void wlr_output_set_scale(struct wlr_output *output, float scale);
-void wlr_output_set_subpixel(struct wlr_output *output, enum wl_output_subpixel subpixel);
+void wlr_output_set_subpixel(struct wlr_output *output,
+	enum wl_output_subpixel subpixel);
+/**
+ * Schedule a done event.
+ *
+ * This is intended to be used by wl_output add-on interfaces.
+ */
+void wlr_output_schedule_done(struct wlr_output *output);
 void wlr_output_destroy(struct wlr_output *output);
 /**
  * Computes the transformed output resolution.
