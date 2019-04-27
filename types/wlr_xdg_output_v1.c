@@ -55,6 +55,8 @@ static void output_update(struct wlr_xdg_output_v1 *xdg_output) {
 		wl_resource_for_each(resource, &xdg_output->resources) {
 			output_send_details(xdg_output, resource);
 		}
+
+		wlr_output_schedule_done(xdg_output->layout_output->output);
 	}
 }
 
