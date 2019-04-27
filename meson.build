@@ -95,7 +95,7 @@ if cc.get_id() == 'clang'
 	add_project_arguments('-Wno-missing-braces', language: 'c')
 endif
 
-wayland_server = dependency('wayland-server', version: '>=1.16')
+wayland_server = dependency('wayland-server', version: '>=1.17')
 wayland_client = dependency('wayland-client')
 wayland_egl = dependency('wayland-egl')
 wayland_protos = dependency('wayland-protocols', version: '>=1.17')
