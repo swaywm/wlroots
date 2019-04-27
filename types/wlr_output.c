@@ -19,46 +19,35 @@
 
 #define OUTPUT_VERSION 3
 
-static void output_send_to_resource(struct wl_resource *resource) {
+static void send_geometry(struct wl_resource *resource) {
 	struct wlr_output *output = wlr_output_from_resource(resource);
-	const uint32_t version = wl_resource_get_version(resource);
-	if (version >= WL_OUTPUT_GEOMETRY_SINCE_VERSION) {
-		wl_output_send_geometry(resource, 0, 0,
-			output->phys_width, output->phys_height, output->subpixel,
-			output->make, output->model, output->transform);
-	}
-	if (version >= WL_OUTPUT_MODE_SINCE_VERSION) {
-		struct wlr_output_mode *mode;
-		wl_list_for_each(mode, &output->modes, link) {
-			uint32_t flags = mode->flags & WL_OUTPUT_MODE_PREFERRED;
-			if (output->current_mode == mode) {
-				flags |= WL_OUTPUT_MODE_CURRENT;
-			}
-			wl_output_send_mode(resource, flags, mode->width, mode->height,
-				mode->refresh);
-		}
+	wl_output_send_geometry(resource, 0, 0,
+		output->phys_width, output->phys_height, output->subpixel,
+		output->make, output->model, output->transform);
+}
 
-		if (wl_list_length(&output->modes) == 0) {
-			// Output has no mode, send the current width/height
-			wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT,
-				output->width, output->height, output->refresh);
+static void send_all_modes(struct wl_resource *resource) {
+	struct wlr_output *output = wlr_output_from_resource(resource);
+
+	struct wlr_output_mode *mode;
+	wl_list_for_each(mode, &output->modes, link) {
+		uint32_t flags = mode->flags & WL_OUTPUT_MODE_PREFERRED;
+		if (output->current_mode == mode) {
+			flags |= WL_OUTPUT_MODE_CURRENT;
 		}
+		wl_output_send_mode(resource, flags, mode->width, mode->height,
+			mode->refresh);
 	}
-	if (version >= WL_OUTPUT_SCALE_SINCE_VERSION) {
-		wl_output_send_scale(resource, (uint32_t)ceil(output->scale));
-	}
-	if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
-		wl_output_send_done(resource);
+
+	if (wl_list_empty(&output->modes)) {
+		// Output has no mode, send the current width/height
+		wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT,
+			output->width, output->height, output->refresh);
 	}
 }
 
-static void output_send_current_mode_to_resource(
-		struct wl_resource *resource) {
+static void send_current_mode(struct wl_resource *resource) {
 	struct wlr_output *output = wlr_output_from_resource(resource);
-	const uint32_t version = wl_resource_get_version(resource);
-	if (version < WL_OUTPUT_MODE_SINCE_VERSION) {
-		return;
-	}
 	if (output->current_mode != NULL) {
 		struct wlr_output_mode *mode = output->current_mode;
 		uint32_t flags = mode->flags & WL_OUTPUT_MODE_PREFERRED;
@@ -69,6 +58,18 @@ static void output_send_current_mode_to_resource(
 		wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT, output->width,
 			output->height, output->refresh);
 	}
+}
+
+static void send_scale(struct wl_resource *resource) {
+	struct wlr_output *output = wlr_output_from_resource(resource);
+	uint32_t version = wl_resource_get_version(resource);
+	if (version >= WL_OUTPUT_SCALE_SINCE_VERSION) {
+		wl_output_send_scale(resource, (uint32_t)ceil(output->scale));
+	}
+}
+
+static void send_done(struct wl_resource *resource) {
+	uint32_t version = wl_resource_get_version(resource);
 	if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
 		wl_output_send_done(resource);
 	}
@@ -100,7 +101,11 @@ static void output_bind(struct wl_client *wl_client, void *data,
 	wl_resource_set_implementation(resource, &output_impl, output,
 		output_handle_resource_destroy);
 	wl_list_insert(&output->resources, wl_resource_get_link(resource));
-	output_send_to_resource(resource);
+
+	send_geometry(resource);
+	send_all_modes(resource);
+	send_scale(resource);
+	send_done(resource);
 }
 
 void wlr_output_create_global(struct wlr_output *output) {
@@ -203,8 +208,9 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->resources) {
-		output_send_current_mode_to_resource(resource);
+		send_current_mode(resource);
 	}
+	wlr_output_schedule_done(output);
 
 	wlr_signal_emit_safe(&output->events.mode, output);
 }
@@ -214,11 +220,11 @@ void wlr_output_set_transform(struct wlr_output *output,
 	output->impl->transform(output, transform);
 	output_update_matrix(output);
 
-	// TODO: only send geometry and done
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->resources) {
-		output_send_to_resource(resource);
+		send_geometry(resource);
 	}
+	wlr_output_schedule_done(output);
 
 	wlr_signal_emit_safe(&output->events.transform, output);
 }
@@ -230,16 +236,17 @@ void wlr_output_set_scale(struct wlr_output *output, float scale) {
 
 	output->scale = scale;
 
-	// TODO: only send mode and done
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->resources) {
-		output_send_to_resource(resource);
+		send_scale(resource);
 	}
+	wlr_output_schedule_done(output);
 
 	wlr_signal_emit_safe(&output->events.scale, output);
 }
 
-void wlr_output_set_subpixel(struct wlr_output *output, enum wl_output_subpixel subpixel) {
+void wlr_output_set_subpixel(struct wlr_output *output,
+		enum wl_output_subpixel subpixel) {
 	if (output->subpixel == subpixel) {
 		return;
 	}
@@ -248,8 +255,32 @@ void wlr_output_set_subpixel(struct wlr_output *output, enum wl_output_subpixel 
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->resources) {
-		output_send_to_resource(resource);
+		send_geometry(resource);
 	}
+	wlr_output_schedule_done(output);
+}
+
+static void schedule_done_handle_idle_timer(void *data) {
+	struct wlr_output *output = data;
+	output->idle_done = NULL;
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->resources) {
+		uint32_t version = wl_resource_get_version(resource);
+		if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
+			wl_output_send_done(resource);
+		}
+	}
+}
+
+void wlr_output_schedule_done(struct wlr_output *output) {
+	if (output->idle_done != NULL) {
+		return; // Already scheduled
+	}
+
+	struct wl_event_loop *ev = wl_display_get_event_loop(output->display);
+	output->idle_done =
+		wl_event_loop_add_idle(ev, schedule_done_handle_idle_timer, output);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
