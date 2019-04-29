@@ -478,8 +478,8 @@ bool wlr_output_commit(struct wlr_output *output) {
 	return true;
 }
 
-bool wlr_output_set_dmabuf(struct wlr_output *output,
-		struct wlr_dmabuf_attributes *attribs) {
+bool wlr_output_attach_buffer(struct wlr_output *output,
+		struct wlr_buffer *buffer) {
 	if (output->frame_pending) {
 		wlr_log(WLR_ERROR, "Tried to swap buffers when a frame is pending");
 		return false;
@@ -489,15 +489,15 @@ bool wlr_output_set_dmabuf(struct wlr_output *output,
 		output->idle_frame = NULL;
 	}
 
-	if (!output->impl->set_dmabuf) {
+	if (!output->impl->attach_buffer) {
 		return false;
 	}
-	if (!output->impl->set_dmabuf(output, attribs)) {
+	if (!output->impl->attach_buffer(output, buffer)) {
 		return false;
 	}
 
 	output->frame_pending = true;
-	output->needs_swap = false;
+	output->needs_frame = false;
 	pixman_region32_clear(&output->damage);
 	return true;
 }

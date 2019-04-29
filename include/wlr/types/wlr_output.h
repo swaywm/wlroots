@@ -15,6 +15,7 @@
 #include <wayland-server.h>
 #include <wayland-util.h>
 #include <wlr/render/dmabuf.h>
+#include <wlr/types/wlr_buffer.h>
 
 struct wlr_output_mode {
 	uint32_t flags; // enum wl_output_mode
@@ -224,6 +225,12 @@ void wlr_output_effective_resolution(struct wlr_output *output,
  */
 bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age);
 /**
+ * Attach a buffer to the output. Compositors should call `wlr_output_commit`
+ * to submit the new frame.
+ */
+bool wlr_output_attach_buffer(struct wlr_output *output,
+	struct wlr_buffer *buffer);
+/**
  * Get the preferred format for reading pixels.
  * This function might change the current rendering context.
  */
@@ -243,8 +250,6 @@ bool wlr_output_preferred_read_format(struct wlr_output *output,
  */
 void wlr_output_set_damage(struct wlr_output *output,
 	pixman_region32_t *damage);
-bool wlr_output_set_dmabuf(struct wlr_output *output,
-	struct wlr_dmabuf_attributes *attribs);
 /**
  * Commit the pending output state. If `wlr_output_attach_render` has been
  * called, the pending frame will be submitted for display.
