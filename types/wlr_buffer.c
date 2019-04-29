@@ -203,3 +203,21 @@ struct wlr_buffer *wlr_buffer_apply_damage(struct wlr_buffer *buffer,
 	buffer->released = true;
 	return buffer;
 }
+
+bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
+		struct wlr_dmabuf_attributes *attribs) {
+	if (buffer->resource == NULL) {
+		return false;
+	}
+
+	struct wl_resource *buffer_resource = buffer->resource;
+	if (!wlr_dmabuf_v1_resource_is_buffer(buffer_resource)) {
+		return false;
+	}
+
+	struct wlr_dmabuf_v1_buffer *dmabuf_buffer =
+		wlr_dmabuf_v1_buffer_from_buffer_resource(buffer_resource);
+	memcpy(attribs, &dmabuf_buffer->attributes,
+		sizeof(struct wlr_dmabuf_attributes));
+	return true;
+}
