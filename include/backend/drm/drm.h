@@ -148,6 +148,8 @@ struct wlr_drm_connector {
 	bool pageflip_pending;
 	struct wl_event_source *retry_pageflip;
 	struct wl_list link;
+
+	struct wlr_dmabuf_attributes pending_dmabuf;
 };
 
 struct wlr_drm_backend *get_drm_backend_from_backend(

@@ -52,12 +52,21 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_DAMAGE = 1 << 1,
 };
 
+enum wlr_output_state_buffer_type {
+	WLR_OUTPUT_STATE_BUFFER_RENDER,
+	WLR_OUTPUT_STATE_BUFFER_SCANOUT,
+};
+
 /**
  * Holds the double-buffered output state.
  */
 struct wlr_output_state {
 	uint32_t committed; // enum wlr_output_state_field
 	pixman_region32_t damage; // output-buffer-local coordinates
+
+	// only valid if WLR_OUTPUT_STATE_BUFFER
+	enum wlr_output_state_buffer_type buffer_type;
+	struct wlr_buffer *buffer; // if WLR_OUTPUT_STATE_BUFFER_SCANOUT
 };
 
 struct wlr_output_impl;

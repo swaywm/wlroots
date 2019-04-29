@@ -301,11 +301,44 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		damage = &output->pending.damage;
 	}
 
-	struct gbm_bo *bo = swap_drm_surface_buffers(&plane->surf, damage);
-	if (drm->parent) {
-		bo = copy_drm_surface_mgpu(&plane->mgpu_surf, bo);
+	struct gbm_bo *bo;
+	uint32_t fb_id = 0;
+	assert(output->pending.committed & WLR_OUTPUT_STATE_BUFFER);
+	switch (output->pending.buffer_type) {
+	case WLR_OUTPUT_STATE_BUFFER_RENDER:
+		bo = swap_drm_surface_buffers(&plane->surf, damage);
+		if (bo == NULL) {
+			wlr_log(WLR_ERROR, "swap_drm_surface_buffers failed");
+			return false;
+		}
+
+		if (drm->parent) {
+			bo = copy_drm_surface_mgpu(&plane->mgpu_surf, bo);
+			if (bo == NULL) {
+				wlr_log(WLR_ERROR, "copy_drm_surface_mgpu failed");
+				return false;
+			}
+		}
+		fb_id = get_fb_for_bo(bo, plane->drm_format);
+		if (fb_id == 0) {
+			wlr_log(WLR_ERROR, "get_fb_for_bo failed");
+			return false;
+		}
+		break;
+	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:
+		bo = import_gbm_bo(&drm->renderer, &conn->pending_dmabuf);
+		if (bo == NULL) {
+			wlr_log(WLR_ERROR, "import_gbm_bo failed");
+			return false;
+		}
+
+		fb_id = get_fb_for_bo(bo, gbm_bo_get_format(bo));
+		if (fb_id == 0) {
+			wlr_log(WLR_ERROR, "get_fb_for_bo failed");
+			return false;
+		}
+		break;
 	}
-	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format);
 
 	if (conn->pageflip_pending) {
 		wlr_log(WLR_ERROR, "Skipping pageflip on output '%s'", conn->output.name);
@@ -903,30 +936,7 @@ static bool drm_connector_attach_buffer(struct wlr_output *output,
 		}
 	}
 
-	struct gbm_bo *bo = import_gbm_bo(&drm->renderer, &attribs);
-	if (bo == NULL) {
-		wlr_log(WLR_ERROR, "import_gbm_bo failed");
-		return NULL;
-	}
-
-	uint32_t fb_id = get_fb_for_bo(bo, gbm_bo_get_format(bo));
-	if (fb_id == 0) {
-		wlr_log(WLR_ERROR, "get_fb_for_bo failed");
-		return false;
-	}
-
-	if (conn->pageflip_pending) {
-		wlr_log(WLR_ERROR, "Skipping pageflip on output '%s'", conn->output.name);
-		return false;
-	}
-
-	if (!drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
-		wlr_log(WLR_ERROR, "crtc_pageflip failed");
-		return false;
-	}
-
-	conn->pageflip_pending = true;
-	wlr_output_update_enabled(output, true);
+	memcpy(&conn->pending_dmabuf, &attribs, sizeof(attribs));
 	return true;
 }
 
