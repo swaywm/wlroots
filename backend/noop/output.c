@@ -25,11 +25,11 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output,
 
 static bool output_attach_render(struct wlr_output *wlr_output,
 		int *buffer_age) {
-	return true;
+	return false;
 }
 
 static bool output_commit(struct wlr_output *wlr_output) {
-	return true;
+	return false;
 }
 
 static void output_destroy(struct wlr_output *wlr_output) {
