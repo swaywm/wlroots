@@ -6,6 +6,8 @@
 #include <wlr/config.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_matrix.h>
+#include <wlr/types/wlr_buffer.h>
+#include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include "rootston/layers.h"
@@ -175,6 +177,76 @@ static void render_drag_icons(struct roots_output *output,
 		render_surface_iterator, &data);
 }
 
+static void count_surface_iterator(struct roots_output *output,
+		struct wlr_surface *surface, struct wlr_box *_box, float rotation,
+		void *data) {
+	size_t *n = data;
+	n++;
+}
+
+static bool scan_out_fullscreen_view(struct roots_output *output) {
+	struct wlr_output *wlr_output = output->wlr_output;
+	struct roots_desktop *desktop = output->desktop;
+
+	struct roots_seat *seat;
+	wl_list_for_each(seat, &desktop->server->input->seats, link) {
+		struct roots_drag_icon *drag_icon = seat->drag_icon;
+		if (drag_icon && drag_icon->wlr_drag_icon->mapped) {
+			return false;
+		}
+	}
+
+	if (!wl_list_empty(&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY])) {
+		return false;
+	}
+
+	struct wlr_output_cursor *cursor;
+	wl_list_for_each(cursor, &wlr_output->cursors, link) {
+		if (cursor->enabled && cursor->visible &&
+				wlr_output->hardware_cursor != cursor) {
+			return false;
+		}
+	}
+
+	struct roots_view *view = output->fullscreen_view;
+	assert(view != NULL);
+	if (view->wlr_surface == NULL) {
+		return false;
+	}
+	size_t n_surfaces = 0;
+	output_view_for_each_surface(output, view,
+		count_surface_iterator, &n_surfaces);
+	if (n_surfaces > 1) {
+		return false;
+	}
+
+#if WLR_HAS_XWAYLAND
+	if (view->type == ROOTS_XWAYLAND_VIEW) {
+		struct roots_xwayland_surface *xwayland_surface =
+			roots_xwayland_surface_from_view(view);
+		if (!wl_list_empty(&xwayland_surface->xwayland_surface->children)) {
+			return false;
+		}
+	}
+#endif
+
+	struct wlr_surface *surface = view->wlr_surface;
+
+	if (surface->buffer == NULL) {
+		return false;
+	}
+
+	if ((float)surface->current.scale != wlr_output->scale ||
+			surface->current.transform != wlr_output->transform) {
+		return false;
+	}
+
+	if (!wlr_output_attach_buffer(wlr_output, surface->buffer)) {
+		return false;
+	}
+	return wlr_output_commit(wlr_output);
+}
+
 static void surface_send_frame_done_iterator(struct roots_output *output,
 		struct wlr_surface *surface, struct wlr_box *box, float rotation,
 		void *data) {
@@ -218,6 +290,22 @@ void output_render(struct roots_output *output) {
 
 		// Fullscreen views are rendered on a black background
 		clear_color[0] = clear_color[1] = clear_color[2] = 0;
+
+		// Check if we can scan-out the fullscreen view
+		static bool last_scanned_out = false;
+		bool scanned_out = scan_out_fullscreen_view(output);
+
+		if (scanned_out && !last_scanned_out) {
+			wlr_log(WLR_DEBUG, "Scanning out fullscreen view");
+		}
+		if (last_scanned_out && !scanned_out) {
+			wlr_log(WLR_DEBUG, "Stopping fullscreen view scan out");
+		}
+		last_scanned_out = scanned_out;
+
+		if (scanned_out) {
+			goto send_frame_done;
+		}
 	}
 
 	bool needs_frame;
@@ -256,15 +344,9 @@ void output_render(struct roots_output *output) {
 		wlr_renderer_clear(renderer, clear_color);
 	}
 
-	render_layer(output, &buffer_damage,
-		&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND]);
-	render_layer(output, &buffer_damage,
-		&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM]);
-
 	// If a view is fullscreen on this output, render it
 	if (output->fullscreen_view != NULL) {
 		struct roots_view *view = output->fullscreen_view;
-
 		render_view(output, view, &data);
 
 		// During normal rendering the xwayland window tree isn't traversed
@@ -280,12 +362,19 @@ void output_render(struct roots_output *output) {
 		}
 #endif
 	} else {
+		// Render background and bottom layers under views
+		render_layer(output, &buffer_damage,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND]);
+		render_layer(output, &buffer_damage,
+			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM]);
+
 		// Render all views
 		struct roots_view *view;
 		wl_list_for_each_reverse(view, &desktop->views, link) {
 			render_view(output, view, &data);
 		}
-		// Render top layer above shell views
+
+		// Render top layer above views
 		render_layer(output, &buffer_damage,
 			&output->layers[ZWLR_LAYER_SHELL_V1_LAYER_TOP]);
 	}
@@ -327,6 +416,7 @@ renderer_end:
 buffer_damage_finish:
 	pixman_region32_fini(&buffer_damage);
 
+send_frame_done:
 	// Send frame done events to all surfaces
 	output_for_each_surface(output, surface_send_frame_done_iterator, &now);
 }
