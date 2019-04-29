@@ -12,12 +12,13 @@ packages:
   - wayland-dev
   - wayland-protocols
   - xcb-util-image-dev
+  - xcb-util-wm-dev
 sources:
   - https://github.com/swaywm/wlroots
 tasks:
   - setup: |
       cd wlroots
-      meson build
+      meson build -Dauto_features=enabled -Dlogind=disabled -Dxcb-errors=disabled
   - build: |
       cd wlroots
       ninja -C build

@@ -23,5 +23,5 @@ sources:
 tasks:
 - wlroots: |
     cd wlroots
-    meson build
+    meson build -Dauto_features=enabled -Dlogind=disabled -Dlibcap=disabled -Dfreerdp=disabled
     ninja -C build
