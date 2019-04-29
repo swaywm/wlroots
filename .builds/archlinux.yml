@@ -11,14 +11,16 @@ packages:
   - pixman
   - wayland
   - wayland-protocols
+  - xcb-util-errors
   - xcb-util-image
+  - xcb-util-wm
 sources:
   - https://github.com/swaywm/wlroots
 tasks:
   - setup: |
       cd wlroots
-      CC=gcc meson build-gcc
-      CC=clang meson build-clang
+      CC=gcc meson build-gcc -Dauto_features=enabled
+      CC=clang meson build-clang -Dauto_features=enabled
   - gcc: |
       cd wlroots/build-gcc
       ninja
