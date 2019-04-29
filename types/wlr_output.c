@@ -404,6 +404,7 @@ bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age) {
 	}
 
 	output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
+	output->pending.buffer_type = WLR_OUTPUT_STATE_BUFFER_RENDER;
 	return true;
 }
 
@@ -480,15 +481,6 @@ bool wlr_output_commit(struct wlr_output *output) {
 
 bool wlr_output_attach_buffer(struct wlr_output *output,
 		struct wlr_buffer *buffer) {
-	if (output->frame_pending) {
-		wlr_log(WLR_ERROR, "Tried to swap buffers when a frame is pending");
-		return false;
-	}
-	if (output->idle_frame != NULL) {
-		wl_event_source_remove(output->idle_frame);
-		output->idle_frame = NULL;
-	}
-
 	if (!output->impl->attach_buffer) {
 		return false;
 	}
@@ -496,9 +488,8 @@ bool wlr_output_attach_buffer(struct wlr_output *output,
 		return false;
 	}
 
-	output->frame_pending = true;
-	output->needs_frame = false;
-	pixman_region32_clear(&output->damage);
+	output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
+	output->pending.buffer_type = WLR_OUTPUT_STATE_BUFFER_SCANOUT;
 	return true;
 }
 
