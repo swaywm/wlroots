@@ -9,6 +9,7 @@
 #ifndef WLR_RENDER_DMABUF_H
 #define WLR_RENDER_DMABUF_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #define WLR_DMABUF_MAX_PLANES 4
@@ -35,5 +36,10 @@ struct wlr_dmabuf_attributes {
  * Closes all file descriptors in the DMA-BUF attributes.
  */
 void wlr_dmabuf_attributes_finish(struct wlr_dmabuf_attributes *attribs);
+/**
+ * Clones the DMA-BUF attributes.
+ */
+bool wlr_dmabuf_attributes_copy(struct wlr_dmabuf_attributes *dst,
+	struct wlr_dmabuf_attributes *src);
 
 #endif
