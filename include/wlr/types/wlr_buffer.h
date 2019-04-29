@@ -11,6 +11,7 @@
 
 #include <pixman.h>
 #include <wayland-server.h>
+#include <wlr/render/dmabuf.h>
 
 /**
  * A client buffer.
@@ -67,5 +68,11 @@ void wlr_buffer_unref(struct wlr_buffer *buffer);
  */
 struct wlr_buffer *wlr_buffer_apply_damage(struct wlr_buffer *buffer,
 	struct wl_resource *resource, pixman_region32_t *damage);
+/**
+ * Reads the DMA-BUF attributes of the buffer. If this buffer isn't a DMA-BUF,
+ * returns false.
+ */
+bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
+		struct wlr_dmabuf_attributes *attribs);
 
 #endif
