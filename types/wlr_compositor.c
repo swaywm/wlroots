@@ -9,97 +9,6 @@
 #include "util/signal.h"
 
 #define COMPOSITOR_VERSION 4
-#define SUBCOMPOSITOR_VERSION 1
-
-extern const struct wlr_surface_role subsurface_role;
-
-bool wlr_surface_is_subsurface(struct wlr_surface *surface) {
-	return surface->role == &subsurface_role;
-}
-
-struct wlr_subsurface *wlr_subsurface_from_wlr_surface(
-		struct wlr_surface *surface) {
-	assert(wlr_surface_is_subsurface(surface));
-	return (struct wlr_subsurface *)surface->role_data;
-}
-
-static void subcompositor_handle_destroy(struct wl_client *client,
-		struct wl_resource *resource) {
-	wl_resource_destroy(resource);
-}
-
-static void subcompositor_handle_get_subsurface(struct wl_client *client,
-		struct wl_resource *resource, uint32_t id,
-		struct wl_resource *surface_resource,
-		struct wl_resource *parent_resource) {
-	struct wlr_surface *surface = wlr_surface_from_resource(surface_resource);
-	struct wlr_surface *parent = wlr_surface_from_resource(parent_resource);
-
-	static const char msg[] = "get_subsurface: wl_subsurface@";
-
-	if (surface == parent) {
-		wl_resource_post_error(resource,
-			WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE,
-			"%s%d: wl_surface@%d cannot be its own parent",
-			msg, id, wl_resource_get_id(surface_resource));
-		return;
-	}
-
-	if (wlr_surface_is_subsurface(surface) &&
-			wlr_subsurface_from_wlr_surface(surface) != NULL) {
-		wl_resource_post_error(resource,
-			WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE,
-			"%s%d: wl_surface@%d is already a sub-surface",
-			msg, id, wl_resource_get_id(surface_resource));
-		return;
-	}
-
-	if (wlr_surface_get_root_surface(parent) == surface) {
-		wl_resource_post_error(resource,
-			WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE,
-			"%s%d: wl_surface@%d is an ancestor of parent",
-			msg, id, wl_resource_get_id(surface_resource));
-		return;
-	}
-
-	if (!wlr_surface_set_role(surface, &subsurface_role, NULL,
-			resource, WL_SUBCOMPOSITOR_ERROR_BAD_SURFACE)) {
-		return;
-	}
-
-	wlr_subsurface_create(surface, parent,
-		wl_resource_get_version(resource), id);
-}
-
-static const struct wl_subcompositor_interface subcompositor_impl = {
-	.destroy = subcompositor_handle_destroy,
-	.get_subsurface = subcompositor_handle_get_subsurface,
-};
-
-static void subcompositor_bind(struct wl_client *client, void *data,
-		uint32_t version, uint32_t id) {
-	struct wl_resource *resource =
-		wl_resource_create(client, &wl_subcompositor_interface, 1, id);
-	if (resource == NULL) {
-		wl_client_post_no_memory(client);
-		return;
-	}
-	wl_resource_set_implementation(resource, &subcompositor_impl, NULL, NULL);
-}
-
-static void subcompositor_init(struct wlr_subcompositor *sc,
-		struct wl_display *display) {
-	sc->global = wl_global_create(display, &wl_subcompositor_interface,
-		SUBCOMPOSITOR_VERSION, NULL, subcompositor_bind);
-	if (sc->global == NULL) {
-		wlr_log_errno(WLR_ERROR, "Failed to create subcompositor global");
-		return;
-	}
-}
-
-static void subcompositor_finish(struct wlr_subcompositor *sc) {
-	wl_global_destroy(sc->global);
-}
 
 static const struct wl_region_interface region_impl;
 
@@ -153,17 +62,18 @@ static struct wlr_commit *commit_create(struct wlr_surface_2 *surf) {
 	}
 
 	// Prevent a zero allocation
-	size_t len = comp->ids ? comp->ids : 1;
-
-	c->state = calloc(len, sizeof(*c->state));
+	c->state_len = comp->ids ? comp->ids : 1;
+	c->state = calloc(c->state_len, sizeof(*c->state));
 	if (!c->state) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
 		free(c);
 		return NULL;
 	}
-	c->state_len = len;
 
 	c->surface = surf;
+	wl_signal_init(&c->events.commit);
+	wl_signal_init(&c->events.complete);
+	wl_signal_init(&c->events.destroy);
 
 	pixman_region32_init(&c->surface_damage);
 	wl_list_init(&c->frame_callbacks);
@@ -188,7 +98,7 @@ static void commit_destroy(struct wlr_commit *c) {
 	free(c);
 }
 
-static bool commit_is_complete(struct wlr_commit *c) {
+bool wlr_commit_is_complete(struct wlr_commit *c) {
 	return c->committed && c->inhibit == 0;
 }
 
@@ -202,14 +112,13 @@ static bool commit_is_latest(struct wlr_commit *c) {
 			return true;
 		}
 
-		if (commit_is_complete(iter)) {
+		if (wlr_commit_is_complete(iter)) {
 			return false;
 		}
 	}
 
 	// You shouldn't be able to get here.
-	assert(0);
-	return false;
+	abort();
 }
 
 static void surface_prune_commits(struct wlr_surface_2 *surf) {
@@ -217,15 +126,16 @@ static void surface_prune_commits(struct wlr_surface_2 *surf) {
 	struct wlr_commit *iter, *tmp;
 	wl_list_for_each_safe(iter, tmp, &surf->committed, link) {
 		if (!complete) {
-			complete = commit_is_complete(iter);
+			complete = wlr_commit_is_complete(iter);
 		} else if (iter->ref_cnt == 0) {
+			wl_list_remove(&iter->link);
 			commit_destroy(iter);
 		}
 	}
 }
 
 void wlr_commit_inhibit(struct wlr_commit *commit) {
-	assert(commit && !commit_is_complete(commit));
+	assert(commit && !wlr_commit_is_complete(commit));
 	++commit->inhibit;
 }
 
@@ -233,7 +143,7 @@ void wlr_commit_uninhibit(struct wlr_commit *commit) {
 	assert(commit && commit->inhibit > 0);
 	--commit->inhibit;
 
-	if (commit_is_complete(commit)) {
+	if (wlr_commit_is_complete(commit)) {
 		wlr_signal_emit_safe(&commit->events.complete, commit);
 
 		if (commit_is_latest(commit)) {
@@ -435,7 +345,7 @@ static void surface_commit(struct wl_client *client, struct wl_resource *res) {
 
 	surface_prune_commits(surf);
 
-	if (commit_is_complete(commit)) {
+	if (wlr_commit_is_complete(commit)) {
 		wlr_signal_emit_safe(&commit->events.complete, commit);
 		wlr_signal_emit_safe(&surf->events.commit, surf);
 	}
@@ -455,7 +365,7 @@ static struct wl_surface_interface surface_impl = {
 };
 
 struct wlr_surface_2 *wlr_surface_from_resource_2(struct wl_resource *resource) {
-	assert(wl_resource_instance_of(resource, &wl_compositor_interface,
+	assert(wl_resource_instance_of(resource, &wl_surface_interface,
 		&surface_impl));
 	return wl_resource_get_user_data(resource);
 }
@@ -466,9 +376,13 @@ static void surface_resource_destroy(struct wl_resource *resource) {
 	wlr_signal_emit_safe(&surf->events.destroy, surf);
 
 	struct wlr_commit *iter, *tmp;
-	wl_list_for_each_reverse_safe(iter, tmp, &surf->committed, link) {
-		commit_destroy(iter);
+	wl_list_for_each_safe(iter, tmp, &surf->committed, link) {
+		if (iter->ref_cnt == 0) {
+			commit_destroy(iter);
+		}
 	}
+
+	commit_destroy(surf->pending);
 
 	free(surf);
 }
@@ -500,8 +414,11 @@ static void compositor_create_surface(struct wl_client *client,
 	wl_resource_set_implementation(surf->resource, &surface_impl,
 		surf, surface_resource_destroy);
 
-	wl_signal_init(&surf->events.destroy);
+	surf->compositor = compositor;
 	wl_list_init(&surf->committed);
+	wl_list_init(&surf->frame_callbacks);
+	wl_signal_init(&surf->events.commit);
+	wl_signal_init(&surf->events.destroy);
 
 	surf->pending = commit_create(surf);
 	if (!surf->pending) {
@@ -571,10 +488,7 @@ static void compositor_bind(struct wl_client *client, void *data,
 static void compositor_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_compositor *comp = wl_container_of(listener, comp, display_destroy);
 
-	subcompositor_finish(&comp->subcompositor);
-	wl_list_remove(&comp->display_destroy.link);
 	wl_global_destroy(comp->global);
-
 	free(comp);
 }
 
@@ -586,6 +500,7 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 		return NULL;
 	}
 
+	comp->display = display;
 	comp->global = wl_global_create(display, &wl_compositor_interface,
 		COMPOSITOR_VERSION, comp, compositor_bind);
 	if (!comp->global) {
@@ -598,8 +513,6 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 	wl_signal_init(&comp->events.new_surface);
 	wl_signal_init(&comp->events.new_surface_2);
 	wl_signal_init(&comp->events.new_state);
-
-	subcompositor_init(&comp->subcompositor, display);
 
 	comp->display_destroy.notify = compositor_display_destroy;
 	wl_display_add_destroy_listener(display, &comp->display_destroy);
@@ -617,7 +530,7 @@ struct wlr_commit *wlr_surface_get_commit(struct wlr_surface_2 *surf) {
 
 	struct wlr_commit *iter;
 	wl_list_for_each(iter, &surf->committed, link) {
-		if (commit_is_complete(iter)) {
+		if (wlr_commit_is_complete(iter)) {
 			++iter->ref_cnt;
 			return iter;
 		}
@@ -628,6 +541,16 @@ struct wlr_commit *wlr_surface_get_commit(struct wlr_surface_2 *surf) {
 
 struct wlr_commit *wlr_surface_get_pending(struct wlr_surface_2 *surf) {
 	return surf->pending;
+}
+
+struct wlr_commit *wlr_surface_get_latest(struct wlr_surface_2 *surf) {
+	if (wl_list_empty(&surf->committed)) {
+		return NULL;
+	}
+
+	struct wlr_commit *first = wl_container_of(surf->committed.next, first, link);
+	++first->ref_cnt;
+	return first;
 }
 
 void wlr_surface_send_enter_2(struct wlr_surface_2 *surf, struct wlr_output *output) {
@@ -663,9 +586,28 @@ void wlr_surface_send_frame_done_2(struct wlr_surface_2 *surf,
 	}
 }
 
+struct wlr_commit *wlr_commit_ref(struct wlr_commit *commit) {
+	assert(commit);
+	++commit->ref_cnt;
+
+	return commit;
+}
+
 void wlr_commit_unref(struct wlr_commit *commit) {
 	assert(commit && commit->ref_cnt > 0);
 	--commit->ref_cnt;
 
 	surface_prune_commits(commit->surface);
+}
+
+bool wlr_surface_set_role_2(struct wlr_surface_2 *surf, const char *name) {
+	assert(surf && name);
+
+	/* Already has role */
+	if (surf->role_name && strcmp(surf->role_name, name) != 0) {
+		return false;
+	}
+
+	surf->role_name = name;
+	return true;
 }
