@@ -497,6 +497,17 @@ bool wlr_output_attach_buffer(struct wlr_output *output,
 	if (!output->impl->attach_buffer) {
 		return false;
 	}
+
+	// If the output has at least one software cursor, refuse to attach the
+	// buffer
+	struct wlr_output_cursor *cursor;
+	wl_list_for_each(cursor, &output->cursors, link) {
+		if (cursor->enabled && cursor->visible &&
+				cursor != output->hardware_cursor) {
+			return false;
+		}
+	}
+
 	if (!output->impl->attach_buffer(output, buffer)) {
 		return false;
 	}
