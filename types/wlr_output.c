@@ -398,11 +398,23 @@ struct wlr_output_mode *wlr_output_preferred_mode(struct wlr_output *output) {
 	return mode;
 }
 
+static void output_state_clear_buffer(struct wlr_output_state *state) {
+	if (!(state->committed & WLR_OUTPUT_STATE_BUFFER)) {
+		return;
+	}
+
+	wlr_buffer_unref(state->buffer);
+	state->buffer = NULL;
+
+	state->committed &= ~WLR_OUTPUT_STATE_BUFFER;
+}
+
 bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age) {
 	if (!output->impl->attach_render(output, buffer_age)) {
 		return false;
 	}
 
+	output_state_clear_buffer(&output->pending);
 	output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
 	output->pending.buffer_type = WLR_OUTPUT_STATE_BUFFER_RENDER;
 	return true;
@@ -430,8 +442,9 @@ void wlr_output_set_damage(struct wlr_output *output,
 }
 
 static void output_state_clear(struct wlr_output_state *state) {
-	state->committed = 0;
+	output_state_clear_buffer(state);
 	pixman_region32_clear(&state->damage);
+	state->committed = 0;
 }
 
 bool wlr_output_commit(struct wlr_output *output) {
@@ -488,8 +501,10 @@ bool wlr_output_attach_buffer(struct wlr_output *output,
 		return false;
 	}
 
+	output_state_clear_buffer(&output->pending);
 	output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
 	output->pending.buffer_type = WLR_OUTPUT_STATE_BUFFER_SCANOUT;
+	output->pending.buffer = wlr_buffer_ref(buffer);
 	return true;
 }
 
