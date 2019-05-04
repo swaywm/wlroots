@@ -350,6 +350,11 @@ static bool drm_connector_commit(struct wlr_output *output) {
 	}
 
 	conn->pageflip_pending = true;
+	if (output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
+		wlr_buffer_unref(conn->pending_buffer);
+		conn->pending_buffer = wlr_buffer_ref(output->pending.buffer);
+	}
+
 	wlr_output_update_enabled(output, true);
 	return true;
 }
@@ -1440,9 +1445,21 @@ static void page_flip_handler(int fd, unsigned seq,
 		return;
 	}
 
-	post_drm_surface(&conn->crtc->primary->surf);
-	if (drm->parent) {
-		post_drm_surface(&conn->crtc->primary->mgpu_surf);
+	// Release the old buffer as it's not displayed anymore. The pending
+	// buffer becomes the current buffer.
+	wlr_buffer_unref(conn->current_buffer);
+	conn->current_buffer = conn->pending_buffer;
+	conn->pending_buffer = NULL;
+
+	uint32_t present_flags = WLR_OUTPUT_PRESENT_VSYNC |
+		WLR_OUTPUT_PRESENT_HW_CLOCK | WLR_OUTPUT_PRESENT_HW_COMPLETION;
+	if (conn->current_buffer != NULL) {
+		present_flags |= WLR_OUTPUT_PRESENT_ZERO_COPY;
+	} else {
+		post_drm_surface(&conn->crtc->primary->surf);
+		if (drm->parent) {
+			post_drm_surface(&conn->crtc->primary->mgpu_surf);
+		}
 	}
 
 	struct timespec present_time = {
@@ -1453,8 +1470,7 @@ static void page_flip_handler(int fd, unsigned seq,
 		.when = &present_time,
 		.seq = seq,
 		.refresh = mhz_to_nsec(conn->output.refresh),
-		.flags = WLR_OUTPUT_PRESENT_VSYNC | WLR_OUTPUT_PRESENT_HW_CLOCK |
-			WLR_OUTPUT_PRESENT_HW_COMPLETION,
+		.flags = present_flags,
 	};
 	wlr_output_send_present(&conn->output, &present_event);
 
@@ -1558,6 +1574,10 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		}
 		conn->output.needs_frame = false;
 		conn->output.frame_pending = false;
+
+		wlr_buffer_unref(conn->pending_buffer);
+		wlr_buffer_unref(conn->current_buffer);
+		conn->pending_buffer = conn->current_buffer = NULL;
 
 		/* Fallthrough */
 	case WLR_DRM_CONN_NEEDS_MODESET:
