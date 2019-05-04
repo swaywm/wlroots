@@ -924,6 +924,9 @@ static bool drm_connector_attach_buffer(struct wlr_output *output,
 		return false;
 	}
 
+	if (attribs.flags != 0) {
+		return false;
+	}
 	if (attribs.width != output->width || attribs.height != output->height) {
 		return false;
 	}
