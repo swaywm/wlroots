@@ -79,6 +79,9 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 
 static bool rfx_swap_buffers(
 		struct wlr_rdp_output *output, pixman_region32_t *damage) {
+	if (!pixman_region32_not_empty(damage)) {
+		return true;
+	}
 	struct wlr_rdp_peer_context *context = output->context;
 	freerdp_peer *peer = context->peer;
 	rdpUpdate *update = peer->update;
