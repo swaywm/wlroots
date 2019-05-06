@@ -70,9 +70,6 @@ static void registry_global(void *data, struct wl_registry *registry,
 		wl->seat = wl_registry_bind(registry, name,
 			&wl_seat_interface, 5);
 		wl_seat_add_listener(wl->seat, &seat_listener, wl);
-	} else if (strcmp(iface, wl_shm_interface.name) == 0) {
-		wl->shm = wl_registry_bind(registry, name,
-			&wl_shm_interface, 1);
 	} else if (strcmp(iface, xdg_wm_base_interface.name) == 0) {
 		wl->xdg_wm_base = wl_registry_bind(registry, name,
 			&xdg_wm_base_interface, 1);
@@ -148,9 +145,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	}
 	if (wl->seat) {
 		wl_seat_destroy(wl->seat);
-	}
-	if (wl->shm) {
-		wl_shm_destroy(wl->shm);
 	}
 	if (wl->zxdg_decoration_manager_v1) {
 		zxdg_decoration_manager_v1_destroy(wl->zxdg_decoration_manager_v1);

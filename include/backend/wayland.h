@@ -33,7 +33,6 @@ struct wlr_wl_backend {
 	struct wl_compositor *compositor;
 	struct xdg_wm_base *xdg_wm_base;
 	struct zxdg_decoration_manager_v1 *zxdg_decoration_manager_v1;
-	struct wl_shm *shm;
 	struct wl_seat *seat;
 	struct wl_pointer *pointer;
 	struct wl_keyboard *keyboard;
