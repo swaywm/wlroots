@@ -16,6 +16,7 @@
 
 #include "backend/wayland.h"
 #include "util/signal.h"
+#include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
 struct wlr_wl_backend *get_wl_backend_from_backend(struct wlr_backend *backend) {
@@ -76,6 +77,9 @@ static void registry_global(void *data, struct wl_registry *registry,
 		wl->xdg_wm_base = wl_registry_bind(registry, name,
 			&xdg_wm_base_interface, 1);
 		xdg_wm_base_add_listener(wl->xdg_wm_base, &xdg_wm_base_listener, NULL);
+	} else if (strcmp(iface, zxdg_decoration_manager_v1_interface.name) == 0) {
+		wl->zxdg_decoration_manager_v1 = wl_registry_bind(registry, name,
+			&zxdg_decoration_manager_v1_interface, 1);
 	}
 }
 
@@ -147,6 +151,9 @@ static void backend_destroy(struct wlr_backend *backend) {
 	}
 	if (wl->shm) {
 		wl_shm_destroy(wl->shm);
+	}
+	if (wl->zxdg_decoration_manager_v1) {
+		zxdg_decoration_manager_v1_destroy(wl->zxdg_decoration_manager_v1);
 	}
 	xdg_wm_base_destroy(wl->xdg_wm_base);
 	wl_compositor_destroy(wl->compositor);
