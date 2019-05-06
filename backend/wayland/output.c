@@ -16,6 +16,7 @@
 
 #include "backend/wayland.h"
 #include "util/signal.h"
+#include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
 static struct wlr_wl_output *get_wl_output_from_output(
@@ -187,6 +188,9 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 	wlr_egl_destroy_surface(&output->backend->egl, output->egl_surface);
 	wl_egl_window_destroy(output->egl_window);
+	if (output->zxdg_toplevel_decoration_v1) {
+		zxdg_toplevel_decoration_v1_destroy(output->zxdg_toplevel_decoration_v1);
+	}
 	xdg_toplevel_destroy(output->xdg_toplevel);
 	xdg_surface_destroy(output->xdg_surface);
 	wl_surface_destroy(output->surface);
@@ -316,6 +320,18 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 	if (!output->xdg_toplevel) {
 		wlr_log_errno(WLR_ERROR, "Could not get xdg toplevel");
 		goto error;
+	}
+
+	if (backend->zxdg_decoration_manager_v1) {
+		output->zxdg_toplevel_decoration_v1 =
+			zxdg_decoration_manager_v1_get_toplevel_decoration(
+			backend->zxdg_decoration_manager_v1, output->xdg_toplevel);
+		if (!output->xdg_toplevel) {
+			wlr_log_errno(WLR_ERROR, "Could not get xdg toplevel decoration");
+			goto error;
+		}
+		zxdg_toplevel_decoration_v1_set_mode(output->zxdg_toplevel_decoration_v1,
+			ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
 	}
 
 	wlr_wl_output_set_title(wlr_output, NULL);

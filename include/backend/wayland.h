@@ -32,6 +32,7 @@ struct wlr_wl_backend {
 	struct wl_registry *registry;
 	struct wl_compositor *compositor;
 	struct xdg_wm_base *xdg_wm_base;
+	struct zxdg_decoration_manager_v1 *zxdg_decoration_manager_v1;
 	struct wl_shm *shm;
 	struct wl_seat *seat;
 	struct wl_pointer *pointer;
@@ -50,6 +51,7 @@ struct wlr_wl_output {
 	struct wl_callback *frame_callback;
 	struct xdg_surface *xdg_surface;
 	struct xdg_toplevel *xdg_toplevel;
+	struct zxdg_toplevel_decoration_v1 *zxdg_toplevel_decoration_v1;
 	struct wl_egl_window *egl_window;
 	EGLSurface egl_surface;
 
