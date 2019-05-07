@@ -545,6 +545,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	renderer->exts_str = (const char *)glGetString(GL_EXTENSIONS);
 	wlr_log(WLR_INFO, "Using %s", glGetString(GL_VERSION));
 	wlr_log(WLR_INFO, "GL vendor: %s", glGetString(GL_VENDOR));
+	wlr_log(WLR_INFO, "GL renderer: %s", glGetString(GL_RENDERER));
 	wlr_log(WLR_INFO, "Supported GLES2 extensions: %s", renderer->exts_str);
 
 	if (!check_gl_ext(renderer->exts_str, "GL_EXT_texture_format_BGRA8888")) {
