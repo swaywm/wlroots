@@ -28,6 +28,7 @@ backend_files = files(
 	'wayland/backend.c',
 	'wayland/output.c',
 	'wayland/wl_seat.c',
+	'wayland/tablet_v2.c',
 )
 
 backend_deps = [
