@@ -303,7 +303,7 @@ bool wlr_input_device_is_wl(struct wlr_input_device *dev) {
 	return dev->impl == &input_device_impl;
 }
 
-static struct wlr_wl_input_device *create_wl_input_device(
+struct wlr_wl_input_device *create_wl_input_device(
 		struct wlr_wl_backend *backend, enum wlr_input_device_type type) {
 	struct wlr_wl_input_device *dev =
 		calloc(1, sizeof(struct wlr_wl_input_device));
