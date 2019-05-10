@@ -75,6 +75,7 @@ struct wlr_tablet_pad *create_libinput_tablet_pad(
 		wlr_log(WLR_ERROR, "Unable to allocate wlr_tablet_pad");
 		return NULL;
 	}
+	wlr_tablet_pad_init(wlr_tablet_pad, NULL);
 
 	wlr_tablet_pad->button_count =
 		libinput_device_tablet_pad_get_num_buttons(libinput_dev);
@@ -83,17 +84,14 @@ struct wlr_tablet_pad *create_libinput_tablet_pad(
 	wlr_tablet_pad->strip_count =
 		libinput_device_tablet_pad_get_num_strips(libinput_dev);
 
-	wlr_list_init(&wlr_tablet_pad->paths);
 	struct udev_device *udev = libinput_device_get_udev_device(libinput_dev);
 	wlr_list_push(&wlr_tablet_pad->paths, strdup(udev_device_get_syspath(udev)));
 
-	wl_list_init(&wlr_tablet_pad->groups);
 	int groups = libinput_device_tablet_pad_get_num_mode_groups(libinput_dev);
 	for (int i = 0; i < groups; ++i) {
 		add_pad_group_from_libinput(wlr_tablet_pad, libinput_dev, i);
 	}
 
-	wlr_tablet_pad_init(wlr_tablet_pad, NULL);
 	return wlr_tablet_pad;
 }
 

@@ -11,6 +11,9 @@ void wlr_tablet_pad_init(struct wlr_tablet_pad *pad,
 	wl_signal_init(&pad->events.ring);
 	wl_signal_init(&pad->events.strip);
 	wl_signal_init(&pad->events.attach_tablet);
+
+	wl_list_init(&pad->groups);
+	wlr_list_init(&pad->paths);
 }
 
 void wlr_tablet_pad_destroy(struct wlr_tablet_pad *pad) {
