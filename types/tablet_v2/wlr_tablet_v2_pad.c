@@ -462,8 +462,10 @@ uint32_t wlr_send_tablet_v2_tablet_pad_enter(
 	uint32_t time = now.tv_nsec / 1000;
 
 	for (size_t i = 0; i < pad->group_count; ++i) {
-		zwp_tablet_pad_group_v2_send_mode_switch(
-			pad_client->groups[i], time, serial, pad->groups[i]);
+		if (pad_client->groups[i]) {
+			zwp_tablet_pad_group_v2_send_mode_switch(
+				pad_client->groups[i], time, serial, pad->groups[i]);
+		}
 	}
 
 	return serial;
