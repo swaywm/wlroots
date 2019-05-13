@@ -62,8 +62,8 @@ static void subsurface_destroy(struct wl_client *client, struct wl_resource *res
 
 static void subsurface_set_position(struct wl_client *client,
 		struct wl_resource *res, int32_t x, int32_t y) {
-	struct wlr_subsurface *ss = subsurface_from_resource(res);
-	struct wlr_commit *commit = wlr_surface_get_pending(ss->parent);
+	//struct wlr_subsurface *ss = subsurface_from_resource(res);
+	//struct wlr_commit *commit = wlr_surface_get_pending(ss->parent);
 }
 
 static void subsurface_place_above(struct wl_client *client,

@@ -98,17 +98,17 @@ endif
 subdir('protocol')
 subdir('render')
 
-subdir('backend')
+#subdir('backend')
 subdir('types')
 subdir('util')
 subdir('xcursor')
-subdir('xwayland')
+#subdir('xwayland')
 
 subdir('include')
 
 wlr_parts += [
 	lib_wl_protos,
-	lib_wlr_backend,
+	#lib_wlr_backend,
 	lib_wlr_render,
 	lib_wlr_types,
 	lib_wlr_util,
@@ -168,8 +168,13 @@ summary = [
 ]
 message('\n'.join(summary))
 
-subdir('examples')
-subdir('rootston')
+executable('test-server', 'test-server.c',
+	dependencies: wlroots)
+executable('test-client', 'test-client.c',
+	dependencies: wayland_client)
+
+#subdir('examples')
+#subdir('rootston')
 
 pkgconfig = import('pkgconfig')
 pkgconfig.generate(
