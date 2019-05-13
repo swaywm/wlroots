@@ -470,6 +470,7 @@ bool wlr_output_commit(struct wlr_output *output) {
 	output->frame_pending = true;
 	output->needs_frame = false;
 	output_state_clear(&output->pending);
+	pixman_region32_clear(&output->damage);
 	return true;
 }
 
