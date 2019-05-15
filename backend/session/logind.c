@@ -274,7 +274,7 @@ static int pause_device(sd_bus_message *msg, void *userdata,
 		goto error;
 	}
 
-	if (major == DRM_MAJOR) {
+	if (major == DRM_MAJOR && strcmp(type, "gone") != 0) {
 		assert(session->has_drm);
 		session->base.active = false;
 		wlr_signal_emit_safe(&session->base.session_signal, session);
