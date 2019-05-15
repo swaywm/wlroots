@@ -18,6 +18,22 @@ pixman_region32_t *wlr_region_from_resource(struct wl_resource *resource) {
 	return wl_resource_get_user_data(resource);
 }
 
+static struct wlr_buffer *compositor_buffer_create(struct wlr_compositor *comp,
+		struct wlr_buffer *old, pixman_region32_t *damage,
+		struct wl_resource *res) {
+	return comp->buffer_impl->create(comp->buffer_data, old, damage, res);
+}
+
+static struct wlr_buffer *compositor_buffer_ref(struct wlr_compositor *comp,
+		struct wlr_buffer *buf) {
+	return comp->buffer_impl->ref(buf);
+}
+
+static void compositor_buffer_unref(struct wlr_compositor *comp,
+		struct wlr_buffer *buf) {
+	comp->buffer_impl->unref(buf);
+}
+
 static void region_destroy(struct wl_client *client, struct wl_resource *resource) {
 	wl_resource_destroy(resource);
 }
@@ -70,27 +86,30 @@ static struct wlr_commit *commit_create(struct wlr_surface_2 *surf) {
 		return NULL;
 	}
 
+	c->compositor = comp;
 	c->surface = surf;
 	wl_signal_init(&c->events.commit);
 	wl_signal_init(&c->events.complete);
 	wl_signal_init(&c->events.destroy);
 
-	pixman_region32_init(&c->surface_damage);
 	wl_list_init(&c->frame_callbacks);
 	pixman_region32_init(&c->opaque_region);
 	pixman_region32_init_rect(&c->input_region,
 		INT_MIN, INT_MIN, UINT_MAX, UINT_MAX);
 	c->scale = 1;
-	pixman_region32_init(&c->buffer_damage);
+	pixman_region32_init(&c->damage);
 
 	return c;
 }
 
 static void commit_destroy(struct wlr_commit *c) {
-	pixman_region32_fini(&c->surface_damage);
 	pixman_region32_fini(&c->opaque_region);
 	pixman_region32_fini(&c->input_region);
-	pixman_region32_fini(&c->buffer_damage);
+	pixman_region32_fini(&c->damage);
+
+	if (c->buffer) {
+		compositor_buffer_unref(c->compositor, c->buffer);
+	}
 
 	wlr_signal_emit_safe(&c->events.destroy, c);
 
@@ -206,8 +225,17 @@ static void surface_damage(struct wl_client *client, struct wl_resource *res,
 	struct wlr_surface_2 *surf = wlr_surface_from_resource_2(res);
 	struct wlr_commit *commit = wlr_surface_get_pending(surf);
 
-	pixman_region32_union_rect(&commit->surface_damage,
-		&commit->surface_damage, x, y, width, height);
+	/*
+	 * We choose to not track surface-coordinate damage; it's not worth the
+	 * effort. Clients are recommended by the wayland protocol to use
+	 * buffer-coordinate damage instead.
+	 *
+	 * We still need to acknowledge that damage happened, so we damage the
+	 * entire buffer instead.
+	 */
+
+	pixman_region32_union_rect(&commit->damage,
+		&commit->damage, 0, 0, UINT_MAX, UINT_MAX);
 }
 
 static void callback_resource_destroy(struct wl_resource *resource) {
@@ -305,28 +333,43 @@ static void surface_damage_buffer(struct wl_client *client, struct wl_resource *
 		return;
 	}
 
-	pixman_region32_union_rect(&commit->buffer_damage,
-		&commit->buffer_damage, x, y, width, height);
+	pixman_region32_union_rect(&commit->damage,
+		&commit->damage, x, y, width, height);
 }
 
 static void surface_commit(struct wl_client *client, struct wl_resource *res) {
 	struct wlr_surface_2 *surf = wlr_surface_from_resource_2(res);
+	struct wlr_compositor *comp = surf->compositor;
 	struct wlr_commit *commit = wlr_surface_get_pending(surf);
+	struct wlr_commit *previous = wlr_surface_get_latest(surf);
 
 	commit->committed = true;
 	wl_list_insert(&surf->committed, &commit->link);
 
-	surf->pending = commit_create(surf);
-	if (!surf->pending) {
-		wl_resource_post_no_memory(surf->resource);
-		return;
+	if (commit->buffer_resource) {
+		/*
+		 * If we're complete, that means that we can safely "steal" the
+		 * buffer from the previous commit, as we're going to prune it
+		 * right after this block.
+		 *
+		 * This is an optimisation for wl_shm buffers specifically,
+		 * and allows us to skip some allocations and copies.
+		 */
+		struct wlr_buffer *old = NULL;
+		if (previous && previous->ref_cnt == 1 && wlr_commit_is_complete(commit)) {
+			old = previous->buffer;
+			previous->buffer = NULL;
+		}
+
+		commit->buffer = compositor_buffer_create(comp, old, &commit->damage,
+			commit->buffer_resource);
+	} else if (previous && previous->buffer) {
+		commit->buffer = compositor_buffer_ref(comp, previous->buffer);
 	}
 
-	surf->pending->buffer_resource = commit->buffer_resource;
-	pixman_region32_copy(&surf->pending->opaque_region, &commit->opaque_region);
-	pixman_region32_copy(&surf->pending->input_region, &commit->input_region);
-	surf->pending->transform = commit->transform;
-	surf->pending->scale = commit->scale;
+	if (previous) {
+		wlr_commit_unref(previous);
+	}
 
 	/*
 	 * The wayland protocol says we'll signal these in the order they're
@@ -335,12 +378,28 @@ static void surface_commit(struct wl_client *client, struct wl_resource *res) {
 	wl_list_insert_list(surf->frame_callbacks.prev, &commit->frame_callbacks);
 	wl_list_init(&commit->frame_callbacks);
 
+	wlr_signal_emit_safe(&commit->events.commit, commit);
+
+	surf->pending = commit_create(surf);
+	if (!surf->pending) {
+		wl_resource_post_no_memory(surf->resource);
+		return;
+	}
+
+	/*
+	 * Copy old wl_surface state to next pending commit.
+	 */
+	pixman_region32_copy(&surf->pending->opaque_region, &commit->opaque_region);
+	pixman_region32_copy(&surf->pending->input_region, &commit->input_region);
+	surf->pending->transform = commit->transform;
+	surf->pending->scale = commit->scale;
+
+
 	struct wlr_compositor_new_state_args args = {
 		.old = commit,
 		.new = surf->pending,
 	};
 
-	wlr_signal_emit_safe(&commit->events.commit, commit);
 	wlr_signal_emit_safe(&surf->compositor->events.new_state, &args);
 
 	surface_prune_commits(surf);
@@ -492,8 +551,7 @@ static void compositor_display_destroy(struct wl_listener *listener, void *data)
 	free(comp);
 }
 
-struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
-		struct wlr_renderer *renderer) {
+struct wlr_compositor *wlr_compositor_create(struct wl_display *display) {
 	struct wlr_compositor *comp = calloc(1, sizeof(*comp));
 	if (!comp) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
@@ -508,7 +566,6 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 		free(comp);
 		return NULL;
 	}
-	comp->renderer = renderer;
 
 	wl_signal_init(&comp->events.new_surface);
 	wl_signal_init(&comp->events.new_surface_2);
@@ -518,6 +575,16 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 	wl_display_add_destroy_listener(display, &comp->display_destroy);
 
 	return comp;
+}
+
+void wlr_compositor_set_buffer_impl(struct wlr_compositor *comp,
+		void *data, const struct wlr_compositor_buffer_impl *impl) {
+	assert(comp);
+	assert(impl);
+	assert(!comp->buffer_impl);
+
+	comp->buffer_data = data;
+	comp->buffer_impl = impl;
 }
 
 uint32_t wlr_compositor_register(struct wlr_compositor *compositor) {

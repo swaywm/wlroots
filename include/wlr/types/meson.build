@@ -1,6 +1,5 @@
 install_headers(
 	'wlr_box.h',
-	'wlr_buffer.h',
 	'wlr_compositor.h',
 	'wlr_cursor.h',
 	'wlr_data_control_v1.h',

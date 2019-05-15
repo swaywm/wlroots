@@ -24,7 +24,6 @@ lib_wlr_types = static_library(
 		#'xdg_shell/wlr_xdg_surface.c',
 		#'xdg_shell/wlr_xdg_toplevel.c',
 		'wlr_box.c',
-		'wlr_buffer.c',
 		'wlr_compositor.c',
 		'wlr_subcompositor.c',
 		#'wlr_cursor.c',
