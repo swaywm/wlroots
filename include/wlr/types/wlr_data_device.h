@@ -12,6 +12,8 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_seat.h>
 
+struct wlr_surface_2;
+
 extern const struct wlr_pointer_grab_interface
 	wlr_data_device_pointer_drag_interface;
 
@@ -93,7 +95,7 @@ struct wlr_drag;
 
 struct wlr_drag_icon {
 	struct wlr_drag *drag;
-	struct wlr_surface *surface;
+	struct wlr_surface_2 *surface;
 	bool mapped;
 
 	struct {
@@ -102,6 +104,7 @@ struct wlr_drag_icon {
 		struct wl_signal destroy;
 	} events;
 
+	struct wl_listener surface_commit;
 	struct wl_listener surface_destroy;
 
 	void *data;
@@ -124,7 +127,7 @@ struct wlr_drag {
 	struct wlr_seat_client *focus_client;
 
 	struct wlr_drag_icon *icon; // can be NULL
-	struct wlr_surface *focus; // can be NULL
+	struct wlr_surface_2 *focus; // can be NULL
 	struct wlr_data_source *source; // can be NULL
 
 	bool started, dropped, cancelling;
@@ -187,13 +190,13 @@ void wlr_seat_set_selection(struct wlr_seat *seat,
  * `wlr_seat_request_start_drag`.
  */
 struct wlr_drag *wlr_drag_create(struct wlr_seat_client *seat_client,
-	struct wlr_data_source *source, struct wlr_surface *icon_surface);
+	struct wlr_data_source *source, struct wlr_surface_2 *icon_surface);
 
 /**
  * Requests a drag to be started on the seat.
  */
 void wlr_seat_request_start_drag(struct wlr_seat *seat, struct wlr_drag *drag,
-	struct wlr_surface *origin, uint32_t serial);
+	struct wlr_surface_2 *origin, uint32_t serial);
 
 /**
  * Starts a drag on the seat. This starts an implicit keyboard grab, but doesn't

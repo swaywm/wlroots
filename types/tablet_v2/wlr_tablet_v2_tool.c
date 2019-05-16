@@ -8,15 +8,12 @@
 #include <stdlib.h>
 #include <types/wlr_tablet_v2.h>
 #include <wayland-util.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
 
 static const struct wlr_tablet_tool_v2_grab_interface default_tool_grab_interface;
-
-static const struct wlr_surface_role tablet_tool_cursor_surface_role = {
-	.name = "wp_tablet_tool-cursor",
-};
 
 static void handle_tablet_tool_v2_set_cursor(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial,
@@ -27,11 +24,13 @@ static void handle_tablet_tool_v2_set_cursor(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_surface *surface = NULL;
+	struct wlr_surface_2 *surface = NULL;
 	if (surface_resource != NULL) {
-		surface = wlr_surface_from_resource(surface_resource);
-		if (!wlr_surface_set_role(surface, &tablet_tool_cursor_surface_role, NULL,
-				surface_resource, ZWP_TABLET_TOOL_V2_ERROR_ROLE)) {
+		surface = wlr_surface_from_resource_2(surface_resource);
+		if (!wlr_surface_set_role_2(surface, "wp_tablet_tool")) {
+			wl_resource_post_error(surface_resource,
+				ZWP_TABLET_TOOL_V2_ERROR_ROLE,
+				"surface already has role");
 			return;
 		}
 	}
@@ -307,7 +306,7 @@ static void queue_tool_frame(struct wlr_tablet_tool_client_v2 *tool) {
 void wlr_send_tablet_v2_tablet_tool_proximity_in(
 		struct wlr_tablet_v2_tablet_tool *tool,
 		struct wlr_tablet_v2_tablet *tablet,
-		struct wlr_surface *surface) {
+		struct wlr_surface_2 *surface) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
 
 	if (tool->focused_surface == surface) {
@@ -525,7 +524,7 @@ void wlr_send_tablet_v2_tablet_tool_up(struct wlr_tablet_v2_tablet_tool *tool) {
 void wlr_tablet_v2_tablet_tool_notify_proximity_in(
 	struct wlr_tablet_v2_tablet_tool *tool,
 	struct wlr_tablet_v2_tablet *tablet,
-	struct wlr_surface *surface) {
+	struct wlr_surface_2 *surface) {
 	if (tool->grab->interface->proximity_in) {
 		tool->grab->interface->proximity_in(tool->grab, tablet, surface);
 	}
@@ -623,7 +622,7 @@ void wlr_tablet_tool_v2_end_grab(struct wlr_tablet_v2_tablet_tool *tool) {
 static void default_tool_proximity_in(
 	struct wlr_tablet_tool_v2_grab *grab,
 	struct wlr_tablet_v2_tablet *tablet,
-	struct wlr_surface *surface) {
+	struct wlr_surface_2 *surface) {
 	wlr_send_tablet_v2_tablet_tool_proximity_in(grab->tool, tablet, surface);
 }
 
@@ -701,10 +700,10 @@ static const struct wlr_tablet_tool_v2_grab_interface
 };
 
 struct implicit_grab_state {
-	struct wlr_surface *original;
+	struct wlr_surface_2 *original;
 	bool released;
 
-	struct wlr_surface *focused;
+	struct wlr_surface_2 *focused;
 	struct wlr_tablet_v2_tablet *tablet;
 };
 
@@ -735,7 +734,7 @@ static void check_and_release_implicit_grab(struct wlr_tablet_tool_v2_grab *grab
 static void implicit_tool_proximity_in(
 	struct wlr_tablet_tool_v2_grab *grab,
 	struct wlr_tablet_v2_tablet *tablet,
-	struct wlr_surface *surface) {
+	struct wlr_surface_2 *surface) {
 
 	/* As long as we got an implicit grab, proximity won't change
 	 * But should track the currently focused surface to change to it when
