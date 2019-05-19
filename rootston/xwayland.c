@@ -8,7 +8,6 @@
 #include <wlr/util/log.h>
 #include <wlr/xwayland.h>
 #include "rootston/server.h"
-#include "rootston/server.h"
 
 static void activate(struct roots_view *view, bool active) {
 	struct wlr_xwayland_surface *xwayland_surface =
