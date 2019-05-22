@@ -538,14 +538,25 @@ static bool get_display_session(char **session_id) {
 	assert(session_id != NULL);
 	int ret;
 
+	char *type = NULL;
+	char *state = NULL;
+	char *xdg_session_id = getenv("XDG_SESSION_ID");
+
+	if (xdg_session_id) {
+		// This just checks whether the supplied session ID is valid
+		if (sd_session_is_active(xdg_session_id) < 0) {
+			wlr_log(WLR_ERROR, "Invalid XDG_SESSION_ID: '%s'", xdg_session_id);
+			goto error;
+		}
+		*session_id = strdup(xdg_session_id);
+		return true;
+	}
+
 	// If there's a session active for the current process then just use that
 	ret = sd_pid_get_session(getpid(), session_id);
 	if (ret == 0) {
 		return true;
 	}
-
-	char *type = NULL;
-	char *state = NULL;
 
 	// Find any active sessions for the user if the process isn't part of an
 	// active session itself
