@@ -497,6 +497,9 @@ bool wlr_output_attach_buffer(struct wlr_output *output,
 	if (!output->impl->attach_buffer) {
 		return false;
 	}
+	if (output->attach_render_locks > 0) {
+		return false;
+	}
 
 	// If the output has at least one software cursor, refuse to attach the
 	// buffer
@@ -612,6 +615,18 @@ struct wlr_output *wlr_output_from_resource(struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_output_interface,
 		&output_impl));
 	return wl_resource_get_user_data(resource);
+}
+
+void wlr_output_lock_attach_render(struct wlr_output *output, bool lock) {
+	if (lock) {
+		++output->attach_render_locks;
+	} else {
+		assert(output->attach_render_locks > 0);
+		--output->attach_render_locks;
+	}
+	wlr_log(WLR_DEBUG, "%s direct scan-out on output '%s' (locks: %d)",
+		lock ? "Disabling" : "Enabling", output->name,
+		output->attach_render_locks);
 }
 
 static void output_cursor_damage_whole(struct wlr_output_cursor *cursor);

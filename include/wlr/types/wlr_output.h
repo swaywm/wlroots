@@ -137,6 +137,8 @@ struct wlr_output {
 	struct wl_event_source *idle_frame;
 	struct wl_event_source *idle_done;
 
+	int attach_render_locks; // number of locks forcing rendering
+
 	struct wl_list cursors; // wlr_output_cursor::link
 	struct wlr_output_cursor *hardware_cursor;
 	int software_cursor_locks; // number of locks forcing software cursors
@@ -287,6 +289,13 @@ bool wlr_output_set_gamma(struct wlr_output *output, size_t size,
 bool wlr_output_export_dmabuf(struct wlr_output *output,
 	struct wlr_dmabuf_attributes *attribs);
 struct wlr_output *wlr_output_from_resource(struct wl_resource *resource);
+/**
+ * Locks the output to only use rendering instead of direct scan-out. This is
+ * useful if direct scan-out needs to be temporarily disabled (e.g. during
+ * screen capture). There must be as many unlocks as there have been locks to
+ * restore the original state. There should never be an unlock before a lock.
+ */
+void wlr_output_lock_attach_render(struct wlr_output *output, bool lock);
 /**
  * Locks the output to only use software cursors instead of hardware cursors.
  * This is useful if hardware cursors need to be temporarily disabled (e.g.
