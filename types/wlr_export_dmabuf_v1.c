@@ -34,6 +34,7 @@ static void frame_destroy(struct wlr_export_dmabuf_frame_v1 *frame) {
 	if (frame == NULL) {
 		return;
 	}
+	wlr_output_lock_attach_render(frame->output, false);
 	if (frame->cursor_locked) {
 		wlr_output_lock_software_cursors(frame->output, false);
 	}
@@ -126,6 +127,7 @@ static void manager_handle_capture_output(struct wl_client *client,
 		return;
 	}
 
+	wlr_output_lock_attach_render(frame->output, true);
 	if (overlay_cursor) {
 		wlr_output_lock_software_cursors(frame->output, true);
 		frame->cursor_locked = true;
