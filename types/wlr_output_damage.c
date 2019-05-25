@@ -59,12 +59,25 @@ static void output_handle_commit(struct wl_listener *listener, void *data) {
 		return;
 	}
 
-	// same as decrementing, but works on unsigned integers
-	output_damage->previous_idx += WLR_OUTPUT_DAMAGE_PREVIOUS_LEN - 1;
-	output_damage->previous_idx %= WLR_OUTPUT_DAMAGE_PREVIOUS_LEN;
+	pixman_region32_t *prev;
+	switch (output_damage->output->pending.buffer_type) {
+	case WLR_OUTPUT_STATE_BUFFER_RENDER:
+		// render-buffers have been swapped, rotate the damage
 
-	pixman_region32_copy(&output_damage->previous[output_damage->previous_idx],
-		&output_damage->current);
+		// same as decrementing, but works on unsigned integers
+		output_damage->previous_idx += WLR_OUTPUT_DAMAGE_PREVIOUS_LEN - 1;
+		output_damage->previous_idx %= WLR_OUTPUT_DAMAGE_PREVIOUS_LEN;
+
+		prev = &output_damage->previous[output_damage->previous_idx];
+		pixman_region32_copy(prev, &output_damage->current);
+		break;
+	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:
+		// accumulate render-buffer damage
+		prev = &output_damage->previous[output_damage->previous_idx];
+		pixman_region32_union(prev, prev, &output_damage->current);
+		break;
+	}
+
 	pixman_region32_clear(&output_damage->current);
 }
 
