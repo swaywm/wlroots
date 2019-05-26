@@ -66,6 +66,9 @@ bool check_drm_features(struct wlr_drm_backend *drm) {
 	int ret = drmGetCap(drm->fd, DRM_CAP_TIMESTAMP_MONOTONIC, &cap);
 	drm->clock = (ret == 0 && cap == 1) ? CLOCK_MONOTONIC : CLOCK_REALTIME;
 
+	ret = drmGetCap(drm->fd, DRM_CAP_ADDFB2_MODIFIERS, &cap);
+	drm->addfb2_modifiers = ret == 0 && cap == 1;
+
 	return true;
 }
 
@@ -319,7 +322,7 @@ static bool drm_connector_commit(struct wlr_output *output) {
 				return false;
 			}
 		}
-		fb_id = get_fb_for_bo(bo, plane->drm_format);
+		fb_id = get_fb_for_bo(bo, plane->drm_format, drm->addfb2_modifiers);
 		if (fb_id == 0) {
 			wlr_log(WLR_ERROR, "get_fb_for_bo failed");
 			return false;
@@ -332,7 +335,7 @@ static bool drm_connector_commit(struct wlr_output *output) {
 			return false;
 		}
 
-		fb_id = get_fb_for_bo(bo, gbm_bo_get_format(bo));
+		fb_id = get_fb_for_bo(bo, gbm_bo_get_format(bo), drm->addfb2_modifiers);
 		if (fb_id == 0) {
 			wlr_log(WLR_ERROR, "get_fb_for_bo failed");
 			return false;
@@ -462,7 +465,7 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 
 	struct gbm_bo *bo = get_drm_surface_front(
 		drm->parent ? &plane->mgpu_surf : &plane->surf);
-	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format);
+	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format, drm->addfb2_modifiers);
 
 	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)conn->output.current_mode;
 	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, &mode->drm_mode)) {
@@ -887,7 +890,7 @@ static bool drm_connector_schedule_frame(struct wlr_output *output) {
 		return true;
 	}
 
-	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format);
+	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format, drm->addfb2_modifiers);
 	if (!drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
 		return false;
 	}
