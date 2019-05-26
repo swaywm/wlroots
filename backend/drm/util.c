@@ -190,12 +190,20 @@ uint32_t get_fb_for_bo(struct gbm_bo *bo, uint32_t drm_format,
 	int fd = gbm_device_get_fd(gbm);
 	uint32_t width = gbm_bo_get_width(bo);
 	uint32_t height = gbm_bo_get_height(bo);
-	uint32_t handles[4] = {gbm_bo_get_handle(bo).u32};
-	uint32_t strides[4] = {gbm_bo_get_stride(bo)};
-	uint32_t offsets[4] = {gbm_bo_get_offset(bo, 0)};
+
+	uint32_t handles[4] = {0};
+	uint32_t strides[4] = {0};
+	uint32_t offsets[4] = {0};
+	uint64_t modifiers[4] = {0};
+	for (int i = 0; i < gbm_bo_get_plane_count(bo); i++) {
+		handles[i] = gbm_bo_get_handle_for_plane(bo, i).u32;
+		strides[i] = gbm_bo_get_stride_for_plane(bo, i);
+		offsets[i] = gbm_bo_get_offset(bo, i);
+		// KMS requires all BO planes to have the same modifier
+		modifiers[i] = gbm_bo_get_modifier(bo);
+	}
 
 	if (with_modifiers && gbm_bo_get_modifier(bo) != DRM_FORMAT_MOD_INVALID) {
-		uint64_t modifiers[4] = {gbm_bo_get_modifier(bo)};
 		if (drmModeAddFB2WithModifiers(fd, width, height, drm_format, handles,
 				strides, offsets, modifiers, &id, DRM_MODE_FB_MODIFIERS)) {
 			wlr_log_errno(WLR_ERROR, "Unable to add DRM framebuffer");
