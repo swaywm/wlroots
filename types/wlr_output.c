@@ -350,6 +350,10 @@ void wlr_output_destroy(struct wlr_output *output) {
 		wl_event_source_remove(output->idle_frame);
 	}
 
+	if (output->idle_done != NULL) {
+		wl_event_source_remove(output->idle_done);
+	}
+
 	pixman_region32_fini(&output->pending.damage);
 	pixman_region32_fini(&output->damage);
 
