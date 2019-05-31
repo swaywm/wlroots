@@ -51,7 +51,7 @@ static void virtual_keyboard_keymap(struct wl_client *client,
 		goto context_fail;
 	}
 	void *data = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
-	if (!data) {
+	if (data == MAP_FAILED) {
 		goto fd_fail;
 	}
 	struct xkb_keymap *keymap = xkb_keymap_new_from_string(context, data,
