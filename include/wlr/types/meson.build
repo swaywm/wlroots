@@ -1,6 +1,5 @@
 install_headers(
 	'wlr_box.h',
-	'wlr_buffer.h',
 	'wlr_compositor.h',
 	'wlr_cursor.h',
 	'wlr_data_control_v1.h',
@@ -31,7 +30,6 @@ install_headers(
 	'wlr_presentation_time.h',
 	'wlr_primary_selection_v1.h',
 	'wlr_primary_selection.h',
-	'wlr_region.h',
 	'wlr_relative_pointer_v1.h',
 	'wlr_screencopy_v1.h',
 	'wlr_screenshooter.h',

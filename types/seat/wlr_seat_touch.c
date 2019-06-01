@@ -5,6 +5,7 @@
 #include <time.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/util/log.h>
 #include "types/wlr_seat.h"
 #include "util/signal.h"
@@ -114,7 +115,7 @@ static void touch_point_handle_surface_destroy(struct wl_listener *listener,
 
 static struct wlr_touch_point *touch_point_create(
 		struct wlr_seat *seat, int32_t touch_id,
-		struct wlr_surface *surface, double sx, double sy) {
+		struct wlr_surface_2 *surface, double sx, double sy) {
 	struct wl_client *wl_client = wl_resource_get_client(surface->resource);
 	struct wlr_seat_client *client =
 		wlr_seat_client_for_wl_client(seat, wl_client);
@@ -159,7 +160,7 @@ struct wlr_touch_point *wlr_seat_touch_get_point(
 }
 
 uint32_t wlr_seat_touch_notify_down(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
+		struct wlr_surface_2 *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy) {
 	clock_gettime(CLOCK_MONOTONIC, &seat->last_event);
 	struct wlr_seat_touch_grab *grab = seat->touch_state.grab;
@@ -217,7 +218,7 @@ static void handle_point_focus_destroy(struct wl_listener *listener,
 }
 
 static void touch_point_set_focus(struct wlr_touch_point *point,
-		struct wlr_surface *surface, double sx, double sy) {
+		struct wlr_surface_2 *surface, double sx, double sy) {
 	if (point->focus_surface == surface) {
 		return;
 	}
@@ -241,7 +242,7 @@ static void touch_point_set_focus(struct wlr_touch_point *point,
 }
 
 void wlr_seat_touch_point_focus(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
+		struct wlr_surface_2 *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy) {
 	assert(surface);
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
@@ -249,7 +250,7 @@ void wlr_seat_touch_point_focus(struct wlr_seat *seat,
 		wlr_log(WLR_ERROR, "got touch point focus for unknown touch point");
 		return;
 	}
-	struct wlr_surface *focus = point->focus_surface;
+	struct wlr_surface_2 *focus = point->focus_surface;
 	touch_point_set_focus(point, surface, sx, sy);
 
 	if (focus != point->focus_surface) {
@@ -270,7 +271,7 @@ void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time,
 }
 
 uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t time, int32_t touch_id, double sx,
+		struct wlr_surface_2 *surface, uint32_t time, int32_t touch_id, double sx,
 		double sy) {
 	struct wlr_touch_point *point = wlr_seat_touch_get_point(seat, touch_id);
 	if (!point) {
@@ -361,7 +362,7 @@ void seat_client_destroy_touch(struct wl_resource *resource) {
 }
 
 bool wlr_seat_validate_touch_grab_serial(struct wlr_seat *seat,
-		struct wlr_surface *origin, uint32_t serial,
+		struct wlr_surface_2 *origin, uint32_t serial,
 		struct wlr_touch_point **point_ptr) {
 	if (wlr_seat_touch_num_points(seat) != 1 ||
 			seat->touch_state.grab_serial != serial) {

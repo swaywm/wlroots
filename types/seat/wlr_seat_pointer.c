@@ -5,12 +5,13 @@
 #include <time.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/util/log.h>
 #include "types/wlr_seat.h"
 #include "util/signal.h"
 
 static void default_pointer_enter(struct wlr_seat_pointer_grab *grab,
-		struct wlr_surface *surface, double sx, double sy) {
+		struct wlr_surface_2 *surface, double sx, double sy) {
 	wlr_seat_pointer_enter(grab->seat, surface, sx, sy);
 }
 
@@ -65,10 +66,6 @@ struct wlr_seat_client *wlr_seat_client_from_pointer_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-static const struct wlr_surface_role pointer_cursor_surface_role = {
-	.name = "wl_pointer-cursor",
-};
-
 static void pointer_set_cursor(struct wl_client *client,
 		struct wl_resource *pointer_resource, uint32_t serial,
 		struct wl_resource *surface_resource,
@@ -79,11 +76,12 @@ static void pointer_set_cursor(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_surface *surface = NULL;
+	struct wlr_surface_2 *surface = NULL;
 	if (surface_resource != NULL) {
-		surface = wlr_surface_from_resource(surface_resource);
-		if (!wlr_surface_set_role(surface, &pointer_cursor_surface_role, NULL,
-				surface_resource, WL_POINTER_ERROR_ROLE)) {
+		surface = wlr_surface_from_resource_2(surface_resource);
+		if (!wlr_surface_set_role_2(surface, "wl_pointer")) {
+			wl_resource_post_error(surface_resource, WL_POINTER_ERROR_ROLE,
+				"surface already has role");
 			return;
 		}
 	}
@@ -115,7 +113,7 @@ static void pointer_handle_resource_destroy(struct wl_resource *resource) {
 
 
 bool wlr_seat_pointer_surface_has_focus(struct wlr_seat *wlr_seat,
-		struct wlr_surface *surface) {
+		struct wlr_surface_2 *surface) {
 	return surface == wlr_seat->pointer_state.focused_surface;
 }
 
@@ -129,7 +127,7 @@ static void seat_pointer_handle_surface_destroy(struct wl_listener *listener,
 }
 
 void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
-		struct wlr_surface *surface, double sx, double sy) {
+		struct wlr_surface_2 *surface, double sx, double sy) {
 	if (wlr_seat->pointer_state.focused_surface == surface) {
 		// this surface already got an enter notify
 		return;
@@ -143,7 +141,7 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 
 	struct wlr_seat_client *focused_client =
 		wlr_seat->pointer_state.focused_client;
-	struct wlr_surface *focused_surface =
+	struct wlr_surface_2 *focused_surface =
 		wlr_seat->pointer_state.focused_surface;
 
 	// leave the previously entered surface
@@ -324,7 +322,7 @@ void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat) {
 }
 
 void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
-		struct wlr_surface *surface, double sx, double sy) {
+		struct wlr_surface_2 *surface, double sx, double sy) {
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	grab->interface->enter(grab, surface, sx, sy);
 }
@@ -409,7 +407,7 @@ void seat_client_destroy_pointer(struct wl_resource *resource) {
 }
 
 bool wlr_seat_validate_pointer_grab_serial(struct wlr_seat *seat,
-		struct wlr_surface *origin, uint32_t serial) {
+		struct wlr_surface_2 *origin, uint32_t serial) {
 	if (seat->pointer_state.button_count != 1 ||
 			seat->pointer_state.grab_serial != serial) {
 		wlr_log(WLR_DEBUG, "Pointer grab serial validation failed: "

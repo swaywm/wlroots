@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <wayland-server.h>
 #include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "types/wlr_data_device.h"
@@ -20,7 +21,7 @@ static void drag_handle_seat_client_destroy(struct wl_listener *listener,
 }
 
 static void drag_set_focus(struct wlr_drag *drag,
-		struct wlr_surface *surface, double sx, double sy) {
+		struct wlr_surface_2 *surface, double sx, double sy) {
 	if (drag->focus == surface) {
 		return;
 	}
@@ -154,7 +155,7 @@ static void drag_destroy(struct wlr_drag *drag) {
 }
 
 static void drag_handle_pointer_enter(struct wlr_seat_pointer_grab *grab,
-		struct wlr_surface *surface, double sx, double sy) {
+		struct wlr_surface_2 *surface, double sx, double sy) {
 	struct wlr_drag *drag = grab->data;
 	drag_set_focus(drag, surface, sx, sy);
 }
@@ -298,7 +299,7 @@ static const struct wlr_touch_grab_interface
 };
 
 static void drag_handle_keyboard_enter(struct wlr_seat_keyboard_grab *grab,
-		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
+		struct wlr_surface_2 *surface, uint32_t keycodes[], size_t num_keycodes,
 		struct wlr_keyboard_modifiers *modifiers) {
 	// nothing has keyboard focus during drags
 }
@@ -347,8 +348,23 @@ static void drag_icon_destroy(struct wlr_drag_icon *icon) {
 	drag_icon_set_mapped(icon, false);
 	wlr_signal_emit_safe(&icon->events.destroy, icon);
 	icon->surface->role_data = NULL;
+	wl_list_remove(&icon->surface_commit.link);
 	wl_list_remove(&icon->surface_destroy.link);
 	free(icon);
+}
+
+static void drag_icon_handle_surface_commit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_drag_icon *icon =
+		wl_container_of(listener, icon, surface_commit);
+
+	struct wlr_commit *commit = wlr_surface_get_commit(icon->surface);
+	bool has_buffer = commit->buffer;
+	wlr_commit_unref(commit);
+
+	if (has_buffer) {
+		drag_icon_set_mapped(icon, true);
+	}
 }
 
 static void drag_icon_handle_surface_destroy(struct wl_listener *listener,
@@ -358,23 +374,8 @@ static void drag_icon_handle_surface_destroy(struct wl_listener *listener,
 	drag_icon_destroy(icon);
 }
 
-static void drag_icon_surface_role_commit(struct wlr_surface *surface) {
-	assert(surface->role == &drag_icon_surface_role);
-	struct wlr_drag_icon *icon = surface->role_data;
-	if (icon == NULL) {
-		return;
-	}
-
-	drag_icon_set_mapped(icon, wlr_surface_has_buffer(surface));
-}
-
-const struct wlr_surface_role drag_icon_surface_role = {
-	.name = "wl_data_device-icon",
-	.commit = drag_icon_surface_role_commit,
-};
-
 static struct wlr_drag_icon *drag_icon_create(struct wlr_drag *drag,
-		struct wlr_surface *surface) {
+		struct wlr_surface_2 *surface) {
 	struct wlr_drag_icon *icon = calloc(1, sizeof(struct wlr_drag_icon));
 	if (!icon) {
 		return NULL;
@@ -387,13 +388,21 @@ static struct wlr_drag_icon *drag_icon_create(struct wlr_drag *drag,
 	wl_signal_init(&icon->events.unmap);
 	wl_signal_init(&icon->events.destroy);
 
+	wl_signal_add(&icon->surface->events.commit, &icon->surface_commit);
+	icon->surface_commit.notify = drag_icon_handle_surface_commit;
 	wl_signal_add(&icon->surface->events.destroy, &icon->surface_destroy);
 	icon->surface_destroy.notify = drag_icon_handle_surface_destroy;
 
 	icon->surface->role_data = icon;
 
-	if (wlr_surface_has_buffer(surface)) {
-		drag_icon_set_mapped(icon, true);
+	struct wlr_commit *commit = wlr_surface_get_commit(icon->surface);
+	if (commit) {
+		bool has_buffer = commit->buffer;
+		wlr_commit_unref(commit);
+
+		if (has_buffer) {
+			drag_icon_set_mapped(icon, true);
+		}
 	}
 
 	return icon;
@@ -401,7 +410,7 @@ static struct wlr_drag_icon *drag_icon_create(struct wlr_drag *drag,
 
 
 struct wlr_drag *wlr_drag_create(struct wlr_seat_client *seat_client,
-		struct wlr_data_source *source, struct wlr_surface *icon_surface) {
+		struct wlr_data_source *source, struct wlr_surface_2 *icon_surface) {
 	struct wlr_drag *drag = calloc(1, sizeof(struct wlr_drag));
 	if (drag == NULL) {
 		return NULL;
@@ -447,7 +456,7 @@ struct wlr_drag *wlr_drag_create(struct wlr_seat_client *seat_client,
 }
 
 void wlr_seat_request_start_drag(struct wlr_seat *seat, struct wlr_drag *drag,
-		struct wlr_surface *origin, uint32_t serial) {
+		struct wlr_surface_2 *origin, uint32_t serial) {
 	assert(drag->seat == seat);
 
 	if (seat->drag != NULL) {

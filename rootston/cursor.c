@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>
-#include <wlr/types/wlr_region.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/edges.h>
 #include <wlr/util/log.h>

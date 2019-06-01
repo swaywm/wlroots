@@ -19,8 +19,10 @@ enum wlr_renderer_read_pixels_flags {
 	WLR_RENDERER_READ_PIXELS_Y_INVERT = 1,
 };
 
-struct wlr_renderer_impl;
+struct wlr_compositor;
+struct wlr_commit;
 struct wlr_drm_format_set;
+struct wlr_renderer_impl;
 
 struct wlr_renderer {
 	const struct wlr_renderer_impl *impl;
@@ -107,11 +109,14 @@ bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
  */
 bool wlr_renderer_format_supported(struct wlr_renderer *r,
 	enum wl_shm_format fmt);
-void wlr_renderer_init_wl_display(struct wlr_renderer *r,
-	struct wl_display *wl_display);
 /**
  * Destroys this wlr_renderer. Textures must be destroyed separately.
  */
 void wlr_renderer_destroy(struct wlr_renderer *renderer);
+
+void wlr_renderer_set_compositor(struct wlr_renderer *renderer,
+	struct wlr_compositor *comp);
+
+struct wlr_texture *wlr_commit_get_texture(struct wlr_commit *commit);
 
 #endif

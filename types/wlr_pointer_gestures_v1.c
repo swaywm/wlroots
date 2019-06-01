@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <wayland-server.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/types/wlr_pointer_gestures_v1.h>
 #include <wlr/util/log.h>
@@ -47,7 +48,7 @@ void wlr_pointer_gestures_v1_send_swipe_begin(
 		struct wlr_seat *seat,
 		uint32_t time_msec,
 		uint32_t fingers) {
-	struct wlr_surface *focus = seat->pointer_state.focused_surface;
+	struct wlr_surface_2 *focus = seat->pointer_state.focused_surface;
 	if (focus == NULL) {
 		return;
 	}
@@ -74,7 +75,7 @@ void wlr_pointer_gestures_v1_send_swipe_update(
 		uint32_t time_msec,
 		double dx,
 		double dy) {
-	struct wlr_surface *focus = seat->pointer_state.focused_surface;
+	struct wlr_surface_2 *focus = seat->pointer_state.focused_surface;
 	if (focus == NULL) {
 		return;
 	}
@@ -98,7 +99,7 @@ void wlr_pointer_gestures_v1_send_swipe_end(
 		struct wlr_seat *seat,
 		uint32_t time_msec,
 		bool cancelled) {
-	struct wlr_surface *focus = seat->pointer_state.focused_surface;
+	struct wlr_surface_2 *focus = seat->pointer_state.focused_surface;
 	if (focus == NULL) {
 		return;
 	}
@@ -159,7 +160,7 @@ void wlr_pointer_gestures_v1_send_pinch_begin(
 		struct wlr_seat *seat,
 		uint32_t time_msec,
 		uint32_t fingers) {
-	struct wlr_surface *focus = seat->pointer_state.focused_surface;
+	struct wlr_surface_2 *focus = seat->pointer_state.focused_surface;
 	if (focus == NULL) {
 		return;
 	}
@@ -188,7 +189,7 @@ void wlr_pointer_gestures_v1_send_pinch_update(
 		double dy,
 		double scale,
 		double rotation) {
-	struct wlr_surface *focus = seat->pointer_state.focused_surface;
+	struct wlr_surface_2 *focus = seat->pointer_state.focused_surface;
 	if (focus == NULL) {
 		return;
 	}
@@ -214,7 +215,7 @@ void wlr_pointer_gestures_v1_send_pinch_end(
 		struct wlr_seat *seat,
 		uint32_t time_msec,
 		bool cancelled) {
-	struct wlr_surface *focus = seat->pointer_state.focused_surface;
+	struct wlr_surface_2 *focus = seat->pointer_state.focused_surface;
 	if (focus == NULL) {
 		return;
 	}

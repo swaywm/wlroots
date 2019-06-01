@@ -98,17 +98,17 @@ endif
 subdir('protocol')
 subdir('render')
 
-subdir('backend')
+#subdir('backend')
 subdir('types')
 subdir('util')
 subdir('xcursor')
-subdir('xwayland')
+#subdir('xwayland')
 
 subdir('include')
 
 wlr_parts += [
 	lib_wl_protos,
-	lib_wlr_backend,
+	#lib_wlr_backend,
 	lib_wlr_render,
 	lib_wlr_types,
 	lib_wlr_util,
@@ -168,8 +168,13 @@ summary = [
 ]
 message('\n'.join(summary))
 
-subdir('examples')
-subdir('rootston')
+executable('test-server', 'test-server.c',
+	dependencies: [wlroots, gbm])
+executable('test-client', 'test-client.c',
+	dependencies: wayland_client)
+
+#subdir('examples')
+#subdir('rootston')
 
 pkgconfig = import('pkgconfig')
 pkgconfig.generate(
@@ -180,35 +185,3 @@ pkgconfig.generate(
 	description: 'Wayland compositor library',
 )
 
-git = find_program('git', required: false)
-if git.found()
-	all_files = run_command(
-		git,
-		'--git-dir=@0@/.git'.format(meson.current_source_dir()),
-		'ls-files',
-		':/*.[ch]',
-	)
-	all_files = files(all_files.stdout().split())
-
-	etags = find_program('etags', required: false)
-	if etags.found() and all_files.length() > 0
-		custom_target(
-			'etags',
-			build_by_default: true,
-			input: all_files,
-			output: 'TAGS',
-			command: [etags, '-o', '@OUTPUT@', '@INPUT@'],
-		)
-	endif
-
-	ctags = find_program('ctags', required: false)
-	if ctags.found() and all_files.length() > 0
-		custom_target(
-			'ctags',
-			build_by_default: true,
-			input: all_files,
-			output: 'tags',
-			command: [ctags, '-f', '@OUTPUT@', '@INPUT@'],
-		)
-	endif
-endif

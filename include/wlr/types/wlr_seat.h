@@ -13,7 +13,8 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
-#include <wlr/types/wlr_surface.h>
+
+struct wlr_surface_2;
 
 /**
  * Contains state for a single client's bound wl_seat resource and can be used
@@ -39,10 +40,10 @@ struct wlr_seat_client {
 
 struct wlr_touch_point {
 	int32_t touch_id;
-	struct wlr_surface *surface;
+	struct wlr_surface_2 *surface;
 	struct wlr_seat_client *client;
 
-	struct wlr_surface *focus_surface;
+	struct wlr_surface_2 *focus_surface;
 	struct wlr_seat_client *focus_client;
 	double sx, sy;
 
@@ -60,7 +61,7 @@ struct wlr_seat_pointer_grab;
 
 struct wlr_pointer_grab_interface {
 	void (*enter)(struct wlr_seat_pointer_grab *grab,
-			struct wlr_surface *surface, double sx, double sy);
+			struct wlr_surface_2 *surface, double sx, double sy);
 	void (*motion)(struct wlr_seat_pointer_grab *grab, uint32_t time_msec,
 			double sx, double sy);
 	uint32_t (*button)(struct wlr_seat_pointer_grab *grab, uint32_t time_msec,
@@ -76,7 +77,7 @@ struct wlr_seat_keyboard_grab;
 
 struct wlr_keyboard_grab_interface {
 	void (*enter)(struct wlr_seat_keyboard_grab *grab,
-			struct wlr_surface *surface, uint32_t keycodes[],
+			struct wlr_surface_2 *surface, uint32_t keycodes[],
 			size_t num_keycodes, struct wlr_keyboard_modifiers *modifiers);
 	void (*key)(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec,
 			uint32_t key, uint32_t state);
@@ -134,7 +135,7 @@ struct wlr_seat_pointer_grab {
 struct wlr_seat_pointer_state {
 	struct wlr_seat *seat;
 	struct wlr_seat_client *focused_client;
-	struct wlr_surface *focused_surface;
+	struct wlr_surface_2 *focused_surface;
 	double sx, sy;
 
 	struct wlr_seat_pointer_grab *grab;
@@ -158,7 +159,7 @@ struct wlr_seat_keyboard_state {
 	struct wlr_keyboard *keyboard;
 
 	struct wlr_seat_client *focused_client;
-	struct wlr_surface *focused_surface;
+	struct wlr_surface_2 *focused_surface;
 
 	struct wl_listener keyboard_destroy;
 	struct wl_listener keyboard_keymap;
@@ -250,7 +251,7 @@ struct wlr_seat {
 
 struct wlr_seat_pointer_request_set_cursor_event {
 	struct wlr_seat_client *seat_client;
-	struct wlr_surface *surface;
+	struct wlr_surface_2 *surface;
 	uint32_t serial;
 	int32_t hotspot_x, hotspot_y;
 };
@@ -267,19 +268,19 @@ struct wlr_seat_request_set_primary_selection_event {
 
 struct wlr_seat_request_start_drag_event {
 	struct wlr_drag *drag;
-	struct wlr_surface *origin;
+	struct wlr_surface_2 *origin;
 	uint32_t serial;
 };
 
 struct wlr_seat_pointer_focus_change_event {
 	struct wlr_seat *seat;
-	struct wlr_surface *old_surface, *new_surface;
+	struct wlr_surface_2 *old_surface, *new_surface;
 	double sx, sy;
 };
 
 struct wlr_seat_keyboard_focus_change_event {
 	struct wlr_seat *seat;
-	struct wlr_surface *old_surface, *new_surface;
+	struct wlr_surface_2 *old_surface, *new_surface;
 };
 
 /**
@@ -312,7 +313,7 @@ void wlr_seat_set_name(struct wlr_seat *wlr_seat, const char *name);
  * Whether or not the surface has pointer focus
  */
 bool wlr_seat_pointer_surface_has_focus(struct wlr_seat *wlr_seat,
-		struct wlr_surface *surface);
+		struct wlr_surface_2 *surface);
 
 /**
  * Send a pointer enter event to the given surface and consider it to be the
@@ -322,7 +323,7 @@ bool wlr_seat_pointer_surface_has_focus(struct wlr_seat *wlr_seat,
  * focus to respect pointer grabs.
  */
 void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
-		struct wlr_surface *surface, double sx, double sy);
+		struct wlr_surface_2 *surface, double sx, double sy);
 
 /**
  * Clear the focused surface for the pointer and leave all entered surfaces.
@@ -382,7 +383,7 @@ void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat);
  * where the enter occurred.
  */
 void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
-		struct wlr_surface *surface, double sx, double sy);
+		struct wlr_surface_2 *surface, double sx, double sy);
 
 /**
  * Notify the seat of motion over the given surface. Pass surface-local
@@ -474,7 +475,7 @@ void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat,
  * keyboard.
  */
 void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
+		struct wlr_surface_2 *surface, uint32_t keycodes[], size_t num_keycodes,
 		struct wlr_keyboard_modifiers *modifiers);
 
 /**
@@ -485,7 +486,7 @@ void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat,
  * keyboard grabs.
  */
 void wlr_seat_keyboard_enter(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
+		struct wlr_surface_2 *surface, uint32_t keycodes[], size_t num_keycodes,
 		struct wlr_keyboard_modifiers *modifiers);
 
 /**
@@ -523,7 +524,7 @@ struct wlr_touch_point *wlr_seat_touch_get_point(struct wlr_seat *seat,
  * the touch device.
  */
 uint32_t wlr_seat_touch_notify_down(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t time_msec,
+		struct wlr_surface_2 *surface, uint32_t time_msec,
 		int32_t touch_id, double sx, double sy);
 
 /**
@@ -548,7 +549,7 @@ void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time_msec,
  * `wlr_seat_touch_point_clear_focus()`.
  */
 void wlr_seat_touch_point_focus(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t time_msec,
+		struct wlr_surface_2 *surface, uint32_t time_msec,
 		int32_t touch_id, double sx, double sy);
 
 /**
@@ -566,7 +567,7 @@ void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time_msec,
  * `wlr_seat_touch_notify_down()` to respect any grabs of the touch device.
  */
 uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t time_msec,
+		struct wlr_surface_2 *surface, uint32_t time_msec,
 		int32_t touch_id, double sx, double sy);
 
 /**
@@ -607,7 +608,7 @@ bool wlr_seat_validate_grab_serial(struct wlr_seat *seat, uint32_t serial);
  * Check whether this serial is valid to start a pointer grab action.
  */
 bool wlr_seat_validate_pointer_grab_serial(struct wlr_seat *seat,
-	struct wlr_surface *origin, uint32_t serial);
+	struct wlr_surface_2 *origin, uint32_t serial);
 
 /**
  * Check whether this serial is valid to start a touch grab action. If it's the
@@ -615,7 +616,7 @@ bool wlr_seat_validate_pointer_grab_serial(struct wlr_seat *seat,
  * the serial.
  */
 bool wlr_seat_validate_touch_grab_serial(struct wlr_seat *seat,
-	struct wlr_surface *origin, uint32_t serial,
+	struct wlr_surface_2 *origin, uint32_t serial,
 	struct wlr_touch_point **point_ptr);
 
 /**

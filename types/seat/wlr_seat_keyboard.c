@@ -9,6 +9,7 @@
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_gtk_primary_selection.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/util/log.h>
 #include "types/wlr_data_device.h"
 #include "types/wlr_seat.h"
@@ -16,7 +17,7 @@
 #include "util/signal.h"
 
 static void default_keyboard_enter(struct wlr_seat_keyboard_grab *grab,
-		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
+		struct wlr_surface_2 *surface, uint32_t keycodes[], size_t num_keycodes,
 		struct wlr_keyboard_modifiers *modifiers) {
 	wlr_seat_keyboard_enter(grab->seat, surface, keycodes, num_keycodes, modifiers);
 }
@@ -219,7 +220,7 @@ void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
 }
 
 void wlr_seat_keyboard_enter(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
+		struct wlr_surface_2 *surface, uint32_t keycodes[], size_t num_keycodes,
 		struct wlr_keyboard_modifiers *modifiers) {
 	if (seat->keyboard_state.focused_surface == surface) {
 		// this surface already got an enter notify
@@ -235,7 +236,7 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 
 	struct wlr_seat_client *focused_client =
 		seat->keyboard_state.focused_client;
-	struct wlr_surface *focused_surface =
+	struct wlr_surface_2 *focused_surface =
 		seat->keyboard_state.focused_surface;
 
 	// leave the previously entered surface
@@ -304,7 +305,7 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 }
 
 void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
+		struct wlr_surface_2 *surface, uint32_t keycodes[], size_t num_keycodes,
 		struct wlr_keyboard_modifiers *modifiers) {
 	struct wlr_seat_keyboard_grab *grab = seat->keyboard_state.grab;
 	grab->interface->enter(grab, surface, keycodes, num_keycodes, modifiers);

@@ -6,6 +6,7 @@
 #include <wayland-server.h>
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_seat.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/util/log.h>
 #include "types/wlr_data_device.h"
 #include "util/signal.h"
@@ -55,18 +56,19 @@ static void data_device_start_drag(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_surface *origin = wlr_surface_from_resource(origin_resource);
+	struct wlr_surface_2 *origin = wlr_surface_from_resource_2(origin_resource);
 
 	struct wlr_client_data_source *source = NULL;
 	if (source_resource != NULL) {
 		source = client_data_source_from_resource(source_resource);
 	}
 
-	struct wlr_surface *icon = NULL;
+	struct wlr_surface_2 *icon = NULL;
 	if (icon_resource) {
-		icon = wlr_surface_from_resource(icon_resource);
-		if (!wlr_surface_set_role(icon, &drag_icon_surface_role, NULL,
-				icon_resource, WL_DATA_DEVICE_ERROR_ROLE)) {
+		icon = wlr_surface_from_resource_2(icon_resource);
+		if (!wlr_surface_set_role_2(icon, "wl_data_device")) {
+			wl_resource_post_error(icon_resource, WL_DATA_DEVICE_ERROR_ROLE,
+				"surface already has role");
 			return;
 		}
 	}

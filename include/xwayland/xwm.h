@@ -128,7 +128,6 @@ struct wlr_xwm {
 #endif
 
 	struct wl_listener compositor_new_surface;
-	struct wl_listener compositor_destroy;
 	struct wl_listener seat_set_selection;
 	struct wl_listener seat_set_primary_selection;
 	struct wl_listener seat_start_drag;

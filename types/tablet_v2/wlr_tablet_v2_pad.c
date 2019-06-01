@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <types/wlr_tablet_v2.h>
 #include <wayland-util.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
@@ -413,7 +414,7 @@ struct wlr_tablet_pad_client_v2 *tablet_pad_client_from_resource(struct wl_resou
 uint32_t wlr_send_tablet_v2_tablet_pad_enter(
 		struct wlr_tablet_v2_tablet_pad *pad,
 		struct wlr_tablet_v2_tablet *tablet,
-		struct wlr_surface *surface) {
+		struct wlr_surface_2 *surface) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
 
 	struct wlr_tablet_client_v2 *tablet_tmp;
@@ -520,7 +521,7 @@ void wlr_send_tablet_v2_tablet_pad_ring(struct wlr_tablet_v2_tablet_pad *pad,
 }
 
 uint32_t wlr_send_tablet_v2_tablet_pad_leave(struct wlr_tablet_v2_tablet_pad *pad,
-		struct wlr_surface *surface) {
+		struct wlr_surface_2 *surface) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
 	if (!pad->current_client || client != pad->current_client->client) {
 		return 0;
@@ -555,7 +556,7 @@ uint32_t wlr_send_tablet_v2_tablet_pad_mode(struct wlr_tablet_v2_tablet_pad *pad
 }
 
 bool wlr_surface_accepts_tablet_v2(struct wlr_tablet_v2_tablet *tablet,
-		struct wlr_surface *surface) {
+		struct wlr_surface_2 *surface) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
 
 	if (tablet->current_client &&
@@ -577,7 +578,7 @@ bool wlr_surface_accepts_tablet_v2(struct wlr_tablet_v2_tablet *tablet,
 uint32_t wlr_tablet_v2_tablet_pad_notify_enter(
 	struct wlr_tablet_v2_tablet_pad *pad,
 	struct wlr_tablet_v2_tablet *tablet,
-	struct wlr_surface *surface) {
+	struct wlr_surface_2 *surface) {
 	if (pad->grab && pad->grab->interface->enter) {
 		return pad->grab->interface->enter(pad->grab, tablet, surface);
 	}
@@ -610,7 +611,7 @@ void wlr_tablet_v2_tablet_pad_notify_ring(
 }
 
 uint32_t wlr_tablet_v2_tablet_pad_notify_leave(
-	struct wlr_tablet_v2_tablet_pad *pad, struct wlr_surface *surface) {
+	struct wlr_tablet_v2_tablet_pad *pad, struct wlr_surface_2 *surface) {
 	if (pad->grab && pad->grab->interface->leave) {
 		return pad->grab->interface->leave(pad->grab, surface);
 	}
@@ -653,7 +654,7 @@ void wlr_tablet_v2_end_grab(struct wlr_tablet_v2_tablet_pad *pad) {
 static uint32_t default_pad_enter(
 		struct wlr_tablet_pad_v2_grab *grab,
 		struct wlr_tablet_v2_tablet *tablet,
-		struct wlr_surface *surface) {
+		struct wlr_surface_2 *surface) {
 	return wlr_send_tablet_v2_tablet_pad_enter(grab->pad, tablet, surface);
 }
 
@@ -673,7 +674,7 @@ static void default_pad_ring(struct wlr_tablet_pad_v2_grab *grab,
 }
 
 static uint32_t default_pad_leave(struct wlr_tablet_pad_v2_grab *grab,
-		struct wlr_surface *surface) {
+		struct wlr_surface_2 *surface) {
 	return wlr_send_tablet_v2_tablet_pad_leave(grab->pad, surface);
 }
 
