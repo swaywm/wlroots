@@ -10,7 +10,6 @@
 #include <wlr/types/wlr_data_control_v1.h>
 #include <wlr/types/wlr_export_dmabuf_v1.h>
 #include <wlr/types/wlr_gamma_control_v1.h>
-#include <wlr/types/wlr_gamma_control.h>
 #include <wlr/types/wlr_gtk_primary_selection.h>
 #include <wlr/types/wlr_idle_inhibit_v1.h>
 #include <wlr/types/wlr_idle.h>
@@ -379,11 +378,8 @@ struct roots_desktop *desktop_create(struct roots_server *server,
 	}
 #endif
 
-	desktop->gamma_control_manager = wlr_gamma_control_manager_create(
-		server->wl_display);
 	desktop->gamma_control_manager_v1 = wlr_gamma_control_manager_v1_create(
 		server->wl_display);
-	desktop->screenshooter = wlr_screenshooter_create(server->wl_display);
 	desktop->export_dmabuf_manager_v1 =
 		wlr_export_dmabuf_manager_v1_create(server->wl_display);
 	desktop->server_decoration_manager =
