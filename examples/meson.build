@@ -53,10 +53,6 @@ examples = {
 		'src': ['output-layout.c', 'cat.c'],
 		'dep': [wlroots],
 	},
-	'screenshot': {
-		'src': 'screenshot.c',
-		'dep': [wayland_client, wlr_protos, rt],
-	},
 	'idle': {
 		'src': 'idle.c',
 		'dep': [wayland_client, wlr_protos, threads],
