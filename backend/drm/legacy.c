@@ -29,6 +29,12 @@ static bool legacy_conn_enable(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, bool enable) {
 	int ret = drmModeConnectorSetProperty(drm->fd, conn->id, conn->props.dpms,
 		enable ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF);
+
+	if (!enable) {
+		drmModeSetCrtc(drm->fd, conn->crtc->id, 0, 0, 0, NULL, 0,
+					   NULL);
+	}
+
 	return ret >= 0;
 }
 
