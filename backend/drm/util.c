@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <wlr/util/log.h>
+#include "backend/drm/drm.h"
 #include "backend/drm/util.h"
 
 int32_t calculate_refresh_rate(const drmModeModeInfo *mode) {
@@ -178,7 +179,8 @@ static void free_fb(struct gbm_bo *bo, void *data) {
 	}
 }
 
-uint32_t get_fb_for_bo(struct gbm_bo *bo, uint32_t drm_format) {
+uint32_t get_fb_for_bo(struct wlr_drm_backend *drm,
+		struct gbm_bo *bo, uint32_t drm_format) {
 	uint32_t id = (uintptr_t)gbm_bo_get_user_data(bo);
 	if (id) {
 		return id;
@@ -188,17 +190,41 @@ uint32_t get_fb_for_bo(struct gbm_bo *bo, uint32_t drm_format) {
 	assert(drm_format == DRM_FORMAT_ARGB8888 ||
 		drm_format == DRM_FORMAT_XRGB8888);
 
-	struct gbm_device *gbm = gbm_bo_get_device(bo);
-
-	int fd = gbm_device_get_fd(gbm);
 	uint32_t width = gbm_bo_get_width(bo);
 	uint32_t height = gbm_bo_get_height(bo);
-	uint32_t handles[4] = {gbm_bo_get_handle(bo).u32};
-	uint32_t pitches[4] = {gbm_bo_get_stride(bo)};
-	uint32_t offsets[4] = {gbm_bo_get_offset(bo, 0)};
+	uint32_t handles[4];
+	uint32_t pitches[4];
+	uint32_t offsets[4];
+	uint64_t modifiers[4];
+	uint64_t mod = gbm_bo_get_modifier(bo);
 
-	if (drmModeAddFB2(fd, width, height, drm_format,
-			handles, pitches, offsets, &id, 0)) {
+	int i, n = gbm_bo_get_plane_count(bo);
+	for (i = 0; i < n; ++i) {
+		handles[i] = gbm_bo_get_handle_for_plane(bo, i).u32;
+		pitches[i] = gbm_bo_get_stride_for_plane(bo, i);
+		offsets[i] = gbm_bo_get_offset(bo, i);
+		modifiers[i] = mod;
+	}
+	for (; i < 4; ++i) {
+		handles[i] = 0;
+		pitches[i] = 0;
+		offsets[i] = 0;
+		modifiers[i] = DRM_FORMAT_MOD_INVALID;
+	}
+
+	int ret = 1;
+	if (drm->has_modifiers && mod != DRM_FORMAT_MOD_INVALID) {
+		ret = drmModeAddFB2WithModifiers(drm->fd, width, height, drm_format,
+			handles, pitches, offsets, modifiers, &id, DRM_MODE_FB_MODIFIERS);
+	}
+
+	/* Try again without modifiers to see if it ends up working */
+	if (ret) {
+		ret = drmModeAddFB2(drm->fd, width, height, drm_format,
+			handles, pitches, offsets, &id, 0);
+	}
+
+	if (ret) {
 		wlr_log_errno(WLR_ERROR, "Unable to add DRM framebuffer");
 	}
 

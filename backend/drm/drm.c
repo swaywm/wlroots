@@ -63,7 +63,12 @@ bool check_drm_features(struct wlr_drm_backend *drm) {
 		drm->iface = &atomic_iface;
 	}
 
-	int ret = drmGetCap(drm->fd, DRM_CAP_TIMESTAMP_MONOTONIC, &cap);
+	int ret;
+
+	ret = drmGetCap(drm->fd, DRM_CAP_ADDFB2_MODIFIERS, &cap);
+	drm->has_modifiers = ret == 0 ? cap : 0;
+
+	ret = drmGetCap(drm->fd, DRM_CAP_TIMESTAMP_MONOTONIC, &cap);
 	drm->clock = (ret == 0 && cap == 1) ? CLOCK_MONOTONIC : CLOCK_REALTIME;
 
 	return true;
@@ -266,7 +271,7 @@ static bool drm_connector_commit(struct wlr_output *output) {
 	if (drm->parent) {
 		bo = copy_drm_surface_mgpu(&plane->mgpu_surf, bo);
 	}
-	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format);
+	uint32_t fb_id = get_fb_for_bo(drm, bo, plane->drm_format);
 
 	if (conn->pageflip_pending) {
 		wlr_log(WLR_ERROR, "Skipping pageflip on output '%s'", conn->output.name);
@@ -385,7 +390,7 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 
 	struct gbm_bo *bo = get_drm_surface_front(
 		drm->parent ? &plane->mgpu_surf : &plane->surf);
-	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format);
+	uint32_t fb_id = get_fb_for_bo(drm, bo, plane->drm_format);
 
 	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)conn->output.current_mode;
 	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, &mode->drm_mode)) {
@@ -810,7 +815,7 @@ static bool drm_connector_schedule_frame(struct wlr_output *output) {
 		return true;
 	}
 
-	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format);
+	uint32_t fb_id = get_fb_for_bo(drm, bo, plane->drm_format);
 	if (!drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
 		return false;
 	}

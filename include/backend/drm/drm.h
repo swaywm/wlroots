@@ -70,6 +70,7 @@ struct wlr_drm_backend {
 	struct wlr_drm_backend *parent;
 	const struct wlr_drm_interface *iface;
 	clockid_t clock;
+	bool has_modifiers;
 
 	int fd;
 

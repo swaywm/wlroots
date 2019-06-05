@@ -1,10 +1,13 @@
 #ifndef BACKEND_DRM_UTIL_H
 #define BACKEND_DRM_UTIL_H
 
+#include <gbm.h>
 #include <stdint.h>
-#include <wlr/types/wlr_output.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+
+struct wlr_output;
+struct wlr_drm_backend;
 
 // Calculates a more accurate refresh rate (mHz) than what mode itself provides
 int32_t calculate_refresh_rate(const drmModeModeInfo *mode);
@@ -14,7 +17,8 @@ void parse_edid(struct wlr_output *restrict output, size_t len,
 // Returns the string representation of a DRM output type
 const char *conn_get_name(uint32_t type_id);
 // Returns the DRM framebuffer id for a gbm_bo
-uint32_t get_fb_for_bo(struct gbm_bo *bo, uint32_t drm_format);
+uint32_t get_fb_for_bo(struct wlr_drm_backend *drm,
+	struct gbm_bo *bo, uint32_t drm_format);
 
 // Part of match_obj
 enum {
