@@ -7,8 +7,6 @@ wlroots reads these environment variables
   considered the primary DRM device.
 * *WLR_DRM_NO_ATOMIC*: set to 1 to use legacy DRM interface instead of atomic
   mode setting
-* *WLR_DRM_NO_ATOMIC_GAMMA*: set to 1 to use legacy DRM interface for gamma
-  control instead of the atomic interface
 * *WLR_LIBINPUT_NO_DEVICES*: set to 1 to not fail without any input devices
 * *WLR_BACKENDS*: comma-separated list of backends to use (available backends:
   wayland, x11, headless, noop)
