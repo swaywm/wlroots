@@ -166,6 +166,17 @@
       <arg name="state" type="array"/>
     </event>
 
+    <event name="geometry" since="2">
+      <description summary="The geometry of this window in absolute coordinates">
+            This event will be sent whenever the window geometry of the zwlr_foreign_toplevel_handle_v1 changes.
+            The coordinates are in absolute coordinates of the windowing system.
+      </description>
+      <arg name="x" type="int" summary="x position of the zwlr_foreign_toplevel_handle_v1"/>
+      <arg name="y" type="int" summary="y position of the zwlr_foreign_toplevel_handle_v1"/>
+      <arg name="width" type="uint" summary="width of the zwlr_foreign_toplevel_handle_v1"/>
+      <arg name="height" type="uint" summary="height of the zwlr_foreign_toplevel_handle_v1"/>
+    </event>
+
     <event name="done">
       <description summary="all information about the toplevel has been sent">
         This event is sent after all changes in the toplevel state have been

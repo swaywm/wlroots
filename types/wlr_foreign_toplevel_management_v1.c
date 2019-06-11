@@ -405,6 +405,21 @@ void wlr_foreign_toplevel_handle_v1_set_fullscreen(
 	toplevel_send_state(toplevel);
 }
 
+void wlr_foreign_toplevel_handle_v1_set_geometry(
+		struct wlr_foreign_toplevel_handle_v1 *toplevel, int32_t x, int32_t y, uint32_t width, uint32_t height) {
+	toplevel->geometry.x = x;
+	toplevel->geometry.y = y;
+	toplevel->geometry.width = width;
+	toplevel->geometry.height = height;
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &toplevel->resources) {
+		zwlr_foreign_toplevel_handle_v1_send_geometry(resource, x, y, width, height);
+	}
+
+	toplevel_update_idle_source(toplevel);
+}
+
 void wlr_foreign_toplevel_handle_v1_destroy(
 		struct wlr_foreign_toplevel_handle_v1 *toplevel) {
 	if (!toplevel) {

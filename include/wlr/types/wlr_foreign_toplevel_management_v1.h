@@ -54,6 +54,13 @@ struct wlr_foreign_toplevel_handle_v1 {
 	uint32_t state; // wlr_foreign_toplevel_v1_state
 
 	struct {
+		int32_t x;
+		int32_t y;
+		uint32_t width;
+		uint32_t height;
+	} geometry;
+
+	struct {
 		// wlr_foreign_toplevel_handle_v1_maximized_event
 		struct wl_signal request_maximize;
 		//wlr_foreign_toplevel_handle_v1_minimized_event
@@ -127,5 +134,8 @@ void wlr_foreign_toplevel_handle_v1_set_activated(
 	struct wlr_foreign_toplevel_handle_v1 *toplevel, bool activated);
 void wlr_foreign_toplevel_handle_v1_set_fullscreen(
 	struct wlr_foreign_toplevel_handle_v1* toplevel, bool fullscreen);
+
+void wlr_foreign_toplevel_handle_v1_set_geometry(
+		struct wlr_foreign_toplevel_handle_v1 *toplevel, int32_t x, int32_t y, uint32_t width, uint32_t height);
 
 #endif
