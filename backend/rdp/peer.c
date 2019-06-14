@@ -105,6 +105,7 @@ static int xf_input_mouse_event(rdpInput *input,
 		struct wlr_event_pointer_motion_absolute event = { 0 };
 		event.device = wlr_device;
 		event.time_msec = timespec_to_msec(&now);
+		event.time_frac_nsec = now.tv_nsec;
 		event.x = x / (double)context->output->wlr_output.width;
 		event.y = y / (double)context->output->wlr_output.height;
 		wlr_signal_emit_safe(&pointer->events.motion_absolute, &event);
@@ -124,6 +125,7 @@ static int xf_input_mouse_event(rdpInput *input,
 		struct wlr_event_pointer_button event = { 0 };
 		event.device = wlr_device;
 		event.time_msec = timespec_to_msec(&now);
+		event.time_frac_nsec = now.tv_nsec;
 		event.button = button;
 		event.state = (flags & PTR_FLAGS_DOWN) ?
 			WLR_BUTTON_PRESSED : WLR_BUTTON_RELEASED;
@@ -139,6 +141,7 @@ static int xf_input_mouse_event(rdpInput *input,
 		struct wlr_event_pointer_axis event = { 0 };
 		event.device = &context->pointer->wlr_input_device;
 		event.time_msec = timespec_to_msec(&now);
+		event.time_frac_nsec = now.tv_nsec;
 		event.source = WLR_AXIS_SOURCE_WHEEL;
 		event.orientation = WLR_AXIS_ORIENTATION_VERTICAL;
 		event.delta = value;
@@ -165,6 +168,7 @@ static int xf_input_extended_mouse_event(
 	struct wlr_event_pointer_motion_absolute event = { 0 };
 	event.device = wlr_device;
 	event.time_msec = timespec_to_msec(&now);
+	event.time_frac_nsec = now.tv_nsec;
 	event.x = x / (double)context->output->wlr_output.width;
 	event.y = y / (double)context->output->wlr_output.height;
 	wlr_signal_emit_safe(&pointer->events.motion_absolute, &event);
@@ -207,6 +211,7 @@ static int xf_input_keyboard_event(rdpInput *input, UINT16 flags, UINT16 code) {
 				vk_code, KEYCODE_TYPE_EVDEV);
 		struct wlr_event_keyboard_key event = { 0 };
 		event.time_msec = timespec_to_msec(&now);
+		event.time_frac_nsec = now.tv_nsec;
 		event.keycode = scan_code - 8;
 		event.state = state;
 		event.update_state = true;

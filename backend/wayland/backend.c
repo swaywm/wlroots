@@ -16,6 +16,7 @@
 
 #include "backend/wayland.h"
 #include "util/signal.h"
+#include "input-timestamps-unstable-v1-client-protocol.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "pointer-gestures-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
@@ -81,6 +82,9 @@ static void registry_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(iface, zwp_pointer_gestures_v1_interface.name) == 0) {
 		wl->zwp_pointer_gestures_v1 = wl_registry_bind(registry, name,
 			&zwp_pointer_gestures_v1_interface, 1);
+	} else if (strcmp(iface, zwp_input_timestamps_manager_v1_interface.name) == 0) {
+		wl->input_timestamps.manager = wl_registry_bind(registry, name,
+			&zwp_input_timestamps_manager_v1_interface, 1);
 	}
 }
 
@@ -225,6 +229,11 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		wlr_log(WLR_ERROR,
 			"Remote Wayland compositor does not support xdg-shell");
 		goto error_registry;
+	}
+
+	if (!wl->input_timestamps.manager) {
+		wlr_log(WLR_INFO,
+			"Remote Wayland compositor does not support input-timestamps");
 	}
 
 	struct wl_event_loop *loop = wl_display_get_event_loop(wl->local_display);

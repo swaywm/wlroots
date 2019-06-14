@@ -18,6 +18,7 @@
 #include "pointer-gestures-unstable-v1-client-protocol.h"
 #include "backend/wayland.h"
 #include "util/signal.h"
+#include "input-timestamps-unstable-v1-client-protocol.h"
 
 static struct wlr_wl_pointer *output_get_pointer(struct wlr_wl_output *output) {
 	struct wlr_input_device *wlr_dev;
@@ -78,10 +79,19 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		return;
 	}
 
+	uint32_t time_frac_nsec;
+	if (backend->input_timestamps.manager &&
+			backend->input_timestamps.pointer.tv_sec == time / 1000) {
+		time_frac_nsec = backend->input_timestamps.pointer.tv_nsec;
+	} else {
+		time_frac_nsec = (time % 1000) * 1000000;
+	}
+
 	struct wlr_output *wlr_output = &pointer->output->wlr_output;
 	struct wlr_event_pointer_motion_absolute event = {
 		.device = &pointer->input_device->wlr_input_device,
 		.time_msec = time,
+		.time_frac_nsec = time_frac_nsec,
 		.x = wl_fixed_to_double(sx) / wlr_output->width,
 		.y = wl_fixed_to_double(sy) / wlr_output->height,
 	};
@@ -96,11 +106,20 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		return;
 	}
 
+	uint32_t time_frac_nsec;
+	if (backend->input_timestamps.manager &&
+			backend->input_timestamps.pointer.tv_sec == time / 1000) {
+		time_frac_nsec = backend->input_timestamps.pointer.tv_nsec;
+	} else {
+		time_frac_nsec = (time % 1000) * 1000000;
+	}
+
 	struct wlr_event_pointer_button event = {
 		.device = &pointer->input_device->wlr_input_device,
 		.button = button,
 		.state = state,
 		.time_msec = time,
+		.time_frac_nsec = time_frac_nsec,
 	};
 	wlr_signal_emit_safe(&pointer->wlr_pointer.events.button, &event);
 }
@@ -113,12 +132,21 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 		return;
 	}
 
+	uint32_t time_frac_nsec;
+	if (backend->input_timestamps.manager &&
+			backend->input_timestamps.pointer.tv_sec == time / 1000) {
+		time_frac_nsec = backend->input_timestamps.pointer.tv_nsec;
+	} else {
+		time_frac_nsec = (time % 1000) * 1000000;
+	}
+
 	struct wlr_event_pointer_axis event = {
 		.device = &pointer->input_device->wlr_input_device,
 		.delta = wl_fixed_to_double(value),
 		.delta_discrete = pointer->axis_discrete,
 		.orientation = axis,
 		.time_msec = time,
+		.time_frac_nsec = time_frac_nsec,
 		.source = pointer->axis_source,
 	};
 	wlr_signal_emit_safe(&pointer->wlr_pointer.events.axis, &event);
@@ -156,12 +184,21 @@ static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,
 		return;
 	}
 
+	uint32_t time_frac_nsec;
+	if (backend->input_timestamps.manager &&
+			backend->input_timestamps.pointer.tv_sec == time / 1000) {
+		time_frac_nsec = backend->input_timestamps.pointer.tv_nsec;
+	} else {
+		time_frac_nsec = (time % 1000) * 1000000;
+	}
+
 	struct wlr_event_pointer_axis event = {
 		.device = &pointer->input_device->wlr_input_device,
 		.delta = 0,
 		.delta_discrete = 0,
 		.orientation = axis,
 		.time_msec = time,
+		.time_frac_nsec = time_frac_nsec,
 		.source = pointer->axis_source,
 	};
 	wlr_signal_emit_safe(&pointer->wlr_pointer.events.axis, &event);
@@ -195,24 +232,23 @@ static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
 	// TODO: set keymap
 }
 
-static uint32_t get_current_time_msec(void) {
-	struct timespec now;
-	clock_gettime(CLOCK_MONOTONIC, &now);
-	return now.tv_nsec / 1000;
-}
-
 static void keyboard_handle_enter(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
-	struct wlr_input_device *dev = data;
+	struct wlr_wl_input_device *wl_dev = data;
+	struct wlr_input_device *dev = &wl_dev->wlr_input_device;
 
-	uint32_t time = get_current_time_msec();
+	assert(dev && dev->keyboard);
+
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
 
 	uint32_t *keycode_ptr;
 	wl_array_for_each(keycode_ptr, keys) {
 		struct wlr_event_keyboard_key event = {
 			.keycode = *keycode_ptr,
 			.state = WLR_KEY_PRESSED,
-			.time_msec = time,
+			.time_msec = (1000 * now.tv_sec) + (now.tv_nsec / 1000000),
+			.time_frac_nsec = now.tv_nsec,
 			.update_state = false,
 		};
 		wlr_keyboard_notify_key(dev->keyboard, &event);
@@ -221,9 +257,13 @@ static void keyboard_handle_enter(void *data, struct wl_keyboard *wl_keyboard,
 
 static void keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t serial, struct wl_surface *surface) {
-	struct wlr_input_device *dev = data;
+	struct wlr_wl_input_device *wl_dev = data;
+	struct wlr_input_device *dev = &wl_dev->wlr_input_device;
 
-	uint32_t time = get_current_time_msec();
+	assert(dev && dev->keyboard);
+
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
 
 	uint32_t pressed[dev->keyboard->num_keycodes + 1];
 	memcpy(pressed, dev->keyboard->keycodes,
@@ -235,7 +275,8 @@ static void keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
 		struct wlr_event_keyboard_key event = {
 			.keycode = keycode,
 			.state = WLR_KEY_RELEASED,
-			.time_msec = time,
+			.time_msec = (1000 * now.tv_sec) + (now.tv_nsec / 1000000),
+			.time_frac_nsec = now.tv_nsec,
 			.update_state = false,
 		};
 		wlr_keyboard_notify_key(dev->keyboard, &event);
@@ -244,13 +285,24 @@ static void keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
 
 static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
-	struct wlr_input_device *dev = data;
+	struct wlr_wl_input_device *wl_dev = data;
+	struct wlr_input_device *dev = &wl_dev->wlr_input_device;
+
 	assert(dev && dev->keyboard);
+
+	uint32_t time_frac_nsec;
+	if (wl_dev->backend->input_timestamps.manager &&
+			wl_dev->backend->input_timestamps.keyboard.tv_sec == time / 1000) {
+		time_frac_nsec = wl_dev->backend->input_timestamps.keyboard.tv_nsec;
+	} else {
+		time_frac_nsec = (time % 1000) * 1000000;
+	}
 
 	struct wlr_event_keyboard_key wlr_event = {
 		.keycode = key,
 		.state = state,
 		.time_msec = time,
+		.time_frac_nsec = time_frac_nsec,
 		.update_state = false,
 	};
 	wlr_keyboard_notify_key(dev->keyboard, &wlr_event);
@@ -259,15 +311,18 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 static void keyboard_handle_modifiers(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched,
 		uint32_t mods_locked, uint32_t group) {
-	struct wlr_input_device *dev = data;
+	struct wlr_wl_input_device *wl_dev = data;
+	struct wlr_input_device *dev = &wl_dev->wlr_input_device;
+
 	assert(dev && dev->keyboard);
-	wlr_keyboard_notify_modifiers(dev->keyboard, mods_depressed, mods_latched,
-		mods_locked, group);
+
+	wlr_keyboard_notify_modifiers(dev->keyboard, mods_depressed,
+		mods_latched, mods_locked, group);
 }
 
 static void keyboard_handle_repeat_info(void *data,
 		struct wl_keyboard *wl_keyboard, int32_t rate, int32_t delay) {
-	// This space is intentionally left blank
+	/* This space is intentionally left blank */
 }
 
 static struct wl_keyboard_listener keyboard_listener = {
@@ -521,10 +576,23 @@ void create_wl_keyboard(struct wl_keyboard *wl_keyboard, struct wlr_wl_backend *
 	}
 	wlr_keyboard_init(wlr_dev->keyboard, NULL);
 
-	wl_keyboard_add_listener(wl_keyboard, &keyboard_listener, wlr_dev);
+	wl_keyboard_add_listener(wl_keyboard, &keyboard_listener, dev);
 	dev->resource = wl_keyboard;
 	wlr_signal_emit_safe(&wl->backend.events.new_input, wlr_dev);
 }
+
+static void input_timestamps_handle_timestamp(void *data,
+		struct zwp_input_timestamps_v1 *zwp_input_timestamps_v1,
+		uint32_t tv_sec_hi, uint32_t tv_sec_lo, uint32_t tv_nsec) {
+	struct timespec *timestamp = data;
+
+	timestamp->tv_sec = ((uint64_t)tv_sec_hi << 32) + tv_sec_lo;
+	timestamp->tv_nsec = tv_nsec;
+}
+
+static const struct zwp_input_timestamps_v1_listener input_timestamps_listener = {
+	.timestamp = input_timestamps_handle_timestamp,
+};
 
 static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		enum wl_seat_capability caps) {
@@ -543,6 +611,14 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		}
 
 		wl_pointer_add_listener(wl_pointer, &pointer_listener, backend);
+
+		if (backend->input_timestamps.manager) {
+			struct zwp_input_timestamps_v1 *pointer_input_timestamps =
+				zwp_input_timestamps_manager_v1_get_pointer_timestamps(
+					backend->input_timestamps.manager, wl_pointer);
+			zwp_input_timestamps_v1_add_listener(pointer_input_timestamps,
+				&input_timestamps_listener, &backend->input_timestamps.pointer);
+		}
 	}
 	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
 		wlr_log(WLR_DEBUG, "seat %p offered keyboard", (void*) wl_seat);
@@ -552,6 +628,14 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 
 		if (backend->started) {
 			create_wl_keyboard(wl_keyboard, backend);
+		}
+
+		if (backend->input_timestamps.manager) {
+			struct zwp_input_timestamps_v1 *keyboard_input_timestamps =
+				zwp_input_timestamps_manager_v1_get_keyboard_timestamps(
+					backend->input_timestamps.manager, wl_keyboard);
+			zwp_input_timestamps_v1_add_listener(keyboard_input_timestamps,
+				&input_timestamps_listener, &backend->input_timestamps.keyboard);
 		}
 	}
 }

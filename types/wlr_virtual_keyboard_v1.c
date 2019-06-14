@@ -85,6 +85,7 @@ static void virtual_keyboard_key(struct wl_client *client,
 	}
 	struct wlr_event_keyboard_key event = {
 		.time_msec = time,
+		.time_frac_nsec = (time % 1000) * 1000000,
 		.keycode = key,
 		.update_state = false,
 		.state = state,
