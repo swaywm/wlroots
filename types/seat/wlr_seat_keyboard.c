@@ -52,7 +52,7 @@ static const struct wl_keyboard_interface keyboard_impl = {
 	.release = keyboard_release,
 };
 
-static struct wlr_seat_client *seat_client_from_keyboard_resource(
+struct wlr_seat_client *wlr_seat_client_from_keyboard_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_keyboard_interface,
 		&keyboard_impl));
@@ -75,7 +75,7 @@ void wlr_seat_keyboard_send_key(struct wlr_seat *wlr_seat, uint32_t time,
 	uint32_t serial = wl_display_next_serial(wlr_seat->display);
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->keyboards) {
-		if (seat_client_from_keyboard_resource(resource) == NULL) {
+		if (wlr_seat_client_from_keyboard_resource(resource) == NULL) {
 			continue;
 		}
 
@@ -204,7 +204,7 @@ void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
 	uint32_t serial = wl_display_next_serial(seat->display);
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->keyboards) {
-		if (seat_client_from_keyboard_resource(resource) == NULL) {
+		if (wlr_seat_client_from_keyboard_resource(resource) == NULL) {
 			continue;
 		}
 
@@ -243,7 +243,7 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 		uint32_t serial = wl_display_next_serial(seat->display);
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &focused_client->keyboards) {
-			if (seat_client_from_keyboard_resource(resource) == NULL) {
+			if (wlr_seat_client_from_keyboard_resource(resource) == NULL) {
 				continue;
 			}
 			wl_keyboard_send_leave(resource, serial, focused_surface->resource);
@@ -266,7 +266,7 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 		uint32_t serial = wl_display_next_serial(seat->display);
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &client->keyboards) {
-			if (seat_client_from_keyboard_resource(resource) == NULL) {
+			if (wlr_seat_client_from_keyboard_resource(resource) == NULL) {
 				continue;
 			}
 			wl_keyboard_send_enter(resource, serial, surface->resource, &keys);
@@ -344,7 +344,7 @@ static void seat_client_send_keymap(struct wlr_seat_client *client,
 	// keyboard
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->keyboards) {
-		if (seat_client_from_keyboard_resource(resource) == NULL) {
+		if (wlr_seat_client_from_keyboard_resource(resource) == NULL) {
 			continue;
 		}
 
@@ -381,7 +381,7 @@ static void seat_client_send_repeat_info(struct wlr_seat_client *client,
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->keyboards) {
-		if (seat_client_from_keyboard_resource(resource) == NULL) {
+		if (wlr_seat_client_from_keyboard_resource(resource) == NULL) {
 			continue;
 		}
 
@@ -415,7 +415,7 @@ void seat_client_create_keyboard(struct wlr_seat_client *seat_client,
 
 void seat_client_destroy_keyboard(struct wl_resource *resource) {
 	struct wlr_seat_client *seat_client =
-		seat_client_from_keyboard_resource(resource);
+		wlr_seat_client_from_keyboard_resource(resource);
 	if (seat_client == NULL) {
 		return;
 	}
