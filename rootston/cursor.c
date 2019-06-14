@@ -101,7 +101,7 @@ static void seat_view_deco_button(struct roots_seat_view *view, double sx,
 }
 
 static void roots_passthrough_cursor(struct roots_cursor *cursor,
-		uint32_t time) {
+		uint32_t time_msec, uint32_t time_frac_nsec) {
 	double sx, sy;
 	struct roots_view *view = NULL;
 	struct roots_seat *seat = cursor->seat;
@@ -145,8 +145,11 @@ static void roots_passthrough_cursor(struct roots_cursor *cursor,
 	cursor->wlr_surface = surface;
 
 	if (surface) {
+		wlr_input_timestamps_manager_v1_send_pointer_timestamp(
+			cursor->seat->input->server->desktop->input_timestamps_manager,
+			cursor->seat->seat, time_msec / 1000, time_frac_nsec);
 		wlr_seat_pointer_notify_enter(seat->seat, surface, sx, sy);
-		wlr_seat_pointer_notify_motion(seat->seat, time, sx, sy);
+		wlr_seat_pointer_notify_motion(seat->seat, time_msec, sx, sy);
 	} else {
 		wlr_seat_pointer_clear_focus(seat->seat);
 	}
@@ -164,16 +167,16 @@ void roots_cursor_update_focus(struct roots_cursor *cursor) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
-	roots_passthrough_cursor(cursor, timespec_to_msec(&now));
+	roots_passthrough_cursor(cursor, timespec_to_msec(&now), now.tv_nsec);
 }
 
 void roots_cursor_update_position(struct roots_cursor *cursor,
-		uint32_t time) {
+		uint32_t time_msec, uint32_t time_frac_nsec) {
 	struct roots_seat *seat = cursor->seat;
 	struct roots_view *view;
 	switch (cursor->mode) {
 	case ROOTS_CURSOR_PASSTHROUGH:
-		roots_passthrough_cursor(cursor, time);
+		roots_passthrough_cursor(cursor, time_msec, time_frac_nsec);
 		break;
 	case ROOTS_CURSOR_MOVE:
 		view = roots_seat_get_focus(seat);
@@ -235,8 +238,9 @@ void roots_cursor_update_position(struct roots_cursor *cursor,
 }
 
 static void roots_cursor_press_button(struct roots_cursor *cursor,
-		struct wlr_input_device *device, uint32_t time, uint32_t button,
-		uint32_t state, double lx, double ly) {
+		struct wlr_input_device *device, uint32_t time_msec,
+		uint32_t time_frac_nsec, uint32_t button, uint32_t state,
+		double lx, double ly) {
 	struct roots_seat *seat = cursor->seat;
 	struct roots_desktop *desktop = seat->input->server->desktop;
 
@@ -300,7 +304,10 @@ static void roots_cursor_press_button(struct roots_cursor *cursor,
 	}
 
 	if (!is_touch) {
-		wlr_seat_pointer_notify_button(seat->seat, time, button, state);
+		wlr_input_timestamps_manager_v1_send_pointer_timestamp(
+			cursor->seat->input->server->desktop->input_timestamps_manager,
+			cursor->seat->seat, time_msec / 1000, time_frac_nsec);
+		wlr_seat_pointer_notify_button(seat->seat, time_msec, button, state);
 	}
 }
 
@@ -314,8 +321,8 @@ void roots_cursor_handle_motion(struct roots_cursor *cursor,
 
 	wlr_relative_pointer_manager_v1_send_relative_motion(
 		cursor->seat->input->server->desktop->relative_pointer_manager,
-		cursor->seat->seat, (uint64_t)event->time_msec * 1000, dx, dy,
-		dx_unaccel, dy_unaccel);
+		cursor->seat->seat, (uint64_t)event->time_msec * 1000 +
+		(event->time_frac_nsec / 1000) % 1000, dx, dy, dx_unaccel, dy_unaccel);
 
 	if (cursor->active_constraint) {
 		struct roots_view *view = cursor->pointer_view->view;
@@ -347,7 +354,7 @@ void roots_cursor_handle_motion(struct roots_cursor *cursor,
 	}
 
 	wlr_cursor_move(cursor->cursor, event->device, dx, dy);
-	roots_cursor_update_position(cursor, event->time_msec);
+	roots_cursor_update_position(cursor, event->time_msec, event->time_frac_nsec);
 }
 
 void roots_cursor_handle_motion_absolute(struct roots_cursor *cursor,
@@ -373,17 +380,21 @@ void roots_cursor_handle_motion_absolute(struct roots_cursor *cursor,
 	}
 
 	wlr_cursor_warp_closest(cursor->cursor, event->device, lx, ly);
-	roots_cursor_update_position(cursor, event->time_msec);
+	roots_cursor_update_position(cursor, event->time_msec, event->time_frac_nsec);
 }
 
 void roots_cursor_handle_button(struct roots_cursor *cursor,
 		struct wlr_event_pointer_button *event) {
 	roots_cursor_press_button(cursor, event->device, event->time_msec,
-		event->button, event->state, cursor->cursor->x, cursor->cursor->y);
+		event->time_frac_nsec, event->button, event->state,
+		cursor->cursor->x, cursor->cursor->y);
 }
 
 void roots_cursor_handle_axis(struct roots_cursor *cursor,
 		struct wlr_event_pointer_axis *event) {
+	wlr_input_timestamps_manager_v1_send_pointer_timestamp(
+		cursor->seat->input->server->desktop->input_timestamps_manager,
+		cursor->seat->seat, event->time_msec / 1000, event->time_frac_nsec);
 	wlr_seat_pointer_notify_axis(cursor->seat->seat, event->time_msec,
 		event->orientation, event->delta, event->delta_discrete, event->source);
 }
@@ -414,7 +425,7 @@ void roots_cursor_handle_touch_down(struct roots_cursor *cursor,
 		cursor->seat->touch_x = lx;
 		cursor->seat->touch_y = ly;
 		roots_cursor_press_button(cursor, event->device, event->time_msec,
-			BTN_LEFT, 1, lx, ly);
+			event->time_frac_nsec, BTN_LEFT, 1, lx, ly);
 	}
 }
 
@@ -428,7 +439,8 @@ void roots_cursor_handle_touch_up(struct roots_cursor *cursor,
 
 	if (wlr_seat_touch_num_points(cursor->seat->seat) == 1) {
 		roots_cursor_press_button(cursor, event->device, event->time_msec,
-			BTN_LEFT, 0, cursor->seat->touch_x, cursor->seat->touch_y);
+			event->time_frac_nsec, BTN_LEFT, 0, cursor->seat->touch_x,
+			cursor->seat->touch_y);
 	}
 
 	wlr_seat_touch_notify_up(cursor->seat->seat, event->time_msec,
@@ -497,13 +509,13 @@ void roots_cursor_handle_tool_axis(struct roots_cursor *cursor,
 	}
 
 	wlr_cursor_warp_closest(cursor->cursor, event->device, lx, ly);
-	roots_cursor_update_position(cursor, event->time_msec);
+	roots_cursor_update_position(cursor, event->time_msec, 0);
 }
 
 void roots_cursor_handle_tool_tip(struct roots_cursor *cursor,
 		struct wlr_event_tablet_tool_tip *event) {
 	roots_cursor_press_button(cursor, event->device,
-		event->time_msec, BTN_LEFT, event->state, cursor->cursor->x,
+		event->time_msec, 0, BTN_LEFT, event->state, cursor->cursor->x,
 		cursor->cursor->y);
 }
 

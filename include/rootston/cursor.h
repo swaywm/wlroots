@@ -104,7 +104,7 @@ void roots_cursor_handle_focus_change(struct roots_cursor *cursor,
 void roots_cursor_handle_constraint_commit(struct roots_cursor *cursor);
 
 void roots_cursor_update_position(struct roots_cursor *cursor,
-	uint32_t time);
+	uint32_t time_msec, uint32_t time_frac_nsec);
 
 void roots_cursor_update_focus(struct roots_cursor *cursor);
 
