@@ -5,8 +5,9 @@
 #include <wayland-server.h>
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_input_device.h>
-#include <wlr/types/wlr_pointer_constraints_v1.h>
+#include <wlr/types/wlr_input_timestamps_v1.h>
 #include <wlr/types/wlr_pointer.h>
+#include <wlr/types/wlr_pointer_constraints_v1.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "rootston/bindings.h"
@@ -236,6 +237,10 @@ void roots_keyboard_handle_key(struct roots_keyboard *keyboard,
 
 	if (!handled) {
 		wlr_seat_set_keyboard(keyboard->seat->seat, keyboard->device);
+		wlr_input_timestamps_manager_v1_send_keyboard_timestamp(
+			keyboard->seat->input->server->desktop->input_timestamps_manager,
+			keyboard->seat->seat, (event->time_msec / 1000.0),
+			event->time_nsec % 1000000000);
 		wlr_seat_keyboard_notify_key(keyboard->seat->seat, event->time_msec,
 			event->keycode, event->state);
 	}
