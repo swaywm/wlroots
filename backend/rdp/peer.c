@@ -87,8 +87,11 @@ static int xf_input_synchronize_event(rdpInput *input, UINT32 flags) {
 	return true;
 }
 
-static inline int64_t timespec_to_msec(const struct timespec *a) {
-	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
+static inline uint32_t timespec_to_msec(const struct timespec *a) {
+	return (uint32_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
+}
+static inline uint64_t timespec_to_nsec(const struct timespec *a) {
+	return (uint64_t)a->tv_sec * 1000000000 + a->tv_nsec;
 }
 
 static int xf_input_mouse_event(rdpInput *input,
@@ -105,6 +108,7 @@ static int xf_input_mouse_event(rdpInput *input,
 		struct wlr_event_pointer_motion_absolute event = { 0 };
 		event.device = wlr_device;
 		event.time_msec = timespec_to_msec(&now);
+		event.time_nsec = timespec_to_nsec(&now);
 		event.x = x / (double)context->output->wlr_output.width;
 		event.y = y / (double)context->output->wlr_output.height;
 		wlr_signal_emit_safe(&pointer->events.motion_absolute, &event);
@@ -124,6 +128,7 @@ static int xf_input_mouse_event(rdpInput *input,
 		struct wlr_event_pointer_button event = { 0 };
 		event.device = wlr_device;
 		event.time_msec = timespec_to_msec(&now);
+		event.time_nsec = timespec_to_nsec(&now);
 		event.button = button;
 		event.state = (flags & PTR_FLAGS_DOWN) ?
 			WLR_BUTTON_PRESSED : WLR_BUTTON_RELEASED;
@@ -139,6 +144,7 @@ static int xf_input_mouse_event(rdpInput *input,
 		struct wlr_event_pointer_axis event = { 0 };
 		event.device = &context->pointer->wlr_input_device;
 		event.time_msec = timespec_to_msec(&now);
+		event.time_nsec = timespec_to_nsec(&now);
 		event.source = WLR_AXIS_SOURCE_WHEEL;
 		event.orientation = WLR_AXIS_ORIENTATION_VERTICAL;
 		event.delta = value;
@@ -165,6 +171,7 @@ static int xf_input_extended_mouse_event(
 	struct wlr_event_pointer_motion_absolute event = { 0 };
 	event.device = wlr_device;
 	event.time_msec = timespec_to_msec(&now);
+	event.time_nsec = timespec_to_nsec(&now);
 	event.x = x / (double)context->output->wlr_output.width;
 	event.y = y / (double)context->output->wlr_output.height;
 	wlr_signal_emit_safe(&pointer->events.motion_absolute, &event);
@@ -207,6 +214,7 @@ static int xf_input_keyboard_event(rdpInput *input, UINT16 flags, UINT16 code) {
 				vk_code, KEYCODE_TYPE_EVDEV);
 		struct wlr_event_keyboard_key event = { 0 };
 		event.time_msec = timespec_to_msec(&now);
+		event.time_nsec = timespec_to_nsec(&now);
 		event.keycode = scan_code - 8;
 		event.state = state;
 		event.update_state = true;
