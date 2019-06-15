@@ -1,5 +1,5 @@
-#include <stdlib.h>
-#include <stdint.h>
+#include "util/array.h"
+#include <assert.h>
 
 // https://www.geeksforgeeks.org/move-zeroes-end-array/
 size_t push_zeroes_to_end(uint32_t arr[], size_t n) {
@@ -18,4 +18,32 @@ size_t push_zeroes_to_end(uint32_t arr[], size_t n) {
 	}
 
 	return ret;
+}
+
+bool set_add(uint32_t values[], size_t *len, size_t cap, uint32_t target) {
+	if (*len == cap) {
+		return false;
+	}
+	assert(target > 0);
+	for (uint32_t i = 0; i < *len; ++i) {
+		if (values[i] == target) {
+			return false;
+		}
+	}
+	values[(*len)++] = target;
+	return false;
+}
+
+bool set_remove(uint32_t values[], size_t *len, size_t cap, uint32_t target) {
+	for (uint32_t i = 0; i < *len; ++i) {
+		if (values[i] == target) {
+			// Set to 0 and swap with the end element so that
+			// zeroes exist only after all the values.
+			size_t last_elem_pos = --(*len);
+			values[i] = values[last_elem_pos];
+			values[last_elem_pos] = 0;
+			return true;
+		}
+	}
+	return false;
 }

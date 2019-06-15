@@ -57,22 +57,13 @@ static bool keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 
 static void keyboard_key_update(struct wlr_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
-	bool found = false;
-	size_t i = 0;
-	for (; i < keyboard->num_keycodes; ++i) {
-		if (keyboard->keycodes[i] == event->keycode) {
-			found = true;
-			break;
-		}
+	if (event->state == WLR_KEY_PRESSED) {
+		set_add(keyboard->keycodes, &keyboard->num_keycodes,
+			WLR_KEYBOARD_KEYS_CAP, event->keycode);
 	}
-
-	if (event->state == WLR_KEY_PRESSED && !found &&
-			keyboard->num_keycodes < WLR_KEYBOARD_KEYS_CAP) {
-		keyboard->keycodes[keyboard->num_keycodes++] = event->keycode;
-	}
-	if (event->state == WLR_KEY_RELEASED && found) {
-		keyboard->keycodes[i] = 0;
-		keyboard->num_keycodes = push_zeroes_to_end(keyboard->keycodes, WLR_KEYBOARD_KEYS_CAP);
+	if (event->state == WLR_KEY_RELEASED) {
+		set_remove(keyboard->keycodes, &keyboard->num_keycodes,
+			WLR_KEYBOARD_KEYS_CAP, event->keycode);
 	}
 
 	assert(keyboard->num_keycodes <= WLR_KEYBOARD_KEYS_CAP);
