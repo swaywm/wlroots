@@ -217,7 +217,11 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 
 void wlr_output_set_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
-	output->impl->transform(output, transform);
+	if (output->transform == transform) {
+		return;
+	}
+
+	output->transform = transform;
 	output_update_matrix(output);
 
 	struct wl_resource *resource;
@@ -291,7 +295,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl, struct wl_display *display) {
-	assert(impl->attach_render && impl->commit && impl->transform);
+	assert(impl->attach_render && impl->commit);
 	if (impl->set_cursor || impl->move_cursor) {
 		assert(impl->set_cursor && impl->move_cursor);
 	}

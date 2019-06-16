@@ -75,12 +75,6 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output,
 	return true;
 }
 
-static void output_transform(struct wlr_output *wlr_output,
-		enum wl_output_transform transform) {
-	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
-	output->wlr_output.transform = transform;
-}
-
 static void output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
 	struct wlr_x11_backend *x11 = output->x11;
@@ -122,7 +116,6 @@ static bool output_commit(struct wlr_output *wlr_output) {
 
 static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
-	.transform = output_transform,
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
 	.commit = output_commit,

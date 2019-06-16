@@ -12,11 +12,6 @@ static struct wlr_noop_output *noop_output_from_output(
 	return (struct wlr_noop_output *)wlr_output;
 }
 
-static void output_transform(struct wlr_output *wlr_output,
-		enum wl_output_transform transform) {
-	// empty
-}
-
 static bool output_set_custom_mode(struct wlr_output *wlr_output,
 		int32_t width, int32_t height, int32_t refresh) {
 	wlr_output_update_custom_mode(wlr_output, width, height, refresh);
@@ -42,7 +37,6 @@ static void output_destroy(struct wlr_output *wlr_output) {
 }
 
 static const struct wlr_output_impl output_impl = {
-	.transform = output_transform,
 	.set_custom_mode = output_set_custom_mode,
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
