@@ -678,11 +678,6 @@ bool wlr_drm_connector_add_mode(struct wlr_output *output,
 	return true;
 }
 
-static void drm_connector_transform(struct wlr_output *output,
-		enum wl_output_transform transform) {
-	output->transform = transform;
-}
-
 static bool drm_connector_set_cursor(struct wlr_output *output,
 		struct wlr_texture *texture, int32_t scale,
 		enum wl_output_transform transform,
@@ -963,7 +958,6 @@ static void drm_connector_destroy(struct wlr_output *output) {
 static const struct wlr_output_impl output_impl = {
 	.enable = enable_drm_connector,
 	.set_mode = drm_connector_set_mode,
-	.transform = drm_connector_transform,
 	.set_cursor = drm_connector_set_cursor,
 	.move_cursor = drm_connector_move_cursor,
 	.destroy = drm_connector_destroy,
