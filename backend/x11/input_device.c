@@ -36,6 +36,7 @@ static void send_button_event(struct wlr_x11_output *output, uint32_t key,
 		.state = st,
 	};
 	wlr_signal_emit_safe(&output->pointer.events.button, &ev);
+	wlr_signal_emit_safe(&output->pointer.events.frame, &output->pointer);
 }
 
 static void send_axis_event(struct wlr_x11_output *output, int32_t delta,
