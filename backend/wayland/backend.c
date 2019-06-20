@@ -17,6 +17,7 @@
 #include "backend/wayland.h"
 #include "util/signal.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
+#include "pointer-gestures-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
 struct wlr_wl_backend *get_wl_backend_from_backend(struct wlr_backend *backend) {
@@ -77,6 +78,9 @@ static void registry_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(iface, zxdg_decoration_manager_v1_interface.name) == 0) {
 		wl->zxdg_decoration_manager_v1 = wl_registry_bind(registry, name,
 			&zxdg_decoration_manager_v1_interface, 1);
+	} else if (strcmp(iface, zwp_pointer_gestures_v1_interface.name) == 0) {
+		wl->zwp_pointer_gestures_v1 = wl_registry_bind(registry, name,
+			&zwp_pointer_gestures_v1_interface, 1);
 	}
 }
 
@@ -148,6 +152,9 @@ static void backend_destroy(struct wlr_backend *backend) {
 	}
 	if (wl->zxdg_decoration_manager_v1) {
 		zxdg_decoration_manager_v1_destroy(wl->zxdg_decoration_manager_v1);
+	}
+	if (wl->zwp_pointer_gestures_v1) {
+		zwp_pointer_gestures_v1_destroy(wl->zwp_pointer_gestures_v1);
 	}
 	xdg_wm_base_destroy(wl->xdg_wm_base);
 	wl_compositor_destroy(wl->compositor);

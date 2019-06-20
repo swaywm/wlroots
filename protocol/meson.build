@@ -44,6 +44,7 @@ client_protocols = [
 	[wl_protocol_dir, 'stable/xdg-shell/xdg-shell.xml'],
 	[wl_protocol_dir, 'unstable/idle-inhibit/idle-inhibit-unstable-v1.xml'],
 	[wl_protocol_dir, 'unstable/pointer-constraints/pointer-constraints-unstable-v1.xml'],
+	[wl_protocol_dir, 'unstable/pointer-gestures/pointer-gestures-unstable-v1.xml'],
 	[wl_protocol_dir, 'unstable/relative-pointer/relative-pointer-unstable-v1.xml'],
 	[wl_protocol_dir, 'unstable/text-input/text-input-unstable-v3.xml'],
 	[wl_protocol_dir, 'unstable/xdg-decoration/xdg-decoration-unstable-v1.xml'],
