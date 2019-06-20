@@ -15,6 +15,7 @@
 #include <wlr/interfaces/wlr_touch.h>
 #include <wlr/util/log.h>
 
+#include "pointer-gestures-unstable-v1-client-protocol.h"
 #include "backend/wayland.h"
 #include "util/signal.h"
 
@@ -344,6 +345,107 @@ static struct wlr_pointer_impl pointer_impl = {
 	.destroy = pointer_destroy,
 };
 
+static void gesture_swipe_begin(void *data,
+		struct zwp_pointer_gesture_swipe_v1 *zwp_pointer_gesture_swipe_v1,
+		uint32_t serial, uint32_t time,
+		struct wl_surface *surface, uint32_t fingers) {
+	struct wlr_wl_input_device *input_device = (struct wlr_wl_input_device *)data;
+	struct wlr_input_device *wlr_dev = &input_device->wlr_input_device;
+	struct wlr_event_pointer_swipe_begin wlr_event = {
+		.device = wlr_dev,
+		.time_msec = time,
+		.fingers = fingers,
+	};
+	input_device->fingers = fingers;
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.swipe_begin, &wlr_event);
+}
+
+static void gesture_swipe_update(void *data,
+		struct zwp_pointer_gesture_swipe_v1 *zwp_pointer_gesture_swipe_v1,
+		uint32_t time, wl_fixed_t dx, wl_fixed_t dy) {
+	struct wlr_wl_input_device *input_device = (struct wlr_wl_input_device *)data;
+	struct wlr_input_device *wlr_dev = &input_device->wlr_input_device;
+	struct wlr_event_pointer_swipe_update wlr_event = {
+		.device = wlr_dev,
+		.time_msec = time,
+		.fingers = input_device->fingers,
+		.dx = wl_fixed_to_double(dx),
+		.dy = wl_fixed_to_double(dy),
+	};
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.swipe_update, &wlr_event);
+}
+
+static void gesture_swipe_end(void *data,
+		struct zwp_pointer_gesture_swipe_v1 *zwp_pointer_gesture_swipe_v1,
+		uint32_t serial, uint32_t time, int32_t cancelled) {
+	struct wlr_wl_input_device *input_device = (struct wlr_wl_input_device *)data;
+	struct wlr_input_device *wlr_dev = &input_device->wlr_input_device;
+	struct wlr_event_pointer_swipe_end wlr_event = {
+		.device = wlr_dev,
+		.time_msec = time,
+		.cancelled = cancelled,
+	};
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.swipe_end, &wlr_event);
+}
+
+static struct zwp_pointer_gesture_swipe_v1_listener gesture_swipe_impl = {
+	.begin = gesture_swipe_begin,
+	.update = gesture_swipe_update,
+	.end = gesture_swipe_end,
+};
+
+static void gesture_pinch_begin(void *data,
+		struct zwp_pointer_gesture_pinch_v1 *zwp_pointer_gesture_pinch_v1,
+		uint32_t serial, uint32_t time,
+		struct wl_surface *surface, uint32_t fingers) {
+	struct wlr_wl_input_device *input_device = (struct wlr_wl_input_device *)data;
+	struct wlr_input_device *wlr_dev = &input_device->wlr_input_device;
+	struct wlr_event_pointer_pinch_begin wlr_event = {
+		.device = wlr_dev,
+		.time_msec = time,
+		.fingers = fingers,
+	};
+	input_device->fingers = fingers;
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.pinch_begin, &wlr_event);
+}
+
+static void gesture_pinch_update(void *data,
+		struct zwp_pointer_gesture_pinch_v1 *zwp_pointer_gesture_pinch_v1,
+		uint32_t time, wl_fixed_t dx, wl_fixed_t dy, wl_fixed_t scale, wl_fixed_t rotation) {
+	struct wlr_wl_input_device *input_device = (struct wlr_wl_input_device *)data;
+	struct wlr_input_device *wlr_dev = &input_device->wlr_input_device;
+	struct wlr_event_pointer_pinch_update wlr_event = {
+		.device = wlr_dev,
+		.time_msec = time,
+		.fingers = input_device->fingers,
+		.dx = wl_fixed_to_double(dx),
+		.dy = wl_fixed_to_double(dy),
+		.scale = wl_fixed_to_double(scale),
+		.rotation = wl_fixed_to_double(rotation),
+	};
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.pinch_update, &wlr_event);
+}
+
+static void gesture_pinch_end(void *data,
+		struct zwp_pointer_gesture_pinch_v1 *zwp_pointer_gesture_pinch_v1,
+		uint32_t serial, uint32_t time, int32_t cancelled) {
+	struct wlr_wl_input_device *input_device = (struct wlr_wl_input_device *)data;
+	struct wlr_input_device *wlr_dev = &input_device->wlr_input_device;
+	struct wlr_event_pointer_pinch_end wlr_event = {
+		.device = wlr_dev,
+		.time_msec = time,
+		.cancelled = cancelled,
+	};
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.pinch_end, &wlr_event);
+}
+
+static struct zwp_pointer_gesture_pinch_v1_listener gesture_pinch_impl = {
+	.begin = gesture_pinch_begin,
+	.update = gesture_pinch_update,
+	.end = gesture_pinch_end,
+};
+
+
 static void pointer_handle_output_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_wl_pointer *pointer =
@@ -389,6 +491,15 @@ void create_wl_pointer(struct wl_pointer *wl_pointer, struct wlr_wl_output *outp
 	wlr_dev->pointer = &pointer->wlr_pointer;
 	wlr_dev->output_name = strdup(output->wlr_output.name);
 	wlr_pointer_init(wlr_dev->pointer, &pointer_impl);
+
+	if (backend->zwp_pointer_gestures_v1) {
+		pointer->gesture_swipe = zwp_pointer_gestures_v1_get_swipe_gesture(
+				backend->zwp_pointer_gestures_v1, wl_pointer);
+		zwp_pointer_gesture_swipe_v1_add_listener(pointer->gesture_swipe, &gesture_swipe_impl, dev);
+		pointer->gesture_pinch = zwp_pointer_gestures_v1_get_pinch_gesture(
+				backend->zwp_pointer_gestures_v1, wl_pointer);
+		zwp_pointer_gesture_pinch_v1_add_listener(pointer->gesture_pinch, &gesture_pinch_impl, dev);
+	}
 
 	wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_dev);
 }
