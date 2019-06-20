@@ -90,7 +90,6 @@ static void manager_handle_create_inhibitor(struct wl_client *client,
 	inhibitor->surface_destroy.notify = idle_inhibitor_handle_surface_destroy;
 	wl_signal_add(&surface->events.destroy, &inhibitor->surface_destroy);
 
-
 	wl_resource_set_implementation(wl_resource, &idle_inhibitor_impl,
 		inhibitor, idle_inhibitor_v1_handle_resource_destroy);
 
@@ -132,7 +131,8 @@ static void idle_inhibit_bind(struct wl_client *wl_client, void *data,
 		return;
 	}
 
-	wl_list_insert(&idle_inhibit->resources, wl_resource_get_link(wl_resource));
+	wl_list_insert(&idle_inhibit->resources,
+			wl_resource_get_link(wl_resource));
 
 	wl_resource_set_implementation(wl_resource, &idle_inhibit_impl,
 		idle_inhibit, idle_inhibit_manager_v1_handle_resource_destroy);
@@ -155,7 +155,8 @@ void wlr_idle_inhibit_v1_destroy(struct wlr_idle_inhibit_manager_v1 *idle_inhibi
 
 	struct wl_resource *resource;
 	struct wl_resource *tmp_resource;
-	wl_resource_for_each_safe(resource, tmp_resource, &idle_inhibit->resources) {
+	wl_resource_for_each_safe(resource, tmp_resource,
+			&idle_inhibit->resources) {
 		wl_resource_destroy(resource);
 	}
 
