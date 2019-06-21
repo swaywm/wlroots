@@ -22,8 +22,6 @@ struct wlr_drm_plane {
 	uint32_t type;
 	uint32_t id;
 
-	uint32_t possible_crtcs;
-
 	struct wlr_drm_surface surf;
 	struct wlr_drm_surface mgpu_surf;
 
@@ -49,14 +47,15 @@ struct wlr_drm_crtc {
 	// Legacy only
 	drmModeCrtc *legacy_crtc;
 
-	union {
-		struct {
-			struct wlr_drm_plane *overlay;
-			struct wlr_drm_plane *primary;
-			struct wlr_drm_plane *cursor;
-		};
-		struct wlr_drm_plane *planes[3];
-	};
+	struct wlr_drm_plane *primary;
+	struct wlr_drm_plane *cursor;
+
+	/*
+	 * We don't support overlay planes yet, but we keep track of them to
+	 * give to DRM lease clients.
+	 */
+	size_t num_overlays;
+	uint32_t *overlays;
 
 	union wlr_drm_crtc_props props;
 
@@ -78,26 +77,6 @@ struct wlr_drm_backend {
 
 	size_t num_crtcs;
 	struct wlr_drm_crtc *crtcs;
-	size_t num_planes;
-	struct wlr_drm_plane *planes;
-
-	union {
-		struct {
-			size_t num_overlay_planes;
-			size_t num_primary_planes;
-			size_t num_cursor_planes;
-		};
-		size_t num_type_planes[3];
-	};
-
-	union {
-		struct {
-			struct wlr_drm_plane *overlay_planes;
-			struct wlr_drm_plane *primary_planes;
-			struct wlr_drm_plane *cursor_planes;
-		};
-		struct wlr_drm_plane *type_planes[3];
-	};
 
 	struct wl_display *display;
 	struct wl_event_source *drm_event;
