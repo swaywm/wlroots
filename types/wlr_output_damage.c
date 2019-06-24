@@ -144,6 +144,8 @@ bool wlr_output_damage_attach_render(struct wlr_output_damage *output_damage,
 		return false;
 	}
 
+	*needs_frame =
+		output->needs_frame || pixman_region32_not_empty(&output_damage->current);
 	// Check if we can use damage tracking
 	if (buffer_age <= 0 || buffer_age - 1 > WLR_OUTPUT_DAMAGE_PREVIOUS_LEN) {
 		int width, height;
@@ -151,6 +153,7 @@ bool wlr_output_damage_attach_render(struct wlr_output_damage *output_damage,
 
 		// Buffer new or too old, damage the whole output
 		pixman_region32_union_rect(damage, damage, 0, 0, width, height);
+		*needs_frame = true;
 	} else {
 		pixman_region32_copy(damage, &output_damage->current);
 
@@ -170,7 +173,6 @@ bool wlr_output_damage_attach_render(struct wlr_output_damage *output_damage,
 		}
 	}
 
-	*needs_frame = output->needs_frame || pixman_region32_not_empty(damage);
 	return true;
 }
 
