@@ -30,6 +30,7 @@ struct wlr_virtual_keyboard_v1 {
 	struct wl_resource *resource;
 	struct wlr_input_device input_device;
 	struct wlr_seat *seat;
+	bool has_keymap;
 
 	struct wl_list link;
 
