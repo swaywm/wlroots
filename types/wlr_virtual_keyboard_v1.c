@@ -61,6 +61,7 @@ static void virtual_keyboard_keymap(struct wl_client *client,
 		goto keymap_fail;
 	}
 	wlr_keyboard_set_keymap(keyboard->input_device.keyboard, keymap);
+	keyboard->has_keymap = true;
 	xkb_keymap_unref(keymap);
 	xkb_context_unref(context);
 	return;
@@ -76,6 +77,12 @@ static void virtual_keyboard_key(struct wl_client *client,
 		uint32_t state) {
 	struct wlr_virtual_keyboard_v1 *keyboard =
 		virtual_keyboard_from_resource(resource);
+	if (!keyboard->has_keymap) {
+		wl_resource_post_error(resource,
+			ZWP_VIRTUAL_KEYBOARD_V1_ERROR_NO_KEYMAP,
+			"Cannot send a keypress before defining a keymap");
+		return;
+	}
 	struct wlr_event_keyboard_key event = {
 		.time_msec = time,
 		.keycode = key,
@@ -90,6 +97,12 @@ static void virtual_keyboard_modifiers(struct wl_client *client,
 		uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {
 	struct wlr_virtual_keyboard_v1 *keyboard =
 		virtual_keyboard_from_resource(resource);
+	if (!keyboard->has_keymap) {
+		wl_resource_post_error(resource,
+			ZWP_VIRTUAL_KEYBOARD_V1_ERROR_NO_KEYMAP,
+			"Cannot send a modifier state before defining a keymap");
+		return;
+	}
 	wlr_keyboard_notify_modifiers(keyboard->input_device.keyboard,
 		mods_depressed, mods_latched, mods_locked, group);
 }
