@@ -1140,6 +1140,14 @@ static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
 }
 
 void scan_drm_connectors(struct wlr_drm_backend *drm) {
+	/*
+	 * This GPU is not really a modesetting device.
+	 * It's just being used as a renderer.
+	 */
+	if (drm->num_crtcs == 0) {
+		return;
+	}
+
 	wlr_log(WLR_INFO, "Scanning DRM connectors");
 
 	drmModeRes *res = drmModeGetResources(drm->fd);
