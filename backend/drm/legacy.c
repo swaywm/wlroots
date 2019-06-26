@@ -17,7 +17,7 @@ static bool legacy_crtc_pageflip(struct wlr_drm_backend *drm,
 		}
 	}
 
-	if (drmModePageFlip(drm->fd, crtc->id, fb_id, DRM_MODE_PAGE_FLIP_EVENT, conn)) {
+	if (drmModePageFlip(drm->fd, crtc->id, fb_id, DRM_MODE_PAGE_FLIP_EVENT, drm)) {
 		wlr_log_errno(WLR_ERROR, "%s: Failed to page flip", conn->output.name);
 		return false;
 	}
