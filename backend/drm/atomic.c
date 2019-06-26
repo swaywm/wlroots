@@ -45,18 +45,20 @@ static bool atomic_end(int drm_fd, struct atomic *atom) {
 
 static bool atomic_commit(int drm_fd, struct atomic *atom,
 		struct wlr_drm_connector *conn, uint32_t flags, bool modeset) {
+	struct wlr_drm_backend *drm =
+		get_drm_backend_from_backend(conn->output.backend);
 	if (atom->failed) {
 		return false;
 	}
 
-	int ret = drmModeAtomicCommit(drm_fd, atom->req, flags, conn);
+	int ret = drmModeAtomicCommit(drm_fd, atom->req, flags, drm);
 	if (ret) {
 		wlr_log_errno(WLR_ERROR, "%s: Atomic commit failed (%s)",
 			conn->output.name, modeset ? "modeset" : "pageflip");
 
 		// Try to commit without new changes
 		drmModeAtomicSetCursor(atom->req, atom->cursor);
-		if (drmModeAtomicCommit(drm_fd, atom->req, flags, conn)) {
+		if (drmModeAtomicCommit(drm_fd, atom->req, flags, drm)) {
 			wlr_log_errno(WLR_ERROR,
 				"%s: Atomic commit without new changes failed (%s)",
 				conn->output.name, modeset ? "modeset" : "pageflip");

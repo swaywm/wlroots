@@ -50,6 +50,11 @@ bool check_drm_features(struct wlr_drm_backend *drm) {
 		return false;
 	}
 
+	if (drmGetCap(drm->fd, DRM_CAP_CRTC_IN_VBLANK_EVENT, &cap) || !cap) {
+		wlr_log(WLR_ERROR, "DRM_CRTC_IN_VBLANK_EVENT unsupported");
+		return false;
+	}
+
 	const char *no_atomic = getenv("WLR_DRM_NO_ATOMIC");
 	if (no_atomic && strcmp(no_atomic, "1") == 0) {
 		wlr_log(WLR_DEBUG,
@@ -1359,10 +1364,21 @@ static int mhz_to_nsec(int mhz) {
 }
 
 static void page_flip_handler(int fd, unsigned seq,
-		unsigned tv_sec, unsigned tv_usec, void *data) {
-	struct wlr_drm_connector *conn = data;
-	struct wlr_drm_backend *drm =
-		get_drm_backend_from_backend(conn->output.backend);
+		unsigned tv_sec, unsigned tv_usec, unsigned crtc_id, void *data) {
+	struct wlr_drm_backend *drm = data;
+	struct wlr_drm_connector *conn = NULL;
+	struct wlr_drm_connector *search;
+
+	wl_list_for_each(search, &drm->outputs, link) {
+		if (search->crtc && search->crtc->id == crtc_id) {
+			conn = search;
+		}
+	}
+
+	if (!conn) {
+		wlr_log(WLR_ERROR, "No connector for crtc_id %u", crtc_id);
+		return;
+	}
 
 	conn->pageflip_pending = false;
 
@@ -1411,8 +1427,8 @@ static void page_flip_handler(int fd, unsigned seq,
 
 int handle_drm_event(int fd, uint32_t mask, void *data) {
 	drmEventContext event = {
-		.version = 2,
-		.page_flip_handler = page_flip_handler,
+		.version = 3,
+		.page_flip_handler2 = page_flip_handler,
 	};
 
 	drmHandleEvent(fd, &event);
