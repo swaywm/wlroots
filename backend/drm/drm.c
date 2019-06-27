@@ -1206,8 +1206,8 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				drm->display);
 
 			struct wl_event_loop *ev = wl_display_get_event_loop(drm->display);
-			wlr_conn->retry_pageflip = wl_event_loop_add_timer(ev, retry_pageflip,
-				wlr_conn);
+			wlr_conn->retry_pageflip = wl_event_loop_add_timer(
+					ev, retry_pageflip, wlr_conn);
 
 			wlr_conn->state = WLR_DRM_CONN_DISCONNECTED;
 			wlr_conn->id = drm_conn->connector_id;
@@ -1268,6 +1268,12 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			wlr_conn->output.subpixel = subpixel_map[drm_conn->subpixel];
 
 			get_drm_connector_props(drm->fd, wlr_conn->id, &wlr_conn->props);
+
+			uint64_t non_desktop;
+			if (get_drm_prop(drm->fd, wlr_conn->id,
+						wlr_conn->props.non_desktop, &non_desktop)) {
+				wlr_conn->output.non_desktop = non_desktop;
+			}
 
 			size_t edid_len = 0;
 			uint8_t *edid = get_drm_prop_blob(drm->fd,
