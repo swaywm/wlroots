@@ -17,6 +17,7 @@
 #include "backend/wayland.h"
 #include "util/signal.h"
 #include "input-timestamps-unstable-v1-client-protocol.h"
+#include "pointer-constraints-unstable-v1-client-protocol.h"
 #include "pointer-gestures-unstable-v1-client-protocol.h"
 #include "relative-pointer-unstable-v1-client-protocol.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
@@ -90,6 +91,9 @@ static void registry_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(iface, zwp_relative_pointer_manager_v1_interface.name) == 0) {
 		wl->relative_pointer.manager = wl_registry_bind(registry, name,
 			&zwp_relative_pointer_manager_v1_interface, 1);
+	} else if (strcmp(iface, zwp_pointer_constraints_v1_interface.name) == 0) {
+		wl->locked_pointer.manager = wl_registry_bind(registry, name,
+			&zwp_pointer_constraints_v1_interface, 1);
 	}
 }
 
@@ -244,6 +248,11 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	if (!wl->relative_pointer.manager) {
 		wlr_log(WLR_INFO,
 			"Remote Wayland compositor does not support relative-pointer");
+	}
+
+	if (!wl->relative_pointer.manager) {
+		wlr_log(WLR_INFO,
+			"Remote Wayland compositor does not support pointer-constraints");
 	}
 
 	struct wl_event_loop *loop = wl_display_get_event_loop(wl->local_display);

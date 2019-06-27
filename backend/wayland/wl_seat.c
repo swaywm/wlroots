@@ -47,10 +47,26 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_wl_output *output = wl_surface_get_user_data(surface);
 	assert(output);
 	struct wlr_wl_pointer *pointer = output_get_pointer(output);
+	if (pointer == NULL) {
+		return;
+	}
 
 	output->enter_serial = serial;
 	backend->current_pointer = pointer;
 	update_wl_output_cursor(output);
+
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+
+	struct wlr_output *wlr_output = &pointer->output->wlr_output;
+	struct wlr_event_pointer_motion_absolute event = {
+		.device = &pointer->input_device->wlr_input_device,
+		.time_msec = (1000 * now.tv_sec) + (now.tv_nsec / 1000000),
+		.time_frac_nsec = now.tv_nsec,
+		.x = wl_fixed_to_double(sx) / wlr_output->width,
+		.y = wl_fixed_to_double(sy) / wlr_output->height,
+	};
+	wlr_signal_emit_safe(&pointer->wlr_pointer.events.motion_absolute, &event);
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
@@ -236,6 +252,10 @@ static void relative_pointer_handle_relative_motion(void *data,
 	struct wlr_wl_backend *backend = data;
 	struct wlr_wl_pointer *pointer = backend->current_pointer;
 	if (pointer == NULL) {
+		return;
+	}
+
+	if (!backend->locked_pointer.is_locked) {
 		return;
 	}
 

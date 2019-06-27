@@ -16,6 +16,7 @@
 
 #include "backend/wayland.h"
 #include "util/signal.h"
+#include "pointer-constraints-unstable-v1-client-protocol.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
@@ -74,6 +75,17 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	pixman_region32_t *damage = NULL;
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
 		damage = &wlr_output->pending.damage;
+	}
+
+	struct wlr_output_cursor *cursor;
+	wl_list_for_each(cursor, &output->wlr_output.cursors, link) {
+		if (!cursor->enabled || !cursor->visible) {
+			continue;
+		}
+	zwp_locked_pointer_v1_set_cursor_position_hint(
+		output->backend->locked_pointer.pointer,
+		wl_fixed_from_int(cursor->x), wl_fixed_from_int(cursor->y));
+	break;
 	}
 
 	if (!wlr_egl_swap_buffers(&output->backend->egl,
@@ -193,9 +205,14 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 void update_wl_output_cursor(struct wlr_wl_output *output) {
 	if (output->backend->pointer && output->enter_serial) {
-		wl_pointer_set_cursor(output->backend->pointer, output->enter_serial,
-			output->cursor.surface, output->cursor.hotspot_x,
-			output->cursor.hotspot_y);
+		if (output->wlr_output.hardware_cursor) {
+			wl_pointer_set_cursor(output->backend->pointer, output->enter_serial,
+				output->cursor.surface, output->cursor.hotspot_x,
+				output->cursor.hotspot_y);
+		} else {
+			wl_pointer_set_cursor(output->backend->pointer, output->enter_serial,
+				NULL, output->cursor.hotspot_x, output->cursor.hotspot_y);
+		}
 	}
 }
 
@@ -272,6 +289,34 @@ static struct xdg_toplevel_listener xdg_toplevel_listener = {
 	.close = xdg_toplevel_handle_close,
 };
 
+static void locked_pointer_handle_locked(void *data,
+		struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1) {
+	struct wlr_wl_output *output = data;
+	output->backend->locked_pointer.is_locked = true;
+}
+static void locked_pointer_handle_unlocked(void *data,
+		struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1) {
+	struct wlr_wl_output *output = data;
+	output->backend->locked_pointer.is_locked = false;
+
+	struct wlr_output_cursor *cursor;
+	wl_list_for_each(cursor, &output->wlr_output.cursors, link) {
+		if (!cursor->enabled || !cursor->visible) {
+			continue;
+		}
+	zwp_locked_pointer_v1_set_cursor_position_hint(
+		output->backend->locked_pointer.pointer,
+		wl_fixed_from_int(cursor->x), wl_fixed_from_int(cursor->y));
+	wl_surface_commit(output->surface);
+	break;
+	}
+}
+
+static const struct zwp_locked_pointer_v1_listener locked_pointer_listener = {
+	.locked = locked_pointer_handle_locked,
+	.unlocked = locked_pointer_handle_unlocked,
+};
+
 struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 	struct wlr_wl_backend *backend = get_wl_backend_from_backend(wlr_backend);
 	if (!backend->started) {
@@ -325,6 +370,16 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 		}
 		zxdg_toplevel_decoration_v1_set_mode(output->zxdg_toplevel_decoration_v1,
 			ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+	}
+
+	if (backend->pointer && backend->relative_pointer.pointer &&
+			backend->locked_pointer.manager) {
+		backend->locked_pointer.pointer = zwp_pointer_constraints_v1_lock_pointer(
+			backend->locked_pointer.manager, output->surface, backend->pointer,
+			NULL, ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_PERSISTENT);
+		zwp_locked_pointer_v1_add_listener(backend->locked_pointer.pointer,
+			&locked_pointer_listener, output);
+		wlr_output_lock_software_cursors(wlr_output, true);
 	}
 
 	wlr_wl_output_set_title(wlr_output, NULL);

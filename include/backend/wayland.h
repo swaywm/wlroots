@@ -48,6 +48,11 @@ struct wlr_wl_backend {
 		struct zwp_relative_pointer_manager_v1 *manager;
 		struct zwp_relative_pointer_v1 *pointer;
 	} relative_pointer;
+	struct {
+		struct zwp_pointer_constraints_v1 *manager;
+		struct zwp_locked_pointer_v1 *pointer;
+		bool is_locked;
+	} locked_pointer;
 };
 
 struct wlr_wl_output {
