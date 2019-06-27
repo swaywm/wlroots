@@ -149,7 +149,7 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 
 	// leave the previously entered surface
 	if (focused_client != NULL && focused_surface != NULL) {
-		uint32_t serial = wl_display_next_serial(wlr_seat->display);
+		uint32_t serial = wlr_seat_client_next_serial(focused_client);
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &focused_client->pointers) {
 			if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
@@ -163,7 +163,7 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 
 	// enter the current surface
 	if (client != NULL && surface != NULL) {
-		uint32_t serial = wl_display_next_serial(wlr_seat->display);
+		uint32_t serial = wlr_seat_client_next_serial(client);
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &client->pointers) {
 			if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
@@ -242,7 +242,7 @@ uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
 		return 0;
 	}
 
-	uint32_t serial = wl_display_next_serial(wlr_seat->display);
+	uint32_t serial = wlr_seat_client_next_serial(client);
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->pointers) {
 		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {

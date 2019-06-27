@@ -349,7 +349,7 @@ static void xwm_selection_get_targets(struct wlr_xwm_selection *selection) {
 		bool ok = source_get_targets(selection, &source->base.mime_types,
 			&source->mime_types_atoms);
 		if (ok) {
-			wlr_seat_request_set_selection(xwm->seat, &source->base,
+			wlr_seat_request_set_selection(xwm->seat, NULL, &source->base,
 				wl_display_next_serial(xwm->xwayland->wl_display));
 		} else {
 			wlr_data_source_destroy(&source->base);
@@ -424,10 +424,10 @@ int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 			// A real X client selection went away, not our
 			// proxy selection
 			if (selection == &xwm->clipboard_selection) {
-				wlr_seat_request_set_selection(xwm->seat, NULL,
+				wlr_seat_request_set_selection(xwm->seat, NULL, NULL,
 					wl_display_next_serial(xwm->xwayland->wl_display));
 			} else if (selection == &xwm->primary_selection) {
-				wlr_seat_request_set_primary_selection(xwm->seat, NULL,
+				wlr_seat_request_set_primary_selection(xwm->seat, NULL, NULL,
 					wl_display_next_serial(xwm->xwayland->wl_display));
 			} else if (selection == &xwm->dnd_selection) {
 				// TODO: DND
