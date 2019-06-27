@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="drm_lease_unstable_v1">
+  <copyright>
+    Copyright © 2018 NXP
+    Copyright © 2019 Status Research &amp; Development GmbH.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice (including the next
+    paragraph) shall be included in all copies or substantial portions of the
+    Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+  </copyright>
+
+  <interface name="zwp_drm_lease_manager_v1" version="1">
+    <description summary="lease manager">
+      This protocol is used by Wayland compositors which act as Direct
+      Renderering Manager (DRM) masters to lease DRM resources to Wayland
+      clients. Once leased, the compositor will not use the leased resources
+      until the lease is revoked or the client closes the file descriptor. The
+      compositor will advertise one zwp_drm_lease_manager_v1 for each DRM node
+      which has resources available for leasing.
+
+      The lease manager is used to advertise connectors which are available for
+      leasing, and by the client to negotiate a lease request.
+
+      Warning! The protocol described in this file is experimental and
+      backward incompatible changes may be made. Backward compatible changes
+      may be added together with the corresponding interface version bump.
+      Backward incompatible changes are done by bumping the version number in
+      the protocol and interface names and resetting the interface version.
+      Once the protocol is to be declared stable, the 'z' prefix and the
+      version number in the protocol and interface names are removed and the
+      interface version number is reset.
+    </description>
+
+    <enum name="error">
+      <entry name="stopped_manager" value="0"
+        summary="request sent to a manager which has been stopped"/>
+    </enum>
+
+    <request name="create_lease_request">
+      <description summary="create a lease request object">
+        Creates a lease request object.
+
+        See the documentation for zwp_drm_lease_request_v1 for details.
+      </description>
+      <arg name="id" type="new_id" interface="zwp_drm_lease_request_v1" />
+    </request>
+
+    <request name="stop">
+      <description summary="stop sending events">
+        Indicates the client no longer wishes to receive connector events. The
+        compositor may still send connector events until it sends the finish
+        event, however.
+
+        The client must not send any requests after this one.
+      </description>
+    </request>
+
+    <event name="drm_fd">
+      <description summary="open a non-master fd for this DRM node">
+        The compositor will send this event when the zwp_drm_lease_manager_v1
+        global is bound. The included fd is a non-master DRM file descriptor
+        opened for this device. The purpose of this event is to give the client
+        the ability to query DRM and discover information which may help them
+        pick the appropriate DRM device or select the appropriate connectors
+        therein.
+      </description>
+      <arg name="fd" type="fd" summary="DRM file descriptor" />
+    </event>
+
+    <event name="connector">
+      <description summary="advertise connectors available for leases">
+        The compositor may choose to advertise 0 or more connectors which may be
+        leased to clients, and will use this event to do so. This object may be
+        passed into a lease request to lease that connector. See
+        zwp_drm_lease_request_v1.add_connector for details.
+
+        When this global is bound, the compositor will send all connectors
+        available for lease, but may send additional connectors at any time.
+      </description>
+      <arg name="id" type="new_id" interface="zwp_drm_lease_connector_v1" />
+    </event>
+
+    <event name="finished">
+      <description summary="the compositor has finished using the manager">
+        This event indicates that the compositor is done sending connector
+        events. The compositor will destroy this object immediately after
+        sending this event, and it will become invalid. The client should
+        release any resources associated with this manager after receiving this
+        event.
+      </description>
+    </event>
+  </interface>
+
+  <interface name="zwp_drm_lease_connector_v1" version="1">
+    <description summary="a leasable DRM connector">
+      Represents a DRM connector which is available for lease. These objects are
+      created via zwp_drm_lease_manager_v1.connector, and should be passed into
+      lease requests via zwp_drm_lease_request_v1.add_connector.
+    </description>
+
+    <event name="name">
+      <description summary="name">
+        The compositor sends this event once the connector is created to
+        indicate the name of this connector. This will not change for the
+        duration of the Wayland session, but is not guaranteed to be consistent
+        between sessions.
+
+        If the compositor also supports zxdg_output_manager_v1 and this
+        connector corresponds to a zxdg_output_v1, this name will match the
+        name of this zxdg_output_v1 object.
+      </description>
+      <arg name="name" type="string" summary="connector name" />
+    </event>
+
+    <event name="description">
+      <description summary="description">
+        The compositor sends this event once the connector is created to provide
+        a human-readable description for this connector, which may be presented
+        to the user.
+      </description>
+      <arg name="description" type="string" summary="connector description" />
+    </event>
+
+    <event name="connector_id">
+      <description summary="connector_id">
+        The compositor will send this event to indicate the DRM ID which
+        represents the underlying connector which is being offered. Note that
+        the final lease may include additional object IDs, such as CRTCs and
+        planes.
+      </description>
+      <arg name="connector_id" type="int" summary="DRM Connector ID" />
+    </event>
+
+    <event name="withdrawn">
+      <description summary="lease offer withdrawn">
+        Sent to indicate that the compositor will no longer honor requests for
+        DRM leases which include this connector. The client may still issue a
+        lease request including this connector, but the compositor will send
+        zwp_drm_lease_v1.finished without issuing a lease fd.
+      </description>
+    </event>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy connector">
+        The client may send this request to indicate that it will not issue a
+        lease request for this connector. Clients are encouraged to send this
+        after receiving the "withdrawn" request so that the server can release
+        the resources associated with this connector offer.
+      </description>
+    </request>
+  </interface>
+
+  <interface name="zwp_drm_lease_request_v1" version="1">
+    <description summary="DRM lease request">
+      A client that wishes to lease DRM resources will attach the list of
+      connectors advertised with zwp_drm_lease_manager_v1.connector that they
+      wish to lease, then use zwp_drm_lease_request_v1.submit to submit the
+      request.
+    </description>
+
+    <enum name="error">
+      <entry name="submitted_lease" value="0"
+        summary="attempted to reuse a submitted lease"/>
+    </enum>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroys the lease request object">
+        Indicates that the client will no longer use this lease request.
+      </description>
+    </request>
+
+    <request name="request_connector">
+       <description summary="request a connector for this lease">
+         Indicates that the client would like to lease the given connector.
+         This is only used as a suggestion, the compositor may choose to
+         include any resources in the lease it issues, or change the set of
+         leased resources at any time.
+       </description>
+       <arg name="connector" type="object"
+         interface="zwp_drm_lease_connector_v1" />
+    </request>
+
+    <request name="submit">
+       <description summary="submit the lease request">
+         Submits the lease request and creates a new zwp_drm_lease_v1 object.
+         After calling submit, issuing any other request than destroy is a
+         protocol error.
+       </description>
+       <arg name="id" type="new_id" interface="zwp_drm_lease_v1" />
+    </request>
+  </interface>
+
+  <interface name="zwp_drm_lease_v1" version="1">
+    <description summary="a DRM lease">
+      A DRM lease object is used to transfer the DRM file descriptor to the
+      client and manage the lifetime of the lease.
+    </description>
+
+    <event name="lease_fd">
+      <description summary="shares the DRM file descriptor">
+        This event returns a file descriptor suitable for use with DRM-related
+        ioctls. The client should use drmModeGetLease to enumerate the DRM
+        objects which have been leased to them. If the compositor cannot or
+        will not grant a lease for the requested connectors, it will not send
+        this event, instead sending the finished event immediately.
+
+        It is a protocol error for the compositor to send this event more than
+        once for a given lease.
+      </description>
+      <arg name="leased_fd" type="fd" summary="leased DRM file descriptor" />
+    </event>
+
+    <event name="finished">
+      <description summary="sent when the lease has been revoked">
+        When the compositor revokes the lease, it will issue this event to
+        notify clients of the change. If the client requires a new lease, they
+        should destroy this object and submit a new lease request. The
+        compositor will send no further events for this object after sending
+        the finish event.
+      </description>
+    </event>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroys the lease object">
+        The client should send this to indicate that it no longer wishes to use
+        this lease. The compositor should use drmModeRevokeLease on the
+        appropriate file descriptor, if necessary, then release this object.
+      </description>
+    </request>
+  </interface>
+</protocol>

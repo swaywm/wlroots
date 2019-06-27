@@ -1254,6 +1254,10 @@ static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
 
 static void drm_conn_init_wlr_output(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *wlr_conn, drmModeConnector *drm_conn) {
+	wlr_log(WLR_DEBUG, "Initializing wlr_output for drm connector %s-%d",
+			conn_get_name(drm_conn->connector_type),
+			drm_conn->connector_type_id);
+	memset(&wlr_conn->output, 0, sizeof(struct wlr_output));
 	wlr_output_init(&wlr_conn->output,
 			&drm->backend, &output_impl, drm->display);
 	snprintf(wlr_conn->output.name, sizeof(wlr_conn->output.name),
@@ -1378,7 +1382,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			}
 			if (!found) {
 				/* Yes, it was */
-				wlr_log(WLR_DEBUG, "DRM lease %d terminated by kernel",
+				wlr_log(WLR_DEBUG, "scan_drm_connectors: DRM lease %d terminated",
 						wlr_conn->lessee_id);
 				wlr_conn->state = WLR_DRM_CONN_DISCONNECTED;
 				wlr_conn->lessee_id = 0;
@@ -1756,8 +1760,8 @@ int drm_terminate_lease(struct wlr_drm_backend *backend, uint32_t lessee_id) {
 	wl_list_for_each(conn, &backend->outputs, link) {
 		if (conn->state == WLR_DRM_CONN_LEASED
 				&& conn->lessee_id == lessee_id) {
-			conn->state = WLR_DRM_CONN_DISCONNECTED;
 			conn->lessee_id = 0;
+			/* Will be re-initialized in scan_drm_connectors */
 		}
 	}
 	for (size_t i = 0; i < backend->num_crtcs; ++i) {

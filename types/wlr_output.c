@@ -348,6 +348,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		output->software_cursor_locks = 1;
 	}
 
+	wl_list_init(&output->display_destroy.link);
 	output->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &output->display_destroy);
 
