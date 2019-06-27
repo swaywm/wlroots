@@ -17,8 +17,10 @@
 #include "backend/wayland.h"
 #include "util/signal.h"
 #include "input-timestamps-unstable-v1-client-protocol.h"
-#include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "pointer-gestures-unstable-v1-client-protocol.h"
+#include "relative-pointer-unstable-v1-client-protocol.h"
+#include "xdg-decoration-unstable-v1-client-protocol.h"
+#include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
 struct wlr_wl_backend *get_wl_backend_from_backend(struct wlr_backend *backend) {
@@ -85,6 +87,9 @@ static void registry_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(iface, zwp_input_timestamps_manager_v1_interface.name) == 0) {
 		wl->input_timestamps.manager = wl_registry_bind(registry, name,
 			&zwp_input_timestamps_manager_v1_interface, 1);
+	} else if (strcmp(iface, zwp_relative_pointer_manager_v1_interface.name) == 0) {
+		wl->relative_pointer.manager = wl_registry_bind(registry, name,
+			&zwp_relative_pointer_manager_v1_interface, 1);
 	}
 }
 
@@ -234,6 +239,11 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	if (!wl->input_timestamps.manager) {
 		wlr_log(WLR_INFO,
 			"Remote Wayland compositor does not support input-timestamps");
+	}
+
+	if (!wl->relative_pointer.manager) {
+		wlr_log(WLR_INFO,
+			"Remote Wayland compositor does not support relative-pointer");
 	}
 
 	struct wl_event_loop *loop = wl_display_get_event_loop(wl->local_display);

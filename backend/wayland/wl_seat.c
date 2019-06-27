@@ -15,10 +15,11 @@
 #include <wlr/interfaces/wlr_touch.h>
 #include <wlr/util/log.h>
 
-#include "pointer-gestures-unstable-v1-client-protocol.h"
 #include "backend/wayland.h"
 #include "util/signal.h"
 #include "input-timestamps-unstable-v1-client-protocol.h"
+#include "pointer-gestures-unstable-v1-client-protocol.h"
+#include "relative-pointer-unstable-v1-client-protocol.h"
 
 static struct wlr_wl_pointer *output_get_pointer(struct wlr_wl_output *output) {
 	struct wlr_input_device *wlr_dev;
@@ -225,6 +226,44 @@ static const struct wl_pointer_listener pointer_listener = {
 	.axis_source = pointer_handle_axis_source,
 	.axis_stop = pointer_handle_axis_stop,
 	.axis_discrete = pointer_handle_axis_discrete,
+};
+
+static void relative_pointer_handle_relative_motion(void *data,
+		struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1,
+		uint32_t utime_hi, uint32_t utime_lo,
+		wl_fixed_t dx, wl_fixed_t dy,
+		wl_fixed_t dx_unaccel, wl_fixed_t dy_unaccel) {
+	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	if (pointer == NULL) {
+		return;
+	}
+
+	uint64_t time_usec = ((uint64_t)utime_hi << 32) + utime_lo;
+	uint32_t time_msec = time_usec / 1000;
+
+	uint32_t time_frac_nsec;
+	if (backend->input_timestamps.manager &&
+			backend->input_timestamps.pointer.tv_sec == time_msec / 1000) {
+		time_frac_nsec = backend->input_timestamps.pointer.tv_nsec;
+	} else {
+		time_frac_nsec = (utime_lo % 1000000) * 1000;
+	}
+
+	struct wlr_event_pointer_motion event = {
+		.device = &pointer->input_device->wlr_input_device,
+		.time_msec = time_msec,
+		.time_frac_nsec = time_frac_nsec,
+		.delta_x = wl_fixed_to_double(dx),
+		.delta_y = wl_fixed_to_double(dy),
+		.unaccel_dx = wl_fixed_to_double(dx_unaccel),
+		.unaccel_dy = wl_fixed_to_double(dy_unaccel),
+	};
+	wlr_signal_emit_safe(&pointer->wlr_pointer.events.motion, &event);
+}
+
+static const struct zwp_relative_pointer_v1_listener relative_pointer_listener = {
+	.relative_motion = relative_pointer_handle_relative_motion,
 };
 
 static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
@@ -618,6 +657,15 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 					backend->input_timestamps.manager, wl_pointer);
 			zwp_input_timestamps_v1_add_listener(pointer_input_timestamps,
 				&input_timestamps_listener, &backend->input_timestamps.pointer);
+		}
+
+		if (backend->relative_pointer.manager) {
+			backend->relative_pointer.pointer =
+				zwp_relative_pointer_manager_v1_get_relative_pointer(
+					backend->relative_pointer.manager, wl_pointer);
+			zwp_relative_pointer_v1_add_listener(
+				backend->relative_pointer.pointer, &relative_pointer_listener,
+				backend);
 		}
 	}
 	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {

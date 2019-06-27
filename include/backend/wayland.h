@@ -44,6 +44,10 @@ struct wlr_wl_backend {
 		struct timespec keyboard;
 		struct timespec pointer;
 	} input_timestamps;
+	struct {
+		struct zwp_relative_pointer_manager_v1 *manager;
+		struct zwp_relative_pointer_v1 *pointer;
+	} relative_pointer;
 };
 
 struct wlr_wl_output {
