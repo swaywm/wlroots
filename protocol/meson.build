@@ -25,6 +25,7 @@ protocols = [
 	[wl_protocol_dir, 'unstable/xdg-decoration/xdg-decoration-unstable-v1.xml'],
 	[wl_protocol_dir, 'unstable/xdg-output/xdg-output-unstable-v1.xml'],
 	[wl_protocol_dir, 'unstable/xdg-shell/xdg-shell-unstable-v6.xml'],
+	'drm-lease-unstable-v1.xml',
 	'gtk-primary-selection.xml',
 	'idle.xml',
 	'input-method-unstable-v2.xml',
