@@ -60,6 +60,8 @@ struct wlr_drm_crtc {
 	// Legacy only
 	drmModeCrtc *legacy_crtc;
 
+	uint32_t lessee_id;
+
 	struct wlr_drm_plane *primary;
 	struct wlr_drm_plane *cursor;
 
@@ -107,6 +109,8 @@ enum wlr_drm_connector_state {
 	WLR_DRM_CONN_NEEDS_MODESET,
 	WLR_DRM_CONN_CLEANUP,
 	WLR_DRM_CONN_CONNECTED,
+	// Connector has been leased to another DRM master
+	WLR_DRM_CONN_LEASED,
 };
 
 struct wlr_drm_mode {
@@ -121,6 +125,9 @@ struct wlr_drm_connector {
 	struct wlr_output_mode *desired_mode;
 	bool desired_enabled;
 	uint32_t id;
+	uint32_t lessee_id;
+	void (*lease_terminated_cb)(struct wlr_drm_connector *, void *);
+	void *lease_terminated_data;
 
 	struct wlr_drm_crtc *crtc;
 	uint32_t possible_crtc;
@@ -157,5 +164,17 @@ size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc);
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane);
+
+bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
+	struct wlr_drm_crtc *crtc, struct gbm_bo *bo);
+bool legacy_crtc_move_cursor(struct wlr_drm_backend *drm,
+	struct wlr_drm_crtc *crtc, int x, int y);
+
+/** Returns the leased file descriptor */
+int drm_create_lease(struct wlr_drm_backend *backend,
+		struct wlr_drm_connector **conns, int nconns, uint32_t *lessee_id,
+		void (*lease_terminated_cb)(struct wlr_drm_connector *, void *),
+		void *lease_terminated_data);
+int drm_terminate_lease(struct wlr_drm_backend *backend, uint32_t lessee_id);
 
 #endif

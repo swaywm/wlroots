@@ -24,8 +24,8 @@ static const struct prop_info connector_info[] = {
 	{ "EDID", INDEX(edid) },
 	{ "PATH", INDEX(path) },
 	{ "link-status", INDEX(link_status) },
-	{ "vrr_capable", INDEX(vrr_capable) },
 	{ "non-desktop", INDEX(non_desktop) },
+	{ "vrr_capable", INDEX(vrr_capable) },
 #undef INDEX
 };
 
