@@ -1349,6 +1349,12 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 
 			get_drm_connector_props(drm->fd, wlr_conn->id, &wlr_conn->props);
 
+			uint64_t non_desktop;
+			if (get_drm_prop(drm->fd, wlr_conn->id,
+						wlr_conn->props.non_desktop, &non_desktop)) {
+				wlr_conn->output.non_desktop = non_desktop;
+			}
+
 			size_t edid_len = 0;
 			uint8_t *edid = get_drm_prop_blob(drm->fd,
 				wlr_conn->id, wlr_conn->props.edid, &edid_len);
