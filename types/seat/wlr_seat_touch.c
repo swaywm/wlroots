@@ -278,7 +278,7 @@ uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
 		return 0;
 	}
 
-	uint32_t serial = wl_display_next_serial(seat->display);
+	uint32_t serial = wlr_seat_client_next_serial(point->client);
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &point->client->touches) {
 		if (seat_client_from_touch_resource(resource) == NULL) {
@@ -299,7 +299,7 @@ void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time, int32_t touch_
 		return;
 	}
 
-	uint32_t serial = wl_display_next_serial(seat->display);
+	uint32_t serial = wlr_seat_client_next_serial(point->client);
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &point->client->touches) {
 		if (seat_client_from_touch_resource(resource) == NULL) {

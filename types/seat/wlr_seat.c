@@ -370,3 +370,36 @@ bool wlr_seat_validate_grab_serial(struct wlr_seat *seat, uint32_t serial) {
 	//	serial == seat->touch_state.grab_serial;
 	return true;
 }
+
+void wlr_serial_add(struct wlr_serial_ringset *set, uint32_t serial) {
+	if (set->count == 0 || set->data[set->end].max_incl + 1 != serial) {
+		set->count++;
+		if (set->count > WLR_SERIAL_RINGSET_SIZE) {
+			set->count = WLR_SERIAL_RINGSET_SIZE;
+		}
+		set->end = (set->end + 1) % WLR_SERIAL_RINGSET_SIZE;
+		set->data[set->end].min_incl = serial;
+		set->data[set->end].max_incl = serial;
+	} else {
+		set->data[set->end].max_incl = serial;
+	}
+}
+
+bool wlr_serial_maybe_valid(struct wlr_serial_ringset *set, uint32_t serial) {
+	for (int i = 0; i < set->count; i++) {
+		int j = (set->end - i + WLR_SERIAL_RINGSET_SIZE) % WLR_SERIAL_RINGSET_SIZE;
+		if (set->data[j].max_incl - serial > UINT32_MAX / 2) {
+			return false;
+		}
+		if (serial - set->data[j].min_incl <= UINT32_MAX / 2) {
+			return true;
+		}
+	}
+	return true;
+}
+
+uint32_t wlr_seat_client_next_serial(struct wlr_seat_client *client) {
+	uint32_t serial = wl_display_next_serial(wl_client_get_display(client->client));
+	wlr_serial_add(&client->serials, serial);
+	return serial;
+}

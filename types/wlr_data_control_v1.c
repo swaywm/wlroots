@@ -343,7 +343,7 @@ static void control_handle_set_selection(struct wl_client *client,
 	}
 
 	if (source == NULL) {
-		wlr_seat_request_set_selection(device->seat, NULL,
+		wlr_seat_request_set_selection(device->seat, NULL, NULL,
 			wl_display_next_serial(device->seat->display));
 
 		return;
@@ -377,7 +377,7 @@ static void control_handle_set_selection(struct wl_client *client,
 
 	source->finalized = true;
 
-	wlr_seat_request_set_selection(device->seat, wlr_source,
+	wlr_seat_request_set_selection(device->seat, NULL, wlr_source,
 		wl_display_next_serial(device->seat->display));
 }
 
@@ -396,7 +396,7 @@ static void control_handle_set_primary_selection(struct wl_client *client,
 	}
 
 	if (source == NULL) {
-		wlr_seat_request_set_primary_selection(device->seat, NULL,
+		wlr_seat_request_set_primary_selection(device->seat, NULL, NULL,
 			wl_display_next_serial(device->seat->display));
 
 		return;
@@ -430,7 +430,7 @@ static void control_handle_set_primary_selection(struct wl_client *client,
 
 	source->finalized = true;
 
-	wlr_seat_request_set_primary_selection(device->seat, wlr_source,
+	wlr_seat_request_set_primary_selection(device->seat, NULL, wlr_source,
 		wl_display_next_serial(device->seat->display));
 }
 

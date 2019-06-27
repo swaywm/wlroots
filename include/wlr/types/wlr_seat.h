@@ -15,6 +15,31 @@
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_surface.h>
 
+#define WLR_SERIAL_RINGSET_SIZE 128
+
+struct wlr_serial_range {
+	uint32_t min_incl;
+	uint32_t max_incl;
+};
+
+struct wlr_serial_ringset {
+	struct wlr_serial_range data[WLR_SERIAL_RINGSET_SIZE];
+	int end;
+	int count;
+};
+
+/**
+ * Add a new serial number to the set. The number must be larger than
+ * all other values already added
+ */
+void wlr_serial_add(struct wlr_serial_ringset *set, uint32_t serial);
+
+/**
+ * Return false if the serial number is definitely not in the set, true
+ * otherwise.
+ */
+bool wlr_serial_maybe_valid(struct wlr_serial_ringset *set, uint32_t serial);
+
 /**
  * Contains state for a single client's bound wl_seat resource and can be used
  * to issue input events to that client. The lifetime of these objects is
@@ -35,6 +60,9 @@ struct wlr_seat_client {
 	struct {
 		struct wl_signal destroy;
 	} events;
+
+	// set of serials which were sent to the client on this seat
+	struct wlr_serial_ringset serials;
 };
 
 struct wlr_touch_point {
@@ -620,6 +648,13 @@ bool wlr_seat_validate_pointer_grab_serial(struct wlr_seat *seat,
 bool wlr_seat_validate_touch_grab_serial(struct wlr_seat *seat,
 	struct wlr_surface *origin, uint32_t serial,
 	struct wlr_touch_point **point_ptr);
+
+/**
+ * Return a new serial (from wl_display_serial_next()) for the client, and
+ * update the seat client's set of valid serials. Use this for all input
+ * events.
+ */
+uint32_t wlr_seat_client_next_serial(struct wlr_seat_client *client);
 
 /**
  * Get a seat client from a seat resource. Returns NULL if inert.

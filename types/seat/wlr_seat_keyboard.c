@@ -72,7 +72,7 @@ void wlr_seat_keyboard_send_key(struct wlr_seat *wlr_seat, uint32_t time,
 		return;
 	}
 
-	uint32_t serial = wl_display_next_serial(wlr_seat->display);
+	uint32_t serial = wlr_seat_client_next_serial(client);
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->keyboards) {
 		if (seat_client_from_keyboard_resource(resource) == NULL) {
@@ -201,7 +201,7 @@ void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
 		return;
 	}
 
-	uint32_t serial = wl_display_next_serial(seat->display);
+	uint32_t serial = wlr_seat_client_next_serial(client);
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->keyboards) {
 		if (seat_client_from_keyboard_resource(resource) == NULL) {
@@ -240,7 +240,7 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 
 	// leave the previously entered surface
 	if (focused_client != NULL && focused_surface != NULL) {
-		uint32_t serial = wl_display_next_serial(seat->display);
+		uint32_t serial = wlr_seat_client_next_serial(focused_client);
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &focused_client->keyboards) {
 			if (seat_client_from_keyboard_resource(resource) == NULL) {
@@ -263,7 +263,7 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 			}
 			*p = keycodes[i];
 		}
-		uint32_t serial = wl_display_next_serial(seat->display);
+		uint32_t serial = wlr_seat_client_next_serial(client);
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &client->keyboards) {
 			if (seat_client_from_keyboard_resource(resource) == NULL) {
