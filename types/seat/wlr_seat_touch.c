@@ -109,7 +109,10 @@ static void touch_point_handle_surface_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_touch_point *point =
 		wl_container_of(listener, point, surface_destroy);
-	touch_point_destroy(point);
+	// Touch point itself is destroyed on up event
+	point->surface = NULL;
+	wl_list_remove(&point->surface_destroy.link);
+	wl_list_init(&point->surface_destroy.link);
 }
 
 static struct wlr_touch_point *touch_point_create(
