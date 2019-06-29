@@ -21,24 +21,11 @@ struct wlr_serial_range {
 	uint32_t min_incl;
 	uint32_t max_incl;
 };
-
 struct wlr_serial_ringset {
 	struct wlr_serial_range data[WLR_SERIAL_RINGSET_SIZE];
 	int end;
 	int count;
 };
-
-/**
- * Add a new serial number to the set. The number must be larger than
- * all other values already added
- */
-void wlr_serial_add(struct wlr_serial_ringset *set, uint32_t serial);
-
-/**
- * Return false if the serial number is definitely not in the set, true
- * otherwise.
- */
-bool wlr_serial_maybe_valid(struct wlr_serial_ringset *set, uint32_t serial);
 
 /**
  * Contains state for a single client's bound wl_seat resource and can be used
@@ -62,6 +49,7 @@ struct wlr_seat_client {
 	} events;
 
 	// set of serials which were sent to the client on this seat
+	// for use by wlr_seat_client_{next_serial,validate_event_serial}
 	struct wlr_serial_ringset serials;
 };
 
@@ -652,9 +640,23 @@ bool wlr_seat_validate_touch_grab_serial(struct wlr_seat *seat,
 /**
  * Return a new serial (from wl_display_serial_next()) for the client, and
  * update the seat client's set of valid serials. Use this for all input
- * events.
+ * events; otherwise wlr_seat_client_validate_event_serial() may fail when
+ * handed a correctly functioning client's request serials.
  */
 uint32_t wlr_seat_client_next_serial(struct wlr_seat_client *client);
+
+/**
+ * Return true if the serial number could have been produced by
+ * wlr_seat_client_next_serial() and is "older" (by less than UINT32_MAX/2) than
+ * the current display serial value.
+ *
+ * This function should have no false negatives, and the only false positive
+ * responses allowed are for elements that are still "older" than the current
+ * display serial value and also older than all serial values remaining in
+ * the seat client's serial ring buffer, if that buffer is also full.
+ */
+bool wlr_seat_client_validate_event_serial(struct wlr_seat_client *client,
+	uint32_t serial);
 
 /**
  * Get a seat client from a seat resource. Returns NULL if inert.

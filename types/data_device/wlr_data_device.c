@@ -144,7 +144,7 @@ void seat_client_send_selection(struct wlr_seat_client *seat_client) {
 void wlr_seat_request_set_selection(struct wlr_seat *seat,
 		struct wlr_seat_client *client,
 		struct wlr_data_source *source, uint32_t serial) {
-	if (client && !wlr_serial_maybe_valid(&client->serials, serial)) {
+	if (client && !wlr_seat_client_validate_event_serial(client, serial)) {
 		wlr_log(WLR_DEBUG, "Rejecting set_selection request, "
 			"serial %"PRIu32" was never given to client", serial);
 		return;
