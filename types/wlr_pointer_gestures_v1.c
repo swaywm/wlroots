@@ -53,8 +53,8 @@ void wlr_pointer_gestures_v1_send_swipe_begin(
 	}
 
 	struct wl_client *focus_client = wl_resource_get_client(focus->resource);
-	uint32_t serial = wl_display_next_serial(
-			wl_client_get_display(focus_client));
+	uint32_t serial = wlr_seat_client_next_serial(
+		seat->pointer_state.focused_client);
 
 	struct wl_resource *gesture;
 	wl_resource_for_each(gesture, &gestures->swipes) {
@@ -104,8 +104,8 @@ void wlr_pointer_gestures_v1_send_swipe_end(
 	}
 
 	struct wl_client *focus_client = wl_resource_get_client(focus->resource);
-	uint32_t serial = wl_display_next_serial(
-			wl_client_get_display(focus_client));
+	uint32_t serial = wlr_seat_client_next_serial(
+		seat->pointer_state.focused_client);
 
 	struct wl_resource *gesture;
 	wl_resource_for_each(gesture, &gestures->swipes) {
@@ -165,8 +165,8 @@ void wlr_pointer_gestures_v1_send_pinch_begin(
 	}
 
 	struct wl_client *focus_client = wl_resource_get_client(focus->resource);
-	uint32_t serial = wl_display_next_serial(
-			wl_client_get_display(focus_client));
+	uint32_t serial = wlr_seat_client_next_serial(
+		seat->pointer_state.focused_client);
 
 	struct wl_resource *gesture;
 	wl_resource_for_each(gesture, &gestures->pinches) {
@@ -220,8 +220,8 @@ void wlr_pointer_gestures_v1_send_pinch_end(
 	}
 
 	struct wl_client *focus_client = wl_resource_get_client(focus->resource);
-	uint32_t serial = wl_display_next_serial(
-			wl_client_get_display(focus_client));
+	uint32_t serial = wlr_seat_client_next_serial(
+		seat->pointer_state.focused_client);
 
 	struct wl_resource *gesture;
 	wl_resource_for_each(gesture, &gestures->pinches) {
