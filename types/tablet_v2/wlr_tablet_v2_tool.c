@@ -350,7 +350,7 @@ void wlr_send_tablet_v2_tablet_tool_proximity_in(
 
 	tool->current_client = tool_client;
 
-	uint32_t serial = wl_display_next_serial(wl_client_get_display(client));
+	uint32_t serial = wlr_seat_client_next_serial(tool_client->seat->seat_client);
 	tool->focused_surface = surface;
 	tool->proximity_serial = serial;
 
@@ -466,9 +466,8 @@ void wlr_send_tablet_v2_tablet_tool_button(
 	ssize_t index = tablet_tool_button_update(tool, button, state);
 
 	if (tool->current_client) {
-		struct wl_client *client =
-			wl_resource_get_client(tool->current_client->resource);
-		uint32_t serial = wl_display_next_serial(wl_client_get_display(client));
+		uint32_t serial = wlr_seat_client_next_serial(
+			tool->current_client->seat->seat_client);
 		if (index >= 0) {
 			tool->pressed_serials[index] = serial;
 		}
@@ -496,9 +495,8 @@ void wlr_send_tablet_v2_tablet_tool_down(struct wlr_tablet_v2_tablet_tool *tool)
 
 	tool->is_down = true;
 	if (tool->current_client) {
-		struct wl_client *client =
-			wl_resource_get_client(tool->current_client->resource);
-		uint32_t serial = wl_display_next_serial(wl_client_get_display(client));
+		uint32_t serial = wlr_seat_client_next_serial(
+			tool->current_client->seat->seat_client);
 
 		zwp_tablet_tool_v2_send_down(tool->current_client->resource,
 			serial);

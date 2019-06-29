@@ -48,6 +48,7 @@ struct wlr_tablet_pad_client_v2 {
 	struct wl_client *client;
 	struct wl_resource *resource;
 	struct wlr_tablet_v2_tablet_pad *pad;
+	struct wlr_tablet_seat_client_v2 *seat;
 
 	size_t button_count;
 

@@ -276,6 +276,7 @@ void add_tablet_pad_client(struct wlr_tablet_seat_client_v2 *seat,
 		return;
 	}
 	client->pad = pad;
+	client->seat = seat;
 
 	client->groups = calloc(wl_list_length(&pad->wlr_pad->groups), sizeof(struct wl_resource*));
 	if (!client->groups) {
@@ -450,7 +451,8 @@ uint32_t wlr_send_tablet_v2_tablet_pad_enter(
 
 	pad->current_client = pad_client;
 
-	uint32_t serial = wl_display_next_serial(wl_client_get_display(client));
+	uint32_t serial = wlr_seat_client_next_serial(
+		pad_client->seat->seat_client);
 
 	zwp_tablet_pad_v2_send_enter(pad_client->resource, serial,
 		tablet_client->resource, surface->resource);
@@ -526,7 +528,9 @@ uint32_t wlr_send_tablet_v2_tablet_pad_leave(struct wlr_tablet_v2_tablet_pad *pa
 		return 0;
 	}
 
-	uint32_t serial = wl_display_next_serial(wl_client_get_display(client));
+
+	uint32_t serial = wlr_seat_client_next_serial(
+		pad->current_client->seat->seat_client);
 
 	zwp_tablet_pad_v2_send_leave(pad->current_client->resource, serial, surface->resource);
 	return serial;
@@ -546,8 +550,8 @@ uint32_t wlr_send_tablet_v2_tablet_pad_mode(struct wlr_tablet_v2_tablet_pad *pad
 
 	pad->groups[group] = mode;
 
-	struct wl_client *client = wl_resource_get_client(pad->current_client->resource);
-	uint32_t serial = wl_display_next_serial(wl_client_get_display(client));
+	uint32_t serial = wlr_seat_client_next_serial(
+		pad->current_client->seat->seat_client);
 
 	zwp_tablet_pad_group_v2_send_mode_switch(
 		pad->current_client->groups[group], time, serial, mode);
