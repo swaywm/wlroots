@@ -142,6 +142,9 @@ static void seat_handle_bind(struct wl_client *client, void *_wlr_seat,
 		wl_signal_init(&seat_client->events.destroy);
 
 		wl_list_insert(&wlr_seat->clients, &seat_client->link);
+
+		// ensure first entry will have index zero
+		seat_client->serials.end = WLR_SERIAL_RINGSET_SIZE - 1;
 	}
 
 	wl_resource_set_implementation(wl_resource, &seat_impl,
@@ -371,11 +374,13 @@ bool wlr_seat_validate_grab_serial(struct wlr_seat *seat, uint32_t serial) {
 	return true;
 }
 
-void wlr_serial_add(struct wlr_serial_ringset *set, uint32_t serial) {
+uint32_t wlr_seat_client_next_serial(struct wlr_seat_client *client) {
+	uint32_t serial = wl_display_next_serial(wl_client_get_display(client->client));
+	struct wlr_serial_ringset *set = &client->serials;
+
 	if (set->count == 0 || set->data[set->end].max_incl + 1 != serial) {
-		set->count++;
-		if (set->count > WLR_SERIAL_RINGSET_SIZE) {
-			set->count = WLR_SERIAL_RINGSET_SIZE;
+		if (set->count < WLR_SERIAL_RINGSET_SIZE) {
+			set->count++;
 		}
 		set->end = (set->end + 1) % WLR_SERIAL_RINGSET_SIZE;
 		set->data[set->end].min_incl = serial;
@@ -383,23 +388,32 @@ void wlr_serial_add(struct wlr_serial_ringset *set, uint32_t serial) {
 	} else {
 		set->data[set->end].max_incl = serial;
 	}
+
+	return serial;
 }
 
-bool wlr_serial_maybe_valid(struct wlr_serial_ringset *set, uint32_t serial) {
+bool wlr_seat_client_validate_event_serial(struct wlr_seat_client *client, uint32_t serial) {
+	uint32_t cur = wl_display_get_serial(wl_client_get_display(client->client));
+	struct wlr_serial_ringset *set = &client->serials;
+	uint32_t rev_dist = cur - serial;
+
+	if (rev_dist >= UINT32_MAX / 2) {
+		// serial is closer to being 'newer' instead of 'older' than
+		// the current serial, so it's either invalid or incredibly old
+		return false;
+	}
+
 	for (int i = 0; i < set->count; i++) {
 		int j = (set->end - i + WLR_SERIAL_RINGSET_SIZE) % WLR_SERIAL_RINGSET_SIZE;
-		if (set->data[j].max_incl - serial > UINT32_MAX / 2) {
+		if (rev_dist < cur - set->data[j].max_incl) {
 			return false;
 		}
-		if (serial - set->data[j].min_incl <= UINT32_MAX / 2) {
+		if (rev_dist <= cur - set->data[j].min_incl) {
 			return true;
 		}
 	}
-	return true;
-}
 
-uint32_t wlr_seat_client_next_serial(struct wlr_seat_client *client) {
-	uint32_t serial = wl_display_next_serial(wl_client_get_display(client->client));
-	wlr_serial_add(&client->serials, serial);
-	return serial;
+	// Iff the set is full, then `rev_dist` is large enough that serial
+	// could already have been recycled out of the set.
+	return set->count == WLR_SERIAL_RINGSET_SIZE;
 }

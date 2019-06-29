@@ -44,7 +44,7 @@ void wlr_primary_selection_source_send(
 void wlr_seat_request_set_primary_selection(struct wlr_seat *seat,
 		struct wlr_seat_client *client,
 		struct wlr_primary_selection_source *source, uint32_t serial) {
-	if (client && !wlr_serial_maybe_valid(&client->serials, serial)) {
+	if (client && !wlr_seat_client_validate_event_serial(client, serial)) {
 		wlr_log(WLR_DEBUG, "Rejecting set_primary_selection request, "
 			"serial %"PRIu32" was never given to client", serial);
 		return;
