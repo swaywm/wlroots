@@ -143,10 +143,19 @@ void seat_client_send_selection(struct wlr_seat_client *seat_client) {
 
 void wlr_seat_request_set_selection(struct wlr_seat *seat,
 		struct wlr_data_source *source, uint32_t serial) {
+	uint32_t current_serial = wl_display_get_serial(seat->display);
+	if (current_serial - serial > UINT32_MAX / 2) {
+		wlr_log(WLR_DEBUG, "Rejecting set_selection request, "
+			"serial > current (%"PRIu32" > %"PRIu32")", serial,
+			current_serial);
+		return;
+	}
+
 	if (seat->selection_source &&
-			seat->selection_serial - serial < UINT32_MAX / 2) {
-		wlr_log(WLR_DEBUG, "Rejecting set_selection request, invalid serial "
-			"(%"PRIu32" <= %"PRIu32")", serial, seat->selection_serial);
+			serial - seat->selection_serial > UINT32_MAX / 2) {
+		wlr_log(WLR_DEBUG, "Rejecting set_selection request, "
+			"superseded (%"PRIu32" < %"PRIu32")", serial,
+			seat->selection_serial);
 		return;
 	}
 

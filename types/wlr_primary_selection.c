@@ -43,11 +43,19 @@ void wlr_primary_selection_source_send(
 
 void wlr_seat_request_set_primary_selection(struct wlr_seat *seat,
 		struct wlr_primary_selection_source *source, uint32_t serial) {
+	uint32_t current_serial = wl_display_get_serial(seat->display);
+	if (current_serial - serial > UINT32_MAX / 2) {
+		wlr_log(WLR_DEBUG, "Rejecting set_selection request, "
+			"serial > current (%"PRIu32" > %"PRIu32")", serial,
+			current_serial);
+		return;
+	}
+
 	if (seat->primary_selection_source &&
-			seat->primary_selection_serial - serial < UINT32_MAX / 2) {
+			serial - seat->primary_selection_serial > UINT32_MAX / 2) {
 		wlr_log(WLR_DEBUG, "Rejecting set_primary_selection request, "
-			"invalid serial (%"PRIu32" <= %"PRIu32")",
-			serial, seat->primary_selection_serial);
+			"superseded (%"PRIu32" < %"PRIu32")", serial,
+			seat->primary_selection_serial);
 		return;
 	}
 
