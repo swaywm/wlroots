@@ -142,9 +142,6 @@ static void seat_handle_bind(struct wl_client *client, void *_wlr_seat,
 		wl_signal_init(&seat_client->events.destroy);
 
 		wl_list_insert(&wlr_seat->clients, &seat_client->link);
-
-		// ensure first entry will have index zero
-		seat_client->serials.end = WLR_SERIAL_RINGSET_SIZE - 1;
 	}
 
 	wl_resource_set_implementation(wl_resource, &seat_impl,
@@ -378,7 +375,12 @@ uint32_t wlr_seat_client_next_serial(struct wlr_seat_client *client) {
 	uint32_t serial = wl_display_next_serial(wl_client_get_display(client->client));
 	struct wlr_serial_ringset *set = &client->serials;
 
-	if (set->count == 0 || set->data[set->end].max_incl + 1 != serial) {
+	if (set->count == 0) {
+		set->data[0].min_incl = serial;
+		set->data[0].max_incl = serial;
+		set->count = 1;
+		set->end = 0;
+	} else if (set->data[set->end].max_incl + 1 != serial) {
 		if (set->count < WLR_SERIAL_RINGSET_SIZE) {
 			set->count++;
 		}
