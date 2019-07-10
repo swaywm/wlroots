@@ -1326,6 +1326,7 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	if (view != NULL) {
 		wl_list_remove(&view->link);
 		wl_list_insert(&seat->input->server->desktop->views, &view->link);
+		view_damage_whole(view);
 	}
 
 	bool unfullscreen = true;
@@ -1396,8 +1397,6 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 
 	wl_list_remove(&seat_view->link);
 	wl_list_insert(&seat->views, &seat_view->link);
-
-	view_damage_whole(view);
 
 	if (seat->focused_layer) {
 		return;
