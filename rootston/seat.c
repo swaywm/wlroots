@@ -1441,7 +1441,15 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 void roots_seat_set_focus_layer(struct roots_seat *seat,
 		struct wlr_layer_surface_v1 *layer) {
 	if (!layer) {
-		seat->focused_layer = NULL;
+		if (seat->focused_layer) {
+			seat->focused_layer = NULL;
+			if (!wl_list_empty(&seat->views)) {
+				// Focus first view
+				struct roots_seat_view *first_seat_view = wl_container_of(
+					seat->views.next, first_seat_view, link);
+				roots_seat_set_focus(seat, first_seat_view->view);
+			}
+		}
 		return;
 	}
 	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat->seat);
