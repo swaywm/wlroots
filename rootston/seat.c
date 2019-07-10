@@ -1230,8 +1230,9 @@ struct roots_view *roots_seat_get_focus(struct roots_seat *seat) {
 
 static void seat_view_destroy(struct roots_seat_view *seat_view) {
 	struct roots_seat *seat = seat_view->seat;
+	struct roots_view *view = seat_view->view;
 
-	if (seat_view->view == roots_seat_get_focus(seat)) {
+	if (view == roots_seat_get_focus(seat)) {
 		seat->has_focus = false;
 		seat->cursor->mode = ROOTS_CURSOR_PASSTHROUGH;
 	}
@@ -1245,8 +1246,10 @@ static void seat_view_destroy(struct roots_seat_view *seat_view) {
 	wl_list_remove(&seat_view->link);
 	free(seat_view);
 
-	// Focus first view
-	if (!wl_list_empty(&seat->views)) {
+	if (view && view->parent) {
+		roots_seat_set_focus(seat, view->parent);
+	} else if (!wl_list_empty(&seat->views)) {
+		// Focus first view
 		struct roots_seat_view *first_seat_view = wl_container_of(
 			seat->views.next, first_seat_view, link);
 		roots_seat_set_focus(seat, first_seat_view->view);
@@ -1316,6 +1319,21 @@ bool roots_seat_allow_input(struct roots_seat *seat,
 			wl_resource_get_client(resource) == seat->exclusive_client;
 }
 
+static void seat_raise_view_stack(struct roots_seat *seat, struct roots_view *view) {
+	if (!view->wlr_surface) {
+		return;
+	}
+
+	wl_list_remove(&view->link);
+	wl_list_insert(&seat->input->server->desktop->views, &view->link);
+	view_damage_whole(view);
+
+	struct roots_view *child;
+	wl_list_for_each_reverse(child, &view->stack, parent_link) {
+		seat_raise_view_stack(seat, child);
+	}
+}
+
 void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	if (view && !roots_seat_allow_input(seat, view->wlr_surface->resource)) {
 		return;
@@ -1324,9 +1342,14 @@ void roots_seat_set_focus(struct roots_seat *seat, struct roots_view *view) {
 	// Make sure the view will be rendered on top of others, even if it's
 	// already focused in this seat
 	if (view != NULL) {
-		wl_list_remove(&view->link);
-		wl_list_insert(&seat->input->server->desktop->views, &view->link);
-		view_damage_whole(view);
+		struct roots_view *parent = view;
+		// reorder stack
+		while (parent->parent) {
+			wl_list_remove(&parent->parent_link);
+			wl_list_insert(&parent->parent->stack, &parent->parent_link);
+			parent = parent->parent;
+		}
+		seat_raise_view_stack(seat, parent);
 	}
 
 	bool unfullscreen = true;

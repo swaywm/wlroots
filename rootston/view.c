@@ -17,12 +17,27 @@ void view_init(struct roots_view *view, const struct roots_view_interface *impl,
 	view->alpha = 1.0f;
 	wl_signal_init(&view->events.unmap);
 	wl_signal_init(&view->events.destroy);
-	wl_list_init(&view->children);
+	wl_list_init(&view->child_surfaces);
+	wl_list_init(&view->stack);
 }
 
 void view_destroy(struct roots_view *view) {
 	if (view == NULL) {
 		return;
+	}
+
+	if (view->parent) {
+		wl_list_remove(&view->parent_link);
+		wl_list_init(&view->parent_link);
+	}
+	struct roots_view *child, *tmp;
+	wl_list_for_each_safe(child, tmp, &view->stack, parent_link) {
+		wl_list_remove(&child->parent_link);
+		wl_list_init(&child->parent_link);
+		child->parent = view->parent;
+		if (child->parent) {
+			wl_list_insert(&child->parent->stack, &child->parent_link);
+		}
 	}
 
 	wl_signal_emit(&view->events.destroy, view);
@@ -411,7 +426,7 @@ void view_child_init(struct roots_view_child *child,
 	wl_signal_add(&wlr_surface->events.commit, &child->commit);
 	child->new_subsurface.notify = view_child_handle_new_subsurface;
 	wl_signal_add(&wlr_surface->events.new_subsurface, &child->new_subsurface);
-	wl_list_insert(&view->children, &child->link);
+	wl_list_insert(&view->child_surfaces, &child->link);
 }
 
 static const struct roots_view_child_interface subsurface_impl;
@@ -511,7 +526,7 @@ void view_unmap(struct roots_view *view) {
 	wl_list_remove(&view->new_subsurface.link);
 
 	struct roots_view_child *child, *tmp;
-	wl_list_for_each_safe(child, tmp, &view->children, link) {
+	wl_list_for_each_safe(child, tmp, &view->child_surfaces, link) {
 		view_child_destroy(child);
 	}
 
@@ -615,6 +630,27 @@ void view_update_decorated(struct roots_view *view, bool decorated) {
 void view_set_title(struct roots_view *view, const char *title) {
 	if (view->toplevel_handle) {
 		wlr_foreign_toplevel_handle_v1_set_title(view->toplevel_handle, title);
+	}
+}
+
+void view_set_parent(struct roots_view *view, struct roots_view *parent) {
+	// setting a new parent may cause a cycle
+	struct roots_view *node = parent;
+	while (node) {
+		if (node == view) {
+			return;
+		}
+		node = node->parent;
+	}
+
+	if (view->parent) {
+		wl_list_remove(&view->parent_link);
+		wl_list_init(&view->parent_link);
+	}
+
+	view->parent = parent;
+	if (parent) {
+		wl_list_insert(&parent->stack, &view->parent_link);
 	}
 }
 
