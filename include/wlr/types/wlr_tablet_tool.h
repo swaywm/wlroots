@@ -70,7 +70,7 @@ struct wlr_tablet {
 		struct wl_signal button;
 	} events;
 
-	const char *name;
+	char *name;
 	struct wlr_list paths; // char *
 
 	void *data;

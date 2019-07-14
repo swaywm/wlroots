@@ -98,4 +98,8 @@ struct wlr_wl_input_device *create_wl_input_device(
 
 extern const struct wl_seat_listener seat_listener;
 
+struct wlr_wl_tablet_seat *wl_add_tablet_seat(
+		struct zwp_tablet_manager_v2 *manager,
+		struct wl_seat *seat, struct wlr_wl_backend *backend);
+
 #endif
