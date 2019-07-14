@@ -86,6 +86,8 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		.y = wl_fixed_to_double(sy) / wlr_output->height,
 	};
 	wlr_signal_emit_safe(&pointer->wlr_pointer.events.motion_absolute, &event);
+	wlr_signal_emit_safe(&pointer->wlr_pointer.events.frame,
+		&pointer->wlr_pointer);
 }
 
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
@@ -103,6 +105,8 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		.time_msec = time,
 	};
 	wlr_signal_emit_safe(&pointer->wlr_pointer.events.button, &event);
+	wlr_signal_emit_safe(&pointer->wlr_pointer.events.frame,
+		&pointer->wlr_pointer);
 }
 
 static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
@@ -122,6 +126,8 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 		.source = pointer->axis_source,
 	};
 	wlr_signal_emit_safe(&pointer->wlr_pointer.events.axis, &event);
+	wlr_signal_emit_safe(&pointer->wlr_pointer.events.frame,
+		&pointer->wlr_pointer);
 
 	pointer->axis_discrete = 0;
 }
@@ -165,6 +171,8 @@ static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,
 		.source = pointer->axis_source,
 	};
 	wlr_signal_emit_safe(&pointer->wlr_pointer.events.axis, &event);
+	wlr_signal_emit_safe(&pointer->wlr_pointer.events.frame,
+		&pointer->wlr_pointer);
 }
 
 static void pointer_handle_axis_discrete(void *data,
