@@ -21,10 +21,6 @@
 #include "xdg-shell-client-protocol.h"
 #include "tablet-unstable-v2-client-protocol.h"
 
-struct wlr_wl_tablet_seat *wlr_wl_add_tablet_seat(
-		struct zwp_tablet_manager_v2 *manager,
-		struct wl_seat *seat, struct wlr_wl_backend *backend);
-
 struct wlr_wl_backend *get_wl_backend_from_backend(struct wlr_backend *backend) {
 	assert(wlr_backend_is_wl(backend));
 	return (struct wlr_wl_backend *)backend;
@@ -118,7 +114,7 @@ static bool backend_start(struct wlr_backend *backend) {
 	}
 
 	if (wl->tablet_manager && wl->seat) {
-		wlr_wl_add_tablet_seat(wl->tablet_manager,
+		wl_add_tablet_seat(wl->tablet_manager,
 			wl->seat, wl);
 	}
 

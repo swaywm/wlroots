@@ -16,13 +16,10 @@
 #include "wlr/util/log.h"
 #include "tablet-unstable-v2-client-protocol.h"
 
-#include <backend/wayland.h>
+#include "backend/wayland.h"
 
 struct wlr_wl_tablet_seat {
 	struct zwp_tablet_seat_v2 *tablet_seat;
-	struct wl_list tablets;
-	struct wl_list tools;
-//	struct wl_list pads; // wlr_wl_tablet_pad::link
 };
 
 struct wlr_wl_tablet_tool {
@@ -91,10 +88,6 @@ static uint32_t get_current_time_msec(void) {
 	clock_gettime(CLOCK_MONOTONIC, &now);
 	return now.tv_nsec / (1000 * 1000) + now.tv_sec * 1000;
 }
-
-struct wlr_wl_tablet_seat *wlr_wl_add_tablet_seat(
-		struct zwp_tablet_manager_v2 *manager,
-		struct wl_seat *seat, struct wlr_wl_backend *backend);
 
 static void handle_tablet_pad_ring_source(void *data,
 		struct zwp_tablet_pad_ring_v2 *zwp_tablet_pad_ring_v2,
@@ -207,6 +200,7 @@ static void handle_tablet_pad_group_buttons(void *data,
 		struct wl_array *buttons) {
 	struct wlr_wl_tablet_pad_group *group = data;
 
+	free(group->group.buttons);
 	group->group.buttons = calloc(1, buttons->size);
 	if (!group->group.buttons) {
 		// FIXME: Add actual error handling
@@ -470,9 +464,10 @@ static void handle_tablet_tool_done(void *data,
 		struct zwp_tablet_tool_v2 *id) {
 	/* empty */
 }
+
 static enum wlr_tablet_tool_type tablet_type_to_wlr_type(enum zwp_tablet_tool_v2_type type) {
 
-	switch(type) {
+	switch (type) {
 	case ZWP_TABLET_TOOL_V2_TYPE_PEN:
 		return WLR_TABLET_TOOL_TYPE_PEN;
 	case ZWP_TABLET_TOOL_V2_TYPE_ERASER:
@@ -527,7 +522,7 @@ static void handle_tablet_tool_capability(void *data,
 
 	enum zwp_tablet_tool_v2_capability cap = capability;
 	
-	switch(cap) {
+	switch (cap) {
 	case ZWP_TABLET_TOOL_V2_CAPABILITY_TILT:
 		tool->wlr_tool.tilt = true;
 		break;
@@ -841,6 +836,8 @@ static void handle_tablet_name(void *data, struct zwp_tablet_v2 *zwp_tablet_v2,
 		const char *name) {
 	struct wlr_wl_input_device *dev = data;
 	struct wlr_tablet *tablet = dev->wlr_input_device.tablet;
+
+	free(tablet->name);
 	tablet->name = strdup(name);
 }
 
@@ -894,12 +891,13 @@ static void handle_tab_added(void *data,
 	struct wlr_wl_backend *backend = data;
 	struct wlr_wl_input_device *dev = create_wl_input_device(
 		backend, WLR_INPUT_DEVICE_TABLET_TOOL);
-	dev->resource = id;
 
 	if (!dev) {
 		zwp_tablet_v2_destroy(id);
 		return;
 	}
+	dev->resource = id;
+
 	struct wlr_input_device *wlr_dev = &dev->wlr_input_device;
 	wlr_dev->tablet = calloc(1, sizeof(*wlr_dev->tablet));
 
@@ -918,7 +916,7 @@ static const struct zwp_tablet_seat_v2_listener tablet_seat_listener = {
 	.pad_added = handle_pad_added,
 };
 
-struct wlr_wl_tablet_seat *wlr_wl_add_tablet_seat(
+struct wlr_wl_tablet_seat *wl_add_tablet_seat(
 		struct zwp_tablet_manager_v2 *manager,
 		struct wl_seat *seat, struct wlr_wl_backend *backend) {
 	struct wlr_wl_tablet_seat *ret =
@@ -932,10 +930,6 @@ struct wlr_wl_tablet_seat *wlr_wl_add_tablet_seat(
 
 	zwp_tablet_seat_v2_add_listener(ret->tablet_seat,
 		&tablet_seat_listener, backend);
-
-	wl_list_init(&ret->tablets);
-	wl_list_init(&ret->tools);
-	//wl_list_init(&ret->pads);
 
 	return ret;
 }
