@@ -16,7 +16,7 @@ struct wlr_touch_impl {
 };
 
 void wlr_touch_init(struct wlr_touch *touch,
-		struct wlr_touch_impl *impl);
+		const struct wlr_touch_impl *impl);
 void wlr_touch_destroy(struct wlr_touch *touch);
 
 #endif

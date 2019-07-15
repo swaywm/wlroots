@@ -15,7 +15,7 @@
 struct wlr_touch_impl;
 
 struct wlr_touch {
-	struct wlr_touch_impl *impl;
+	const struct wlr_touch_impl *impl;
 
 	struct {
 		struct wl_signal down;
