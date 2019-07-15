@@ -31,10 +31,20 @@ struct wlr_x11_output {
 	struct wlr_pointer pointer;
 	struct wlr_input_device pointer_dev;
 
+	struct wlr_touch touch;
+	struct wlr_input_device touch_dev;
+	struct wl_list touchpoints; // wlr_x11_touchpoint::link
+
 	struct wl_event_source *frame_timer;
 	int frame_delay;
 
 	bool cursor_hidden;
+};
+
+struct wlr_x11_touchpoint {
+	uint32_t x11_id;
+	int wayland_id;
+	struct wl_list link; // wlr_x11_output::touch_points
 };
 
 struct wlr_x11_backend {
@@ -79,6 +89,7 @@ struct wlr_x11_output *get_x11_output_from_window_id(
 
 extern const struct wlr_keyboard_impl keyboard_impl;
 extern const struct wlr_pointer_impl pointer_impl;
+extern const struct wlr_touch_impl touch_impl;
 extern const struct wlr_input_device_impl input_device_impl;
 
 void handle_x11_xinput_event(struct wlr_x11_backend *x11,

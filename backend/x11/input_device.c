@@ -11,6 +11,7 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_pointer.h>
+#include <wlr/interfaces/wlr_touch.h>
 #include <wlr/util/log.h>
 
 #include "backend/x11.h"
@@ -64,6 +65,51 @@ static void send_pointer_position_event(struct wlr_x11_output *output,
 	};
 	wlr_signal_emit_safe(&output->pointer.events.motion_absolute, &ev);
 	wlr_signal_emit_safe(&output->pointer.events.frame, &output->pointer);
+}
+
+static void send_touch_down_event(struct wlr_x11_output *output,
+		int16_t x, int16_t y, int32_t touch_id, xcb_timestamp_t time) {
+	struct wlr_event_touch_down ev = {
+		.device = &output->touch_dev,
+		.time_msec = time,
+		.x = (double)x / output->wlr_output.width,
+		.y = (double)y / output->wlr_output.height,
+		.touch_id = touch_id,
+	};
+	wlr_signal_emit_safe(&output->touch.events.down, &ev);
+}
+
+static void send_touch_motion_event(struct wlr_x11_output *output,
+		int16_t x, int16_t y, int32_t touch_id, xcb_timestamp_t time) {
+	struct wlr_event_touch_motion ev = {
+		.device = &output->touch_dev,
+		.time_msec = time,
+		.x = (double)x / output->wlr_output.width,
+		.y = (double)y / output->wlr_output.height,
+		.touch_id = touch_id,
+	};
+	wlr_signal_emit_safe(&output->touch.events.motion, &ev);
+}
+
+static void send_touch_up_event(struct wlr_x11_output *output,
+		int32_t touch_id, xcb_timestamp_t time) {
+	struct wlr_event_touch_up ev = {
+		.device = &output->touch_dev,
+		.time_msec = time,
+		.touch_id = touch_id,
+	};
+	wlr_signal_emit_safe(&output->touch.events.up, &ev);
+}
+
+static struct wlr_x11_touchpoint* get_touchpoint_from_x11_touch_id(struct wlr_x11_output *output,
+		uint32_t id) {
+	struct wlr_x11_touchpoint *touchpoint;
+	wl_list_for_each(touchpoint, &output->touchpoints, link) {
+		if (touchpoint->x11_id == id) {
+			return touchpoint;
+		}
+	}
+	return NULL;
 }
 
 void handle_x11_xinput_event(struct wlr_x11_backend *x11,
@@ -194,6 +240,70 @@ void handle_x11_xinput_event(struct wlr_x11_backend *x11,
 		}
 		break;
 	}
+	case XCB_INPUT_TOUCH_BEGIN: {
+		xcb_input_touch_begin_event_t *ev = (xcb_input_touch_begin_event_t *)event;
+
+		output = get_x11_output_from_window_id(x11, ev->event);
+		if (!output) {
+			return;
+		}
+
+		int32_t id = 0;
+		if (!wl_list_empty(&output->touchpoints)) {
+			struct wlr_x11_touchpoint *last_touchpoint = wl_container_of(
+				output->touchpoints.next, last_touchpoint, link);
+			id = last_touchpoint->wayland_id + 1;
+		}
+
+		struct wlr_x11_touchpoint *touchpoint = calloc(1, sizeof(struct wlr_x11_touchpoint));
+		touchpoint->x11_id = ev->detail;
+		touchpoint->wayland_id = id;
+		wl_list_init(&touchpoint->link);
+		wl_list_insert(&output->touchpoints, &touchpoint->link);
+
+		send_touch_down_event(output, ev->event_x >> 16,
+			ev->event_y >> 16, touchpoint->wayland_id, ev->time);
+		x11->time = ev->time;
+		break;
+	}
+	case XCB_INPUT_TOUCH_END: {
+		xcb_input_touch_end_event_t *ev = (xcb_input_touch_end_event_t *)event;
+
+		output = get_x11_output_from_window_id(x11, ev->event);
+		if (!output) {
+			return;
+		}
+
+		struct wlr_x11_touchpoint *touchpoint = get_touchpoint_from_x11_touch_id(output, ev->detail);
+		if (!touchpoint) {
+			return;
+		}
+
+		send_touch_up_event(output, touchpoint->wayland_id, ev->time);
+		x11->time = ev->time;
+
+		wl_list_remove(&touchpoint->link);
+		free(touchpoint);
+		break;
+	}
+	case XCB_INPUT_TOUCH_UPDATE: {
+		xcb_input_touch_update_event_t *ev = (xcb_input_touch_update_event_t *)event;
+
+		output = get_x11_output_from_window_id(x11, ev->event);
+		if (!output) {
+			return;
+		}
+
+		struct wlr_x11_touchpoint *touchpoint = get_touchpoint_from_x11_touch_id(output, ev->detail);
+		if (!touchpoint) {
+			return;
+		}
+
+		send_touch_motion_event(output, ev->event_x >> 16,
+			ev->event_y >> 16, touchpoint->wayland_id, ev->time);
+		x11->time = ev->time;
+		break;
+	}
 	}
 }
 
@@ -219,6 +329,14 @@ static void pointer_destroy(struct wlr_pointer *wlr_pointer) {
 
 const struct wlr_pointer_impl pointer_impl = {
 	.destroy = pointer_destroy,
+};
+
+static void touch_destroy(struct wlr_touch *wlr_touch) {
+	// Don't free the touch, it's on the stack
+}
+
+const struct wlr_touch_impl touch_impl = {
+	.destroy = touch_destroy,
 };
 
 void update_x11_pointer_position(struct wlr_x11_output *output,
