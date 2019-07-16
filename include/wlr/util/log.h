@@ -50,13 +50,19 @@ enum wlr_log_importance wlr_log_get_verbosity(void);
 
 void _wlr_log(enum wlr_log_importance verbosity, const char *format, ...) _WLR_ATTRIB_PRINTF(2, 3);
 void _wlr_vlog(enum wlr_log_importance verbosity, const char *format, va_list args) _WLR_ATTRIB_PRINTF(2, 0);
-const char *_wlr_strip_path(const char *filepath);
+
+#ifdef WLR_REL_SRC_DIR
+// strip prefix from __FILE__, leaving the path relative to the project root
+#define _WLR_FILENAME ((const char *)__FILE__ + sizeof(WLR_REL_SRC_DIR) - 1)
+#else
+#define _WLR_FILENAME __FILE__
+#endif
 
 #define wlr_log(verb, fmt, ...) \
-	_wlr_log(verb, "[%s:%d] " fmt, _wlr_strip_path(__FILE__), __LINE__, ##__VA_ARGS__)
+	_wlr_log(verb, "[%s:%d] " fmt, _WLR_FILENAME, __LINE__, ##__VA_ARGS__)
 
 #define wlr_vlog(verb, fmt, args) \
-	_wlr_vlog(verb, "[%s:%d] " fmt, _wlr_strip_path(__FILE__), __LINE__, args)
+	_wlr_vlog(verb, "[%s:%d] " fmt, _WLR_FILENAME, __LINE__, args)
 
 #define wlr_log_errno(verb, fmt, ...) \
 	wlr_log(verb, fmt ": %s", ##__VA_ARGS__, strerror(errno))
