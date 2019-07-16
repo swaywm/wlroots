@@ -168,10 +168,6 @@ static void layer_surface_unmap(struct wlr_layer_surface_v1 *surface) {
 
 	surface->configured = surface->mapped = false;
 	surface->configure_serial = 0;
-	if (surface->configure_idle) {
-		wl_event_source_remove(surface->configure_idle);
-		surface->configure_idle = NULL;
-	}
 	surface->configure_next_serial = 0;
 }
 

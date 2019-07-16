@@ -75,7 +75,6 @@ struct wlr_layer_surface_v1 {
 
 	bool added, configured, mapped, closed;
 	uint32_t configure_serial;
-	struct wl_event_source *configure_idle;
 	uint32_t configure_next_serial;
 	struct wl_list configure_list;
 
