@@ -17,7 +17,6 @@ project(
 so_version = ['3', '4', '1']
 
 add_project_arguments([
-	'-DWLR_SRC_DIR="@0@"'.format(meson.current_source_dir()),
 	'-DWLR_USE_UNSTABLE',
 ], language: 'c')
 
@@ -40,6 +39,43 @@ add_project_arguments(cc.get_supported_arguments([
 	'-Wno-missing-field-initializers',
 	'-Wno-unused-parameter',
 ]), language: 'c')
+
+# Compute the relative path used by compiler invocations.
+source_root = meson.current_source_dir().split('/')
+build_root = meson.build_root().split('/')
+relative_dir_parts = []
+i = 0
+in_prefix = true
+foreach p : build_root
+	if i >= source_root.length() or not in_prefix or p != source_root[i]
+		in_prefix = false
+		relative_dir_parts += '..'
+	endif
+	i += 1
+endforeach
+i = 0
+in_prefix = true
+foreach p : source_root
+	if i >= build_root.length() or not in_prefix or build_root[i] != p
+		in_prefix = false
+		relative_dir_parts += p
+	endif
+	i += 1
+endforeach
+relative_dir = join_paths(relative_dir_parts) + '/'
+
+# Strip relative path prefixes from the code if possible, otherwise hide them.
+if cc.has_argument('-fmacro-prefix-map=/prefix/to/hide=')
+	add_project_arguments(
+		'-fmacro-prefix-map=@0@='.format(relative_dir),
+		language: 'c',
+	)
+else
+	add_project_arguments(
+		'-DWLR_REL_SRC_DIR="@0@"'.format(relative_dir),
+		language: 'c',
+	)
+endif
 
 conf_data = configuration_data()
 conf_data.set10('WLR_HAS_LIBCAP', false)
