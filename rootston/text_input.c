@@ -297,7 +297,9 @@ void roots_input_method_relay_set_focus(struct roots_input_method_relay *relay,
 				relay_disable_text_input(relay, text_input);
 				wlr_text_input_v3_send_leave(text_input->input);
 			}
-		} else if (surface
+		}
+
+		if (surface
 				&& wl_resource_get_client(text_input->input->resource)
 				== wl_resource_get_client(surface->resource)) {
 			if (relay->input_method) {
