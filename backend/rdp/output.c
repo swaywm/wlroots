@@ -166,9 +166,9 @@ static bool nsc_swap_buffers(
 	return true;
 }
 
-static bool output_commit(struct wlr_output *wlr_output) {
-	struct wlr_rdp_output *output =
-		rdp_output_from_output(wlr_output);
+static bool output_commit_buffer(struct wlr_rdp_output *output) {
+	struct wlr_output *wlr_output = &output->wlr_output;
+
 	bool ret = false;
 
 	pixman_region32_t output_region;
@@ -220,6 +220,33 @@ out:
 	return ret;
 }
 
+static bool output_commit(struct wlr_output *wlr_output) {
+	struct wlr_rdp_output *output = rdp_output_from_output(wlr_output);
+
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
+		wlr_log(WLR_DEBUG, "Cannot disable an RDP output");
+		return false;
+	}
+
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_MODE) {
+		assert(wlr_output->pending.mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM);
+		if (!output_set_custom_mode(wlr_output,
+				wlr_output->pending.custom_mode.width,
+				wlr_output->pending.custom_mode.height,
+				wlr_output->pending.custom_mode.refresh)) {
+			return false;
+		}
+	}
+
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+		if (!output_commit_buffer(output)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static void output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_rdp_output *output =
 		rdp_output_from_output(wlr_output);
@@ -234,7 +261,6 @@ static void output_destroy(struct wlr_output *wlr_output) {
 }
 
 static const struct wlr_output_impl output_impl = {
-	.set_custom_mode = output_set_custom_mode,
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
 	.commit = output_commit,
