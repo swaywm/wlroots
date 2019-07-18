@@ -328,12 +328,9 @@ static bool drm_connector_attach_render(struct wlr_output *output,
 	return make_drm_surface_current(&conn->crtc->primary->surf, buffer_age);
 }
 
-static bool drm_connector_commit(struct wlr_output *output) {
+static bool drm_connector_commit_buffer(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
-	if (!drm->session->active) {
-		return false;
-	}
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
@@ -401,6 +398,37 @@ static bool drm_connector_commit(struct wlr_output *output) {
 	}
 
 	wlr_output_update_enabled(output, true);
+	return true;
+}
+
+static bool drm_connector_commit(struct wlr_output *output) {
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+
+	if (!drm->session->active) {
+		return false;
+	}
+
+	if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
+		if (!enable_drm_connector(output, output->pending.enabled)) {
+			return false;
+		}
+	}
+
+	if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
+		if (output->pending.mode_type != WLR_OUTPUT_STATE_MODE_FIXED) {
+			return false;
+		}
+		if (!drm_connector_set_mode(output, output->pending.mode)) {
+			return false;
+		}
+	}
+
+	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+		if (!drm_connector_commit_buffer(output)) {
+			return false;
+		}
+	}
+
 	return true;
 }
 
@@ -922,8 +950,6 @@ static void drm_connector_destroy(struct wlr_output *output) {
 }
 
 static const struct wlr_output_impl output_impl = {
-	.enable = enable_drm_connector,
-	.set_mode = drm_connector_set_mode,
 	.set_cursor = drm_connector_set_cursor,
 	.move_cursor = drm_connector_move_cursor,
 	.destroy = drm_connector_destroy,

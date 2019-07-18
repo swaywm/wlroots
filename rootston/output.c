@@ -470,8 +470,10 @@ void handle_output_manager_apply(struct wl_listener *listener, void *data) {
 	wl_list_for_each(config_head, &config->heads, link) {
 		struct wlr_output *wlr_output = config_head->state.output;
 		if (!config_head->state.enabled) {
-			ok &= wlr_output_enable(wlr_output, false);
+			wlr_output_enable(wlr_output, false);
 			wlr_output_layout_remove(desktop->layout, wlr_output);
+
+			ok &= wlr_output_commit(wlr_output);
 		}
 	}
 
@@ -481,11 +483,12 @@ void handle_output_manager_apply(struct wl_listener *listener, void *data) {
 		if (!config_head->state.enabled) {
 			continue;
 		}
-		ok &= wlr_output_enable(wlr_output, true);
+
+		wlr_output_enable(wlr_output, true);
 		if (config_head->state.mode != NULL) {
-			ok &= wlr_output_set_mode(wlr_output, config_head->state.mode);
+			wlr_output_set_mode(wlr_output, config_head->state.mode);
 		} else {
-			ok &= wlr_output_set_custom_mode(wlr_output,
+			wlr_output_set_custom_mode(wlr_output,
 				config_head->state.custom_mode.width,
 				config_head->state.custom_mode.height,
 				config_head->state.custom_mode.refresh);
@@ -494,6 +497,8 @@ void handle_output_manager_apply(struct wl_listener *listener, void *data) {
 			config_head->state.x, config_head->state.y);
 		wlr_output_set_transform(wlr_output, config_head->state.transform);
 		wlr_output_set_scale(wlr_output, config_head->state.scale);
+
+		ok &= wlr_output_commit(wlr_output);
 	}
 
 	if (ok) {
@@ -674,6 +679,7 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 		}
 		wlr_output_layout_add_auto(desktop->layout, wlr_output);
 	}
+	wlr_output_commit(wlr_output);
 
 	struct roots_seat *seat;
 	wl_list_for_each(seat, &input->seats, link) {
