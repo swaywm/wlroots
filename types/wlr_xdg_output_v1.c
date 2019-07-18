@@ -8,7 +8,8 @@
 #include "xdg-output-unstable-v1-protocol.h"
 #include "util/signal.h"
 
-#define OUTPUT_MANAGER_VERSION 2
+#define OUTPUT_MANAGER_VERSION 3
+#define OUTPUT_DONE_DEPRECATED_SINCE_VERSION 3
 
 static void output_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -29,7 +30,9 @@ static void output_send_details(struct wlr_xdg_output_v1 *xdg_output,
 		xdg_output->x, xdg_output->y);
 	zxdg_output_v1_send_logical_size(resource,
 		xdg_output->width, xdg_output->height);
-	zxdg_output_v1_send_done(resource);
+	if (wl_resource_get_version(resource) < OUTPUT_DONE_DEPRECATED_SINCE_VERSION) {
+		zxdg_output_v1_send_done(resource);
+	}
 }
 
 static void output_update(struct wlr_xdg_output_v1 *xdg_output) {
@@ -207,6 +210,13 @@ static void handle_layout_destroy(struct wl_listener *listener, void *data) {
 struct wlr_xdg_output_manager_v1 *wlr_xdg_output_manager_v1_create(
 		struct wl_display *display, struct wlr_output_layout *layout) {
 	assert(display && layout);
+
+	// TODO: require wayland-protocols 1.18 and remove this condition
+	int version = OUTPUT_MANAGER_VERSION;
+	if (version > zxdg_output_manager_v1_interface.version) {
+		version = zxdg_output_manager_v1_interface.version;
+	}
+
 	struct wlr_xdg_output_manager_v1 *manager =
 		calloc(1, sizeof(struct wlr_xdg_output_manager_v1));
 	if (manager == NULL) {
@@ -214,7 +224,7 @@ struct wlr_xdg_output_manager_v1 *wlr_xdg_output_manager_v1_create(
 	}
 	manager->layout = layout;
 	manager->global = wl_global_create(display,
-		&zxdg_output_manager_v1_interface, OUTPUT_MANAGER_VERSION, manager,
+		&zxdg_output_manager_v1_interface, version, manager,
 		output_manager_bind);
 	if (!manager->global) {
 		free(manager);
