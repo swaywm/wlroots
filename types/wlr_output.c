@@ -31,7 +31,10 @@ static void send_all_modes(struct wl_resource *resource) {
 
 	struct wlr_output_mode *mode;
 	wl_list_for_each(mode, &output->modes, link) {
-		uint32_t flags = mode->flags & WL_OUTPUT_MODE_PREFERRED;
+		uint32_t flags = 0;
+		if (mode->preferred) {
+			flags |= WL_OUTPUT_MODE_PREFERRED;
+		}
 		if (output->current_mode == mode) {
 			flags |= WL_OUTPUT_MODE_CURRENT;
 		}
@@ -50,9 +53,12 @@ static void send_current_mode(struct wl_resource *resource) {
 	struct wlr_output *output = wlr_output_from_resource(resource);
 	if (output->current_mode != NULL) {
 		struct wlr_output_mode *mode = output->current_mode;
-		uint32_t flags = mode->flags & WL_OUTPUT_MODE_PREFERRED;
-		wl_output_send_mode(resource, flags | WL_OUTPUT_MODE_CURRENT,
-			mode->width, mode->height, mode->refresh);
+		uint32_t flags = WL_OUTPUT_MODE_CURRENT;
+		if (mode->preferred) {
+			flags |= WL_OUTPUT_MODE_PREFERRED;
+		}
+		wl_output_send_mode(resource, flags, mode->width, mode->height,
+			mode->refresh);
 	} else {
 		// Output has no mode
 		wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT, output->width,

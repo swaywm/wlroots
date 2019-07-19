@@ -18,7 +18,6 @@
 #include <wlr/types/wlr_buffer.h>
 
 struct wlr_output_mode {
-	uint32_t flags; // enum wl_output_mode
 	int32_t width, height;
 	int32_t refresh; // mHz
 	bool preferred;
