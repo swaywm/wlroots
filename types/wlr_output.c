@@ -15,6 +15,7 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
+#include "util/global.h"
 #include "util/signal.h"
 
 #define OUTPUT_VERSION 3
@@ -69,6 +70,7 @@ static const struct wl_output_interface output_impl = {
 
 static void output_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
+	// `output` can be NULL if the output global is being destroyed
 	struct wlr_output *output = data;
 
 	struct wl_resource *resource = wl_resource_create(wl_client,
@@ -79,6 +81,12 @@ static void output_bind(struct wl_client *wl_client, void *data,
 	}
 	wl_resource_set_implementation(resource, &output_impl, output,
 		output_handle_resource_destroy);
+
+	if (output == NULL) {
+		wl_list_init(wl_resource_get_link(resource));
+		return;
+	}
+
 	wl_list_insert(&output->resources, wl_resource_get_link(resource));
 
 	send_geometry(resource);
@@ -102,6 +110,7 @@ void wlr_output_destroy_global(struct wlr_output *output) {
 	if (output->global == NULL) {
 		return;
 	}
+
 	// Make all output resources inert
 	struct wl_resource *resource, *tmp;
 	wl_resource_for_each_safe(resource, tmp, &output->resources) {
@@ -109,7 +118,8 @@ void wlr_output_destroy_global(struct wlr_output *output) {
 		wl_list_remove(wl_resource_get_link(resource));
 		wl_list_init(wl_resource_get_link(resource));
 	}
-	wl_global_destroy(output->global);
+
+	wlr_global_destroy_safe(output->global, output->display);
 	output->global = NULL;
 }
 
