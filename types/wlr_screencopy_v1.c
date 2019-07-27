@@ -23,9 +23,11 @@ static void frame_destroy(struct wlr_screencopy_frame_v1 *frame) {
 	if (frame == NULL) {
 		return;
 	}
-	wlr_output_lock_attach_render(frame->output, false);
-	if (frame->cursor_locked) {
-		wlr_output_lock_software_cursors(frame->output, false);
+	if (frame->output != NULL && frame->buffer != NULL) {
+		wlr_output_lock_attach_render(frame->output, false);
+		if (frame->cursor_locked) {
+			wlr_output_lock_software_cursors(frame->output, false);
+		}
 	}
 	wl_list_remove(&frame->link);
 	wl_list_remove(&frame->output_precommit.link);
@@ -104,6 +106,12 @@ static void frame_handle_copy(struct wl_client *client,
 
 	struct wlr_output *output = frame->output;
 
+	if (!output->enabled) {
+		zwlr_screencopy_frame_v1_send_failed(frame->resource);
+		frame_destroy(frame);
+		return;
+	}
+
 	struct wl_shm_buffer *buffer = wl_shm_buffer_get(buffer_resource);
 	if (buffer == NULL) {
 		wl_resource_post_error(frame->resource,
@@ -180,23 +188,6 @@ static void capture_output(struct wl_client *client,
 		struct wlr_screencopy_manager_v1 *manager, uint32_t version, uint32_t id,
 		int32_t overlay_cursor, struct wlr_output *output,
 		const struct wlr_box *box) {
-	struct wlr_box buffer_box = {0};
-	if (box == NULL) {
-		buffer_box.width = output->width;
-		buffer_box.height = output->height;
-	} else {
-		int ow, oh;
-		wlr_output_effective_resolution(output, &ow, &oh);
-
-		buffer_box = *box;
-
-		wlr_box_transform(&buffer_box, &buffer_box, output->transform, ow, oh);
-		buffer_box.x *= output->scale;
-		buffer_box.y *= output->scale;
-		buffer_box.width *= output->scale;
-		buffer_box.height *= output->scale;
-	}
-
 	struct wlr_screencopy_frame_v1 *frame =
 		calloc(1, sizeof(struct wlr_screencopy_frame_v1));
 	if (frame == NULL) {
@@ -222,6 +213,10 @@ static void capture_output(struct wl_client *client,
 	wl_list_init(&frame->output_precommit.link);
 	wl_list_init(&frame->buffer_destroy.link);
 
+	if (output == NULL || !output->enabled) {
+		goto error;
+	}
+
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	assert(renderer);
 
@@ -229,6 +224,23 @@ static void capture_output(struct wl_client *client,
 		wlr_log(WLR_ERROR,
 			"Failed to capture output: no read format supported by renderer");
 		goto error;
+	}
+
+	struct wlr_box buffer_box = {0};
+	if (box == NULL) {
+		buffer_box.width = output->width;
+		buffer_box.height = output->height;
+	} else {
+		int ow, oh;
+		wlr_output_effective_resolution(output, &ow, &oh);
+
+		buffer_box = *box;
+
+		wlr_box_transform(&buffer_box, &buffer_box, output->transform, ow, oh);
+		buffer_box.x *= output->scale;
+		buffer_box.y *= output->scale;
+		buffer_box.width *= output->scale;
+		buffer_box.height *= output->scale;
 	}
 
 	frame->box = buffer_box;
