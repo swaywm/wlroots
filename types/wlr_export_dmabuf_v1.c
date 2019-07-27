@@ -34,9 +34,11 @@ static void frame_destroy(struct wlr_export_dmabuf_frame_v1 *frame) {
 	if (frame == NULL) {
 		return;
 	}
-	wlr_output_lock_attach_render(frame->output, false);
-	if (frame->cursor_locked) {
-		wlr_output_lock_software_cursors(frame->output, false);
+	if (frame->output != NULL) {
+		wlr_output_lock_attach_render(frame->output, false);
+		if (frame->cursor_locked) {
+			wlr_output_lock_software_cursors(frame->output, false);
+		}
 	}
 	wl_list_remove(&frame->link);
 	wl_list_remove(&frame->output_precommit.link);
@@ -112,7 +114,7 @@ static void manager_handle_capture_output(struct wl_client *client,
 
 	wl_list_insert(&manager->frames, &frame->link);
 
-	if (!output->impl->export_dmabuf) {
+	if (output == NULL || !output->enabled || !output->impl->export_dmabuf) {
 		zwlr_export_dmabuf_frame_v1_send_cancel(frame->resource,
 			ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_PERMANENT);
 		frame_destroy(frame);
