@@ -12,7 +12,7 @@
 #include <pixman.h>
 #include <stdbool.h>
 #include <time.h>
-#include <wayland-server.h>
+#include <wayland-server-protocol.h>
 #include <wayland-util.h>
 #include <wlr/render/dmabuf.h>
 #include <wlr/types/wlr_buffer.h>

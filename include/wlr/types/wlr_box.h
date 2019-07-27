@@ -11,7 +11,7 @@
 
 #include <pixman.h>
 #include <stdbool.h>
-#include <wayland-server.h>
+#include <wayland-server-protocol.h>
 
 struct wlr_box {
 	int x, y;

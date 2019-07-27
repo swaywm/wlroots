@@ -10,7 +10,7 @@
 #define WLR_TYPES_WLR_XDG_SHELL_H
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_seat.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include "xdg-shell-protocol.h"
 
 struct wlr_xdg_shell {

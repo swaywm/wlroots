@@ -9,7 +9,7 @@
 #ifndef WLR_TYPES_WLR_IDLE_INHIBIT_V1_H
 #define WLR_TYPES_WLR_IDLE_INHIBIT_V1_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 
 /* This interface permits clients to inhibit the idle behavior such as
  * screenblanking, locking, and screensaving.

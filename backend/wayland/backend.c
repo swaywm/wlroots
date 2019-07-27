@@ -5,7 +5,7 @@
 
 #include <wlr/config.h>
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>

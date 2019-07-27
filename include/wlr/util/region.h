@@ -19,7 +19,7 @@
 
 #include <stdbool.h>
 #include <pixman.h>
-#include <wayland-server.h>
+#include <wayland-server-protocol.h>
 
 /**
  * Scales a region, ie. multiplies all its coordinates by `scale`.

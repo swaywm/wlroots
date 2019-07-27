@@ -9,7 +9,7 @@
 #ifndef WLR_TYPES_WLR_RELATIVE_POINTER_V1_H
 #define WLR_TYPES_WLR_RELATIVE_POINTER_V1_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 
 /**
  * This protocol specifies a set of interfaces used for making clients able to

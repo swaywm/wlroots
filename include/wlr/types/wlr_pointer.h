@@ -10,7 +10,7 @@
 #define WLR_TYPES_WLR_POINTER_H
 
 #include <stdint.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_input_device.h>
 
 struct wlr_pointer_impl;

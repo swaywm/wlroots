@@ -2,7 +2,7 @@
 #include <pixman.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_region.h>
 
 static void region_add(struct wl_client *client, struct wl_resource *resource,

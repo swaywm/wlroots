@@ -5,7 +5,7 @@
 
 #include <wayland-client.h>
 #include <wayland-egl.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wayland-util.h>
 
 #include <wlr/backend/wayland.h>

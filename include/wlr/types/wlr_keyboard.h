@@ -11,8 +11,8 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <wayland-server.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
+#include <wayland-server-core.h>
 #include <xkbcommon/xkbcommon.h>
 
 #define WLR_LED_COUNT 3

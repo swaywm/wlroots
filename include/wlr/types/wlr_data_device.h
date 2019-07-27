@@ -9,7 +9,7 @@
 #ifndef WLR_TYPES_WLR_DATA_DEVICE_H
 #define WLR_TYPES_WLR_DATA_DEVICE_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 
 extern const struct wlr_pointer_grab_interface

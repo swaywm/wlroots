@@ -2,7 +2,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/types/wlr_gamma_control_v1.h>
 #include <wlr/types/wlr_output.h>

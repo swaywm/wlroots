@@ -8,7 +8,7 @@
 
 #ifndef WLR_TYPES_INPUT_INHIBITOR_H
 #define WLR_TYPES_INPUT_INHIBITOR_H
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 
 struct wlr_input_inhibit_manager {
 	struct wl_global *global;

@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/util/log.h>

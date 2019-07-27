@@ -4,7 +4,7 @@
 #include <string.h>
 #include <tgmath.h>
 #include <time.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>

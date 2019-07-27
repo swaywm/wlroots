@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <time.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/backend/libinput.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_cursor.h>

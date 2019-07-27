@@ -2,7 +2,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <stdlib.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>

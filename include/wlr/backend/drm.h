@@ -9,7 +9,7 @@
 #ifndef WLR_BACKEND_DRM_H
 #define WLR_BACKEND_DRM_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_output.h>

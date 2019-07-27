@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/types/wlr_pointer.h>
 

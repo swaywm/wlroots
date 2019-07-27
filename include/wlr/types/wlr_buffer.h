@@ -10,7 +10,7 @@
 #define WLR_TYPES_WLR_BUFFER_H
 
 #include <pixman.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/render/dmabuf.h>
 
 /**

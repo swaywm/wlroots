@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/backend/drm.h>
 #include <wlr/backend/headless.h>
 #include <wlr/backend/interface.h>

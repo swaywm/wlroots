@@ -4,7 +4,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/types/wlr_pointer_gestures_v1.h>
 #include <wlr/util/log.h>

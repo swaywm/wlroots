@@ -10,7 +10,7 @@
 #include <wlr/config.h>
 
 #include <X11/Xlib-xcb.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <xcb/xcb.h>
 #include <xcb/xfixes.h>
 #include <xcb/xinput.h>

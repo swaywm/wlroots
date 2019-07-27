@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
 #include <wlr/interfaces/wlr_output.h>

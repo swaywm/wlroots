@@ -6,8 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <wayland-server-protocol.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/render/gles2.h>

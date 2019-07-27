@@ -9,7 +9,7 @@
 #ifndef WLR_TYPES_WLR_IDLE_H
 #define WLR_TYPES_WLR_IDLE_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 
 /**

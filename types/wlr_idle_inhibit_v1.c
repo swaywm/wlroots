@@ -1,11 +1,11 @@
 #include <assert.h>
 #include <stdlib.h>
-#include <wlr/util/log.h>
 #include <util/signal.h>
-#include <wlr/types/wlr_surface.h>
+#include <wayland-server-core.h>
+#include <wayland-util.h>
 #include <wlr/types/wlr_idle_inhibit_v1.h>
-#include "wayland-util.h"
-#include "wayland-server.h"
+#include <wlr/types/wlr_surface.h>
+#include <wlr/util/log.h>
 #include "idle-inhibit-unstable-v1-protocol.h"
 
 static const struct zwp_idle_inhibit_manager_v1_interface idle_inhibit_impl;

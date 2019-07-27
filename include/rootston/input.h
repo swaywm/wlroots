@@ -1,7 +1,7 @@
 #ifndef ROOTSTON_INPUT_H
 #define ROOTSTON_INPUT_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_seat.h>

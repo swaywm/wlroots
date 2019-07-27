@@ -1,7 +1,7 @@
 #ifndef TYPES_WLR_SEAT_H
 #define TYPES_WLR_SEAT_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 
 const struct wlr_pointer_grab_interface default_pointer_grab_impl;

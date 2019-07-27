@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 
 #include <wlr/backend.h>
 #include <wlr/types/wlr_input_device.h>

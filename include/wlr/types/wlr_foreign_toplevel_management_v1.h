@@ -9,7 +9,7 @@
 #ifndef WLR_TYPES_WLR_FOREIGN_TOPLEVEL_MANAGEMENT_V1_H
 #define WLR_TYPES_WLR_FOREIGN_TOPLEVEL_MANAGEMENT_V1_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_output.h>
 
 struct wlr_foreign_toplevel_manager_v1 {
