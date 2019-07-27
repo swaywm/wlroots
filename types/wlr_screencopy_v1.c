@@ -31,6 +31,8 @@ static void frame_destroy(struct wlr_screencopy_frame_v1 *frame) {
 	}
 	wl_list_remove(&frame->link);
 	wl_list_remove(&frame->output_precommit.link);
+	wl_list_remove(&frame->output_destroy.link);
+	wl_list_remove(&frame->output_enable.link);
 	wl_list_remove(&frame->buffer_destroy.link);
 	// Make the frame resource inert
 	wl_resource_set_user_data(frame->resource, NULL);
@@ -85,6 +87,24 @@ static void frame_handle_output_precommit(struct wl_listener *listener,
 	zwlr_screencopy_frame_v1_send_ready(frame->resource,
 		tv_sec_hi, tv_sec_lo, event->when->tv_nsec);
 
+	frame_destroy(frame);
+}
+
+static void frame_handle_output_enable(struct wl_listener *listener,
+		void *data) {
+	struct wlr_screencopy_frame_v1 *frame =
+		wl_container_of(listener, frame, output_enable);
+	if (!frame->output->enabled) {
+		zwlr_screencopy_frame_v1_send_failed(frame->resource);
+		frame_destroy(frame);
+	}
+}
+
+static void frame_handle_output_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_screencopy_frame_v1 *frame =
+		wl_container_of(listener, frame, output_destroy);
+	zwlr_screencopy_frame_v1_send_failed(frame->resource);
 	frame_destroy(frame);
 }
 
@@ -144,6 +164,12 @@ static void frame_handle_copy(struct wl_client *client,
 
 	wl_signal_add(&output->events.precommit, &frame->output_precommit);
 	frame->output_precommit.notify = frame_handle_output_precommit;
+
+	wl_signal_add(&output->events.destroy, &frame->output_enable);
+	frame->output_enable.notify = frame_handle_output_enable;
+
+	wl_signal_add(&output->events.destroy, &frame->output_destroy);
+	frame->output_destroy.notify = frame_handle_output_destroy;
 
 	wl_resource_add_destroy_listener(buffer_resource, &frame->buffer_destroy);
 	frame->buffer_destroy.notify = frame_handle_buffer_destroy;
@@ -211,6 +237,8 @@ static void capture_output(struct wl_client *client,
 	wl_list_insert(&manager->frames, &frame->link);
 
 	wl_list_init(&frame->output_precommit.link);
+	wl_list_init(&frame->output_enable.link);
+	wl_list_init(&frame->output_destroy.link);
 	wl_list_init(&frame->buffer_destroy.link);
 
 	if (output == NULL || !output->enabled) {
