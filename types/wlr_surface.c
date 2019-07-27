@@ -1,6 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/render/interface.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_compositor.h>

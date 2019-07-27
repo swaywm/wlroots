@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_layer_shell_v1.h>

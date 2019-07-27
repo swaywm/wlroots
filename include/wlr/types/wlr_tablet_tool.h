@@ -10,7 +10,7 @@
 #define WLR_TYPES_TABLET_TOOL_H
 
 #include <stdint.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_list.h>
 
@@ -45,7 +45,7 @@ struct wlr_tablet_tool {
 	struct {
 		struct wl_signal destroy;
 	} events;
-	
+
 	void *data;
 };
 

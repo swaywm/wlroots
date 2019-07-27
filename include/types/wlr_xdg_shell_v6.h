@@ -1,7 +1,7 @@
 #ifndef TYPES_WLR_XDG_SHELL_V6_H
 #define TYPES_WLR_XDG_SHELL_V6_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_xdg_shell_v6.h>
 #include "xdg-shell-unstable-v6-protocol.h"
 

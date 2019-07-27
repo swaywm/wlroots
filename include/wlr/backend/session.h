@@ -4,7 +4,7 @@
 #include <libudev.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 
 struct session_impl;
 

@@ -10,7 +10,7 @@
 #define WLR_TYPES_WLR_EXPORT_DMABUF_V1_H
 
 #include <stdbool.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/render/dmabuf.h>
 
 struct wlr_export_dmabuf_manager_v1 {

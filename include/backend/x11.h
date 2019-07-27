@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 #include <X11/Xlib-xcb.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <xcb/xcb.h>
 
 #include <wlr/backend/x11.h>

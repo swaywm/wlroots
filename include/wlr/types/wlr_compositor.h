@@ -9,7 +9,7 @@
 #ifndef WLR_TYPES_WLR_COMPOSITOR_H
 #define WLR_TYPES_WLR_COMPOSITOR_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/render/wlr_renderer.h>
 
 struct wlr_surface;

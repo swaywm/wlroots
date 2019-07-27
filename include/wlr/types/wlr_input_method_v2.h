@@ -10,7 +10,7 @@
 #define WLR_TYPES_WLR_INPUT_METHOD_V2_H
 #include <stdint.h>
 #include <stdlib.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 
 struct wlr_input_method_v2_preedit_string {

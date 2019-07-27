@@ -8,7 +8,7 @@
 
 #ifndef WLR_TYPES_WLR_XDG_OUTPUT_V1_H
 #define WLR_TYPES_WLR_XDG_OUTPUT_V1_H
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_output_layout.h>
 
 struct wlr_xdg_output_v1 {

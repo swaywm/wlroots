@@ -6,7 +6,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/config.h>

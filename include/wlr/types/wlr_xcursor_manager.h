@@ -9,7 +9,7 @@
 #ifndef WLR_TYPES_WLR_XCURSOR_MANAGER_H
 #define WLR_TYPES_WLR_XCURSOR_MANAGER_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/xcursor.h>
 

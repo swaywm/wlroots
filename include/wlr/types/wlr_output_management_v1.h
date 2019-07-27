@@ -10,7 +10,7 @@
 #define WLR_TYPES_WLR_OUTPUT_MANAGEMENT_V1_H
 
 #include <stdbool.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_output.h>
 
 struct wlr_output_manager_v1 {

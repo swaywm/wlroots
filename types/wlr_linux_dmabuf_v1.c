@@ -3,7 +3,7 @@
 #include <drm_fourcc.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/render/drm_format_set.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>

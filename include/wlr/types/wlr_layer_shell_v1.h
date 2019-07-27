@@ -10,7 +10,7 @@
 #define WLR_TYPES_WLR_LAYER_SHELL_V1_H
 #include <stdbool.h>
 #include <stdint.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>
 #include "wlr-layer-shell-unstable-v1-protocol.h"

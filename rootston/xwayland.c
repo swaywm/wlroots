@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_surface.h>

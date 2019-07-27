@@ -9,7 +9,7 @@
 #ifndef WLR_BACKEND_H
 #define WLR_BACKEND_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/backend/session.h>
 #include <wlr/render/egl.h>
 

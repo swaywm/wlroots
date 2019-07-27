@@ -9,7 +9,7 @@
 #ifndef WLR_TYPES_WLR_TEXT_INPUT_V3_H
 #define WLR_TYPES_WLR_TEXT_INPUT_V3_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_surface.h>
 

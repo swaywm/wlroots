@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"

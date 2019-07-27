@@ -12,7 +12,7 @@
 #include <string.h>
 #include <strings.h>
 #include <time.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wayland-util.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>

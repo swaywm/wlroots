@@ -1,7 +1,7 @@
 #ifndef TYPES_WLR_XDG_SHELL_H
 #define TYPES_WLR_XDG_SHELL_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include "xdg-shell-protocol.h"
 

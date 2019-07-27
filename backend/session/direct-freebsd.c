@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>

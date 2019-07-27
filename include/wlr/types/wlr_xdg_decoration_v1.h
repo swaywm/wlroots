@@ -1,7 +1,7 @@
 #ifndef WLR_TYPES_WLR_XDG_DECORATION_V1
 #define WLR_TYPES_WLR_XDG_DECORATION_V1
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_xdg_shell.h>
 
 enum wlr_xdg_toplevel_decoration_v1_mode {

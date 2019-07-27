@@ -10,7 +10,7 @@
 #define WLR_TYPES_WLR_SEAT_H
 
 #include <time.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_surface.h>

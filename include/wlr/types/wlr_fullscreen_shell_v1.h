@@ -9,7 +9,7 @@
 #ifndef WLR_TYPES_WLR_FULLSCREEN_SHELL_V1_H
 #define WLR_TYPES_WLR_FULLSCREEN_SHELL_V1_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include "fullscreen-shell-unstable-v1-protocol.h"
 
 struct wlr_fullscreen_shell_v1 {

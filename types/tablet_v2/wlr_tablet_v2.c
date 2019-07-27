@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <types/wlr_tablet_v2.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_seat.h>

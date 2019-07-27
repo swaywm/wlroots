@@ -10,7 +10,7 @@
 #define WLR_TYPES_WLR_POINTER_CONSTRAINTS_V1_H
 
 #include <stdint.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <pixman.h>
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_seat.h>

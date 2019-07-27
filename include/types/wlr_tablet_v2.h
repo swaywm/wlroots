@@ -2,7 +2,7 @@
 #define TYPES_WLR_TABLET_V2_H
 
 #include "tablet-unstable-v2-protocol.h"
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_tablet_v2.h>
 
 struct wlr_tablet_seat_v2 {

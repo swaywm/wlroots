@@ -9,7 +9,7 @@
 #ifndef WLR_TYPES_WLR_PRIMARY_SELECTION_H
 #define WLR_TYPES_WLR_PRIMARY_SELECTION_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 
 struct wlr_primary_selection_source;

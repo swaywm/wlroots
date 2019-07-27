@@ -14,7 +14,7 @@
 #ifndef WLR_TYPES_WLR_SERVER_DECORATION_H
 #define WLR_TYPES_WLR_SERVER_DECORATION_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 
 /**
  * Possible values to use in request_mode and the event mode. Same as

@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 #include "wlr/types/wlr_input_inhibitor.h"
 #include "wlr-input-inhibitor-unstable-v1-protocol.h"
 #include "util/signal.h"

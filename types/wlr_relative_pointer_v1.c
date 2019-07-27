@@ -1,12 +1,12 @@
-#include <stdlib.h>
 #include <assert.h>
 #include <inttypes.h>
-#include <wlr/util/log.h>
+#include <stdlib.h>
 #include <util/signal.h>
+#include <wayland-server-core.h>
+#include <wayland-util.h>
 #include <wlr/types/wlr_relative_pointer_v1.h>
 #include <wlr/types/wlr_seat.h>
-#include "wayland-util.h"
-#include "wayland-server.h"
+#include <wlr/util/log.h>
 #include "relative-pointer-unstable-v1-protocol.h"
 
 #define RELATIVE_POINTER_MANAGER_VERSION 1

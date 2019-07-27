@@ -1,7 +1,7 @@
 #ifndef WLR_TYPES_WLR_GAMMA_CONTROL_V1_H
 #define WLR_TYPES_WLR_GAMMA_CONTROL_V1_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
 
 struct wlr_gamma_control_manager_v1 {
 	struct wl_global *global;
