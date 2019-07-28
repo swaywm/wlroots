@@ -416,6 +416,7 @@ void wlr_send_tablet_v2_tablet_tool_proximity_out(
 			send_tool_frame(tool->current_client);
 		}
 		zwp_tablet_tool_v2_send_proximity_out(tool->current_client->resource);
+		send_tool_frame(tool->current_client);
 
 		tool->current_client = NULL;
 		tool->focused_surface = NULL;
