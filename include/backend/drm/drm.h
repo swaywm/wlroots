@@ -98,8 +98,6 @@ enum wlr_drm_connector_state {
 	WLR_DRM_CONN_NEEDS_MODESET,
 	WLR_DRM_CONN_CLEANUP,
 	WLR_DRM_CONN_CONNECTED,
-	// Connector disappeared, waiting for being destroyed on next page-flip
-	WLR_DRM_CONN_DISAPPEARED,
 };
 
 struct wlr_drm_mode {
