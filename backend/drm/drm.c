@@ -1364,11 +1364,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		wlr_log(WLR_INFO, "'%s' disappeared", conn->output.name);
 		drm_connector_cleanup(conn);
 
-		if (conn->pageflip_pending) {
-			conn->state = WLR_DRM_CONN_DISAPPEARED;
-		} else {
-			wlr_output_destroy(&conn->output);
-		}
+		wlr_output_destroy(&conn->output);
 	}
 
 	realloc_crtcs(drm);
@@ -1402,16 +1398,11 @@ static void page_flip_handler(int fd, unsigned seq,
 	}
 
 	if (!conn) {
-		wlr_log(WLR_ERROR, "No connector for crtc_id %u", crtc_id);
+		wlr_log(WLR_DEBUG, "No connector for crtc_id %u", crtc_id);
 		return;
 	}
 
 	conn->pageflip_pending = false;
-
-	if (conn->state == WLR_DRM_CONN_DISAPPEARED) {
-		wlr_output_destroy(&conn->output);
-		return;
-	}
 
 	if (conn->state != WLR_DRM_CONN_CONNECTED || conn->crtc == NULL) {
 		return;
@@ -1546,8 +1537,6 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		break;
 	case WLR_DRM_CONN_DISCONNECTED:
 		break;
-	case WLR_DRM_CONN_DISAPPEARED:
-		return; // don't change state
 	}
 
 	conn->state = WLR_DRM_CONN_DISCONNECTED;
