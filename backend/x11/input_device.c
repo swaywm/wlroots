@@ -21,6 +21,7 @@ static void send_key_event(struct wlr_x11_backend *x11, uint32_t key,
 		enum wlr_key_state st, xcb_timestamp_t time) {
 	struct wlr_event_keyboard_key ev = {
 		.time_msec = time,
+		.time_nsec = time * 1000000,
 		.keycode = key,
 		.state = st,
 		.update_state = true,
@@ -33,6 +34,7 @@ static void send_button_event(struct wlr_x11_output *output, uint32_t key,
 	struct wlr_event_pointer_button ev = {
 		.device = &output->pointer_dev,
 		.time_msec = time,
+		.time_nsec = time * 1000000,
 		.button = key,
 		.state = st,
 	};
@@ -45,6 +47,7 @@ static void send_axis_event(struct wlr_x11_output *output, int32_t delta,
 	struct wlr_event_pointer_axis ev = {
 		.device = &output->pointer_dev,
 		.time_msec = time,
+		.time_nsec = time * 1000000,
 		.source = WLR_AXIS_SOURCE_WHEEL,
 		.orientation = WLR_AXIS_ORIENTATION_VERTICAL,
 		// 15 is a typical value libinput sends for one scroll
@@ -60,6 +63,7 @@ static void send_pointer_position_event(struct wlr_x11_output *output,
 	struct wlr_event_pointer_motion_absolute ev = {
 		.device = &output->pointer_dev,
 		.time_msec = time,
+		.time_nsec = time * 1000000,
 		.x = (double)x / output->wlr_output.width,
 		.y = (double)y / output->wlr_output.height,
 	};

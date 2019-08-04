@@ -39,6 +39,11 @@ struct wlr_wl_backend {
 	struct wl_keyboard *keyboard;
 	struct wlr_wl_pointer *current_pointer;
 	char *seat_name;
+	struct {
+		struct zwp_input_timestamps_manager_v1 *manager;
+		struct timespec keyboard;
+		struct timespec pointer;
+	} input_timestamps;
 };
 
 struct wlr_wl_output {

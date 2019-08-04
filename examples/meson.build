@@ -69,6 +69,10 @@ examples = {
 		'src': 'input-inhibitor.c',
 		'dep': [wayland_client, wayland_cursor, wlr_protos, wlroots],
 	},
+	'input-timestamps': {
+		'src': 'input-timestamps-unstable-v1.c',
+		'dep': [wayland_client, wlr_protos, wlroots],
+	},
 	'gamma-control': {
 		'src': 'gamma-control.c',
 		'dep': [wayland_client, wayland_cursor, wlr_protos, math],

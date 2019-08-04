@@ -93,7 +93,7 @@ static void update_cursors(struct roots_layer_surface *roots_surface,
 			struct timespec time;
 			if (clock_gettime(CLOCK_MONOTONIC, &time) == 0) {
 				roots_cursor_update_position(seat->cursor,
-					time.tv_sec * 1000 + time.tv_nsec / 1000000);
+					time.tv_sec * 1000 + time.tv_nsec / 1000000, time.tv_nsec);
 			} else {
 				wlr_log(WLR_ERROR, "Failed to get time, not updating"
 					"position. Errno: %s\n", strerror(errno));

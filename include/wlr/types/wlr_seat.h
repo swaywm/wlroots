@@ -665,9 +665,20 @@ struct wlr_seat_client *wlr_seat_client_from_resource(
 	struct wl_resource *resource);
 
 /**
+ * Get a seat client from a keyboard resource. Returns NULL if inert.
+ */
+struct wlr_seat_client *wlr_seat_client_from_keyboard_resource(
+	struct wl_resource *resource);
+
+/**
  * Get a seat client from a pointer resource. Returns NULL if inert.
  */
 struct wlr_seat_client *wlr_seat_client_from_pointer_resource(
 	struct wl_resource *resource);
 
+/**
+ * Get a seat client from a touch resource. Returns NULL if inert.
+ */
+struct wlr_seat_client *wlr_seat_client_from_touch_resource(
+	struct wl_resource *resource);
 #endif
