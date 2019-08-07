@@ -154,50 +154,38 @@ static void output_update_matrix(struct wlr_output *output) {
 		output->height, output->transform);
 }
 
-void wlr_output_enable(struct wlr_output *output, bool enable) {
+bool wlr_output_enable(struct wlr_output *output, bool enable) {
 	if (output->enabled == enable) {
-		return;
+		return true;
 	}
 
-	output->pending.committed |= WLR_OUTPUT_STATE_ENABLED;
-	output->pending.enabled = enable;
-}
-
-static void output_state_clear_mode(struct wlr_output_state *state) {
-	if (!(state->committed & WLR_OUTPUT_STATE_MODE)) {
-		return;
+	if (output->impl->enable) {
+		return output->impl->enable(output, enable);
 	}
-
-	state->mode = NULL;
-
-	state->committed &= ~WLR_OUTPUT_STATE_MODE;
+	return false;
 }
 
-void wlr_output_set_mode(struct wlr_output *output,
+bool wlr_output_set_mode(struct wlr_output *output,
 		struct wlr_output_mode *mode) {
-	if (output->current_mode == mode) {
-		return;
+	if (!output->impl || !output->impl->set_mode) {
+		return false;
 	}
-
-	output_state_clear_mode(&output->pending);
-	output->pending.committed |= WLR_OUTPUT_STATE_MODE;
-	output->pending.mode_type = WLR_OUTPUT_STATE_MODE_FIXED;
-	output->pending.mode = mode;
+	if (output->current_mode == mode) {
+		return true;
+	}
+	return output->impl->set_mode(output, mode);
 }
 
-void wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
+bool wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 		int32_t height, int32_t refresh) {
+	if (!output->impl || !output->impl->set_custom_mode) {
+		return false;
+	}
 	if (output->width == width && output->height == height &&
 			output->refresh == refresh) {
-		return;
+		return true;
 	}
-
-	output_state_clear_mode(&output->pending);
-	output->pending.committed |= WLR_OUTPUT_STATE_MODE;
-	output->pending.mode_type = WLR_OUTPUT_STATE_MODE_CUSTOM;
-	output->pending.custom_mode.width = width;
-	output->pending.custom_mode.height = height;
-	output->pending.custom_mode.refresh = refresh;
+	return output->impl->set_custom_mode(output, width, height, refresh);
 }
 
 void wlr_output_update_mode(struct wlr_output *output,
@@ -239,8 +227,16 @@ void wlr_output_set_transform(struct wlr_output *output,
 		return;
 	}
 
-	output->pending.committed |= WLR_OUTPUT_STATE_TRANSFORM;
-	output->pending.transform = transform;
+	output->transform = transform;
+	output_update_matrix(output);
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->resources) {
+		send_geometry(resource);
+	}
+	wlr_output_schedule_done(output);
+
+	wlr_signal_emit_safe(&output->events.transform, output);
 }
 
 void wlr_output_set_scale(struct wlr_output *output, float scale) {
@@ -248,8 +244,15 @@ void wlr_output_set_scale(struct wlr_output *output, float scale) {
 		return;
 	}
 
-	output->pending.committed |= WLR_OUTPUT_STATE_SCALE;
-	output->pending.scale = scale;
+	output->scale = scale;
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->resources) {
+		send_scale(resource);
+	}
+	wlr_output_schedule_done(output);
+
+	wlr_signal_emit_safe(&output->events.scale, output);
 }
 
 void wlr_output_set_subpixel(struct wlr_output *output,
@@ -455,15 +458,18 @@ static void output_state_clear(struct wlr_output_state *state) {
 }
 
 bool wlr_output_commit(struct wlr_output *output) {
-	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
-		if (output->frame_pending) {
-			wlr_log(WLR_ERROR, "Tried to commit a buffer while a frame is pending");
-			return false;
-		}
-		if (output->idle_frame != NULL) {
-			wl_event_source_remove(output->idle_frame);
-			output->idle_frame = NULL;
-		}
+	if (output->frame_pending) {
+		wlr_log(WLR_ERROR, "Tried to commit when a frame is pending");
+		return false;
+	}
+	if (output->idle_frame != NULL) {
+		wl_event_source_remove(output->idle_frame);
+		output->idle_frame = NULL;
+	}
+
+	if (!(output->pending.committed & WLR_OUTPUT_STATE_BUFFER)) {
+		wlr_log(WLR_ERROR, "Tried to commit without attaching a buffer");
+		return false;
 	}
 
 	struct timespec now;
@@ -480,52 +486,20 @@ bool wlr_output_commit(struct wlr_output *output) {
 		return false;
 	}
 
-	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
-		struct wlr_output_cursor *cursor;
-		wl_list_for_each(cursor, &output->cursors, link) {
-			if (!cursor->enabled || !cursor->visible || cursor->surface == NULL) {
-				continue;
-			}
-			wlr_surface_send_frame_done(cursor->surface, &now);
+	struct wlr_output_cursor *cursor;
+	wl_list_for_each(cursor, &output->cursors, link) {
+		if (!cursor->enabled || !cursor->visible || cursor->surface == NULL) {
+			continue;
 		}
+		wlr_surface_send_frame_done(cursor->surface, &now);
 	}
 
 	wlr_signal_emit_safe(&output->events.commit, output);
 
-	bool scale_updated = output->pending.committed & WLR_OUTPUT_STATE_SCALE;
-	if (scale_updated) {
-		output->scale = output->pending.scale;
-		wlr_signal_emit_safe(&output->events.scale, output);
-	}
-
-	if (output->pending.committed & WLR_OUTPUT_STATE_TRANSFORM) {
-		output->transform = output->pending.transform;
-		output_update_matrix(output);
-		wlr_signal_emit_safe(&output->events.transform, output);
-	}
-
-	bool geometry_updated = output->pending.committed &
-		(WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_TRANSFORM);
-	if (geometry_updated || scale_updated) {
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &output->resources) {
-			if (geometry_updated) {
-				send_geometry(resource);
-			}
-			if (scale_updated) {
-				send_scale(resource);
-			}
-		}
-		wlr_output_schedule_done(output);
-	}
-
-	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
-		output->frame_pending = true;
-		output->needs_frame = false;
-		pixman_region32_clear(&output->damage);
-	}
-
+	output->frame_pending = true;
+	output->needs_frame = false;
 	output_state_clear(&output->pending);
+	pixman_region32_clear(&output->damage);
 	return true;
 }
 
