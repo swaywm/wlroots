@@ -22,6 +22,7 @@ static struct wlr_input_method_v2 *input_method_from_resource(
 
 static void input_method_destroy(struct wlr_input_method_v2 *input_method) {
 	wlr_signal_emit_safe(&input_method->events.destroy, input_method);
+	wl_list_remove(wl_resource_get_link(input_method->resource));
 	wl_list_remove(&input_method->seat_destroy.link);
 	free(input_method->pending.commit_text);
 	free(input_method->pending.preedit.text);
