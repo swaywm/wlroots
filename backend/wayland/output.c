@@ -63,44 +63,26 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	struct wlr_wl_output *output =
 		get_wl_output_from_output(wlr_output);
 
-	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
-		wlr_log(WLR_DEBUG, "Cannot disable a Wayland output");
+	if (output->frame_callback != NULL) {
+		wlr_log(WLR_ERROR, "Skipping buffer swap");
 		return false;
 	}
 
-	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_MODE) {
-		assert(wlr_output->pending.mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM);
-		if (!output_set_custom_mode(wlr_output,
-				wlr_output->pending.custom_mode.width,
-				wlr_output->pending.custom_mode.height,
-				wlr_output->pending.custom_mode.refresh)) {
-			return false;
-		}
+	output->frame_callback = wl_surface_frame(output->surface);
+	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
+
+	pixman_region32_t *damage = NULL;
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
+		damage = &wlr_output->pending.damage;
 	}
 
-	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
-		if (output->frame_callback != NULL) {
-			wlr_log(WLR_ERROR, "Skipping buffer swap");
-			return false;
-		}
-
-		output->frame_callback = wl_surface_frame(output->surface);
-		wl_callback_add_listener(output->frame_callback, &frame_listener, output);
-
-		pixman_region32_t *damage = NULL;
-		if (wlr_output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
-			damage = &wlr_output->pending.damage;
-		}
-
-		if (!wlr_egl_swap_buffers(&output->backend->egl,
-				output->egl_surface, damage)) {
-			return false;
-		}
-
-		// TODO: if available, use the presentation-time protocol
-		wlr_output_send_present(wlr_output, NULL);
+	if (!wlr_egl_swap_buffers(&output->backend->egl,
+			output->egl_surface, damage)) {
+		return false;
 	}
 
+	// TODO: if available, use the presentation-time protocol
+	wlr_output_send_present(wlr_output, NULL);
 	return true;
 }
 
@@ -237,6 +219,7 @@ static bool output_schedule_frame(struct wlr_output *wlr_output) {
 }
 
 static const struct wlr_output_impl output_impl = {
+	.set_custom_mode = output_set_custom_mode,
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
 	.commit = output_commit,

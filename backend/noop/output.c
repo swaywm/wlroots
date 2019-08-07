@@ -12,30 +12,19 @@ static struct wlr_noop_output *noop_output_from_output(
 	return (struct wlr_noop_output *)wlr_output;
 }
 
+static bool output_set_custom_mode(struct wlr_output *wlr_output,
+		int32_t width, int32_t height, int32_t refresh) {
+	wlr_output_update_custom_mode(wlr_output, width, height, refresh);
+	return true;
+}
+
 static bool output_attach_render(struct wlr_output *wlr_output,
 		int *buffer_age) {
 	return false;
 }
 
 static bool output_commit(struct wlr_output *wlr_output) {
-	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
-		wlr_log(WLR_DEBUG, "Cannot disable a noop output");
-		return false;
-	}
-
-	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_MODE) {
-		assert(wlr_output->pending.mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM);
-		wlr_output_update_custom_mode(wlr_output,
-			wlr_output->pending.custom_mode.width,
-			wlr_output->pending.custom_mode.height,
-			wlr_output->pending.custom_mode.refresh);
-	}
-
-	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
-		return false;
-	}
-
-	return true;
+	return false;
 }
 
 static void output_destroy(struct wlr_output *wlr_output) {
@@ -48,6 +37,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 }
 
 static const struct wlr_output_impl output_impl = {
+	.set_custom_mode = output_set_custom_mode,
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
 	.commit = output_commit,
