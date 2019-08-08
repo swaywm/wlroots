@@ -95,6 +95,7 @@ struct wlr_xdg_popup_grab_v6 {
 	struct wl_client *client;
 	struct wlr_seat_pointer_grab pointer_grab;
 	struct wlr_seat_keyboard_grab keyboard_grab;
+	struct wlr_seat_touch_grab touch_grab;
 	struct wlr_seat *seat;
 	struct wl_list popups;
 	struct wl_list link; // wlr_xdg_shell_v6::popup_grabs
