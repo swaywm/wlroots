@@ -140,6 +140,9 @@ struct wlr_surface *desktop_surface_at(struct roots_desktop *desktop,
 			desktop_output_from_wlr_output(desktop, wlr_output);
 		if (output != NULL && output->fullscreen_view != NULL) {
 			if (view_at(output->fullscreen_view, lx, ly, &surface, sx, sy)) {
+				if (view) {
+					*view = output->fullscreen_view;
+				}
 				return surface;
 			} else {
 				return NULL;
