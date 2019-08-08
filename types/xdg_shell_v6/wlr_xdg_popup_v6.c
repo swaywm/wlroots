@@ -14,16 +14,15 @@ static struct wlr_xdg_surface_v6 *xdg_popup_grab_get_topmost(
 	return NULL;
 }
 
-static void xdg_pointer_grab_end(struct wlr_seat_pointer_grab *grab) {
-	struct wlr_xdg_popup_grab_v6 *popup_grab = grab->data;
-
+static void xdg_popup_grab_end(struct wlr_xdg_popup_grab_v6 *popup_grab) {
 	struct wlr_xdg_popup_v6 *popup, *tmp;
 	wl_list_for_each_safe(popup, tmp, &popup_grab->popups, grab_link) {
 		zxdg_popup_v6_send_popup_done(popup->resource);
 	}
 
-	wlr_seat_pointer_end_grab(grab->seat);
-	wlr_seat_keyboard_end_grab(grab->seat);
+	wlr_seat_pointer_end_grab(popup_grab->seat);
+	wlr_seat_keyboard_end_grab(popup_grab->seat);
+	wlr_seat_touch_end_grab(popup_grab->seat);
 }
 
 static void xdg_pointer_grab_enter(struct wlr_seat_pointer_grab *grab,
@@ -48,7 +47,7 @@ static uint32_t xdg_pointer_grab_button(struct wlr_seat_pointer_grab *grab,
 	if (serial) {
 		return serial;
 	} else {
-		xdg_pointer_grab_end(grab);
+		xdg_popup_grab_end(grab->data);
 		return 0;
 	}
 }
@@ -65,7 +64,7 @@ static void xdg_pointer_grab_frame(struct wlr_seat_pointer_grab *grab) {
 }
 
 static void xdg_pointer_grab_cancel(struct wlr_seat_pointer_grab *grab) {
-	xdg_pointer_grab_end(grab);
+	xdg_popup_grab_end(grab->data);
 }
 
 static const struct wlr_pointer_grab_interface xdg_pointer_grab_impl = {
@@ -104,6 +103,46 @@ static const struct wlr_keyboard_grab_interface xdg_keyboard_grab_impl = {
 	.cancel = xdg_keyboard_grab_cancel,
 };
 
+static uint32_t xdg_touch_grab_down(struct wlr_seat_touch_grab *grab,
+		uint32_t time, struct wlr_touch_point *point) {
+	struct wlr_xdg_popup_grab_v6 *popup_grab = grab->data;
+
+	if (wl_resource_get_client(point->surface->resource) != popup_grab->client) {
+		xdg_popup_grab_end(grab->data);
+		return 0;
+	}
+
+	return wlr_seat_touch_send_down(grab->seat, point->surface, time,
+			point->touch_id, point->sx, point->sy);
+}
+
+static void xdg_touch_grab_up(struct wlr_seat_touch_grab *grab,
+		uint32_t time, struct wlr_touch_point *point) {
+	wlr_seat_touch_send_up(grab->seat, time, point->touch_id);
+}
+
+static void xdg_touch_grab_motion(struct wlr_seat_touch_grab *grab,
+		uint32_t time, struct wlr_touch_point *point) {
+	wlr_seat_touch_send_motion(grab->seat, time, point->touch_id, point->sx,
+		point->sy);
+}
+
+static void xdg_touch_grab_enter(struct wlr_seat_touch_grab *grab,
+		uint32_t time, struct wlr_touch_point *point) {
+}
+
+static void xdg_touch_grab_cancel(struct wlr_seat_touch_grab *grab) {
+	wlr_seat_touch_end_grab(grab->seat);
+}
+
+static const struct wlr_touch_grab_interface xdg_touch_grab_impl = {
+	.down = xdg_touch_grab_down,
+	.up = xdg_touch_grab_up,
+	.motion = xdg_touch_grab_motion,
+	.enter = xdg_touch_grab_enter,
+	.cancel = xdg_touch_grab_cancel
+};
+
 static void xdg_popup_grab_handle_seat_destroy(
 		struct wl_listener *listener, void *data) {
 	struct wlr_xdg_popup_grab_v6 *xdg_grab =
@@ -138,6 +177,8 @@ struct wlr_xdg_popup_grab_v6 *get_xdg_shell_v6_popup_grab_from_seat(
 	xdg_grab->pointer_grab.interface = &xdg_pointer_grab_impl;
 	xdg_grab->keyboard_grab.data = xdg_grab;
 	xdg_grab->keyboard_grab.interface = &xdg_keyboard_grab_impl;
+	xdg_grab->touch_grab.data = xdg_grab;
+	xdg_grab->touch_grab.interface = &xdg_touch_grab_impl;
 
 	wl_list_init(&xdg_grab->popups);
 
@@ -215,6 +256,8 @@ static void xdg_popup_handle_grab(struct wl_client *client,
 		&popup_grab->pointer_grab);
 	wlr_seat_keyboard_start_grab(seat_client->seat,
 		&popup_grab->keyboard_grab);
+	wlr_seat_touch_start_grab(seat_client->seat,
+		&popup_grab->touch_grab);
 }
 
 static void xdg_popup_handle_destroy(struct wl_client *client,
