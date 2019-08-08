@@ -175,6 +175,11 @@ uint32_t wlr_seat_touch_notify_down(struct wlr_seat *seat,
 
 	uint32_t serial = grab->interface->down(grab, time, point);
 
+	if (!serial) {
+		touch_point_destroy(point);
+		return 0;
+	}
+
 	if (serial && wlr_seat_touch_num_points(seat) == 1) {
 		seat->touch_state.grab_serial = serial;
 		seat->touch_state.grab_id = touch_id;
