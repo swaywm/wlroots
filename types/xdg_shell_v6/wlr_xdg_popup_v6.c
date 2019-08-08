@@ -28,7 +28,16 @@ static void xdg_popup_grab_end(struct wlr_xdg_popup_grab_v6 *popup_grab) {
 static void xdg_pointer_grab_enter(struct wlr_seat_pointer_grab *grab,
 		struct wlr_surface *surface, double sx, double sy) {
 	struct wlr_xdg_popup_grab_v6 *popup_grab = grab->data;
-	if (wl_resource_get_client(surface->resource) == popup_grab->client) {
+
+	bool grabbing = false;
+	struct wlr_xdg_popup_v6 *popup;
+	wl_list_for_each(popup, &popup_grab->popups, grab_link) {
+		if (surface == popup->base->surface) {
+			grabbing = true;
+		}
+	}
+
+	if (grabbing) {
 		wlr_seat_pointer_enter(grab->seat, surface, sx, sy);
 	} else {
 		wlr_seat_pointer_clear_focus(grab->seat);
@@ -107,7 +116,15 @@ static uint32_t xdg_touch_grab_down(struct wlr_seat_touch_grab *grab,
 		uint32_t time, struct wlr_touch_point *point) {
 	struct wlr_xdg_popup_grab_v6 *popup_grab = grab->data;
 
-	if (wl_resource_get_client(point->surface->resource) != popup_grab->client) {
+	bool grabbing = false;
+	struct wlr_xdg_popup_v6 *popup;
+	wl_list_for_each(popup, &popup_grab->popups, grab_link) {
+		if (point->surface == popup->base->surface) {
+			grabbing = true;
+		}
+	}
+
+	if (!grabbing) {
 		xdg_popup_grab_end(grab->data);
 		return 0;
 	}
