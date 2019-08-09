@@ -319,7 +319,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 		output->zxdg_toplevel_decoration_v1 =
 			zxdg_decoration_manager_v1_get_toplevel_decoration(
 			backend->zxdg_decoration_manager_v1, output->xdg_toplevel);
-		if (!output->xdg_toplevel) {
+		if (!output->zxdg_toplevel_decoration_v1) {
 			wlr_log_errno(WLR_ERROR, "Could not get xdg toplevel decoration");
 			goto error;
 		}
