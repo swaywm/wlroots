@@ -197,6 +197,7 @@ static struct wlr_device *find_device(struct wlr_session *session, int fd) {
 
 	wlr_log(WLR_ERROR, "Tried to use fd %d not opened by session", fd);
 	assert(0);
+	return NULL;
 }
 
 void wlr_session_close_file(struct wlr_session *session, int fd) {

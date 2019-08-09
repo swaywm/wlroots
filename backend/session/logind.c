@@ -258,6 +258,7 @@ static struct wlr_device *find_device(struct wlr_session *session,
 	wlr_log(WLR_ERROR, "Tried to use dev_t %lu not opened by session",
 		(unsigned long)devnum);
 	assert(0);
+	return NULL;
 }
 
 static int pause_device(sd_bus_message *msg, void *userdata,
