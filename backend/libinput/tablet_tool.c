@@ -113,6 +113,10 @@ static enum wlr_tablet_tool_type wlr_type_from_libinput_type(
 		return WLR_TABLET_TOOL_TYPE_MOUSE;
 	case LIBINPUT_TABLET_TOOL_TYPE_LENS:
 		return WLR_TABLET_TOOL_TYPE_LENS;
+#if LIBINPUT_MINOR >= 14
+	case LIBINPUT_TABLET_TOOL_TYPE_TOTEM:
+		return WLR_TABLET_TOOL_TYPE_TOTEM;
+#endif
 	}
 
 	assert(false && "UNREACHABLE");
