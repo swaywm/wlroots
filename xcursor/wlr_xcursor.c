@@ -196,15 +196,17 @@ static void load_callback(XcursorImages *images, void *data) {
 	cursor = xcursor_create_from_xcursor_images(images, theme);
 
 	if (cursor) {
+		struct wlr_xcursor **cursors;
 		theme->cursor_count++;
-		theme->cursors =
+		cursors =
 			realloc(theme->cursors,
 				theme->cursor_count * sizeof(theme->cursors[0]));
 
-		if (theme->cursors == NULL) {
+		if (cursors == NULL) {
 			theme->cursor_count--;
 			free(cursor);
 		} else {
+			theme->cursors = cursors;
 			theme->cursors[theme->cursor_count - 1] = cursor;
 		}
 	}
