@@ -42,7 +42,7 @@ static void handle_tablet_tool_v2_set_cursor(struct wl_client *client,
 		.hotspot_x = hotspot_x,
 		.hotspot_y = hotspot_y,
 		.seat_client = tool->seat->seat_client,
-		};
+	};
 
 	wl_signal_emit(&tool->tool->events.set_cursor, &evt);
 }
@@ -73,6 +73,9 @@ static enum zwp_tablet_tool_v2_type tablet_type_from_wlr_type(
 		return ZWP_TABLET_TOOL_V2_TYPE_MOUSE;
 	case WLR_TABLET_TOOL_TYPE_LENS:
 		return ZWP_TABLET_TOOL_V2_TYPE_LENS;
+	default:
+		/* We skip these devices earlier on */
+		assert(false && "Unreachable");
 	}
 
 	assert(false && "Unreachable");
@@ -196,6 +199,21 @@ struct wlr_tablet_v2_tablet_tool *wlr_tablet_tool_create(
 		struct wlr_tablet_manager_v2 *manager,
 		struct wlr_seat *wlr_seat,
 		struct wlr_tablet_tool *wlr_tool) {
+	switch (wlr_tool->type) {
+	case WLR_TABLET_TOOL_TYPE_PEN:
+	case WLR_TABLET_TOOL_TYPE_ERASER:
+	case WLR_TABLET_TOOL_TYPE_BRUSH:
+	case WLR_TABLET_TOOL_TYPE_PENCIL:
+	case WLR_TABLET_TOOL_TYPE_AIRBRUSH:
+	case WLR_TABLET_TOOL_TYPE_MOUSE:
+	case WLR_TABLET_TOOL_TYPE_LENS:
+		/* supported */
+		break;
+	default:
+		/* Unsupported */
+		return NULL;
+	}
+
 	struct wlr_tablet_seat_v2 *seat = get_or_create_tablet_seat(manager, wlr_seat);
 	if (!seat) {
 		return NULL;

@@ -128,6 +128,15 @@ if logind.found()
 	wlr_deps += logind
 endif
 
+if libinput.found()
+	ver = libinput.version().split('.')
+	add_project_arguments([
+		'-DLIBINPUT_MAJOR=' + ver[0],
+		'-DLIBINPUT_MINOR=' + ver[1],
+		'-DLIBINPUT_PATCH=' + ver[2],
+	], language: 'c')
+endif
+
 subdir('protocol')
 subdir('render')
 
