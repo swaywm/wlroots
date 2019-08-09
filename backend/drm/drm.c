@@ -7,6 +7,7 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <inttypes.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1427,7 +1428,7 @@ int handle_drm_event(int fd, uint32_t mask, void *data) {
 }
 
 void restore_drm_outputs(struct wlr_drm_backend *drm) {
-	uint64_t to_close = (1L << wl_list_length(&drm->outputs)) - 1;
+	uint64_t to_close = (UINT64_C(1) << wl_list_length(&drm->outputs)) - 1;
 
 	struct wlr_drm_connector *conn;
 	wl_list_for_each(conn, &drm->outputs, link) {
@@ -1444,7 +1445,7 @@ void restore_drm_outputs(struct wlr_drm_backend *drm) {
 		struct wlr_drm_connector *conn;
 		wl_list_for_each(conn, &drm->outputs, link) {
 			if (conn->state != WLR_DRM_CONN_CLEANUP || !conn->pageflip_pending) {
-				to_close &= ~(1 << i);
+				to_close &= ~(UINT64_C(1) << i);
 			}
 			i++;
 		}
