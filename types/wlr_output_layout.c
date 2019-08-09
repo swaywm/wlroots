@@ -437,8 +437,8 @@ struct wlr_output *wlr_output_layout_get_center_output(
 	}
 
 	struct wlr_box *extents = wlr_output_layout_get_box(layout, NULL);
-	double center_x = extents->width / 2 + extents->x;
-	double center_y = extents->height / 2 + extents->y;
+	double center_x = extents->width / 2. + extents->x;
+	double center_y = extents->height / 2. + extents->y;
 
 	double dest_x = 0, dest_y = 0;
 	wlr_output_layout_closest_point(layout, NULL, center_x, center_y,
