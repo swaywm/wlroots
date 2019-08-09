@@ -222,20 +222,16 @@ struct wlr_box wlr_xdg_positioner_get_geometry(
 	if (positioner_gravity_has_edge(positioner->gravity,
 			XDG_POSITIONER_GRAVITY_TOP)) {
 		geometry.y -= geometry.height;
-	} else if (positioner_gravity_has_edge(positioner->gravity,
+	} else if (!positioner_gravity_has_edge(positioner->gravity,
 			XDG_POSITIONER_GRAVITY_BOTTOM)) {
-		geometry.y = geometry.y;
-	} else {
 		geometry.y -= geometry.height / 2;
 	}
 
 	if (positioner_gravity_has_edge(positioner->gravity,
 			XDG_POSITIONER_GRAVITY_LEFT)) {
 		geometry.x -= geometry.width;
-	} else if (positioner_gravity_has_edge(positioner->gravity,
+	} else if (!positioner_gravity_has_edge(positioner->gravity,
 			XDG_POSITIONER_GRAVITY_RIGHT)) {
-		geometry.x = geometry.x;
-	} else {
 		geometry.x -= geometry.width / 2;
 	}
 
