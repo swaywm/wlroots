@@ -300,6 +300,7 @@ static struct wl_resource *create_offer(struct wlr_data_control_device_v1 *devic
 	struct wl_resource *resource = wl_resource_create(client,
 		&zwlr_data_control_offer_v1_interface, version, 0);
 	if (resource == NULL) {
+		free(offer);
 		return NULL;
 	}
 
