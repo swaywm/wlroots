@@ -828,10 +828,6 @@ static void subsurface_consider_map(struct wlr_subsurface *subsurface,
 	}
 
 	// Now we can map the subsurface
-	if (subsurface->mapped) {
-		return;
-	}
-
 	wlr_signal_emit_safe(&subsurface->events.map, subsurface);
 	subsurface->mapped = true;
 
