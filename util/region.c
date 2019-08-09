@@ -218,7 +218,7 @@ static void region_confine(pixman_region32_t *region, double x1, double y1, doub
 		bool bordering_x = x == box.x1 || x == box.x2 - 1;
 		bool bordering_y = y == box.y1 || y == box.y2 - 1;
 
-		if ((bordering_x && bordering_y) || (!bordering_x && !bordering_y)) {
+		if (bordering_x == bordering_y) {
 			double x2_potential, y2_potential;
 			double tmp1, tmp2;
 			region_confine(region, x, y, x, y2, &tmp1, &y2_potential, box);
