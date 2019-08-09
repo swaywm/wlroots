@@ -291,7 +291,7 @@ static void xwm_surface_activate(struct wlr_xwm *xwm,
 
 static void xsurface_set_net_wm_state(struct wlr_xwayland_surface *xsurface) {
 	struct wlr_xwm *xwm = xsurface->xwm;
-	uint32_t property[3];
+	uint32_t property[4];
 	int i;
 
 	i = 0;
