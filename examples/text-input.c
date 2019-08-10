@@ -137,8 +137,7 @@ static void show_status(void) {
 		goto end;
 	}
 
-	if ((unsigned)current.preedit.cursor_begin > strlen(preedit_text)
-			|| (unsigned)current.preedit.cursor_begin > strlen(preedit_text)) {
+	if ((unsigned)current.preedit.cursor_begin > strlen(preedit_text)) {
 		printf("Cursor out of bounds\n");
 		goto end;
 	}
