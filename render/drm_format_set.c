@@ -60,7 +60,7 @@ bool wlr_drm_format_set_add(struct wlr_drm_format_set *set, uint32_t format,
 	struct wlr_drm_format **ptr = format_set_get_ref(set, format);
 
 	if (ptr) {
-		struct wlr_drm_format *fmt = *ptr, *newfmt = NULL;
+		struct wlr_drm_format *fmt = *ptr;
 
 		if (modifier == DRM_FORMAT_MOD_INVALID) {
 			return true;
@@ -75,17 +75,17 @@ bool wlr_drm_format_set_add(struct wlr_drm_format_set *set, uint32_t format,
 		if (fmt->len == fmt->cap) {
 			size_t cap = fmt->cap ? fmt->cap * 2 : 4;
 
-			newfmt = realloc(fmt, sizeof(*fmt) + sizeof(fmt->modifiers[0]) * cap);
-			if (!newfmt) {
+			fmt = realloc(fmt, sizeof(*fmt) + sizeof(fmt->modifiers[0]) * cap);
+			if (!fmt) {
 				wlr_log_errno(WLR_ERROR, "Allocation failed");
 				return false;
 			}
 
-			newfmt->cap = cap;
-			*ptr = newfmt;
+			fmt->cap = cap;
+			*ptr = fmt;
 		}
 
-		newfmt->modifiers[newfmt->len++] = modifier;
+		fmt->modifiers[fmt->len++] = modifier;
 		return true;
 	}
 
