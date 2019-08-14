@@ -98,11 +98,15 @@ static bool add_plane(struct wlr_drm_backend *drm,
 	p->id = drm_plane->plane_id;
 	p->props = *props;
 
+	for (size_t j = 0; j < drm_plane->count_formats; ++j) {
+		wlr_drm_format_set_add(&p->formats, drm_plane->formats[j],
+			DRM_FORMAT_MOD_INVALID);
+	}
+
 	// Choose an RGB format for the plane
 	uint32_t rgb_format = DRM_FORMAT_INVALID;
 	for (size_t j = 0; j < drm_plane->count_formats; ++j) {
 		uint32_t fmt = drm_plane->formats[j];
-		wlr_drm_format_set_add(&p->formats, fmt, DRM_FORMAT_MOD_INVALID);
 
 		if (fmt == DRM_FORMAT_ARGB8888) {
 			// Prefer formats with alpha channel
