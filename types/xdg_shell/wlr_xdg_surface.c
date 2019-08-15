@@ -41,6 +41,10 @@ void unmap_xdg_surface(struct wlr_xdg_surface *surface) {
 
 	switch (surface->role) {
 	case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
+		if (surface->toplevel->parent) {
+			wl_list_remove(&surface->toplevel->parent_unmap.link);
+			surface->toplevel->parent = NULL;
+		}
 		free(surface->toplevel->title);
 		surface->toplevel->title = NULL;
 		free(surface->toplevel->app_id);
