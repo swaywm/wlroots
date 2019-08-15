@@ -117,8 +117,10 @@ struct wlr_xdg_toplevel_state {
 struct wlr_xdg_toplevel {
 	struct wl_resource *resource;
 	struct wlr_xdg_surface *base;
-	struct wlr_xdg_surface *parent;
 	bool added;
+
+	struct wlr_xdg_surface *parent;
+	struct wl_listener parent_unmap;
 
 	struct wlr_xdg_toplevel_state client_pending;
 	struct wlr_xdg_toplevel_state server_pending;
