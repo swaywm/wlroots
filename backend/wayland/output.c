@@ -166,78 +166,86 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	struct wlr_wl_output *output =
 		get_wl_output_from_output(wlr_output);
 
-	if (output->frame_callback != NULL) {
-		wlr_log(WLR_ERROR, "Skipping buffer swap");
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
+		wlr_log(WLR_DEBUG, "Cannot disable a Wayland output");
 		return false;
 	}
 
-	output->frame_callback = wl_surface_frame(output->surface);
-	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
-
-	pixman_region32_t *damage = NULL;
-	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
-		damage = &wlr_output->pending.damage;
-	}
-
-	wlr_buffer_unref(output->current_buffer);
-	output->current_buffer = NULL;
-	if (output->current_wl_buffer != NULL) {
-		wl_buffer_destroy(output->current_wl_buffer);
-		output->current_wl_buffer = NULL;
-	}
-
-	struct wp_presentation_feedback *wp_feedback = NULL;
-	if (output->backend->presentation != NULL) {
-		wp_feedback = wp_presentation_feedback(output->backend->presentation,
-			output->surface);
-	}
-
-	assert(wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER);
-	switch (wlr_output->pending.buffer_type) {
-	case WLR_OUTPUT_STATE_BUFFER_RENDER:
-		if (!wlr_egl_swap_buffers(&output->backend->egl,
-				output->egl_surface, damage)) {
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_MODE) {
+		assert(wlr_output->pending.mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM);
+		if (!output_set_custom_mode(wlr_output,
+				wlr_output->pending.custom_mode.width,
+				wlr_output->pending.custom_mode.height,
+				wlr_output->pending.custom_mode.refresh)) {
 			return false;
 		}
-		break;
-	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:
-		if (damage == NULL) {
-			wl_surface_damage_buffer(output->surface,
-				0, 0, INT32_MAX, INT32_MAX);
-		} else {
-			int rects_len;
-			pixman_box32_t *rects =
-				pixman_region32_rectangles(damage, &rects_len);
-			for (int i = 0; i < rects_len; i++) {
-				pixman_box32_t *r = &rects[i];
-				wl_surface_damage_buffer(output->surface, r->x1, r->y1,
-					r->x2 - r->x1, r->y2 - r->y1);
+	}
+
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+		wlr_buffer_unref(output->current_buffer);
+		output->current_buffer = NULL;
+		if (output->current_wl_buffer != NULL) {
+			wl_buffer_destroy(output->current_wl_buffer);
+			output->current_wl_buffer = NULL;
+		}
+
+		struct wp_presentation_feedback *wp_feedback = NULL;
+		if (output->backend->presentation != NULL) {
+			wp_feedback = wp_presentation_feedback(output->backend->presentation,
+				output->surface);
+		}
+
+		pixman_region32_t *damage = NULL;
+		if (wlr_output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
+			damage = &wlr_output->pending.damage;
+		}
+
+		switch (wlr_output->pending.buffer_type) {
+		case WLR_OUTPUT_STATE_BUFFER_RENDER:
+			if (!wlr_egl_swap_buffers(&output->backend->egl,
+					output->egl_surface, damage)) {
+				return false;
 			}
+			break;
+		case WLR_OUTPUT_STATE_BUFFER_SCANOUT:
+			if (damage == NULL) {
+				wl_surface_damage_buffer(output->surface,
+					0, 0, INT32_MAX, INT32_MAX);
+			} else {
+				int rects_len;
+				pixman_box32_t *rects =
+					pixman_region32_rectangles(damage, &rects_len);
+				for (int i = 0; i < rects_len; i++) {
+					pixman_box32_t *r = &rects[i];
+					wl_surface_damage_buffer(output->surface, r->x1, r->y1,
+						r->x2 - r->x1, r->y2 - r->y1);
+				}
+			}
+			wl_surface_commit(output->surface);
+
+			output->current_buffer = wlr_buffer_ref(wlr_output->pending.buffer);
+			output->current_wl_buffer = output->pending_wl_buffer;
+			output->pending_wl_buffer = NULL;
+			break;
 		}
-		wl_surface_commit(output->surface);
 
-		output->current_buffer = wlr_buffer_ref(wlr_output->pending.buffer);
-		output->current_wl_buffer = output->pending_wl_buffer;
-		output->pending_wl_buffer = NULL;
-		break;
-	}
+		if (wp_feedback != NULL) {
+			struct wlr_wl_presentation_feedback *feedback =
+				calloc(1, sizeof(*feedback));
+			if (feedback == NULL) {
+				wp_presentation_feedback_destroy(wp_feedback);
+				return false;
+			}
+			feedback->output = output;
+			feedback->feedback = wp_feedback;
+			feedback->commit_seq = output->wlr_output.commit_seq + 1;
+			wl_list_insert(&output->presentation_feedbacks, &feedback->link);
 
-	if (wp_feedback != NULL) {
-		struct wlr_wl_presentation_feedback *feedback =
-			calloc(1, sizeof(*feedback));
-		if (feedback == NULL) {
-			wp_presentation_feedback_destroy(wp_feedback);
-			return false;
+			wp_presentation_feedback_add_listener(wp_feedback,
+				&presentation_feedback_listener, feedback);
+		} else {
+			wlr_output_send_present(wlr_output, NULL);
 		}
-		feedback->output = output;
-		feedback->feedback = wp_feedback;
-		feedback->commit_seq = output->wlr_output.commit_seq + 1;
-		wl_list_insert(&output->presentation_feedbacks, &feedback->link);
-
-		wp_presentation_feedback_add_listener(wp_feedback,
-			&presentation_feedback_listener, feedback);
-	} else {
-		wlr_output_send_present(wlr_output, NULL);
 	}
 
 	return true;
@@ -382,7 +390,6 @@ static bool output_schedule_frame(struct wlr_output *wlr_output) {
 }
 
 static const struct wlr_output_impl output_impl = {
-	.set_custom_mode = output_set_custom_mode,
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
 	.attach_buffer  = output_attach_buffer,

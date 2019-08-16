@@ -15,10 +15,6 @@
 #include <wlr/types/wlr_output.h>
 
 struct wlr_output_impl {
-	bool (*enable)(struct wlr_output *output, bool enable);
-	bool (*set_mode)(struct wlr_output *output, struct wlr_output_mode *mode);
-	bool (*set_custom_mode)(struct wlr_output *output, int32_t width,
-		int32_t height, int32_t refresh);
 	bool (*set_cursor)(struct wlr_output *output, struct wlr_texture *texture,
 		int32_t scale, enum wl_output_transform transform,
 		int32_t hotspot_x, int32_t hotspot_y, bool update_texture);

@@ -334,12 +334,9 @@ static bool drm_connector_attach_render(struct wlr_output *output,
 	return make_drm_surface_current(&conn->crtc->primary->surf, buffer_age);
 }
 
-static bool drm_connector_commit(struct wlr_output *output) {
+static bool drm_connector_commit_buffer(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
-	if (!drm->session->active) {
-		return false;
-	}
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
@@ -412,6 +409,49 @@ static bool drm_connector_commit(struct wlr_output *output) {
 	}
 
 	wlr_output_update_enabled(output, true);
+	return true;
+}
+
+static bool drm_connector_set_custom_mode(struct wlr_output *output,
+	int32_t width, int32_t height, int32_t refresh);
+
+static bool drm_connector_commit(struct wlr_output *output) {
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+
+	if (!drm->session->active) {
+		return false;
+	}
+
+	if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
+		if (!enable_drm_connector(output, output->pending.enabled)) {
+			return false;
+		}
+	}
+
+	if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
+		switch (output->pending.mode_type) {
+		case WLR_OUTPUT_STATE_MODE_FIXED:
+			if (!drm_connector_set_mode(output, output->pending.mode)) {
+				return false;
+			}
+			break;
+		case WLR_OUTPUT_STATE_MODE_CUSTOM:
+			if (!drm_connector_set_custom_mode(output,
+					output->pending.custom_mode.width,
+					output->pending.custom_mode.height,
+					output->pending.custom_mode.refresh)) {
+				return false;
+			}
+			break;
+		}
+	}
+
+	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+		if (!drm_connector_commit_buffer(output)) {
+			return false;
+		}
+	}
+
 	return true;
 }
 
@@ -1002,9 +1042,6 @@ static void drm_connector_destroy(struct wlr_output *output) {
 }
 
 static const struct wlr_output_impl output_impl = {
-	.enable = enable_drm_connector,
-	.set_mode = drm_connector_set_mode,
-	.set_custom_mode = drm_connector_set_custom_mode,
 	.set_cursor = drm_connector_set_cursor,
 	.move_cursor = drm_connector_move_cursor,
 	.destroy = drm_connector_destroy,
