@@ -31,8 +31,14 @@ struct wlr_presentation_feedback {
 	struct wl_resource *resource;
 	struct wlr_presentation *presentation;
 	struct wlr_surface *surface;
-	bool committed;
 	struct wl_list link; // wlr_presentation::feedbacks
+
+	// The surface contents were committed.
+	bool committed;
+	// The surface contents were sampled by the compositor and are to be
+	// presented on the next flip. Can become true only after committed becomes
+	// true.
+	bool sampled;
 
 	struct wl_listener surface_commit;
 	struct wl_listener surface_destroy;
@@ -55,5 +61,7 @@ void wlr_presentation_destroy(struct wlr_presentation *presentation);
 void wlr_presentation_send_surface_presented(
 	struct wlr_presentation *presentation, struct wlr_surface *surface,
 	struct wlr_presentation_event *event);
+void wlr_presentation_surface_sampled(
+	struct wlr_presentation *presentation, struct wlr_surface *surface);
 
 #endif
