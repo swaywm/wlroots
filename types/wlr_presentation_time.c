@@ -61,8 +61,10 @@ static void feedback_handle_surface_commit(struct wl_listener *listener,
 		wl_container_of(listener, feedback, surface_commit);
 
 	if (feedback->committed) {
-		// The content update has been superseded
-		feedback_send_discarded(feedback);
+		if (!feedback->sampled) {
+			// The content update has been superseded
+			feedback_send_discarded(feedback);
+		}
 	} else {
 		feedback->committed = true;
 	}
@@ -216,8 +218,20 @@ void wlr_presentation_send_surface_presented(
 	struct wlr_presentation_feedback *feedback, *feedback_tmp;
 	wl_list_for_each_safe(feedback, feedback_tmp,
 			&presentation->feedbacks, link) {
-		if (feedback->surface == surface && feedback->committed) {
+		if (feedback->surface == surface && feedback->sampled) {
 			feedback_send_presented(feedback, event);
+		}
+	}
+}
+
+void wlr_presentation_surface_sampled(
+		struct wlr_presentation *presentation, struct wlr_surface *surface) {
+	// TODO: maybe use a hashtable to optimize this function
+	struct wlr_presentation_feedback *feedback, *feedback_tmp;
+	wl_list_for_each_safe(feedback, feedback_tmp,
+			&presentation->feedbacks, link) {
+		if (feedback->surface == surface && feedback->committed) {
+			feedback->sampled = true;
 		}
 	}
 }
