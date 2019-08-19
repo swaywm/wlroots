@@ -54,7 +54,7 @@ void handle_touch_up(struct libinput_event *event,
 	wlr_event.device = wlr_dev;
 	wlr_event.time_msec =
 		usec_to_msec(libinput_event_touch_get_time_usec(tevent));
-	wlr_event.touch_id = libinput_event_touch_get_slot(tevent);
+	wlr_event.touch_id = libinput_event_touch_get_seat_slot(tevent);
 	wlr_signal_emit_safe(&wlr_dev->touch->events.up, &wlr_event);
 }
 
@@ -72,7 +72,7 @@ void handle_touch_motion(struct libinput_event *event,
 	wlr_event.device = wlr_dev;
 	wlr_event.time_msec =
 		usec_to_msec(libinput_event_touch_get_time_usec(tevent));
-	wlr_event.touch_id = libinput_event_touch_get_slot(tevent);
+	wlr_event.touch_id = libinput_event_touch_get_seat_slot(tevent);
 	wlr_event.x = libinput_event_touch_get_x_transformed(tevent, 1);
 	wlr_event.y = libinput_event_touch_get_y_transformed(tevent, 1);
 	wlr_signal_emit_safe(&wlr_dev->touch->events.motion, &wlr_event);
@@ -92,6 +92,6 @@ void handle_touch_cancel(struct libinput_event *event,
 	wlr_event.device = wlr_dev;
 	wlr_event.time_msec =
 		usec_to_msec(libinput_event_touch_get_time_usec(tevent));
-	wlr_event.touch_id = libinput_event_touch_get_slot(tevent);
+	wlr_event.touch_id = libinput_event_touch_get_seat_slot(tevent);
 	wlr_signal_emit_safe(&wlr_dev->touch->events.cancel, &wlr_event);
 }
