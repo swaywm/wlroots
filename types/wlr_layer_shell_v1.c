@@ -188,6 +188,11 @@ static void layer_surface_unmap(struct wlr_layer_surface_v1 *surface) {
 	// TODO: probably need to ungrab before this event
 	wlr_signal_emit_safe(&surface->events.unmap, surface);
 
+	struct wlr_xdg_popup *popup, *popup_tmp;
+	wl_list_for_each_safe(popup, popup_tmp, &surface->popups, link) {
+		wlr_xdg_popup_destroy(popup->base);
+	}
+
 	struct wlr_layer_surface_v1_configure *configure, *tmp;
 	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
 		layer_surface_configure_destroy(configure);
