@@ -318,7 +318,7 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 		// Unfortunately GLES2 doesn't support GL_PACK_*, so we have to read
 		// the lines out row by row
 		for (size_t i = 0; i < height; ++i) {
-	        glReadPixels(src_x, renderer->viewport_height - src_y - i, width, 1, fmt->gl_format,
+			glReadPixels(src_x, renderer->viewport_height - src_y - i - 1, width, 1, fmt->gl_format,
 				fmt->gl_type, p + i * stride + dst_x * fmt->bpp / 8);
 		}
 		if (flags != NULL) {
