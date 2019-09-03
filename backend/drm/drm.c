@@ -1304,8 +1304,17 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
 			}
 
+			size_t path_len;
+			bool is_mst = false;
+			char *path = get_drm_prop_blob(drm->fd, wlr_conn->id,
+				wlr_conn->props.path, &path_len);
+			if (path_len > 4 && path && strncmp(path, "mst:", 4) == 0) {
+				is_mst = true;
+			}
+			free(path);
+
 			wlr_conn->possible_crtc = get_possible_crtcs(drm->fd, res, drm_conn,
-				wlr_conn->props.path != 0);
+				is_mst);
 			if (wlr_conn->possible_crtc == 0) {
 				wlr_log(WLR_ERROR, "No CRTC possible for connector '%s'",
 					wlr_conn->output.name);
