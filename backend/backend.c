@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <libinput.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -249,6 +250,26 @@ static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
 
 struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		wlr_renderer_create_func_t create_renderer_func) {
+
+	// Note: the pthread_sigmask() call below MUST be made before
+        // dlopen()ing any vendor OpenGL libraries.  You can't move it
+        // into wlr_xwayland_create() or any of the other functions in
+        // xwayland.c because they run too late in the startup
+        // process.
+        //
+	// Shared libraries (such as libMali.so, the Mali OpenGL
+	// driver) may create their own threads.  To ensure that
+	// Xwayland's SIGUSR1 does not hit those threads and kill
+	// sway, we must call pthread_sigmask() as early as possible.
+	// See also weston commit
+	// f59dc1112be50467b7c0f8aeba68f3aa10d36725 which does the
+	// same thing.
+	sigset_t mask;
+        wlr_log(WLR_ERROR, "setting sigmask\n");
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGUSR1);
+	pthread_sigmask(SIG_BLOCK, &mask, NULL);
+
 	struct wlr_backend *backend = wlr_multi_backend_create(display);
 	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)backend;
 	if (!backend) {

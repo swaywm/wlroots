@@ -44,6 +44,7 @@ lib_wlr_xwayland = static_library(
 		xwayland_libs,
 		xkbcommon,
 		pixman,
+		threads,
 	],
 )
 
