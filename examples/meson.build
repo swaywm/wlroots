@@ -29,10 +29,10 @@ examples = {
 		'src': 'simple.c',
 		'dep': [wlroots],
 	},
-#	'pointer': {
-#		'src': 'pointer.c',
-#		'dep': [wlroots],
-#	},
+	'pointer': {
+		'src': 'pointer.c',
+		'dep': [wlroots],
+	},
 	'touch': {
 		'src': ['touch.c', 'cat.c'],
 		'dep': [wlroots],

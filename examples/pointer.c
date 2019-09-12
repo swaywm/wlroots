@@ -11,6 +11,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_list.h>
@@ -22,15 +23,11 @@
 
 struct sample_state {
 	struct wl_display *display;
-	struct compositor_state *compositor;
 	struct wlr_xcursor_manager *xcursor_manager;
 	struct wlr_cursor *cursor;
-	double cur_x, cur_y;
 	float default_color[4];
 	float clear_color[4];
 	struct wlr_output_layout *layout;
-	struct wl_list devices;
-	struct timespec last_frame;
 
 	struct wl_listener new_output;
 	struct wl_listener new_input;
@@ -62,6 +59,9 @@ struct sample_output {
 	struct wlr_output *output;
 	struct wl_listener frame;
 	struct wl_listener destroy;
+
+	struct wlr_texture *texture;
+	int32_t hotspot_x, hotspot_y;
 };
 
 struct sample_keyboard {
@@ -100,7 +100,19 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_output_attach_render(wlr_output, NULL);
 	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(renderer, state->clear_color);
-	wlr_output_render_software_cursors(wlr_output, NULL);
+
+	if (!sample_output->texture) {
+		goto end;
+	}
+
+	double x = state->cursor->x - sample_output->hotspot_x;
+	double y = state->cursor->y - sample_output->hotspot_y;
+	wlr_output_layout_output_coords(state->layout, wlr_output, &x, &y);
+
+	wlr_render_texture(renderer, sample_output->texture,
+		wlr_output->transform_matrix, x, y, 1.0f);
+
+end:
 	wlr_output_commit(wlr_output);
 	wlr_renderer_end(renderer);
 }
@@ -119,11 +131,8 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 		wl_container_of(listener, sample, cursor_motion_absolute);
 	struct wlr_event_pointer_motion_absolute *event = data;
 
-	sample->cur_x = event->x;
-	sample->cur_y = event->y;
-
-	wlr_cursor_warp_absolute(sample->cursor, event->device, sample->cur_x,
-		sample->cur_y);
+	wlr_cursor_warp_absolute(sample->cursor, event->device,
+		event->x, event->y);
 }
 
 static void handle_cursor_button(struct wl_listener *listener, void *data) {
@@ -250,6 +259,8 @@ void new_output_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct sample_state *sample = wl_container_of(listener, sample, new_output);
 	struct sample_output *sample_output = calloc(1, sizeof(struct sample_output));
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+
 	if (!wl_list_empty(&output->modes)) {
 		struct wlr_output_mode *mode = wl_container_of(output->modes.prev, mode, link);
 		wlr_output_set_mode(output, mode);
@@ -263,10 +274,25 @@ void new_output_notify(struct wl_listener *listener, void *data) {
 	wlr_output_layout_add_auto(sample->layout, sample_output->output);
 
 	wlr_xcursor_manager_load(sample->xcursor_manager, output->scale);
-	wlr_xcursor_manager_set_cursor_image(sample->xcursor_manager, "left_ptr",
-		sample->cursor);
-}
 
+	struct wlr_xcursor *xcursor;
+	struct wlr_xcursor_image *img;
+
+	xcursor = wlr_xcursor_manager_get_xcursor(sample->xcursor_manager,
+			"left_ptr", output->scale);
+	if (!xcursor) {
+		return;
+	}
+
+	/* Animation not supported */
+	img = xcursor->images[0];
+	sample_output->hotspot_x = img->hotspot_x;
+	sample_output->hotspot_y = img->hotspot_y;
+
+	sample_output->texture = wlr_texture_from_pixels(renderer,
+			WL_SHM_FORMAT_ARGB8888, img->width * 4, img->width,
+			img->height, img->buffer);
+}
 
 void keyboard_destroy_notify(struct wl_listener *listener, void *data) {
 	struct sample_keyboard *keyboard = wl_container_of(listener, keyboard, destroy);
@@ -283,6 +309,17 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 	case WLR_INPUT_DEVICE_TOUCH:
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
 		wlr_cursor_attach_input_device(state->cursor, device);
+		if (!device->output_name)
+			break;
+
+		struct wlr_output_layout_output *output;
+		wl_list_for_each(output, &state->layout->outputs, link) {
+			if (strcmp(device->output_name, output->output->name) == 0) {
+				wlr_cursor_map_input_to_output(state->cursor,
+					device, output->output);
+			}
+		}
+
 		break;
 
 	case WLR_INPUT_DEVICE_KEYBOARD:;
@@ -319,7 +356,6 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 	}
 }
 
-
 int main(int argc, char *argv[]) {
 	wlr_log_init(WLR_DEBUG, NULL);
 	struct wl_display *display = wl_display_create();
@@ -337,7 +373,6 @@ int main(int argc, char *argv[]) {
 	state.layout = wlr_output_layout_create();
 	wlr_cursor_attach_output_layout(state.cursor, state.layout);
 	//wlr_cursor_map_to_region(state.cursor, state.config->cursor.mapped_box);
-	wl_list_init(&state.devices);
 	wl_list_init(&state.touch_points);
 
 	// pointer events
@@ -383,11 +418,6 @@ int main(int argc, char *argv[]) {
 		wlr_log(WLR_ERROR, "Failed to load left_ptr cursor");
 		return 1;
 	}
-
-	wlr_xcursor_manager_set_cursor_image(state.xcursor_manager, "left_ptr",
-		state.cursor);
-
-	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
 
 	if (!wlr_backend_start(wlr)) {
 		wlr_log(WLR_ERROR, "Failed to start backend");
