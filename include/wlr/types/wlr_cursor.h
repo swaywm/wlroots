@@ -132,25 +132,6 @@ void wlr_cursor_move(struct wlr_cursor *cur, struct wlr_input_device *dev,
 	double delta_x, double delta_y);
 
 /**
- * Set the cursor image. stride is given in bytes. If pixels is NULL, hides the
- * cursor.
- *
- * If scale isn't zero, the image is only set on outputs having the provided
- * scale.
- */
-void wlr_cursor_set_image(struct wlr_cursor *cur, const uint8_t *pixels,
-	int32_t stride, uint32_t width, uint32_t height, int32_t hotspot_x,
-	int32_t hotspot_y, float scale);
-
-/**
- * Set the cursor surface. The surface can be committed to update the cursor
- * image. The surface position is subtracted from the hotspot. A NULL surface
- * commit hides the cursor.
- */
-void wlr_cursor_set_surface(struct wlr_cursor *cur, struct wlr_surface *surface,
-	int32_t hotspot_x, int32_t hotspot_y);
-
-/**
  * Attaches this input device to this cursor. The input device must be one of:
  *
  * - WLR_INPUT_DEVICE_POINTER

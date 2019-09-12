@@ -29,10 +29,10 @@ examples = {
 		'src': 'simple.c',
 		'dep': [wlroots],
 	},
-	'pointer': {
-		'src': 'pointer.c',
-		'dep': [wlroots],
-	},
+#	'pointer': {
+#		'src': 'pointer.c',
+#		'dep': [wlroots],
+#	},
 	'touch': {
 		'src': ['touch.c', 'cat.c'],
 		'dep': [wlroots],
@@ -45,10 +45,10 @@ examples = {
 		'src': ['rotation.c', 'cat.c'],
 		'dep': [wlroots],
 	},
-	'multi-pointer': {
-		'src': 'multi-pointer.c',
-		'dep': [wlroots],
-	},
+#	'multi-pointer': {
+#		'src': 'multi-pointer.c',
+#		'dep': [wlroots],
+#	},
 	'output-layout': {
 		'src': ['output-layout.c', 'cat.c'],
 		'dep': [wlroots],

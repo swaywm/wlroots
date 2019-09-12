@@ -24,28 +24,6 @@ struct wlr_output_mode {
 	struct wl_list link;
 };
 
-struct wlr_output_cursor {
-	struct wlr_output *output;
-	double x, y;
-	bool enabled;
-	bool visible;
-	uint32_t width, height;
-	int32_t hotspot_x, hotspot_y;
-	struct wl_list link;
-
-	// only when using a software cursor without a surface
-	struct wlr_texture *texture;
-
-	// only when using a cursor surface
-	struct wlr_surface *surface;
-	struct wl_listener surface_commit;
-	struct wl_listener surface_destroy;
-
-	struct {
-		struct wl_signal destroy;
-	} events;
-};
-
 enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_BUFFER = 1 << 0,
 	WLR_OUTPUT_STATE_DAMAGE = 1 << 1,
@@ -138,8 +116,6 @@ struct wlr_output {
 
 	int attach_render_locks; // number of locks forcing rendering
 
-	struct wl_list cursors; // wlr_output_cursor::link
-	struct wlr_output_cursor *hardware_cursor;
 	int software_cursor_locks; // number of locks forcing software cursors
 
 	struct wl_listener display_destroy;
@@ -303,27 +279,14 @@ void wlr_output_lock_attach_render(struct wlr_output *output, bool lock);
  * a lock.
  */
 void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock);
-/**
- * Renders software cursors. This is a utility function that can be called when
- * compositors render.
- */
-void wlr_output_render_software_cursors(struct wlr_output *output,
-	pixman_region32_t *damage);
 
-
-struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);
-/**
- * Sets the cursor image. The image must be already scaled for the output.
- */
+#if 0
 bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
 	int32_t hotspot_x, int32_t hotspot_y);
-void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
-	struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y);
 bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 	double x, double y);
-void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor);
-
+#endif
 
 /**
  * Returns the transform that, when composed with `tr`, gives

@@ -65,20 +65,3 @@ struct wlr_xcursor *wlr_xcursor_manager_get_xcursor(
 	}
 	return NULL;
 }
-
-void wlr_xcursor_manager_set_cursor_image(struct wlr_xcursor_manager *manager,
-		const char *name, struct wlr_cursor *cursor) {
-	struct wlr_xcursor_manager_theme *theme;
-	wl_list_for_each(theme, &manager->scaled_themes, link) {
-		struct wlr_xcursor *xcursor =
-			wlr_xcursor_theme_get_cursor(theme->theme, name);
-		if (xcursor == NULL) {
-			continue;
-		}
-
-		struct wlr_xcursor_image *image = xcursor->images[0];
-		wlr_cursor_set_image(cursor, image->buffer, image->width * 4,
-			image->width, image->height, image->hotspot_x, image->hotspot_y,
-			theme->scale);
-	}
-}

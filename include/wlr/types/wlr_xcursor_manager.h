@@ -57,13 +57,4 @@ int wlr_xcursor_manager_load(struct wlr_xcursor_manager *manager,
 struct wlr_xcursor *wlr_xcursor_manager_get_xcursor(
 	struct wlr_xcursor_manager *manager, const char *name, float scale);
 
-/**
- * Set a wlr_cursor's cursor image to the specified cursor name for all scale
- * factors. wlr_cursor will take over from this point and ensure the correct
- * cursor is used on each output, assuming a wlr_output_layout is attached to
- * it.
- */
-void wlr_xcursor_manager_set_cursor_image(struct wlr_xcursor_manager *manager,
-	const char *name, struct wlr_cursor *cursor);
-
 #endif
