@@ -61,7 +61,7 @@ static void layer_surface_handle_ack_configure(struct wl_client *client,
 	bool found = false;
 	struct wlr_layer_surface_v1_configure *configure, *tmp;
 
-	if (!surface) {
+	if (!surface || surface->closed) {
 		return;
 	}
 	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
