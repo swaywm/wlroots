@@ -101,6 +101,7 @@ static void touch_point_destroy(struct wlr_touch_point *point) {
 
 	touch_point_clear_focus(point);
 	wl_list_remove(&point->surface_destroy.link);
+	wl_list_remove(&point->client_destroy.link);
 	wl_list_remove(&point->link);
 	free(point);
 }
@@ -113,6 +114,13 @@ static void touch_point_handle_surface_destroy(struct wl_listener *listener,
 	point->surface = NULL;
 	wl_list_remove(&point->surface_destroy.link);
 	wl_list_init(&point->surface_destroy.link);
+}
+
+static void touch_point_handle_client_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_touch_point *point =
+		wl_container_of(listener, point, client_destroy);
+	touch_point_destroy(point);
 }
 
 static struct wlr_touch_point *touch_point_create(
@@ -143,7 +151,8 @@ static struct wlr_touch_point *touch_point_create(
 
 	wl_signal_add(&surface->events.destroy, &point->surface_destroy);
 	point->surface_destroy.notify = touch_point_handle_surface_destroy;
-
+	wl_signal_add(&client->events.destroy, &point->client_destroy);
+	point->client_destroy.notify = touch_point_handle_client_destroy;
 	wl_list_insert(&seat->touch_state.touch_points, &point->link);
 
 	return point;

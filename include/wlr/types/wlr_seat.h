@@ -64,6 +64,7 @@ struct wlr_touch_point {
 
 	struct wl_listener surface_destroy;
 	struct wl_listener focus_surface_destroy;
+	struct wl_listener client_destroy;
 
 	struct {
 		struct wl_signal destroy;
