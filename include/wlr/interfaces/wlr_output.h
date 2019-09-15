@@ -25,6 +25,9 @@ struct wlr_output_impl {
 	bool (*move_cursor)(struct wlr_output *output, int x, int y);
 	void (*destroy)(struct wlr_output *output);
 	bool (*attach_render)(struct wlr_output *output, int *buffer_age);
+	bool (*cursor_try_set_size)(struct wlr_output *output, int *x, int *y);
+	bool (*cursor_attach_render)(struct wlr_output *output, int *buffer_age);
+	bool (*cursor_commit)(struct wlr_output *output);
 	bool (*commit)(struct wlr_output *output);
 	bool (*set_gamma)(struct wlr_output *output, size_t size,
 		const uint16_t *r, const uint16_t *g, const uint16_t *b);

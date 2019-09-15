@@ -628,6 +628,51 @@ void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock) {
 		output->software_cursor_locks);
 }
 
+bool wlr_output_cursor_try_set_size(struct wlr_output *output, int *x, int *y) {
+	if (!output->impl->cursor_try_set_size) {
+		return false;
+	}
+
+	return output->impl->cursor_try_set_size(output, x, y);
+}
+
+bool wlr_output_cursor_attach_render(struct wlr_output *output, int *buffer_age) {
+	if (!output->impl->cursor_attach_render) {
+		return false;
+	}
+
+	if (!output->impl->cursor_attach_render(output, buffer_age)) {
+		return false;
+	}
+
+	output->cursor_pending.committed |= WLR_OUTPUT_CURSOR_BUFFER;
+	return true;
+}
+
+void wlr_output_cursor_enable(struct wlr_output *output, bool enable) {
+	output->cursor_pending.enabled = enable;
+	output->cursor_pending.committed |= WLR_OUTPUT_CURSOR_ENABLE;
+}
+
+void wlr_output_cursor_move(struct wlr_output *output, int x, int y,
+		int hotspot_x, int hotspot_y) {
+	output->cursor_pending.x = x;
+	output->cursor_pending.y = y;
+	output->cursor_pending.hotspot_x = hotspot_x;
+	output->cursor_pending.hotspot_y = hotspot_y;
+	output->cursor_pending.committed |= WLR_OUTPUT_CURSOR_POS;
+}
+
+bool wlr_output_cursor_commit(struct wlr_output *output) {
+	if (!output->impl->cursor_commit) {
+		return false;
+	}
+
+	bool ret = output->impl->cursor_commit(output);
+	output->cursor_pending.committed = 0;
+	return ret;
+}
+
 #if 0
 bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
