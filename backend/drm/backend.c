@@ -105,7 +105,7 @@ static void session_signal(struct wl_listener *listener, void *data) {
 
 			struct wlr_drm_plane *plane = conn->crtc->cursor;
 			drm->iface->crtc_set_cursor(drm, conn->crtc,
-				(plane && plane->cursor_enabled) ? plane->surf.back : NULL);
+				(plane && conn->cursor_enabled) ? plane->surf.back : NULL);
 			drm->iface->crtc_move_cursor(drm, conn->crtc, conn->cursor_x,
 				conn->cursor_y);
 

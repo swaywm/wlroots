@@ -76,6 +76,12 @@ bool check_drm_features(struct wlr_drm_backend *drm) {
 	ret = drmGetCap(drm->fd, DRM_CAP_ADDFB2_MODIFIERS, &cap);
 	drm->addfb2_modifiers = ret == 0 && cap == 1;
 
+	ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_WIDTH, &cap);
+	drm->cursor_width = ret == 0 ? cap : 64;
+
+	ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_HEIGHT, &cap);
+	drm->cursor_height = ret == 0 ? cap : 64;
+
 	return true;
 }
 
@@ -395,6 +401,23 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		return false;
 	}
 
+	/* TODO: Merge all of these functions into one */
+
+	if (conn->cursor_enabled && crtc->cursor) {
+		struct gbm_bo *bo = crtc->cursor->surf.front;
+
+		if (!drm->iface->crtc_set_cursor(drm, crtc, bo)) {
+			return false;
+		}
+
+		if (!drm->iface->crtc_move_cursor(drm, crtc,
+				conn->cursor_x, conn->cursor_y)) {
+			return false;
+		}
+	} else if (!drm->iface->crtc_set_cursor(drm, crtc, NULL)) {
+		return false;
+	}
+
 	if (!drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, NULL)) {
 		return false;
 	}
@@ -595,7 +618,7 @@ bool drm_connector_set_mode(struct wlr_output *output,
 		conn->output.name, mode->width, mode->height, mode->refresh);
 
 	if (!init_drm_plane_surfaces(conn->crtc->primary, drm,
-			mode->width, mode->height, drm->renderer.gbm_format)) {
+			mode->width, mode->height, drm->renderer.gbm_format, 0)) {
 		wlr_log(WLR_ERROR, "Failed to initialize renderer for plane");
 		return false;
 	}
@@ -649,180 +672,78 @@ bool wlr_drm_connector_add_mode(struct wlr_output *output,
 	return true;
 }
 
-static bool drm_connector_set_cursor(struct wlr_output *output,
-		struct wlr_texture *texture, int32_t scale,
-		enum wl_output_transform transform,
-		int32_t hotspot_x, int32_t hotspot_y, bool update_texture) {
+static bool drm_connector_cursor_try_set_size(struct wlr_output *output,
+		int *width, int *height) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 
-	struct wlr_drm_crtc *crtc = conn->crtc;
-	if (!crtc) {
+	/* Hardware cursors on secondary GPUs are not supported yet */
+	if (drm->parent) {
 		return false;
 	}
 
-	struct wlr_drm_plane *plane = crtc->cursor;
-	if (!plane) {
-		// We don't have a real cursor plane, so we make a fake one
-		plane = calloc(1, sizeof(*plane));
-		if (!plane) {
-			wlr_log_errno(WLR_ERROR, "Allocation failed");
-			return false;
-		}
-		crtc->cursor = plane;
+	struct wlr_drm_plane *cursor = conn->crtc->cursor;
+	/* We don't have a hardware cursor for this connector */
+	if (!cursor) {
+		return false;
 	}
 
-	if (!plane->surf.gbm) {
-		int ret;
-		uint64_t w, h;
-		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_WIDTH, &w);
-		w = ret ? 64 : w;
-		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_HEIGHT, &h);
-		h = ret ? 64 : h;
+	/*
+	 * Completely ignore the requested size. The only reliable value we can
+	 * use is the one the kernel gives us.
+	 */
 
-
-		if (!drm->parent) {
-			if (!init_drm_surface(&plane->surf, &drm->renderer, w, h,
-					drm->renderer.gbm_format, GBM_BO_USE_LINEAR | GBM_BO_USE_SCANOUT)) {
-				wlr_log(WLR_ERROR, "Cannot allocate cursor resources");
-				return false;
-			}
-		} else {
-			if (!init_drm_surface(&plane->surf, &drm->parent->renderer, w, h,
-					drm->parent->renderer.gbm_format, GBM_BO_USE_LINEAR)) {
-				wlr_log(WLR_ERROR, "Cannot allocate cursor resources");
-				return false;
-			}
-
-			if (!init_drm_surface(&plane->mgpu_surf, &drm->renderer, w, h,
-					drm->renderer.gbm_format, GBM_BO_USE_LINEAR | GBM_BO_USE_SCANOUT)) {
-				wlr_log(WLR_ERROR, "Cannot allocate cursor resources");
-				return false;
-			}
-		}
+	if (cursor->surf.gbm) {
+		goto success;
 	}
 
-	wlr_matrix_projection(plane->matrix, plane->surf.width,
-		plane->surf.height, output->transform);
-
-	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
-	wlr_box_transform(&hotspot, &hotspot,
-		wlr_output_transform_invert(output->transform),
-		plane->surf.width, plane->surf.height);
-
-	if (plane->cursor_hotspot_x != hotspot.x ||
-			plane->cursor_hotspot_y != hotspot.y) {
-		// Update cursor hotspot
-		conn->cursor_x -= hotspot.x - plane->cursor_hotspot_x;
-		conn->cursor_y -= hotspot.y - plane->cursor_hotspot_y;
-		plane->cursor_hotspot_x = hotspot.x;
-		plane->cursor_hotspot_y = hotspot.y;
-
-		if (!drm->iface->crtc_move_cursor(drm, conn->crtc, conn->cursor_x,
-				conn->cursor_y)) {
-			return false;
-		}
-
-		wlr_output_update_needs_frame(output);
+	if (!init_drm_plane_surfaces(cursor, drm,
+			drm->cursor_width, drm->cursor_height,
+			DRM_FORMAT_ARGB8888, GBM_BO_USE_LINEAR)) {
+		return false;
 	}
 
-	if (!update_texture) {
-		// Don't update cursor image
-		return true;
-	}
-
-	plane->cursor_enabled = false;
-	if (texture != NULL) {
-		int width, height;
-		wlr_texture_get_size(texture, &width, &height);
-		width = width * output->scale / scale;
-		height = height * output->scale / scale;
-
-		if (width > (int)plane->surf.width || height > (int)plane->surf.height) {
-			wlr_log(WLR_ERROR, "Cursor too large (max %dx%d)",
-				(int)plane->surf.width, (int)plane->surf.height);
-			return false;
-		}
-
-		make_drm_surface_current(&plane->surf, NULL);
-
-		struct wlr_renderer *rend = plane->surf.renderer->wlr_rend;
-
-		struct wlr_box cursor_box = { .width = width, .height = height };
-
-		float matrix[9];
-		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, plane->matrix);
-
-		wlr_renderer_begin(rend, plane->surf.width, plane->surf.height);
-		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });
-		wlr_render_texture_with_matrix(rend, texture, matrix, 1.0);
-		wlr_renderer_end(rend);
-
-		swap_drm_surface_buffers(&plane->surf, NULL);
-
-		plane->cursor_enabled = true;
-	}
-
-	if (!drm->session->active) {
-		return true; // will be committed when session is resumed
-	}
-
-	struct gbm_bo *bo = plane->cursor_enabled ? plane->surf.back : NULL;
-	if (bo && drm->parent) {
-		bo = copy_drm_surface_mgpu(&plane->mgpu_surf, bo);
-	}
-
-	if (bo) {
-		// workaround for nouveau
-		// Buffers created with GBM_BO_USER_LINEAR are placed in NOUVEAU_GEM_DOMAIN_GART.
-		// When the bo is attached to the cursor plane it is moved to NOUVEAU_GEM_DOMAIN_VRAM.
-		// However, this does not wait for the render operations to complete, leaving an empty surface.
-		// see https://bugs.freedesktop.org/show_bug.cgi?id=109631
-		// The render operations can be waited for using:
-		glFinish();
-	}
-	bool ok = drm->iface->crtc_set_cursor(drm, crtc, bo);
-	if (ok) {
-		wlr_output_update_needs_frame(output);
-	}
-	return ok;
+success:
+	*width = drm->cursor_width;
+	*height = drm->cursor_height;
+	return true;
 }
 
-static bool drm_connector_move_cursor(struct wlr_output *output,
-		int x, int y) {
+static bool drm_connector_cursor_attach_render(struct wlr_output *output,
+		int *buffer_age) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
-	if (!conn->crtc) {
-		return false;
-	}
-	struct wlr_drm_plane *plane = conn->crtc->cursor;
+	assert(conn->crtc);
+	struct wlr_drm_plane *cursor = conn->crtc->cursor;
+	assert(cursor && cursor->surf.gbm);
+	return make_drm_surface_current(&cursor->surf, buffer_age);
+}
 
-	struct wlr_box box = { .x = x, .y = y };
+static bool drm_connector_cursor_commit(struct wlr_output *output) {
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+	struct wlr_drm_crtc *crtc = conn->crtc;
+	struct wlr_output_cursor *cursor = &output->cursor_pending;
+	assert(crtc && crtc->cursor && crtc->cursor->surf.gbm);
 
-	int width, height;
-	wlr_output_transformed_resolution(output, &width, &height);
-
-	enum wl_output_transform transform =
-		wlr_output_transform_invert(output->transform);
-	wlr_box_transform(&box, &box, transform, width, height);
-
-	if (plane != NULL) {
-		box.x -= plane->cursor_hotspot_x;
-		box.y -= plane->cursor_hotspot_y;
+	if (cursor->committed & WLR_OUTPUT_CURSOR_BUFFER) {
+		if (!swap_drm_surface_buffers(&crtc->cursor->surf, NULL)) {
+			return false;
+		}
 	}
 
-	conn->cursor_x = box.x;
-	conn->cursor_y = box.y;
-
-	if (!drm->session->active) {
-		return true; // will be committed when session is resumed
+	if (cursor->committed & WLR_OUTPUT_CURSOR_ENABLE) {
+		conn->cursor_enabled = cursor->enabled;
 	}
 
-	bool ok = drm->iface->crtc_move_cursor(drm, conn->crtc, box.x, box.y);
-	if (ok) {
-		wlr_output_update_needs_frame(output);
+	if (cursor->committed & WLR_OUTPUT_CURSOR_POS) {
+		conn->cursor_x = cursor->x - cursor->hotspot_x;
+		conn->cursor_y = cursor->y - cursor->hotspot_y;
 	}
-	return ok;
+
+	/*
+	 * The cursor is synchronized with the output; it will be changed
+	 * in drm_connector_commit.
+	 */
+	return true;
 }
 
 static bool drm_connector_schedule_frame(struct wlr_output *output) {
@@ -929,8 +850,9 @@ static void drm_connector_destroy(struct wlr_output *output) {
 static const struct wlr_output_impl output_impl = {
 	.enable = enable_drm_connector,
 	.set_mode = drm_connector_set_mode,
-	.set_cursor = drm_connector_set_cursor,
-	.move_cursor = drm_connector_move_cursor,
+	.cursor_try_set_size = drm_connector_cursor_try_set_size,
+	.cursor_attach_render = drm_connector_cursor_attach_render,
+	.cursor_commit = drm_connector_cursor_commit,
 	.destroy = drm_connector_destroy,
 	.attach_render = drm_connector_attach_render,
 	.commit = drm_connector_commit,
@@ -1098,7 +1020,7 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 		struct wlr_output_mode *mode = conn->output.current_mode;
 
 		if (!init_drm_plane_surfaces(conn->crtc->primary, drm,
-				mode->width, mode->height, drm->renderer.gbm_format)) {
+				mode->width, mode->height, drm->renderer.gbm_format, 0)) {
 			wlr_log(WLR_ERROR, "Failed to initialize renderer for plane");
 			drm_connector_cleanup(conn);
 			break;
