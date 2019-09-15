@@ -59,6 +59,83 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		buffer_age);
 }
 
+static bool output_cursor_try_set_size(struct wlr_output *wlr_output,
+		int *x, int *y) {
+	struct wlr_wl_output *output =
+		get_wl_output_from_output(wlr_output);
+	struct wlr_wl_backend *backend = output->backend;
+
+	if (output->cursor.surface) {
+		wl_egl_window_resize(output->cursor.native, *x, *y, 0, 0);
+		return true;
+	}
+
+	output->cursor.surface =
+		wl_compositor_create_surface(backend->compositor);
+
+	output->cursor.native =
+		wl_egl_window_create(output->cursor.surface, *x, *y);
+	if (!output->cursor.native) {
+		goto error_surface;
+	}
+
+	output->cursor.egl =
+		wlr_egl_create_surface(&backend->egl, output->cursor.native);
+	if (!output->cursor.egl) {
+		goto error_native;
+	}
+
+	return true;
+
+error_native:
+	wl_egl_window_destroy(output->cursor.native);
+	output->cursor.native = NULL;
+error_surface:
+	wl_surface_destroy(output->cursor.surface);
+	output->cursor.surface = NULL;
+	return false;
+}
+
+static bool output_cursor_attach_render(struct wlr_output *wlr_output,
+		int *buffer_age) {
+	struct wlr_wl_output *output =
+		get_wl_output_from_output(wlr_output);
+	assert(output->cursor.surface);
+	return wlr_egl_make_current(&output->backend->egl,
+		output->cursor.egl, buffer_age);
+}
+
+static bool output_cursor_commit(struct wlr_output *wlr_output) {
+	struct wlr_wl_output *output =
+		get_wl_output_from_output(wlr_output);
+	struct wlr_output_cursor *cursor = &wlr_output->cursor_pending;
+
+	if (cursor->committed & WLR_OUTPUT_CURSOR_BUFFER) {
+		if (!wlr_egl_swap_buffers(&output->backend->egl,
+				output->cursor.egl, NULL)) {
+			return false;
+		}
+	}
+
+	if (cursor->committed & WLR_OUTPUT_CURSOR_POS) {
+		output->cursor.hotspot_x = cursor->hotspot_x;
+		output->cursor.hotspot_y = cursor->hotspot_y;
+	}
+
+	if (cursor->committed & WLR_OUTPUT_CURSOR_ENABLE) {
+		output->cursor.enabled = cursor->enabled;
+	}
+
+	if (output->cursor.enabled) {
+		update_wl_output_cursor(output);
+	} else {
+		wl_surface_attach(output->cursor.surface, NULL, 0, 0);
+		wl_surface_commit(output->cursor.surface);
+	}
+
+	return true;
+}
+
 static bool output_commit(struct wlr_output *wlr_output) {
 	struct wlr_wl_output *output =
 		get_wl_output_from_output(wlr_output);
@@ -86,81 +163,6 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	return true;
 }
 
-static bool output_set_cursor(struct wlr_output *wlr_output,
-		struct wlr_texture *texture, int32_t scale,
-		enum wl_output_transform transform,
-		int32_t hotspot_x, int32_t hotspot_y, bool update_texture) {
-	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
-	struct wlr_wl_backend *backend = output->backend;
-
-	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
-	wlr_box_transform(&hotspot, &hotspot,
-		wlr_output_transform_invert(wlr_output->transform),
-		output->cursor.width, output->cursor.height);
-
-	// TODO: use output->wlr_output.transform to transform pixels and hotpot
-	output->cursor.hotspot_x = hotspot.x;
-	output->cursor.hotspot_y = hotspot.y;
-
-	if (!update_texture) {
-		// Update hotspot without changing cursor image
-		update_wl_output_cursor(output);
-		return true;
-	}
-
-	if (output->cursor.surface == NULL) {
-		output->cursor.surface =
-			wl_compositor_create_surface(backend->compositor);
-	}
-	struct wl_surface *surface = output->cursor.surface;
-
-	if (texture != NULL) {
-		int width, height;
-		wlr_texture_get_size(texture, &width, &height);
-		width = width * wlr_output->scale / scale;
-		height = height * wlr_output->scale / scale;
-
-		output->cursor.width = width;
-		output->cursor.height = height;
-
-		if (output->cursor.egl_window == NULL) {
-			output->cursor.egl_window =
-				wl_egl_window_create(surface, width, height);
-		}
-		wl_egl_window_resize(output->cursor.egl_window, width, height, 0, 0);
-
-		EGLSurface egl_surface =
-			wlr_egl_create_surface(&backend->egl, output->cursor.egl_window);
-
-		wlr_egl_make_current(&backend->egl, egl_surface, NULL);
-
-		struct wlr_box cursor_box = {
-			.width = width,
-			.height = height,
-		};
-
-		float projection[9];
-		wlr_matrix_projection(projection, width, height, wlr_output->transform);
-
-		float matrix[9];
-		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, projection);
-
-		wlr_renderer_begin(backend->renderer, width, height);
-		wlr_renderer_clear(backend->renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
-		wlr_render_texture_with_matrix(backend->renderer, texture, matrix, 1.0);
-		wlr_renderer_end(backend->renderer);
-
-		wlr_egl_swap_buffers(&backend->egl, egl_surface, NULL);
-		wlr_egl_destroy_surface(&backend->egl, egl_surface);
-	} else {
-		wl_surface_attach(surface, NULL, 0, 0);
-		wl_surface_commit(surface);
-	}
-
-	update_wl_output_cursor(output);
-	return true;
-}
-
 static void output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
 	if (output == NULL) {
@@ -169,8 +171,11 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 	wl_list_remove(&output->link);
 
-	if (output->cursor.egl_window != NULL) {
-		wl_egl_window_destroy(output->cursor.egl_window);
+	if (output->cursor.egl) {
+		wlr_egl_destroy_surface(&output->backend->egl, output->cursor.egl);
+	}
+	if (output->cursor.native) {
+		wl_egl_window_destroy(output->cursor.native);
 	}
 	if (output->cursor.surface) {
 		wl_surface_destroy(output->cursor.surface);
@@ -193,15 +198,10 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 void update_wl_output_cursor(struct wlr_wl_output *output) {
 	if (output->backend->pointer && output->enter_serial) {
-		wl_pointer_set_cursor(output->backend->pointer, output->enter_serial,
-			output->cursor.surface, output->cursor.hotspot_x,
-			output->cursor.hotspot_y);
+		wl_pointer_set_cursor(output->backend->pointer,
+			output->enter_serial, output->cursor.surface,
+			output->cursor.hotspot_x, output->cursor.hotspot_y);
 	}
-}
-
-static bool output_move_cursor(struct wlr_output *_output, int x, int y) {
-	// TODO: only return true if x == current x and y == current y
-	return true;
 }
 
 static bool output_schedule_frame(struct wlr_output *wlr_output) {
@@ -221,10 +221,11 @@ static bool output_schedule_frame(struct wlr_output *wlr_output) {
 static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.destroy = output_destroy,
+	.cursor_try_set_size = output_cursor_try_set_size,
+	.cursor_attach_render = output_cursor_attach_render,
+	.cursor_commit = output_cursor_commit,
 	.attach_render = output_attach_render,
 	.commit = output_commit,
-	.set_cursor = output_set_cursor,
-	.move_cursor = output_move_cursor,
 	.schedule_frame = output_schedule_frame,
 };
 
