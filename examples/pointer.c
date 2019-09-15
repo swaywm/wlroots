@@ -97,18 +97,64 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
 	assert(renderer);
 
+	bool render_software = true;
+
+	if (!sample_output->texture) {
+		goto render_output;
+	}
+
+	double x = state->cursor->x;
+	double y = state->cursor->y;
+	wlr_output_layout_output_coords(state->layout, wlr_output, &x, &y);
+
+	int w, h;
+	wlr_texture_get_size(sample_output->texture, &w, &h);
+
+	int buf_w = w, buf_h = h;
+	if (!wlr_output_cursor_try_set_size(wlr_output, &buf_w, &buf_h)) {
+		goto render_output;
+	}
+
+	if (buf_w < w || buf_h < h) {
+		goto render_output;
+	}
+
+	wlr_output_cursor_attach_render(wlr_output, NULL);
+	wlr_renderer_begin(renderer, buf_w, buf_h);
+
+	float mat[9];
+	wlr_matrix_projection(mat, 1.0, 1.0, WL_OUTPUT_TRANSFORM_NORMAL);
+	wlr_matrix_scale(mat, (float)w / buf_w, (float)h / buf_h);
+
+	/*
+	 * Put a background on the cursor, to show off the bounds of the
+	 * hardware cursor, and to know it's really ours.
+	 */
+	wlr_renderer_clear(renderer, (float[]){ 0.2, 0.2, 0.2, 0.2 });
+	wlr_render_texture_with_matrix(renderer, sample_output->texture, mat, 1.0f);
+	wlr_renderer_end(renderer);
+
+	wlr_output_cursor_move(wlr_output, x, y,
+		sample_output->hotspot_x, sample_output->hotspot_y);
+	wlr_output_cursor_enable(wlr_output, true);
+
+	wlr_output_cursor_commit(wlr_output);
+
+	render_software = false;
+
+render_output:
 	wlr_output_attach_render(wlr_output, NULL);
 	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(renderer, state->clear_color);
 
-	if (!sample_output->texture) {
+	if (!render_software || !sample_output->texture) {
 		goto end;
 	}
 
-	double x = state->cursor->x - sample_output->hotspot_x;
-	double y = state->cursor->y - sample_output->hotspot_y;
-	wlr_output_layout_output_coords(state->layout, wlr_output, &x, &y);
+	x = state->cursor->x - sample_output->hotspot_x;
+	y = state->cursor->y - sample_output->hotspot_y;
 
+	wlr_output_layout_output_coords(state->layout, wlr_output, &x, &y);
 	wlr_render_texture(renderer, sample_output->texture,
 		wlr_output->transform_matrix, x, y, 1.0f);
 
