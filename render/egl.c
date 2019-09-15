@@ -54,7 +54,9 @@ static enum wlr_log_importance egl_log_importance_to_wlr(EGLint type) {
 
 static void egl_log(EGLenum error, const char *command, EGLint msg_type,
 		EGLLabelKHR thread, EGLLabelKHR obj, const char *msg) {
-	_wlr_log(egl_log_importance_to_wlr(msg_type), "[EGL] %s: %s", command, msg);
+	_wlr_log(egl_log_importance_to_wlr(msg_type),
+		"[EGL] command: %s, error: 0x%x, message: \"%s\"",
+		command, error, msg);
 }
 
 static bool check_egl_ext(const char *exts, const char *ext) {
