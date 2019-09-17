@@ -147,6 +147,7 @@ static void compositor_create_surface(struct wl_client *client,
 		wl_resource_get_version(resource), id, compositor->renderer,
 		&compositor->surface_resources);
 	if (surface == NULL) {
+		wl_client_post_no_memory(client);
 		return;
 	}
 
