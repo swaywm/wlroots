@@ -132,6 +132,8 @@ static void output_manager_handle_get_xdg_output(struct wl_client *client,
 	}
 
 	output_send_details(xdg_output, xdg_output_resource);
+
+	wl_output_send_done(output_resource);
 }
 
 static const struct zxdg_output_manager_v1_interface
