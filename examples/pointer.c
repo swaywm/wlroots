@@ -59,9 +59,6 @@ struct sample_output {
 	struct wlr_output *output;
 	struct wl_listener frame;
 	struct wl_listener destroy;
-
-	struct wlr_texture *texture;
-	int32_t hotspot_x, hotspot_y;
 };
 
 struct sample_keyboard {
@@ -97,9 +94,15 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
 	assert(renderer);
 
+	struct wlr_xcursor *xcursor = wlr_xcursor_manager_get_xcursor(
+		state->xcursor_manager, "left_ptr", wlr_output->scale);
+	struct wlr_xcursor_image *cursor = xcursor->images[0];
+	struct wlr_texture *tex = wlr_xcursor_manager_get_texture(
+		state->xcursor_manager, cursor);
+
 	bool render_software = true;
 
-	if (!sample_output->texture) {
+	if (!tex) {
 		goto render_output;
 	}
 
@@ -108,7 +111,7 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_output_layout_output_coords(state->layout, wlr_output, &x, &y);
 
 	int w, h;
-	wlr_texture_get_size(sample_output->texture, &w, &h);
+	wlr_texture_get_size(tex, &w, &h);
 
 	int buf_w = w, buf_h = h;
 	if (!wlr_output_cursor_try_set_size(wlr_output, &buf_w, &buf_h)) {
@@ -131,11 +134,11 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 	 * hardware cursor, and to know it's really ours.
 	 */
 	wlr_renderer_clear(renderer, (float[]){ 0.2, 0.2, 0.2, 0.2 });
-	wlr_render_texture_with_matrix(renderer, sample_output->texture, mat, 1.0f);
+	wlr_render_texture_with_matrix(renderer, tex, mat, 1.0f);
 	wlr_renderer_end(renderer);
 
 	wlr_output_cursor_move(wlr_output, x, y,
-		sample_output->hotspot_x, sample_output->hotspot_y);
+		cursor->hotspot_x, cursor->hotspot_y);
 	wlr_output_cursor_enable(wlr_output, true);
 
 	wlr_output_cursor_commit(wlr_output);
@@ -147,15 +150,15 @@ render_output:
 	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(renderer, state->clear_color);
 
-	if (!render_software || !sample_output->texture) {
+	if (!render_software || !tex) {
 		goto end;
 	}
 
-	x = state->cursor->x - sample_output->hotspot_x;
-	y = state->cursor->y - sample_output->hotspot_y;
+	x = state->cursor->x - cursor->hotspot_x;
+	y = state->cursor->y - cursor->hotspot_y;
 
 	wlr_output_layout_output_coords(state->layout, wlr_output, &x, &y);
-	wlr_render_texture(renderer, sample_output->texture,
+	wlr_render_texture(renderer, tex,
 		wlr_output->transform_matrix, x, y, 1.0f);
 
 end:
@@ -305,7 +308,6 @@ void new_output_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct sample_state *sample = wl_container_of(listener, sample, new_output);
 	struct sample_output *sample_output = calloc(1, sizeof(struct sample_output));
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 
 	if (!wl_list_empty(&output->modes)) {
 		struct wlr_output_mode *mode = wl_container_of(output->modes.prev, mode, link);
@@ -320,24 +322,6 @@ void new_output_notify(struct wl_listener *listener, void *data) {
 	wlr_output_layout_add_auto(sample->layout, sample_output->output);
 
 	wlr_xcursor_manager_load(sample->xcursor_manager, output->scale);
-
-	struct wlr_xcursor *xcursor;
-	struct wlr_xcursor_image *img;
-
-	xcursor = wlr_xcursor_manager_get_xcursor(sample->xcursor_manager,
-			"left_ptr", output->scale);
-	if (!xcursor) {
-		return;
-	}
-
-	/* Animation not supported */
-	img = xcursor->images[0];
-	sample_output->hotspot_x = img->hotspot_x;
-	sample_output->hotspot_y = img->hotspot_y;
-
-	sample_output->texture = wlr_texture_from_pixels(renderer,
-			WL_SHM_FORMAT_ARGB8888, img->width * 4, img->width,
-			img->height, img->buffer);
 }
 
 void keyboard_destroy_notify(struct wl_listener *listener, void *data) {
@@ -459,7 +443,8 @@ int main(int argc, char *argv[]) {
 		&state.tablet_tool_axis);
 	state.tablet_tool_axis.notify = handle_tablet_tool_axis;
 
-	state.xcursor_manager = wlr_xcursor_manager_create("default", 24);
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr);
+	state.xcursor_manager = wlr_xcursor_manager_create("default", 24, renderer);
 	if (!state.xcursor_manager) {
 		wlr_log(WLR_ERROR, "Failed to load left_ptr cursor");
 		return 1;

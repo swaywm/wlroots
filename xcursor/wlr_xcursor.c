@@ -57,7 +57,7 @@ static struct wlr_xcursor *xcursor_create_from_data(
 	}
 
 	cursor->image_count = 1;
-	cursor->images = malloc(sizeof(*cursor->images));
+	cursor->images = calloc(1, sizeof(*cursor->images));
 	if (!cursor->images) {
 		goto err_free_cursor;
 	}
@@ -137,7 +137,7 @@ static struct wlr_xcursor *xcursor_create_from_xcursor_images(
 		return NULL;
 	}
 
-	cursor->images = malloc(images->nimage * sizeof(cursor->images[0]));
+	cursor->images = calloc(images->nimage, sizeof(cursor->images[0]));
 	if (!cursor->images) {
 		free(cursor);
 		return NULL;
@@ -147,7 +147,7 @@ static struct wlr_xcursor *xcursor_create_from_xcursor_images(
 	cursor->total_delay = 0;
 
 	for (i = 0; i < images->nimage; i++) {
-		image = malloc(sizeof(*image));
+		image = calloc(1, sizeof(*image));
 		if (image == NULL) {
 			break;
 		}
