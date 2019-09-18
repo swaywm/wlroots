@@ -302,9 +302,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl, struct wl_display *display) {
 	assert(impl->attach_render && impl->commit);
-	if (impl->set_cursor || impl->move_cursor) {
-		assert(impl->set_cursor && impl->move_cursor);
-	}
 	output->backend = backend;
 	output->impl = impl;
 	output->display = display;
