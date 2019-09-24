@@ -16,6 +16,7 @@
 
 #include "backend/wayland.h"
 #include "util/signal.h"
+#include "linux-dmabuf-unstable-v1-client-protocol.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
@@ -59,6 +60,59 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		buffer_age);
 }
 
+static bool output_attach_buffer(struct wlr_output *wlr_output,
+		struct wlr_buffer *buffer) {
+	struct wlr_wl_output *output =
+		get_wl_output_from_output(wlr_output);
+	struct wlr_wl_backend *wl = output->backend;
+
+	struct wlr_dmabuf_attributes attribs;
+	if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
+		return false;
+	}
+
+	if (attribs.width != wlr_output->width ||
+			attribs.height != wlr_output->height) {
+		return false;
+	}
+
+	if (!wlr_drm_format_set_has(&wl->linux_dmabuf_v1_formats,
+			attribs.format, attribs.modifier)) {
+		return false;
+	}
+
+	uint32_t modifier_hi = attribs.modifier >> 32;
+	uint32_t modifier_lo = (uint32_t)attribs.modifier;
+	struct zwp_linux_buffer_params_v1 *params =
+		zwp_linux_dmabuf_v1_create_params(wl->zwp_linux_dmabuf_v1);
+	for (int i = 0; i < attribs.n_planes; i++) {
+		zwp_linux_buffer_params_v1_add(params, attribs.fd[i], i,
+			attribs.offset[i], attribs.stride[i], modifier_hi, modifier_lo);
+	}
+
+	uint32_t flags = 0;
+	if (attribs.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) {
+		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT;
+	}
+	if (attribs.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_INTERLACED) {
+		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_INTERLACED;
+	}
+	if (attribs.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_BOTTOM_FIRST) {
+		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_BOTTOM_FIRST;
+	}
+	struct wl_buffer *wl_buffer = zwp_linux_buffer_params_v1_create_immed(
+		params, attribs.width, attribs.height, attribs.format, flags);
+	// TODO: handle create() errors
+
+	wl_surface_attach(output->surface, wl_buffer, 0, 0);
+
+	if (output->pending_wl_buffer != NULL) {
+		wl_buffer_destroy(output->pending_wl_buffer);
+	}
+	output->pending_wl_buffer = wl_buffer;
+	return true;
+}
+
 static bool output_commit(struct wlr_output *wlr_output) {
 	struct wlr_wl_output *output =
 		get_wl_output_from_output(wlr_output);
@@ -76,13 +130,46 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		damage = &wlr_output->pending.damage;
 	}
 
-	if (!wlr_egl_swap_buffers(&output->backend->egl,
-			output->egl_surface, damage)) {
-		return false;
+	wlr_buffer_unref(output->current_buffer);
+	output->current_buffer = NULL;
+	if (output->current_wl_buffer != NULL) {
+		wl_buffer_destroy(output->current_wl_buffer);
+		output->current_wl_buffer = NULL;
+	}
+
+	assert(wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER);
+	switch (wlr_output->pending.buffer_type) {
+	case WLR_OUTPUT_STATE_BUFFER_RENDER:
+		if (!wlr_egl_swap_buffers(&output->backend->egl,
+				output->egl_surface, damage)) {
+			return false;
+		}
+		break;
+	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:
+		if (damage == NULL) {
+			wl_surface_damage_buffer(output->surface,
+				0, 0, INT32_MAX, INT32_MAX);
+		} else {
+			int rects_len;
+			pixman_box32_t *rects =
+				pixman_region32_rectangles(damage, &rects_len);
+			for (int i = 0; i < rects_len; i++) {
+				pixman_box32_t *r = &rects[i];
+				wl_surface_damage_buffer(output->surface, r->x1, r->y1,
+					r->x2 - r->x1, r->y2 - r->y1);
+			}
+		}
+		wl_surface_commit(output->surface);
+
+		output->current_buffer = wlr_buffer_ref(wlr_output->pending.buffer);
+		output->current_wl_buffer = output->pending_wl_buffer;
+		output->pending_wl_buffer = NULL;
+		break;
 	}
 
 	// TODO: if available, use the presentation-time protocol
 	wlr_output_send_present(wlr_output, NULL);
+
 	return true;
 }
 
@@ -222,6 +309,7 @@ static const struct wlr_output_impl output_impl = {
 	.set_custom_mode = output_set_custom_mode,
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
+	.attach_buffer  = output_attach_buffer,
 	.commit = output_commit,
 	.set_cursor = output_set_cursor,
 	.move_cursor = output_move_cursor,
