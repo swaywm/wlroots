@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <drm_fourcc.h>
 #include <gbm.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -165,26 +166,40 @@ void post_drm_surface(struct wlr_drm_surface *surf) {
 
 struct gbm_bo *import_gbm_bo(struct wlr_drm_renderer *renderer,
 		struct wlr_dmabuf_attributes *attribs) {
-	struct gbm_import_fd_modifier_data data = {
-		.width = attribs->width,
-		.height = attribs->height,
-		.format = attribs->format,
-		.num_fds = attribs->n_planes,
-		.modifier = attribs->modifier,
-	};
+	if (attribs->modifier == DRM_FORMAT_MOD_INVALID && attribs->n_planes == 1
+			&& attribs->offset[0] == 0) {
+		struct gbm_import_fd_data data = {
+			.fd = attribs->fd[0],
+			.width = attribs->width,
+			.height = attribs->height,
+			.stride = attribs->stride[0],
+			.format = attribs->format,
+		};
 
-	if ((size_t)attribs->n_planes > sizeof(data.fds) / sizeof(data.fds[0])) {
-		return NULL;
+		return gbm_bo_import(renderer->gbm, GBM_BO_IMPORT_FD,
+			&data, GBM_BO_USE_SCANOUT);
+	} else {
+		struct gbm_import_fd_modifier_data data = {
+			.width = attribs->width,
+			.height = attribs->height,
+			.format = attribs->format,
+			.num_fds = attribs->n_planes,
+			.modifier = attribs->modifier,
+		};
+
+		if ((size_t)attribs->n_planes > sizeof(data.fds) / sizeof(data.fds[0])) {
+			return NULL;
+		}
+
+		for (size_t i = 0; i < (size_t)attribs->n_planes; ++i) {
+			data.fds[i] = attribs->fd[i];
+			data.strides[i] = attribs->stride[i];
+			data.offsets[i] = attribs->offset[i];
+		}
+
+		return gbm_bo_import(renderer->gbm, GBM_BO_IMPORT_FD_MODIFIER,
+			&data, GBM_BO_USE_SCANOUT);
 	}
-
-	for (size_t i = 0; i < (size_t)attribs->n_planes; ++i) {
-		data.fds[i] = attribs->fd[i];
-		data.strides[i] = attribs->stride[i];
-		data.offsets[i] = attribs->offset[i];
-	}
-
-	return gbm_bo_import(renderer->gbm, GBM_BO_IMPORT_FD_MODIFIER,
-		&data, GBM_BO_USE_SCANOUT);
 }
 
 bool export_drm_bo(struct gbm_bo *bo, struct wlr_dmabuf_attributes *attribs) {
