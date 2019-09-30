@@ -115,7 +115,9 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
 
-	wlr_egl_make_current(texture->egl, EGL_NO_SURFACE, NULL);
+	if (!wlr_egl_is_current(texture->egl)) {
+		wlr_egl_make_current(texture->egl, EGL_NO_SURFACE, NULL);
+	}
 
 	PUSH_GLES2_DEBUG;
 
