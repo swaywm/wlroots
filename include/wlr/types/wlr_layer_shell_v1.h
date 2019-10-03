@@ -54,6 +54,7 @@ struct wlr_layer_surface_v1_state {
 	bool keyboard_interactive;
 	uint32_t desired_width, desired_height;
 	uint32_t actual_width, actual_height;
+	enum zwlr_layer_shell_v1_layer layer;
 };
 
 struct wlr_layer_surface_v1_configure {
@@ -71,7 +72,6 @@ struct wlr_layer_surface_v1 {
 	struct wl_list popups; // wlr_xdg_popup::link
 
 	char *namespace;
-	enum zwlr_layer_shell_v1_layer layer;
 
 	bool added, configured, mapped, closed;
 	uint32_t configure_serial;
