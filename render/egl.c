@@ -576,8 +576,7 @@ static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
 		wlr_log(WLR_DEBUG, "DMA-BUF extension not present");
 		return -1;
 	}
-
-	if(!egl->exts.image_dmabuf_import_modifiers_ext) {
+	if (!egl->exts.image_dmabuf_import_modifiers_ext) {
 		*modifiers = NULL;
 		return 0;
 	}
@@ -587,6 +586,10 @@ static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
 			NULL, NULL, &num)) {
 		wlr_log(WLR_ERROR, "Failed to query dmabuf number of modifiers");
 		return -1;
+	}
+	if (num == 0) {
+		*modifiers = NULL;
+		return 0;
 	}
 
 	*modifiers = calloc(num, sizeof(uint64_t));
