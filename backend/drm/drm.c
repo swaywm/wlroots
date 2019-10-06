@@ -680,22 +680,24 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_HEIGHT, &h);
 		h = ret ? 64 : h;
 
-
 		if (!drm->parent) {
 			if (!init_drm_surface(&plane->surf, &drm->renderer, w, h,
-					drm->renderer.gbm_format, GBM_BO_USE_LINEAR | GBM_BO_USE_SCANOUT)) {
+					drm->renderer.gbm_format, NULL,
+					GBM_BO_USE_LINEAR | GBM_BO_USE_SCANOUT)) {
 				wlr_log(WLR_ERROR, "Cannot allocate cursor resources");
 				return false;
 			}
 		} else {
 			if (!init_drm_surface(&plane->surf, &drm->parent->renderer, w, h,
-					drm->parent->renderer.gbm_format, GBM_BO_USE_LINEAR)) {
+					drm->parent->renderer.gbm_format, NULL,
+					GBM_BO_USE_LINEAR)) {
 				wlr_log(WLR_ERROR, "Cannot allocate cursor resources");
 				return false;
 			}
 
 			if (!init_drm_surface(&plane->mgpu_surf, &drm->renderer, w, h,
-					drm->renderer.gbm_format, GBM_BO_USE_LINEAR | GBM_BO_USE_SCANOUT)) {
+					drm->renderer.gbm_format, NULL,
+					GBM_BO_USE_LINEAR | GBM_BO_USE_SCANOUT)) {
 				wlr_log(WLR_ERROR, "Cannot allocate cursor resources");
 				return false;
 			}
