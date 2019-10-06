@@ -40,7 +40,7 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer);
 
 bool init_drm_surface(struct wlr_drm_surface *surf,
 	struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
-	uint32_t format, uint32_t flags);
+	uint32_t format, struct wlr_drm_format_set *set, uint32_t flags);
 
 bool init_drm_plane_surfaces(struct wlr_drm_plane *plane,
 	struct wlr_drm_backend *drm, int32_t width, uint32_t height,

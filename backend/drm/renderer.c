@@ -62,7 +62,7 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 
 bool init_drm_surface(struct wlr_drm_surface *surf,
 		struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
-		uint32_t format, uint32_t flags) {
+		uint32_t format, struct wlr_drm_format_set *set, uint32_t flags) {
 	if (surf->width == width && surf->height == height) {
 		return true;
 	}
@@ -84,8 +84,19 @@ bool init_drm_surface(struct wlr_drm_surface *surf,
 	}
 	wlr_egl_destroy_surface(&surf->renderer->egl, surf->egl);
 
-	surf->gbm = gbm_surface_create(renderer->gbm, width, height,
-		format, GBM_BO_USE_RENDERING | flags);
+	if (!(flags & GBM_BO_USE_LINEAR) && set != NULL) {
+		const struct wlr_drm_format *drm_format =
+			wlr_drm_format_set_get(set, format);
+		if (drm_format != NULL) {
+			surf->gbm = gbm_surface_create_with_modifiers(renderer->gbm,
+				width, height, format, drm_format->modifiers, drm_format->len);
+		}
+	}
+
+	if (surf->gbm == NULL) {
+		surf->gbm = gbm_surface_create(renderer->gbm, width, height,
+			format, GBM_BO_USE_RENDERING | flags);
+	}
 	if (!surf->gbm) {
 		wlr_log_errno(WLR_ERROR, "Failed to create GBM surface");
 		goto error_zero;
@@ -279,16 +290,16 @@ bool init_drm_plane_surfaces(struct wlr_drm_plane *plane,
 		uint32_t format) {
 	if (!drm->parent) {
 		return init_drm_surface(&plane->surf, &drm->renderer, width, height,
-			format, GBM_BO_USE_SCANOUT);
+			format, &plane->formats, GBM_BO_USE_SCANOUT);
 	}
 
 	if (!init_drm_surface(&plane->surf, &drm->parent->renderer,
-			width, height, format, GBM_BO_USE_LINEAR)) {
+			width, height, format, NULL, GBM_BO_USE_LINEAR)) {
 		return false;
 	}
 
 	if (!init_drm_surface(&plane->mgpu_surf, &drm->renderer,
-			width, height, format, GBM_BO_USE_SCANOUT)) {
+			width, height, format, &plane->formats, GBM_BO_USE_SCANOUT)) {
 		finish_drm_surface(&plane->surf);
 		return false;
 	}
