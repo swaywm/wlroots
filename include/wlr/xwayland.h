@@ -179,6 +179,7 @@ struct wlr_xwayland_surface_configure_event {
 	struct wlr_xwayland_surface *surface;
 	int16_t x, y;
 	uint16_t width, height;
+	uint16_t mask; // xcb_config_window_t
 };
 
 // TODO: maybe add a seat to these
