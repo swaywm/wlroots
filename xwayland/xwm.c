@@ -871,6 +871,7 @@ static void xwm_handle_configure_request(struct wlr_xwm *xwm,
 		.y = mask & XCB_CONFIG_WINDOW_Y ? ev->y : surface->y,
 		.width = mask & XCB_CONFIG_WINDOW_WIDTH ? ev->width : surface->width,
 		.height = mask & XCB_CONFIG_WINDOW_HEIGHT ? ev->height : surface->height,
+		.mask = mask,
 	};
 	wlr_log(WLR_DEBUG, "XCB_CONFIGURE_REQUEST (%u) [%ux%u+%d,%d]", ev->window,
 		wlr_event.width, wlr_event.height, wlr_event.x, wlr_event.y);
