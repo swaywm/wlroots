@@ -1,10 +1,10 @@
 threads = dependency('threads')
 wayland_cursor = dependency('wayland-cursor')
-libpng = dependency('libpng', required: false)
+libpng = dependency('libpng', required: false, disabler: true)
 # These versions correspond to ffmpeg 4.0
-libavutil = dependency('libavutil', version: '>=56.14.100', required: false)
-libavcodec = dependency('libavcodec', version: '>=58.18.100', required: false)
-libavformat = dependency('libavformat', version: '>=58.12.100', required: false)
+libavutil = dependency('libavutil', version: '>=56.14.100', required: false, disabler: true)
+libavcodec = dependency('libavcodec', version: '>=58.18.100', required: false, disabler: true)
+libavformat = dependency('libavformat', version: '>=58.12.100', required: false, disabler: true)
 
 # epoll is a separate library in FreeBSD
 if host_machine.system() == 'freebsd'
@@ -12,13 +12,6 @@ if host_machine.system() == 'freebsd'
 else
 	libepoll = []
 endif
-
-# Small hack until https://github.com/mesonbuild/meson/pull/3386/ is merged
-foreach dep : ['libpng', 'libavutil', 'libavcodec', 'libavformat']
-	if not get_variable(dep).found()
-		set_variable(dep, disabler())
-	endif
-endforeach
 
 # Check if libavutil is found because of https://github.com/mesonbuild/meson/issues/6010
 if libavutil.found() and not cc.has_header('libavutil/hwcontext_drm.h', dependencies: libavutil)
@@ -121,18 +114,10 @@ examples = {
 }
 
 foreach name, info : examples
-	all_dep_found = true
-	foreach d : info.get('dep')
-		all_dep_found = all_dep_found and d.found()
-	endforeach
-	if all_dep_found
-		executable(
-			name,
-			info.get('src'),
-			dependencies: info.get('dep'),
-			build_by_default: get_option('examples'),
-		)
-	else
-		warning('Dependencies not satisfied for ' + name)
-	endif
+	executable(
+		name,
+		info.get('src'),
+		dependencies: info.get('dep'),
+		build_by_default: get_option('examples'),
+	)
 endforeach
