@@ -59,10 +59,11 @@ struct wlr_wl_output {
 	uint32_t enter_serial;
 
 	struct {
+		bool enabled;
+		int hotspot_x, hotspot_y;
 		struct wl_surface *surface;
-		struct wl_egl_window *egl_window;
-		int32_t hotspot_x, hotspot_y;
-		int32_t width, height;
+		struct wl_egl_window *native;
+		EGLSurface egl;
 	} cursor;
 };
 

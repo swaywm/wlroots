@@ -52,6 +52,7 @@ struct wlr_xcursor_image {
 	uint32_t hotspot_y;	/* hot spot y (must be inside image) */
 	uint32_t delay;		/* animation delay to next frame (ms) */
 	uint8_t *buffer;
+	void *userdata;
 };
 
 struct wlr_xcursor {

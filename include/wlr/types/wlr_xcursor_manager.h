@@ -13,6 +13,8 @@
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/xcursor.h>
 
+struct wlr_renderer;
+
 /**
  * An XCursor theme at a particular scale factor of the base size.
  */
@@ -32,6 +34,9 @@ struct wlr_xcursor_manager {
 	char *name;
 	uint32_t size;
 	struct wl_list scaled_themes; // wlr_xcursor_manager_theme::link
+
+	struct wlr_renderer *renderer;
+	struct wl_listener renderer_destroy;
 };
 
 /**
@@ -39,7 +44,7 @@ struct wlr_xcursor_manager {
  * (for use when scale=1).
  */
 struct wlr_xcursor_manager *wlr_xcursor_manager_create(const char *name,
-	uint32_t size);
+	uint32_t size, struct wlr_renderer *renderer);
 
 void wlr_xcursor_manager_destroy(struct wlr_xcursor_manager *manager);
 
@@ -58,12 +63,19 @@ struct wlr_xcursor *wlr_xcursor_manager_get_xcursor(
 	struct wlr_xcursor_manager *manager, const char *name, float scale);
 
 /**
- * Set a wlr_cursor's cursor image to the specified cursor name for all scale
- * factors. wlr_cursor will take over from this point and ensure the correct
- * cursor is used on each output, assuming a wlr_output_layout is attached to
- * it.
+ * Retrieves the cached texture of this xcursor image from the
+ * wlr_xcursor_manager.
+ *
+ * The wlr_xcursor_manager must have been created with a wlr_renderer and the
+ * wlr_xcursor_image must have come from a wlr_xcursor returned from
+ * wlr_xcursor_manager_get_xcursor.
+ *
+ * The returned texture is owned by the xcursor manager. You should not save or
+ * destroy it.
+ * The manager makes use of the wlr_xcursor_image.userdata field. You must not
+ * modify this field yourself.
  */
-void wlr_xcursor_manager_set_cursor_image(struct wlr_xcursor_manager *manager,
-	const char *name, struct wlr_cursor *cursor);
+struct wlr_texture *wlr_xcursor_manager_get_texture(
+	struct wlr_xcursor_manager *manager, struct wlr_xcursor_image *image);
 
 #endif

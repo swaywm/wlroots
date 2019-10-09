@@ -19,12 +19,11 @@ struct wlr_output_impl {
 	bool (*set_mode)(struct wlr_output *output, struct wlr_output_mode *mode);
 	bool (*set_custom_mode)(struct wlr_output *output, int32_t width,
 		int32_t height, int32_t refresh);
-	bool (*set_cursor)(struct wlr_output *output, struct wlr_texture *texture,
-		int32_t scale, enum wl_output_transform transform,
-		int32_t hotspot_x, int32_t hotspot_y, bool update_texture);
-	bool (*move_cursor)(struct wlr_output *output, int x, int y);
 	void (*destroy)(struct wlr_output *output);
 	bool (*attach_render)(struct wlr_output *output, int *buffer_age);
+	bool (*cursor_try_set_size)(struct wlr_output *output, int *x, int *y);
+	bool (*cursor_attach_render)(struct wlr_output *output, int *buffer_age);
+	bool (*cursor_commit)(struct wlr_output *output);
 	bool (*commit)(struct wlr_output *output);
 	bool (*set_gamma)(struct wlr_output *output, size_t size,
 		const uint16_t *r, const uint16_t *g, const uint16_t *b);

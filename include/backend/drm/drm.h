@@ -28,11 +28,6 @@ struct wlr_drm_plane {
 	uint32_t drm_format; // ARGB8888 or XRGB8888
 	struct wlr_drm_format_set formats;
 
-	// Only used by cursor
-	float matrix[9];
-	bool cursor_enabled;
-	int32_t cursor_hotspot_x, cursor_hotspot_y;
-
 	union wlr_drm_plane_props props;
 };
 
@@ -72,6 +67,8 @@ struct wlr_drm_backend {
 	const struct wlr_drm_interface *iface;
 	clockid_t clock;
 	bool addfb2_modifiers;
+	int cursor_width;
+	int cursor_height;
 
 	int fd;
 
@@ -119,7 +116,9 @@ struct wlr_drm_connector {
 	union wlr_drm_connector_props props;
 
 	uint32_t width, height;
-	int32_t cursor_x, cursor_y;
+
+	bool cursor_enabled;
+	int cursor_x, cursor_y;
 
 	drmModeCrtc *old_crtc;
 

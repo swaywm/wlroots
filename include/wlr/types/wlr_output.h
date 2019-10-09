@@ -24,28 +24,6 @@ struct wlr_output_mode {
 	struct wl_list link;
 };
 
-struct wlr_output_cursor {
-	struct wlr_output *output;
-	double x, y;
-	bool enabled;
-	bool visible;
-	uint32_t width, height;
-	int32_t hotspot_x, hotspot_y;
-	struct wl_list link;
-
-	// only when using a software cursor without a surface
-	struct wlr_texture *texture;
-
-	// only when using a cursor surface
-	struct wlr_surface *surface;
-	struct wl_listener surface_commit;
-	struct wl_listener surface_destroy;
-
-	struct {
-		struct wl_signal destroy;
-	} events;
-};
-
 enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_BUFFER = 1 << 0,
 	WLR_OUTPUT_STATE_DAMAGE = 1 << 1,
@@ -66,6 +44,20 @@ struct wlr_output_state {
 	// only valid if WLR_OUTPUT_STATE_BUFFER
 	enum wlr_output_state_buffer_type buffer_type;
 	struct wlr_buffer *buffer; // if WLR_OUTPUT_STATE_BUFFER_SCANOUT
+};
+
+enum wlr_output_cursor_field {
+	WLR_OUTPUT_CURSOR_BUFFER = 1 << 0,
+	WLR_OUTPUT_CURSOR_ENABLE = 1 << 1,
+	WLR_OUTPUT_CURSOR_POS = 1 << 2,
+};
+
+struct wlr_output_cursor {
+	uint32_t committed; // enum wlr_output_cursor_state_field
+
+	bool enabled;
+	int x, y;
+	int hotspot_x, hotspot_y;
 };
 
 struct wlr_output_impl;
@@ -113,6 +105,7 @@ struct wlr_output {
 	float transform_matrix[9];
 
 	struct wlr_output_state pending;
+	struct wlr_output_cursor cursor_pending;
 
 	struct {
 		// Request to render a frame
@@ -138,8 +131,6 @@ struct wlr_output {
 
 	int attach_render_locks; // number of locks forcing rendering
 
-	struct wl_list cursors; // wlr_output_cursor::link
-	struct wlr_output_cursor *hardware_cursor;
 	int software_cursor_locks; // number of locks forcing software cursors
 
 	struct wl_listener display_destroy;
@@ -303,26 +294,90 @@ void wlr_output_lock_attach_render(struct wlr_output *output, bool lock);
  * a lock.
  */
 void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock);
-/**
- * Renders software cursors. This is a utility function that can be called when
- * compositors render.
- */
-void wlr_output_render_software_cursors(struct wlr_output *output,
-	pixman_region32_t *damage);
 
-
-struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);
 /**
- * Sets the cursor image. The image must be already scaled for the output.
+ * Hardware cursors:
+ *
+ * Hardware cursors are a feature of GPUs that allow a small framebuffer
+ * to be displayed over the main framebuffer. This is more efficient than
+ * drawing onto the main framebuffer using e.g. OpenGL.
+ *
+ * Not every backend/output will support hardware cursors, so you must always
+ * be prepared to fall back to rendering the cursor to the main framebuffer
+ * yourself.
+ *
+ * Hardware cursors are always in output buffer coordinates, and does not take
+ * scale nor rotation into account. You are responsible for doing this
+ * yourself.
+ *
+ * Hardware cursors are always in the ARGB8888 format.
  */
-bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
-	const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
-	int32_t hotspot_x, int32_t hotspot_y);
-void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
-	struct wlr_surface *surface, int32_t hotspot_x, int32_t hotspot_y);
-bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
-	double x, double y);
-void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor);
+
+/**
+ * Sets the size of the hardware cursor buffer to the values pointed to by
+ * x and y.
+ *
+ * Some backends have strict requirements for the cursor size and may not be
+ * able to use the size you requested exactly. The actual value used will be
+ * left in x and y. If this is not large enough for the cursor you wish to
+ * draw, you should fall back to using software cursors.
+ *
+ * This returns false if the backend does not support hardware cursors or from
+ * some other internal error. Either way, you should fall back to using
+ * software cursors.
+ */
+bool wlr_output_cursor_try_set_size(struct wlr_output *output, int *x, int *y);
+
+/**
+ * Attaches the renderer to the cursor buffer.
+ *
+ * You must successfully call `wlr_output_cursor_try_set_size` at least once
+ * before using this. Any rendering done will be applied on
+ * `wlr_output_cursor_commit`.
+ */
+bool wlr_output_cursor_attach_render(struct wlr_output *output, int *buffer_age);
+
+/**
+ * Enables displaying the hardware cursor.
+ *
+ * This does not affect the ability to render to the cursor. It only sets
+ * whether or not it will be displayed. By default, the cursor is disabled.
+ *
+ * This will be applied on `wlr_output_cursor_commit`.
+ */
+void wlr_output_cursor_enable(struct wlr_output *output, bool enable);
+
+/**
+ * Moves the position of the hardware cursor on the main framebuffer.
+ *
+ * This is in output buffer coordinates. Negative values and values that would
+ * place the cursor partially or entirely off the main framebuffer are allowed.
+ *
+ * The hotspot is the point on the cursor buffer (from the top left) where the
+ * cursor actually points. For example, with a cursor representing a hand, the
+ * hotspot may be over the index finger, rather than the top left corner.
+ *
+ * Some backends may not be able to move the cursor freely, but may still be
+ * able to make use of the hotspot to correctly show the cursor.
+ *
+ * This will be applied on `wlr_output_cursor_commit`.
+ */
+void wlr_output_cursor_move(struct wlr_output *output, int x, int y,
+	int hotspot_x, int hotspot_y);
+
+/**
+ * Apply pending cursor state.
+ *
+ * This may or may not be synchronized with the output, and would be applied on
+ * `wlr_output_commit`, depending on the backend limitations. However, it's
+ * advised to assume that they are sychronized and do any cursor operations at
+ * the same time you render to the output.
+ *
+ * If you have called `wlr_output_cursor_attach_render`, you must call this
+ * function before `wlr_output_attach_render`, otherwise you risk losing or
+ * corrupting rendering state.
+ */
+bool wlr_output_cursor_commit(struct wlr_output *output);
 
 
 /**

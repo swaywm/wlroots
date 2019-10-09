@@ -11,6 +11,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_list.h>
@@ -22,15 +23,11 @@
 
 struct sample_state {
 	struct wl_display *display;
-	struct compositor_state *compositor;
 	struct wlr_xcursor_manager *xcursor_manager;
 	struct wlr_cursor *cursor;
-	double cur_x, cur_y;
 	float default_color[4];
 	float clear_color[4];
 	struct wlr_output_layout *layout;
-	struct wl_list devices;
-	struct timespec last_frame;
 
 	struct wl_listener new_output;
 	struct wl_listener new_input;
@@ -97,10 +94,74 @@ void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
 	assert(renderer);
 
+	struct wlr_xcursor *xcursor = wlr_xcursor_manager_get_xcursor(
+		state->xcursor_manager, "left_ptr", wlr_output->scale);
+	struct wlr_xcursor_image *cursor = xcursor->images[0];
+	struct wlr_texture *tex = wlr_xcursor_manager_get_texture(
+		state->xcursor_manager, cursor);
+
+	bool render_software = true;
+
+	if (!tex) {
+		goto render_output;
+	}
+
+	double x = state->cursor->x;
+	double y = state->cursor->y;
+	wlr_output_layout_output_coords(state->layout, wlr_output, &x, &y);
+
+	int w, h;
+	wlr_texture_get_size(tex, &w, &h);
+
+	int buf_w = w, buf_h = h;
+	if (!wlr_output_cursor_try_set_size(wlr_output, &buf_w, &buf_h)) {
+		goto render_output;
+	}
+
+	if (buf_w < w || buf_h < h) {
+		goto render_output;
+	}
+
+	wlr_output_cursor_attach_render(wlr_output, NULL);
+	wlr_renderer_begin(renderer, buf_w, buf_h);
+
+	float mat[9];
+	wlr_matrix_projection(mat, 1.0, 1.0, WL_OUTPUT_TRANSFORM_NORMAL);
+	wlr_matrix_scale(mat, (float)w / buf_w, (float)h / buf_h);
+
+	/*
+	 * Put a background on the cursor, to show off the bounds of the
+	 * hardware cursor, and to know it's really ours.
+	 */
+	wlr_renderer_clear(renderer, (float[]){ 0.2, 0.2, 0.2, 0.2 });
+	wlr_render_texture_with_matrix(renderer, tex, mat, 1.0f);
+	wlr_renderer_end(renderer);
+
+	wlr_output_cursor_move(wlr_output, x, y,
+		cursor->hotspot_x, cursor->hotspot_y);
+	wlr_output_cursor_enable(wlr_output, true);
+
+	wlr_output_cursor_commit(wlr_output);
+
+	render_software = false;
+
+render_output:
 	wlr_output_attach_render(wlr_output, NULL);
 	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(renderer, state->clear_color);
-	wlr_output_render_software_cursors(wlr_output, NULL);
+
+	if (!render_software || !tex) {
+		goto end;
+	}
+
+	x = state->cursor->x - cursor->hotspot_x;
+	y = state->cursor->y - cursor->hotspot_y;
+
+	wlr_output_layout_output_coords(state->layout, wlr_output, &x, &y);
+	wlr_render_texture(renderer, tex,
+		wlr_output->transform_matrix, x, y, 1.0f);
+
+end:
 	wlr_output_commit(wlr_output);
 	wlr_renderer_end(renderer);
 }
@@ -119,11 +180,8 @@ static void handle_cursor_motion_absolute(struct wl_listener *listener,
 		wl_container_of(listener, sample, cursor_motion_absolute);
 	struct wlr_event_pointer_motion_absolute *event = data;
 
-	sample->cur_x = event->x;
-	sample->cur_y = event->y;
-
-	wlr_cursor_warp_absolute(sample->cursor, event->device, sample->cur_x,
-		sample->cur_y);
+	wlr_cursor_warp_absolute(sample->cursor, event->device,
+		event->x, event->y);
 }
 
 static void handle_cursor_button(struct wl_listener *listener, void *data) {
@@ -250,6 +308,7 @@ void new_output_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct sample_state *sample = wl_container_of(listener, sample, new_output);
 	struct sample_output *sample_output = calloc(1, sizeof(struct sample_output));
+
 	if (!wl_list_empty(&output->modes)) {
 		struct wlr_output_mode *mode = wl_container_of(output->modes.prev, mode, link);
 		wlr_output_set_mode(output, mode);
@@ -263,10 +322,7 @@ void new_output_notify(struct wl_listener *listener, void *data) {
 	wlr_output_layout_add_auto(sample->layout, sample_output->output);
 
 	wlr_xcursor_manager_load(sample->xcursor_manager, output->scale);
-	wlr_xcursor_manager_set_cursor_image(sample->xcursor_manager, "left_ptr",
-		sample->cursor);
 }
-
 
 void keyboard_destroy_notify(struct wl_listener *listener, void *data) {
 	struct sample_keyboard *keyboard = wl_container_of(listener, keyboard, destroy);
@@ -283,6 +339,17 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 	case WLR_INPUT_DEVICE_TOUCH:
 	case WLR_INPUT_DEVICE_TABLET_TOOL:
 		wlr_cursor_attach_input_device(state->cursor, device);
+		if (!device->output_name)
+			break;
+
+		struct wlr_output_layout_output *output;
+		wl_list_for_each(output, &state->layout->outputs, link) {
+			if (strcmp(device->output_name, output->output->name) == 0) {
+				wlr_cursor_map_input_to_output(state->cursor,
+					device, output->output);
+			}
+		}
+
 		break;
 
 	case WLR_INPUT_DEVICE_KEYBOARD:;
@@ -319,7 +386,6 @@ void new_input_notify(struct wl_listener *listener, void *data) {
 	}
 }
 
-
 int main(int argc, char *argv[]) {
 	wlr_log_init(WLR_DEBUG, NULL);
 	struct wl_display *display = wl_display_create();
@@ -337,7 +403,6 @@ int main(int argc, char *argv[]) {
 	state.layout = wlr_output_layout_create();
 	wlr_cursor_attach_output_layout(state.cursor, state.layout);
 	//wlr_cursor_map_to_region(state.cursor, state.config->cursor.mapped_box);
-	wl_list_init(&state.devices);
 	wl_list_init(&state.touch_points);
 
 	// pointer events
@@ -378,16 +443,12 @@ int main(int argc, char *argv[]) {
 		&state.tablet_tool_axis);
 	state.tablet_tool_axis.notify = handle_tablet_tool_axis;
 
-	state.xcursor_manager = wlr_xcursor_manager_create("default", 24);
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr);
+	state.xcursor_manager = wlr_xcursor_manager_create("default", 24, renderer);
 	if (!state.xcursor_manager) {
 		wlr_log(WLR_ERROR, "Failed to load left_ptr cursor");
 		return 1;
 	}
-
-	wlr_xcursor_manager_set_cursor_image(state.xcursor_manager, "left_ptr",
-		state.cursor);
-
-	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
 
 	if (!wlr_backend_start(wlr)) {
 		wlr_log(WLR_ERROR, "Failed to start backend");
