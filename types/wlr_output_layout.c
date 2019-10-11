@@ -328,7 +328,7 @@ void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
 		return;
 	}
 
-	double min_x = DBL_MAX, min_y = DBL_MAX, min_distance = DBL_MAX;
+	double min_x = 0, min_y = 0, min_distance = DBL_MAX;
 	struct wlr_output_layout_output *l_output;
 	wl_list_for_each(l_output, &layout->outputs, link) {
 		if (reference != NULL && reference != l_output->output) {
@@ -347,7 +347,7 @@ void wlr_output_layout_closest_point(struct wlr_output_layout *layout,
 			output_distance = DBL_MAX;
 		}
 
-		if (output_distance <= min_distance) {
+		if (output_distance < min_distance) {
 			min_x = output_x;
 			min_y = output_y;
 			min_distance = output_distance;

@@ -278,6 +278,10 @@ void wlr_cursor_warp_closest(struct wlr_cursor *cur,
 	struct wlr_box *mapping = get_mapping(cur, dev);
 	if (mapping) {
 		wlr_box_closest_point(mapping, lx, ly, &lx, &ly);
+		if (isnan(lx) || isnan(ly)) {
+			lx = 0;
+			ly = 0;
+		}
 	} else {
 		wlr_output_layout_closest_point(cur->state->layout, NULL, lx, ly,
 			&lx, &ly);
