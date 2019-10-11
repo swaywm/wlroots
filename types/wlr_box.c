@@ -8,6 +8,13 @@
 
 void wlr_box_closest_point(const struct wlr_box *box, double x, double y,
 		double *dest_x, double *dest_y) {
+	// if box is empty, then it contains no points, so no closest point either
+	if (box->width <= 0 || box->height <= 0) {
+		*dest_x = NAN;
+		*dest_y = NAN;
+		return;
+	}
+
 	// find the closest x point
 	if (x < box->x) {
 		*dest_x = box->x;
