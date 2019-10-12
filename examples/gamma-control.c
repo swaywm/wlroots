@@ -108,20 +108,29 @@ static const struct wl_registry_listener registry_listener = {
 	.global_remove = registry_handle_global_remove,
 };
 
+static uint16_t cell_value(double orig, double contrast,
+		double brightness, double gamma) {
+	double result = contrast * pow(orig, gamma) + (brightness - 1);
+	return (uint16_t)(fmax(fmin(result,
+	                            1.0),
+	                       0.0) * UINT16_MAX);
+}
+
 static void fill_gamma_table(uint16_t *table, uint32_t ramp_size,
-		double contrast, double brightness, double gamma) {
+		double contrast, double brightness,
+		double gamma_red, double gamma_green, double gamma_blue) {
 	uint16_t *r = table;
 	uint16_t *g = table + ramp_size;
 	uint16_t *b = table + 2 * ramp_size;
+	gamma_red = 1 / gamma_red;
+	gamma_green = 1 / gamma_green;
+	gamma_blue = 1 / gamma_blue;
+
 	for (uint32_t i = 0; i < ramp_size; ++i) {
-		double val = (double)i / (ramp_size - 1);
-		val = contrast * pow(val, 1.0 / gamma) + (brightness - 1);
-		if (val > 1.0) {
-			val = 1.0;
-		} else if (val < 0.0) {
-			val = 0.0;
-		}
-		r[i] = g[i] = b[i] = (uint16_t)(UINT16_MAX * val);
+		double orig = (double)i / (ramp_size - 1);
+		r[i] = cell_value(orig, contrast, brightness, gamma_red);
+		g[i] = cell_value(orig, contrast, brightness, gamma_green);
+		b[i] = cell_value(orig, contrast, brightness, gamma_blue);
 	}
 }
 
@@ -129,12 +138,13 @@ static const char usage[] = "usage: gamma-control [options]\n"
 	"  -h          show this help message\n"
 	"  -c <value>  set contrast (default: 1)\n"
 	"  -b <value>  set brightness (default: 1)\n"
-	"  -g <value>  set gamma (default: 1)\n";
+	"  -g <value>  set gamma for rgb (default: 1:1:1)\n";
 
 int main(int argc, char *argv[]) {
 	wl_list_init(&outputs);
 
 	double contrast = 1, brightness = 1, gamma = 1;
+	double gamma_red = 1, gamma_green = 1, gamma_blue = 1;
 	int opt;
 	while ((opt = getopt(argc, argv, "hc:b:g:")) != -1) {
 		switch (opt) {
@@ -145,7 +155,10 @@ int main(int argc, char *argv[]) {
 			brightness = strtod(optarg, NULL);
 			break;
 		case 'g':
-			gamma = strtod(optarg, NULL);
+			if (sscanf(optarg, "%lf:%lf:%lf", &gamma_red, &gamma_green, &gamma_blue) != 3) {
+				gamma = strtod(optarg, NULL);
+				gamma_red = gamma_green = gamma_blue = gamma;
+			}
 			break;
 		case 'h':
 		default:
@@ -182,7 +195,7 @@ int main(int argc, char *argv[]) {
 
 	wl_list_for_each(output, &outputs, link) {
 		fill_gamma_table(output->table, output->ramp_size,
-			contrast, brightness, gamma);
+			contrast, brightness, gamma_red, gamma_green, gamma_blue);
 		zwlr_gamma_control_v1_set_gamma(output->gamma_control,
 			output->table_fd);
 	}
