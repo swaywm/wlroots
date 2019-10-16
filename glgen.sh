@@ -64,8 +64,13 @@ cat > "$OUTDIR/$BASE.h" << EOF
 #include <stdbool.h>
 #include <wlr/config.h>
 
-#if !WLR_HAS_X11_BACKEND && !WLR_HAS_XWAYLAND && !defined MESA_EGL_NO_X11_HEADERS
+#if !WLR_HAS_X11_BACKEND && !WLR_HAS_XWAYLAND
+#ifndef MESA_EGL_NO_X11_HEADERS
 #define MESA_EGL_NO_X11_HEADERS
+#endif
+#ifndef EGL_NO_X11
+#define EGL_NO_X11
+#endif
 #endif
 
 #include <EGL/egl.h>
