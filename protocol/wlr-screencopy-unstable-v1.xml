@@ -2,6 +2,7 @@
 <protocol name="wlr_screencopy_unstable_v1">
   <copyright>
     Copyright © 2018 Simon Ser
+    Copyright © 2019 Andri Yngvason
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the "Software"),
@@ -37,7 +38,7 @@
     interface version number is reset.
   </description>
 
-  <interface name="zwlr_screencopy_manager_v1" version="1">
+  <interface name="zwlr_screencopy_manager_v1" version="2">
     <description summary="manager to inform clients and begin capturing">
       This object is a manager which offers requests to start capturing from a
       source.
@@ -79,7 +80,7 @@
     </request>
   </interface>
 
-  <interface name="zwlr_screencopy_frame_v1" version="1">
+  <interface name="zwlr_screencopy_frame_v1" version="2">
     <description summary="a frame ready for copy">
       This object represents a single frame.
 
@@ -175,5 +176,32 @@
         Destroys the frame. This request can be sent at any time by the client.
       </description>
     </request>
+
+    <!-- Version 2 additions -->
+    <request name="copy_with_damage" since="2">
+      <description summary="copy the frame when it's damaged">
+        Same as copy, except it waits until there is damage to copy.
+      </description>
+      <arg name="buffer" type="object" interface="wl_buffer"/>
+    </request>
+
+    <event name="damage" since="2">
+      <description summary="carries the coordinates of the damaged region">
+        This event is sent right before the ready event when copy_with_damage is
+        requested. It may be generated multiple times for each copy_with_damage
+        request.
+
+        The arguments describe a box around an area that has changed since the
+        last copy request that was derived from the current screencopy manager
+        instance.
+
+        The union of all regions received between the call to copy_with_damage
+        and a ready event is the total damage since the prior ready event.
+      </description>
+      <arg name="x" type="uint" summary="damaged x coordinates"/>
+      <arg name="y" type="uint" summary="damaged y coordinates"/>
+      <arg name="width" type="uint" summary="current width"/>
+      <arg name="height" type="uint" summary="current height"/>
+    </event>
   </interface>
 </protocol>
