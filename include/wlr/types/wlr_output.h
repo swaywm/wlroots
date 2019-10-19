@@ -114,6 +114,9 @@ struct wlr_output {
 
 	struct wlr_output_state pending;
 
+	// Commit sequence number. Incremented on each commit, may overflow.
+	uint32_t commit_seq;
+
 	struct {
 		// Request to render a frame
 		struct wl_signal frame;
