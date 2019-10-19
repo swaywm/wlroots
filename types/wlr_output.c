@@ -311,6 +311,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_list_init(&output->modes);
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
+	output->commit_seq = 0;
 	wl_list_init(&output->cursors);
 	wl_list_init(&output->resources);
 	wl_signal_init(&output->events.frame);
@@ -500,6 +501,7 @@ bool wlr_output_commit(struct wlr_output *output) {
 	output->needs_frame = false;
 	output_state_clear(&output->pending);
 	pixman_region32_clear(&output->damage);
+	output->commit_seq++;
 	return true;
 }
 
