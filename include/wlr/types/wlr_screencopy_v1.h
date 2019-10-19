@@ -27,9 +27,15 @@ struct wlr_screencopy_manager_v1 {
 	void *data;
 };
 
+struct wlr_screencopy_v1_client {
+	int ref;
+	struct wlr_screencopy_manager_v1 *manager;
+	struct wl_list damages;
+};
+
 struct wlr_screencopy_frame_v1 {
 	struct wl_resource *resource;
-	struct wlr_screencopy_manager_v1 *manager;
+	struct wlr_screencopy_v1_client *client;
 	struct wl_list link;
 
 	enum wl_shm_format format;
@@ -37,6 +43,8 @@ struct wlr_screencopy_frame_v1 {
 	int stride;
 
 	bool overlay_cursor, cursor_locked;
+
+	bool with_damage;
 
 	struct wl_shm_buffer *buffer;
 	struct wl_listener buffer_destroy;
