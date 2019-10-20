@@ -143,6 +143,11 @@ clients = {
 		'dep': [wlroots],
 		'proto': ['wlr-foreign-toplevel-management-unstable-v1'],
 	},
+	'virtual-pointer': {
+		'src': 'virtual-pointer.c',
+		'dep': wlroots,
+		'proto': ['wlr-virtual-pointer-unstable-v1'],
+	},
 }
 
 foreach name, info : compositors

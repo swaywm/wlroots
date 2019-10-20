@@ -63,6 +63,7 @@ wlr_files += files(
 	'wlr_text_input_v3.c',
 	'wlr_touch.c',
 	'wlr_virtual_keyboard_v1.c',
+	'wlr_virtual_pointer_v1.c',
 	'wlr_xcursor_manager.c',
 	'wlr_xdg_decoration_v1.c',
 	'wlr_xdg_output_v1.c',
