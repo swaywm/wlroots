@@ -500,6 +500,24 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 	return export_drm_bo(surf->back, attribs);
 }
 
+static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn,
+		struct wlr_drm_mode *mode) {
+	struct wlr_drm_backend *drm =
+		get_drm_backend_from_backend(conn->output.backend);
+	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		wlr_log(WLR_ERROR, "Page-flip failed on connector '%s': no CRTC",
+			conn->output.name);
+		return false;
+	}
+	struct wlr_drm_plane *plane = crtc->primary;
+
+	struct gbm_bo *bo = get_drm_surface_front(
+		drm->parent ? &plane->mgpu_surf : &plane->surf);
+	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format, drm->addfb2_modifiers);
+	return drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, &mode->drm_mode);
+}
+
 static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	if (conn->state != WLR_DRM_CONN_CONNECTED) {
 		return;
@@ -507,26 +525,61 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 
 	wlr_log(WLR_DEBUG, "Starting renderer on output '%s'", conn->output.name);
 
-	struct wlr_drm_backend *drm =
-		get_drm_backend_from_backend(conn->output.backend);
-	struct wlr_drm_crtc *crtc = conn->crtc;
-	if (!crtc) {
-		return;
-	}
-	struct wlr_drm_plane *plane = crtc->primary;
-
-	struct gbm_bo *bo = get_drm_surface_front(
-		drm->parent ? &plane->mgpu_surf : &plane->surf);
-	uint32_t fb_id = get_fb_for_bo(bo, plane->drm_format, drm->addfb2_modifiers);
-
 	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)conn->output.current_mode;
-	if (drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, &mode->drm_mode)) {
+	if (drm_connector_pageflip_renderer(conn, mode)) {
 		conn->pageflip_pending = true;
 		wlr_output_update_enabled(&conn->output, true);
 	} else {
 		wl_event_source_timer_update(conn->retry_pageflip,
 			1000000.0f / conn->output.current_mode->refresh);
 	}
+}
+
+static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
+		struct wlr_drm_mode *mode) {
+	struct wlr_drm_backend *drm =
+		get_drm_backend_from_backend(conn->output.backend);
+
+	if (conn->state != WLR_DRM_CONN_CONNECTED &&
+			conn->state != WLR_DRM_CONN_NEEDS_MODESET) {
+		return false;
+	}
+
+	wlr_log(WLR_DEBUG, "Initializing renderer on connector '%s'",
+		conn->output.name);
+
+	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		wlr_log(WLR_ERROR, "Failed to initialize renderer on connector '%s': "
+			"no CRTC", conn->output.name);
+		return false;
+	}
+	struct wlr_drm_plane *plane = crtc->primary;
+
+	int width = mode->wlr_mode.width;
+	int height = mode->wlr_mode.height;
+	uint32_t format = drm->renderer.gbm_format;
+
+	if (!init_drm_plane_surfaces(plane, drm, width, height, format, true) ||
+			!drm_connector_pageflip_renderer(conn, mode)) {
+		// If page-flipping with modifiers enabled doesn't work, retry without
+		// modifiers
+		wlr_log(WLR_INFO, "Page-flip failed with primary FB modifiers enabled, "
+			"retrying without modifiers");
+		finish_drm_surface(&plane->surf);
+		finish_drm_surface(&plane->mgpu_surf);
+		if (!init_drm_plane_surfaces(plane, drm, width, height, format, false)) {
+			return false;
+		}
+		if (!drm_connector_pageflip_renderer(conn, mode)) {
+			wlr_log(WLR_ERROR, "Failed to initialize renderer "
+				"on connector '%s': initial page-flip failed",
+				conn->output.name);
+			return false;
+		}
+	}
+
+	return true;
 }
 
 static void realloc_crtcs(struct wlr_drm_backend *drm);
@@ -581,7 +634,7 @@ bool enable_drm_connector(struct wlr_output *output, bool enable) {
 static void drm_connector_cleanup(struct wlr_drm_connector *conn);
 
 bool drm_connector_set_mode(struct wlr_output *output,
-		struct wlr_output_mode *mode) {
+		struct wlr_output_mode *wlr_mode) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 	if (conn->crtc == NULL) {
@@ -592,26 +645,25 @@ bool drm_connector_set_mode(struct wlr_output *output,
 		wlr_log(WLR_ERROR, "Cannot modeset '%s': no CRTC for this connector",
 			conn->output.name);
 		// Save the desired mode for later, when we'll get a proper CRTC
-		conn->desired_mode = mode;
+		conn->desired_mode = wlr_mode;
 		return false;
 	}
 
 	wlr_log(WLR_INFO, "Modesetting '%s' with '%ux%u@%u mHz'",
-		conn->output.name, mode->width, mode->height, mode->refresh);
+		conn->output.name, wlr_mode->width, wlr_mode->height,
+		wlr_mode->refresh);
 
-	if (!init_drm_plane_surfaces(conn->crtc->primary, drm,
-			mode->width, mode->height, drm->renderer.gbm_format)) {
+	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)wlr_mode;
+	if (!drm_connector_init_renderer(conn, mode)) {
 		wlr_log(WLR_ERROR, "Failed to initialize renderer for plane");
 		return false;
 	}
 
 	conn->state = WLR_DRM_CONN_CONNECTED;
 	conn->desired_mode = NULL;
-	wlr_output_update_mode(&conn->output, mode);
+	wlr_output_update_mode(&conn->output, wlr_mode);
 	wlr_output_update_enabled(&conn->output, true);
 	conn->desired_enabled = true;
-
-	drm_connector_start_renderer(conn);
 
 	// When switching VTs, the mode is not updated but the buffers become
 	// invalid, so we need to manually damage the output here
@@ -1102,16 +1154,13 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 			continue;
 		}
 
-		struct wlr_output_mode *mode = conn->output.current_mode;
-
-		if (!init_drm_plane_surfaces(conn->crtc->primary, drm,
-				mode->width, mode->height, drm->renderer.gbm_format)) {
+		struct wlr_drm_mode *mode =
+			(struct wlr_drm_mode *)conn->output.current_mode;
+		if (!drm_connector_init_renderer(conn, mode)) {
 			wlr_log(WLR_ERROR, "Failed to initialize renderer for plane");
 			drm_connector_cleanup(conn);
 			break;
 		}
-
-		drm_connector_start_renderer(conn);
 
 		wlr_output_damage_whole(&conn->output);
 	}
