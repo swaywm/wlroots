@@ -382,6 +382,11 @@ static bool drm_connector_commit(struct wlr_output *output) {
 			return false;
 		}
 
+		if (conn->pending_bo != NULL) {
+			gbm_bo_destroy(conn->pending_bo);
+		}
+		conn->pending_bo = bo;
+
 		fb_id = get_fb_for_bo(bo, gbm_bo_get_format(bo), drm->addfb2_modifiers);
 		if (fb_id == 0) {
 			wlr_log(WLR_ERROR, "get_fb_for_bo failed");
@@ -1403,6 +1408,12 @@ static void page_flip_handler(int fd, unsigned seq,
 	wlr_buffer_unref(conn->current_buffer);
 	conn->current_buffer = conn->pending_buffer;
 	conn->pending_buffer = NULL;
+
+	if (conn->current_bo != NULL) {
+		gbm_bo_destroy(conn->current_bo);
+	}
+	conn->current_bo = conn->pending_bo;
+	conn->pending_bo = NULL;
 
 	uint32_t present_flags = WLR_OUTPUT_PRESENT_VSYNC |
 		WLR_OUTPUT_PRESENT_HW_CLOCK | WLR_OUTPUT_PRESENT_HW_COMPLETION;
