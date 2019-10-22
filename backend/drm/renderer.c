@@ -287,10 +287,13 @@ struct gbm_bo *copy_drm_surface_mgpu(struct wlr_drm_surface *dest,
 
 bool init_drm_plane_surfaces(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
-		uint32_t format) {
+		uint32_t format, bool with_modifiers) {
+	struct wlr_drm_format_set *format_set =
+		with_modifiers ? &plane->formats : NULL;
+
 	if (!drm->parent) {
 		return init_drm_surface(&plane->surf, &drm->renderer, width, height,
-			format, &plane->formats, GBM_BO_USE_SCANOUT);
+			format, format_set, GBM_BO_USE_SCANOUT);
 	}
 
 	if (!init_drm_surface(&plane->surf, &drm->parent->renderer,
@@ -299,7 +302,7 @@ bool init_drm_plane_surfaces(struct wlr_drm_plane *plane,
 	}
 
 	if (!init_drm_surface(&plane->mgpu_surf, &drm->renderer,
-			width, height, format, &plane->formats, GBM_BO_USE_SCANOUT)) {
+			width, height, format, format_set, GBM_BO_USE_SCANOUT)) {
 		finish_drm_surface(&plane->surf);
 		return false;
 	}
