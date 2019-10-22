@@ -646,5 +646,12 @@ bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface) {
 	if (!surface) {
 		return true;
 	}
+	if (eglGetCurrentContext() == egl->context &&
+			eglGetCurrentSurface(EGL_DRAW) == surface) {
+		// Reset the current EGL surface in case it's the one we're destroying,
+		// otherwise the next wlr_egl_make_current call will result in a
+		// use-after-free.
+		wlr_egl_make_current(egl, NULL, NULL);
+	}
 	return eglDestroySurface(egl->display, surface);
 }
