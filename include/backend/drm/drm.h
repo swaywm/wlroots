@@ -131,8 +131,10 @@ struct wlr_drm_connector {
 	struct wlr_dmabuf_attributes pending_dmabuf;
 	// Buffer submitted to the kernel but not yet displayed
 	struct wlr_buffer *pending_buffer;
+	struct gbm_bo *pending_bo;
 	// Buffer currently being displayed
 	struct wlr_buffer *current_buffer;
+	struct gbm_bo *current_bo;
 };
 
 struct wlr_drm_backend *get_drm_backend_from_backend(
