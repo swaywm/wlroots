@@ -81,6 +81,11 @@ clients = {
 		'dep': [wayland_cursor, math],
 		'proto': ['wlr-gamma-control-unstable-v1'],
 	},
+	'output-power-management': {
+		'src': 'output-power-management.c',
+		'dep': [wayland_client, wlroots],
+		'proto': ['wlr-output-power-management-unstable-v1'],
+	},
 	'pointer-constraints': {
 		'src': 'pointer-constraints.c',
 		'dep': wlroots,
