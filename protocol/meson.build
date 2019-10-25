@@ -40,6 +40,7 @@ protocols = {
 	'wlr-input-inhibitor-unstable-v1': 'wlr-input-inhibitor-unstable-v1.xml',
 	'wlr-layer-shell-unstable-v1': 'wlr-layer-shell-unstable-v1.xml',
 	'wlr-output-management-unstable-v1': 'wlr-output-management-unstable-v1.xml',
+	'wlr-output-power-management-unstable-v1': 'wlr-output-power-management-unstable-v1.xml',
 	'wlr-screencopy-unstable-v1': 'wlr-screencopy-unstable-v1.xml',
 	'wlr-virtual-pointer-unstable-v1': 'wlr-virtual-pointer-unstable-v1.xml',
 }
