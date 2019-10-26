@@ -23,6 +23,7 @@
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include "backend/drm/cvt.h"
 #include "backend/drm/drm.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
@@ -672,25 +673,39 @@ bool drm_connector_set_mode(struct wlr_output *output,
 	return true;
 }
 
-bool wlr_drm_connector_add_mode(struct wlr_output *output,
+static bool drm_connector_set_custom_mode(struct wlr_output *output,
+		int32_t width, int32_t height, int32_t refresh) {
+	drmModeModeInfo mode = {0};
+	generate_cvt_mode(&mode, width, height, (float)refresh / 1000, false, false);
+	mode.type = DRM_MODE_TYPE_USERDEF;
+
+	struct wlr_output_mode *wlr_mode = wlr_drm_connector_add_mode(output, &mode);
+	if (wlr_mode == NULL) {
+		return false;
+	}
+
+	return drm_connector_set_mode(output, wlr_mode);
+}
+
+struct wlr_output_mode *wlr_drm_connector_add_mode(struct wlr_output *output,
 		const drmModeModeInfo *modeinfo) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 
 	if (modeinfo->type != DRM_MODE_TYPE_USERDEF) {
-		return false;
+		return NULL;
 	}
 
 	struct wlr_output_mode *wlr_mode;
 	wl_list_for_each(wlr_mode, &conn->output.modes, link) {
 		struct wlr_drm_mode *mode = (struct wlr_drm_mode *)wlr_mode;
 		if (memcmp(&mode->drm_mode, modeinfo, sizeof(*modeinfo)) == 0) {
-			return true;
+			return wlr_mode;
 		}
 	}
 
 	struct wlr_drm_mode *mode = calloc(1, sizeof(*mode));
 	if (!mode) {
-		return false;
+		return NULL;
 	}
 	memcpy(&mode->drm_mode, modeinfo, sizeof(*modeinfo));
 
@@ -703,7 +718,8 @@ bool wlr_drm_connector_add_mode(struct wlr_output *output,
 			mode->wlr_mode.width, mode->wlr_mode.height,
 			mode->wlr_mode.refresh);
 	wl_list_insert(&conn->output.modes, &mode->wlr_mode.link);
-	return true;
+
+	return &mode->wlr_mode;
 }
 
 static bool drm_connector_set_cursor(struct wlr_output *output,
@@ -988,6 +1004,7 @@ static void drm_connector_destroy(struct wlr_output *output) {
 static const struct wlr_output_impl output_impl = {
 	.enable = enable_drm_connector,
 	.set_mode = drm_connector_set_mode,
+	.set_custom_mode = drm_connector_set_custom_mode,
 	.set_cursor = drm_connector_set_cursor,
 	.move_cursor = drm_connector_move_cursor,
 	.destroy = drm_connector_destroy,

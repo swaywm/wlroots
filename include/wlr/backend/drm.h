@@ -32,6 +32,7 @@ bool wlr_output_is_drm(struct wlr_output *output);
  * Add mode to the list of available modes
  */
 typedef struct _drmModeModeInfo drmModeModeInfo;
-bool wlr_drm_connector_add_mode(struct wlr_output *output, const drmModeModeInfo *mode);
+struct wlr_output_mode *wlr_drm_connector_add_mode(struct wlr_output *output,
+	const drmModeModeInfo *mode);
 
 #endif
