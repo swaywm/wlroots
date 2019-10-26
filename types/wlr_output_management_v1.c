@@ -686,6 +686,9 @@ static void head_send_state(struct wlr_output_head_v1 *head,
 	}
 
 	if (state & HEAD_STATE_MODE) {
+		assert(head->state.mode != NULL ||
+			wl_list_empty(&head->state.output->modes));
+
 		bool found = false;
 		struct wl_resource *mode_resource;
 		wl_resource_for_each(mode_resource, &head->mode_resources) {
