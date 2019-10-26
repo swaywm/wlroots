@@ -3,6 +3,7 @@ backend_files = files(
 	'backend.c',
 	'drm/atomic.c',
 	'drm/backend.c',
+	'drm/cvt.c',
 	'drm/drm.c',
 	'drm/legacy.c',
 	'drm/properties.c',
