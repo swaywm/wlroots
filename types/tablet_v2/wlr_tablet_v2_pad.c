@@ -171,6 +171,9 @@ void destroy_tablet_pad_v2(struct wl_resource *resource) {
 	}
 	free(pad->strips);
 
+	if (pad->pad->current_client == pad) {
+		pad->pad->current_client = NULL;
+	}
 	free(pad);
 	wl_resource_set_user_data(resource, NULL);
 }
