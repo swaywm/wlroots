@@ -54,6 +54,7 @@ struct tinywl_server {
 	enum tinywl_cursor_mode cursor_mode;
 	struct tinywl_view *grabbed_view;
 	double grab_x, grab_y;
+	struct wlr_box grab_geo_box;
 	int grab_width, grab_height;
 	uint32_t resize_edges;
 
@@ -366,22 +367,22 @@ static void process_cursor_resize(struct tinywl_server *server, uint32_t time) {
 	int width = server->grab_width;
 	int height = server->grab_height;
 	if (server->resize_edges & WLR_EDGE_TOP) {
-		y = server->grab_y + dy;
-		height -= dy;
+		y = server->grab_y + dy - server->grab_geo_box.y;
+		height -= dy + server->grab_geo_box.y;
 		if (height < 1) {
 			y += height;
 		}
 	} else if (server->resize_edges & WLR_EDGE_BOTTOM) {
-		height += dy;
+		height += dy + server->grab_geo_box.y;
 	}
 	if (server->resize_edges & WLR_EDGE_LEFT) {
-		x = server->grab_x + dx;
-		width -= dx;
+		x = server->grab_x + dx - server->grab_geo_box.x;
+		width -= dx + server->grab_geo_box.x;
 		if (width < 1) {
 			x += width;
 		}
 	} else if (server->resize_edges & WLR_EDGE_RIGHT) {
-		width += dx;
+		width += dx + server->grab_geo_box.x;
 	}
 	view->x = x;
 	view->y = y;
@@ -715,17 +716,16 @@ static void begin_interactive(struct tinywl_view *view,
 	}
 	server->grabbed_view = view;
 	server->cursor_mode = mode;
-	struct wlr_box geo_box;
-	wlr_xdg_surface_get_geometry(view->xdg_surface, &geo_box);
+	wlr_xdg_surface_get_geometry(view->xdg_surface, &server->grab_geo_box);
 	if (mode == TINYWL_CURSOR_MOVE) {
 		server->grab_x = server->cursor->x - view->x;
 		server->grab_y = server->cursor->y - view->y;
 	} else {
-		server->grab_x = server->cursor->x + geo_box.x;
-		server->grab_y = server->cursor->y + geo_box.y;
+		server->grab_x = server->cursor->x + server->grab_geo_box.x;
+		server->grab_y = server->cursor->y + server->grab_geo_box.y;
 	}
-	server->grab_width = geo_box.width;
-	server->grab_height = geo_box.height;
+	server->grab_width = server->grab_geo_box.width;
+	server->grab_height = server->grab_geo_box.height;
 	server->resize_edges = edges;
 }
 
