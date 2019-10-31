@@ -117,6 +117,11 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 		flags |= DRM_MODE_ATOMIC_NONBLOCK;
 	}
 
+	if (crtc->allow_mode_set) {
+		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
+		crtc->allow_mode_set = false;
+	}
+
 	struct atomic atom;
 	atomic_begin(crtc, &atom);
 	atomic_add(&atom, conn->id, conn->props.crtc_id, crtc->id);
@@ -137,16 +142,19 @@ static bool atomic_conn_enable(struct wlr_drm_backend *drm,
 		return !enable;
 	}
 
+	/* crtc will be enabled on next page flip */
+	if (enable) {
+		crtc->allow_mode_set = true;
+		return true;
+	}
+
 	struct atomic atom;
 	atomic_begin(crtc, &atom);
 	atomic_add(&atom, crtc->id, crtc->props.active, enable);
-	if (enable) {
-		atomic_add(&atom, conn->id, conn->props.crtc_id, crtc->id);
-		atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
-	} else {
-		atomic_add(&atom, conn->id, conn->props.crtc_id, 0);
-		atomic_add(&atom, crtc->id, crtc->props.mode_id, 0);
-	}
+	atomic_add(&atom, conn->id, conn->props.crtc_id, 0);
+	atomic_add(&atom, crtc->id, crtc->props.mode_id, 0);
+	atomic_add(&atom, crtc->primary->id, crtc->primary->props.fb_id, 0);
+	atomic_add(&atom, crtc->primary->id, crtc->primary->props.crtc_id, 0);
 	return atomic_commit(drm->fd, &atom, conn, DRM_MODE_ATOMIC_ALLOW_MODESET,
 		true);
 }

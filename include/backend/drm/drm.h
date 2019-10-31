@@ -63,6 +63,8 @@ struct wlr_drm_crtc {
 
 	uint16_t *gamma_table;
 	size_t gamma_table_size;
+
+	bool allow_mode_set;
 };
 
 struct wlr_drm_backend {
