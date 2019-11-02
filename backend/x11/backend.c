@@ -12,6 +12,7 @@
 #include <X11/Xlib-xcb.h>
 #include <wayland-server-core.h>
 #include <xcb/xcb.h>
+#include <xcb/present.h>
 #include <xcb/xfixes.h>
 #include <xcb/xinput.h>
 
@@ -50,16 +51,6 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		}
 		break;
 	}
-	case XCB_CONFIGURE_NOTIFY: {
-		xcb_configure_notify_event_t *ev =
-			(xcb_configure_notify_event_t *)event;
-		struct wlr_x11_output *output =
-			get_x11_output_from_window_id(x11, ev->window);
-		if (output != NULL) {
-			handle_x11_configure_notify(output, ev);
-		}
-		break;
-	}
 	case XCB_CLIENT_MESSAGE: {
 		xcb_client_message_event_t *ev = (xcb_client_message_event_t *)event;
 		if (ev->data.data32[0] == x11->atoms.wm_delete_window) {
@@ -73,7 +64,10 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 	}
 	case XCB_GE_GENERIC: {
 		xcb_ge_generic_event_t *ev = (xcb_ge_generic_event_t *)event;
-		if (ev->extension == x11->xinput_opcode) {
+		if (ev->extension == x11->present_opcode) {
+			handle_x11_present_event(x11,
+				(xcb_present_generic_event_t *)ev);
+		} else if (ev->extension == x11->xinput_opcode) {
 			handle_x11_xinput_event(x11, ev);
 		}
 	}
@@ -224,6 +218,30 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	const xcb_query_extension_reply_t *ext;
 
+	/* Present extension */
+
+	ext = xcb_get_extension_data(x11->xcb, &xcb_present_id);
+	if (!ext || !ext->present) {
+		wlr_log(WLR_ERROR, "X11 does not support Present extension");
+		goto error_display;
+	}
+	x11->present_opcode = ext->major_opcode;
+
+	xcb_present_query_version_cookie_t present_cookie =
+		xcb_present_query_version(x11->xcb, 1, 2);
+	xcb_present_query_version_reply_t *present_reply =
+		xcb_present_query_version_reply(x11->xcb, present_cookie, NULL);
+
+	if (!present_reply || (present_reply->major_version <= 1 &&
+			present_reply->minor_version < 2)) {
+		wlr_log(WLR_ERROR, "X11 does not support required Present version");
+		free(present_reply);
+		goto error_display;
+	}
+	free(present_reply);
+
+	/* Xfixes extension */
+
 	ext = xcb_get_extension_data(x11->xcb, &xcb_xfixes_id);
 	if (!ext || !ext->present) {
 		wlr_log(WLR_ERROR, "X11 does not support Xfixes extension");
@@ -241,6 +259,8 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_display;
 	}
 	free(fixes_reply);
+
+	/* Xinput extension */
 
 	ext = xcb_get_extension_data(x11->xcb, &xcb_input_id);
 	if (!ext || !ext->present) {
