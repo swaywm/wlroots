@@ -36,6 +36,10 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl, EGLenum platfo
 void wlr_renderer_begin(struct wlr_renderer *r, int width, int height);
 void wlr_renderer_end(struct wlr_renderer *r);
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
+
+float wlr_renderer_get_scale(struct wlr_renderer *r);
+void wlr_renderer_set_scale(struct wlr_renderer *r, const float scale);
+
 /**
  * Defines a scissor box. Only pixels that lie within the scissor box can be
  * modified by drawing functions. Providing a NULL `box` disables the scissor

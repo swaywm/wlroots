@@ -35,6 +35,8 @@ struct wlr_renderer_impl {
 		uint32_t height);
 	void (*end)(struct wlr_renderer *renderer);
 	void (*clear)(struct wlr_renderer *renderer, const float color[static 4]);
+	float (*get_scale)(struct wlr_renderer *renderer);
+	void (*set_scale)(struct wlr_renderer *renderer, const float scale);
 	void (*scissor)(struct wlr_renderer *renderer, struct wlr_box *box);
 	bool (*render_texture_with_matrix)(struct wlr_renderer *renderer,
 		struct wlr_texture *texture, const float matrix[static 9],

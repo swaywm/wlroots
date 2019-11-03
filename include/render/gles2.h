@@ -58,6 +58,7 @@ struct wlr_gles2_renderer {
 	} shaders;
 
 	uint32_t viewport_width, viewport_height;
+	float scale;
 };
 
 enum wlr_gles2_texture_type {

@@ -65,6 +65,19 @@ static void gles2_clear(struct wlr_renderer *wlr_renderer,
 	POP_GLES2_DEBUG;
 }
 
+static float gles2_get_scale(struct wlr_renderer *wlr_renderer) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
+	return renderer->scale;
+}
+
+static void gles2_set_scale(struct wlr_renderer *wlr_renderer,
+	const float scale) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
+	renderer->scale = scale;
+}
+
 static void gles2_scissor(struct wlr_renderer *wlr_renderer,
 		struct wlr_box *box) {
 	struct wlr_gles2_renderer *renderer =
@@ -156,8 +169,14 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(target, tex_id);
 
+
 	glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	// use nearest neighbor scaling if scale is whole integer value
+	float renderer_scale = wlr_renderer_get_scale(wlr_renderer);
+	bool scale_is_int = (ceilf(renderer_scale) == renderer_scale);
+	int scale_mode = scale_is_int ? GL_NEAREST : GL_LINEAR;
+	glTexParameteri(target, GL_TEXTURE_MAG_FILTER, scale_mode);
 
 	glUseProgram(shader->program);
 
@@ -387,6 +406,8 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.begin = gles2_begin,
 	.end = gles2_end,
 	.clear = gles2_clear,
+	.get_scale = gles2_get_scale,
+	.set_scale = gles2_set_scale,
 	.scissor = gles2_scissor,
 	.render_texture_with_matrix = gles2_render_texture_with_matrix,
 	.render_quad_with_matrix = gles2_render_quad_with_matrix,

@@ -425,6 +425,9 @@ bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age) {
 		return false;
 	}
 
+	struct wlr_renderer *r = wlr_backend_get_renderer(output->backend);
+	wlr_renderer_set_scale(r, output->scale);
+
 	output_state_clear_buffer(&output->pending);
 	output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
 	output->pending.buffer_type = WLR_OUTPUT_STATE_BUFFER_RENDER;

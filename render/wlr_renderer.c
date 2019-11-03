@@ -52,6 +52,15 @@ void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]) {
 	r->impl->clear(r, color);
 }
 
+float wlr_renderer_get_scale(struct wlr_renderer *r) {
+	return r->impl->get_scale(r);
+}
+
+void wlr_renderer_set_scale(struct wlr_renderer *r, const float scale) {
+	r->impl->set_scale(r, scale);
+}
+
+
 void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box) {
 	r->impl->scissor(r, box);
 }
