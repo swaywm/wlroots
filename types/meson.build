@@ -39,6 +39,7 @@ lib_wlr_types = static_library(
 		'wlr_input_inhibitor.c',
 		'wlr_input_method_v2.c',
 		'wlr_keyboard.c',
+		'wlr_keyboard_group.c',
 		'wlr_layer_shell_v1.c',
 		'wlr_linux_dmabuf_v1.c',
 		'wlr_list.c',

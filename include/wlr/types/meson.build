@@ -16,6 +16,7 @@ install_headers(
 	'wlr_input_inhibitor.h',
 	'wlr_input_method_v2.h',
 	'wlr_keyboard.h',
+	'wlr_keyboard_group.h',
 	'wlr_layer_shell_v1.h',
 	'wlr_linux_dmabuf_v1.h',
 	'wlr_list.h',

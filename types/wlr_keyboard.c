@@ -82,6 +82,8 @@ void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
 	if (updated) {
 		wlr_signal_emit_safe(&keyboard->events.modifiers, keyboard);
 	}
+
+	keyboard_led_update(keyboard);
 }
 
 void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
@@ -98,12 +100,13 @@ void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
 		xkb_state_update_key(keyboard->xkb_state, keycode,
 			event->state == WLR_KEY_PRESSED ? XKB_KEY_DOWN : XKB_KEY_UP);
 	}
-	keyboard_led_update(keyboard);
 
 	bool updated = keyboard_modifier_update(keyboard);
 	if (updated) {
 		wlr_signal_emit_safe(&keyboard->events.modifiers, keyboard);
 	}
+
+	keyboard_led_update(keyboard);
 }
 
 void wlr_keyboard_init(struct wlr_keyboard *kb,
@@ -113,6 +116,7 @@ void wlr_keyboard_init(struct wlr_keyboard *kb,
 	wl_signal_init(&kb->events.modifiers);
 	wl_signal_init(&kb->events.keymap);
 	wl_signal_init(&kb->events.repeat_info);
+	wl_signal_init(&kb->events.destroy);
 
 	// Sane defaults
 	kb->repeat_info.rate = 25;
@@ -123,6 +127,7 @@ void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 	if (kb == NULL) {
 		return;
 	}
+	wlr_signal_emit_safe(&kb->events.destroy, kb);
 	xkb_state_unref(kb->xkb_state);
 	xkb_keymap_unref(kb->keymap);
 	free(kb->keymap_string);

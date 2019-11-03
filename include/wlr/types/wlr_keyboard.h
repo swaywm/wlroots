@@ -49,6 +49,7 @@ struct wlr_keyboard_modifiers {
 
 struct wlr_keyboard {
 	const struct wlr_keyboard_impl *impl;
+	struct wlr_keyboard_group *group;
 
 	char *keymap_string;
 	size_t keymap_size;
@@ -84,6 +85,7 @@ struct wlr_keyboard {
 		struct wl_signal modifiers;
 		struct wl_signal keymap;
 		struct wl_signal repeat_info;
+		struct wl_signal destroy;
 	} events;
 
 	void *data;
