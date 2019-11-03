@@ -558,48 +558,45 @@ error:
 }
 
 static bool add_signal_matches(struct logind_session *session) {
+	static const char *logind = "org.freedesktop.login1";
+	static const char *logind_path = "/org/freedesktop/login1";
+	static const char *manager_interface = "org.freedesktop.login1.Manager";
+	static const char *session_interface = "org.freedesktop.login1.Session";
+	static const char *property_interface = "org.freedesktop.DBus.Properties";
 	int ret;
 
-	char str[256];
-	const char fmt[] = "type='signal',"
-		"sender='org.freedesktop.login1',"
-		"interface='org.freedesktop.login1.%s',"
-		"member='%s',"
-		"path='%s'";
-
-	snprintf(str, sizeof(str), fmt, "Manager", "SessionRemoved",
-		"/org/freedesktop/login1");
-	ret = sd_bus_add_match(session->bus, NULL, str, session_removed, session);
+	ret = sd_bus_match_signal(session->bus, NULL, logind, logind_path,
+		manager_interface, "SessionRemoved", session_removed, session);
 	if (ret < 0) {
 		wlr_log(WLR_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
 		return false;
 	}
 
-	snprintf(str, sizeof(str), fmt, "Session", "PauseDevice", session->path);
-	ret = sd_bus_add_match(session->bus, NULL, str, pause_device, session);
+	ret = sd_bus_match_signal(session->bus, NULL, logind, session->path,
+		session_interface, "PauseDevice", pause_device, session);
 	if (ret < 0) {
 		wlr_log(WLR_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
 		return false;
 	}
 
-	snprintf(str, sizeof(str), fmt, "Session", "ResumeDevice", session->path);
-	ret = sd_bus_add_match(session->bus, NULL, str, resume_device, session);
+	ret = sd_bus_match_signal(session->bus, NULL, logind, session->path,
+		session_interface, "ResumeDevice", resume_device, session);
 	if (ret < 0) {
 		wlr_log(WLR_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
 		return false;
 	}
 
-	ret = sd_bus_match_signal(session->bus, NULL, "org.freedesktop.login1",
-		session->path, "org.freedesktop.DBus.Properties", "PropertiesChanged",
+	ret = sd_bus_match_signal(session->bus, NULL, logind, session->path,
+		property_interface, "PropertiesChanged",
 		session_properties_changed, session);
 	if (ret < 0) {
 		wlr_log(WLR_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
 		return false;
 	}
 
-	ret = sd_bus_match_signal(session->bus, NULL, "org.freedesktop.login1",
-			session->seat_path, "org.freedesktop.DBus.Properties",
-			"PropertiesChanged", seat_properties_changed, session);
+	ret = sd_bus_match_signal(session->bus, NULL, logind, session->seat_path,
+		property_interface, "PropertiesChanged",
+		seat_properties_changed, session);
 	if (ret < 0) {
 		wlr_log(WLR_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
 		return false;
