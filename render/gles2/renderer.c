@@ -119,22 +119,17 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 		gles2_get_texture(wlr_texture);
 
 	struct wlr_gles2_tex_shader *shader = NULL;
-	GLenum target = 0;
 
-	switch (texture->type) {
-	case WLR_GLES2_TEXTURE_GLTEX:
-	case WLR_GLES2_TEXTURE_WL_DRM_GL:
+	switch (texture->target) {
+	case GL_TEXTURE_2D:
 		if (texture->has_alpha) {
 			shader = &renderer->shaders.tex_rgba;
 		} else {
 			shader = &renderer->shaders.tex_rgbx;
 		}
-		target = GL_TEXTURE_2D;
 		break;
-	case WLR_GLES2_TEXTURE_WL_DRM_EXT:
-	case WLR_GLES2_TEXTURE_DMABUF:
+	case GL_TEXTURE_EXTERNAL_OES:
 		shader = &renderer->shaders.tex_ext;
-		target = GL_TEXTURE_EXTERNAL_OES;
 
 		if (!renderer->exts.egl_image_external_oes) {
 			wlr_log(WLR_ERROR, "Failed to render texture: "
@@ -142,6 +137,8 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 			return false;
 		}
 		break;
+	default:
+		abort();
 	}
 
 	// OpenGL ES 2 requires the glUniformMatrix3fv transpose parameter to be set
@@ -151,13 +148,11 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 
 	PUSH_GLES2_DEBUG;
 
-	GLuint tex_id = texture->type == WLR_GLES2_TEXTURE_GLTEX ?
-		texture->gl_tex : texture->image_tex;
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(target, tex_id);
+	glBindTexture(texture->target, texture->tex);
 
-	glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(texture->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(texture->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	glUseProgram(shader->program);
 
