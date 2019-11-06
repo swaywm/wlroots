@@ -17,9 +17,13 @@
 
 static const struct wlr_texture_impl texture_impl;
 
+bool wlr_texture_is_gles2(struct wlr_texture *wlr_texture) {
+	return wlr_texture->impl == &texture_impl;
+}
+
 struct wlr_gles2_texture *gles2_get_texture(
 		struct wlr_texture *wlr_texture) {
-	assert(wlr_texture->impl == &texture_impl);
+	assert(wlr_texture_is_gles2(wlr_texture));
 	return (struct wlr_gles2_texture *)wlr_texture;
 }
 
@@ -290,4 +294,14 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 
 	POP_GLES2_DEBUG;
 	return &texture->wlr_texture;
+}
+
+void wlr_gles2_texture_get_attribs(struct wlr_texture *wlr_texture,
+		struct wlr_gles2_texture_attribs *attribs) {
+	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
+	memset(attribs, 0, sizeof(*attribs));
+	attribs->target = texture->target;
+	attribs->tex = texture->tex;
+	attribs->inverted_y = texture->inverted_y;
+	attribs->has_alpha = texture->has_alpha;
 }
