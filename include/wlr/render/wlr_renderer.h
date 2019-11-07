@@ -109,6 +109,7 @@ bool wlr_renderer_format_supported(struct wlr_renderer *r,
 	enum wl_shm_format fmt);
 void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	struct wl_display *wl_display);
+
 /**
  * Destroys this wlr_renderer. Textures must be destroyed separately.
  */
