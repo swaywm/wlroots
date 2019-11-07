@@ -356,6 +356,12 @@ static void gles2_init_wl_display(struct wlr_renderer *wlr_renderer,
 	}
 }
 
+struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *wlr_renderer) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer(wlr_renderer);
+	return renderer->egl;
+}
+
 static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
