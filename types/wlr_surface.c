@@ -1016,8 +1016,12 @@ struct wlr_surface *wlr_surface_surface_at(struct wlr_surface *surface,
 	}
 
 	if (wlr_surface_point_accepts_input(surface, sx, sy)) {
-		*sub_x = sx;
-		*sub_y = sy;
+		if (sub_x) {
+			*sub_x = sx;
+		}
+		if (sub_y) {
+			*sub_y = sy;
+		}
 		return surface;
 	}
 
