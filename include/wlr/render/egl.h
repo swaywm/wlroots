@@ -22,6 +22,8 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+// TODO: remove eglmesaext.h
+#include <EGL/eglmesaext.h>
 #include <pixman.h>
 #include <stdbool.h>
 #include <wayland-server-core.h>
@@ -34,8 +36,6 @@ struct wlr_egl {
 	EGLConfig config;
 	EGLContext context;
 
-	const char *exts_str;
-
 	struct {
 		bool bind_wayland_display_wl;
 		bool buffer_age_ext;
@@ -43,9 +43,24 @@ struct wlr_egl {
 		bool image_dma_buf_export_mesa;
 		bool image_dmabuf_import_ext;
 		bool image_dmabuf_import_modifiers_ext;
-		bool swap_buffers_with_damage_ext;
-		bool swap_buffers_with_damage_khr;
+		bool swap_buffers_with_damage;
 	} exts;
+
+	struct {
+		PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT;
+		PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC eglCreatePlatformWindowSurfaceEXT;
+		PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
+		PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
+		PFNEGLQUERYWAYLANDBUFFERWL eglQueryWaylandBufferWL;
+		PFNEGLBINDWAYLANDDISPLAYWL eglBindWaylandDisplayWL;
+		PFNEGLUNBINDWAYLANDDISPLAYWL eglUnbindWaylandDisplayWL;
+		PFNEGLSWAPBUFFERSWITHDAMAGEEXTPROC eglSwapBuffersWithDamage; // KHR or EXT
+		PFNEGLQUERYDMABUFFORMATSEXTPROC eglQueryDmaBufFormatsEXT;
+		PFNEGLQUERYDMABUFMODIFIERSEXTPROC eglQueryDmaBufModifiersEXT;
+		PFNEGLEXPORTDMABUFIMAGEQUERYMESAPROC eglExportDMABUFImageQueryMESA;
+		PFNEGLEXPORTDMABUFIMAGEMESAPROC eglExportDMABUFImageMESA;
+		PFNEGLDEBUGMESSAGECONTROLKHRPROC eglDebugMessageControlKHR;
+	} procs;
 
 	struct wl_display *wl_display;
 
