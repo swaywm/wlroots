@@ -14,6 +14,16 @@
 #include <wlr/render/wlr_texture.h>
 #include <wlr/util/log.h>
 
+struct wlr_gles2_procs {
+	PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
+	PFNGLDEBUGMESSAGECALLBACKKHRPROC glDebugMessageCallbackKHR;
+	PFNGLDEBUGMESSAGECONTROLKHRPROC glDebugMessageControlKHR;
+	PFNGLPOPDEBUGGROUPKHRPROC glPopDebugGroupKHR;
+	PFNGLPUSHDEBUGGROUPKHRPROC glPushDebugGroupKHR;
+};
+
+extern struct wlr_gles2_procs gles2_procs;
+
 struct wlr_gles2_pixel_format {
 	enum wl_shm_format wl_format;
 	GLint gl_format, gl_type;
@@ -33,7 +43,6 @@ struct wlr_gles2_renderer {
 	struct wlr_renderer wlr_renderer;
 
 	struct wlr_egl *egl;
-	const char *exts_str;
 
 	struct {
 		bool read_format_bgra_ext;

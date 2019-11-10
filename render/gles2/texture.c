@@ -11,7 +11,6 @@
 #include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
-#include "glapi.h"
 #include "render/gles2.h"
 #include "util/signal.h"
 
@@ -91,12 +90,12 @@ static bool gles2_texture_to_dmabuf(struct wlr_texture *wlr_texture,
 	if (!texture->image) {
 		assert(texture->target == GL_TEXTURE_2D);
 
-		if (!eglCreateImageKHR) {
+		if (!texture->egl->exts.image_base_khr) {
 			return false;
 		}
 
-		texture->image = eglCreateImageKHR(texture->egl->display,
-			texture->egl->context, EGL_GL_TEXTURE_2D_KHR,
+		texture->image = texture->egl->procs.eglCreateImageKHR(
+			texture->egl->display, texture->egl->context, EGL_GL_TEXTURE_2D_KHR,
 			(EGLClientBuffer)(uintptr_t)texture->tex, NULL);
 		if (texture->image == EGL_NO_IMAGE_KHR) {
 			return false;
@@ -188,7 +187,7 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 	}
 
-	if (!glEGLImageTargetTexture2DOES) {
+	if (!gles2_procs.glEGLImageTargetTexture2DOES) {
 		return NULL;
 	}
 
@@ -230,7 +229,8 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 
 	glGenTextures(1, &texture->tex);
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture->tex);
-	glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, texture->image);
+	gles2_procs.glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
+		texture->image);
 
 	POP_GLES2_DEBUG;
 	return &texture->wlr_texture;
@@ -242,7 +242,7 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 	}
 
-	if (!glEGLImageTargetTexture2DOES) {
+	if (!gles2_procs.glEGLImageTargetTexture2DOES) {
 		return NULL;
 	}
 
@@ -290,7 +290,8 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 
 	glGenTextures(1, &texture->tex);
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture->tex);
-	glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, texture->image);
+	gles2_procs.glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
+		texture->image);
 
 	POP_GLES2_DEBUG;
 	return &texture->wlr_texture;

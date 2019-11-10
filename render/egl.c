@@ -5,7 +5,6 @@
 #include <wlr/render/egl.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
-#include "glapi.h"
 
 static bool egl_get_config(EGLDisplay disp, EGLint *attribs, EGLConfig *out,
 		EGLint visual_id) {
@@ -77,6 +76,15 @@ static bool check_egl_ext(const char *exts, const char *ext) {
 	return false;
 }
 
+static void load_egl_proc(void *proc_ptr, const char *name) {
+	void *proc = (void *)eglGetProcAddress(name);
+	if (proc == NULL) {
+		wlr_log(WLR_ERROR, "eglGetProcAddress(%s) failed", name);
+		abort();
+	}
+	*(void **)proc_ptr = proc;
+}
+
 static int get_egl_dmabuf_formats(struct wlr_egl *egl, int **formats);
 static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
 	uint64_t **modifiers);
@@ -125,11 +133,72 @@ out:
 
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		EGLint *config_attribs, EGLint visual_id) {
-	if (!load_glapi()) {
+	const char *exts_str = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
+	if (exts_str == NULL) {
+		wlr_log(WLR_ERROR, "Failed to query EGL extensions");
 		return false;
 	}
 
-	if (eglDebugMessageControlKHR) {
+	if (!check_egl_ext(exts_str, "EGL_EXT_platform_base")) {
+		wlr_log(WLR_ERROR, "EGL_EXT_platform_base not supported");
+		return false;
+	}
+	load_egl_proc(&egl->procs.eglGetPlatformDisplayEXT,
+		"eglGetPlatformDisplayEXT");
+	load_egl_proc(&egl->procs.eglCreatePlatformWindowSurfaceEXT,
+		"eglCreatePlatformWindowSurfaceEXT");
+
+	if (check_egl_ext(exts_str, "EGL_KHR_image_base")) {
+		egl->exts.image_base_khr = true;
+		load_egl_proc(&egl->procs.eglCreateImageKHR, "eglCreateImageKHR");
+		load_egl_proc(&egl->procs.eglDestroyImageKHR, "eglDestroyImageKHR");
+	}
+
+	egl->exts.buffer_age_ext =
+		check_egl_ext(exts_str, "EGL_EXT_buffer_age");
+
+	if (check_egl_ext(exts_str, "EGL_KHR_swap_buffers_with_damage")) {
+		egl->exts.swap_buffers_with_damage = true;
+		load_egl_proc(&egl->procs.eglSwapBuffersWithDamage,
+			"eglSwapBuffersWithDamageKHR");
+	} else if (check_egl_ext(exts_str, "EGL_EXT_swap_buffers_with_damage")) {
+		egl->exts.swap_buffers_with_damage = true;
+		load_egl_proc(&egl->procs.eglSwapBuffersWithDamage,
+			"eglSwapBuffersWithDamageEXT");
+	}
+
+	egl->exts.image_dmabuf_import_ext =
+		check_egl_ext(exts_str, "EGL_EXT_image_dma_buf_import");
+	if (check_egl_ext(exts_str, "EGL_EXT_image_dma_buf_import_modifiers")) {
+		egl->exts.image_dmabuf_import_modifiers_ext = true;
+		load_egl_proc(&egl->procs.eglQueryDmaBufFormatsEXT,
+			"eglQueryDmaBufFormatsEXT");
+		load_egl_proc(&egl->procs.eglQueryDmaBufModifiersEXT,
+			"eglQueryDmaBufModifiersEXT");
+	}
+
+	if (check_egl_ext(exts_str, "EGL_MESA_image_dma_buf_export")) {
+		egl->exts.image_dma_buf_export_mesa = true;
+		load_egl_proc(&egl->procs.eglExportDMABUFImageQueryMESA,
+			"eglExportDMABUFImageQueryMESA");
+		load_egl_proc(&egl->procs.eglExportDMABUFImageMESA,
+			"eglExportDMABUFImageMESA");
+	}
+
+	if (check_egl_ext(exts_str, "EGL_WL_bind_wayland_display")) {
+		egl->exts.bind_wayland_display_wl = true;
+		load_egl_proc(&egl->procs.eglBindWaylandDisplayWL,
+			"eglBindWaylandDisplayWL");
+		load_egl_proc(&egl->procs.eglUnbindWaylandDisplayWL,
+			"eglUnbindWaylandDisplayWL");
+		load_egl_proc(&egl->procs.eglQueryWaylandBufferWL,
+			"eglQueryWaylandBufferWL");
+	}
+
+	if (check_egl_ext(exts_str, "EGL_KHR_debug")) {
+		load_egl_proc(&egl->procs.eglDebugMessageControlKHR,
+			"eglDebugMessageControlKHR");
+
 		static const EGLAttrib debug_attribs[] = {
 			EGL_DEBUG_MSG_CRITICAL_KHR, EGL_TRUE,
 			EGL_DEBUG_MSG_ERROR_KHR, EGL_TRUE,
@@ -137,7 +206,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 			EGL_DEBUG_MSG_INFO_KHR, EGL_TRUE,
 			EGL_NONE,
 		};
-		eglDebugMessageControlKHR(egl_log, debug_attribs);
+		egl->procs.eglDebugMessageControlKHR(egl_log, debug_attribs);
 	}
 
 	if (eglBindAPI(EGL_OPENGL_ES_API) == EGL_FALSE) {
@@ -147,9 +216,11 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 
 	if (platform == EGL_PLATFORM_SURFACELESS_MESA) {
 		assert(remote_display == NULL);
-		egl->display = eglGetPlatformDisplayEXT(platform, EGL_DEFAULT_DISPLAY, NULL);
+		egl->display = egl->procs.eglGetPlatformDisplayEXT(platform,
+			EGL_DEFAULT_DISPLAY, NULL);
 	} else {
-		egl->display = eglGetPlatformDisplayEXT(platform, remote_display, NULL);
+		egl->display = egl->procs.eglGetPlatformDisplayEXT(platform,
+			remote_display, NULL);
 	}
 	if (egl->display == EGL_NO_DISPLAY) {
 		wlr_log(WLR_ERROR, "Failed to create EGL display");
@@ -169,44 +240,14 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		goto error;
 	}
 
-	egl->exts_str = eglQueryString(egl->display, EGL_EXTENSIONS);
-
 	wlr_log(WLR_INFO, "Using EGL %d.%d", (int)major, (int)minor);
-	wlr_log(WLR_INFO, "Supported EGL extensions: %s", egl->exts_str);
+	wlr_log(WLR_INFO, "Supported EGL extensions: %s", exts_str);
 	wlr_log(WLR_INFO, "EGL vendor: %s", eglQueryString(egl->display, EGL_VENDOR));
-
-	egl->exts.image_base_khr =
-		check_egl_ext(egl->exts_str, "EGL_KHR_image_base")
-		&& eglCreateImageKHR && eglDestroyImageKHR;
-
-	egl->exts.buffer_age_ext =
-		check_egl_ext(egl->exts_str, "EGL_EXT_buffer_age");
-	egl->exts.swap_buffers_with_damage_ext =
-		(check_egl_ext(egl->exts_str, "EGL_EXT_swap_buffers_with_damage") &&
-			eglSwapBuffersWithDamageEXT);
-	egl->exts.swap_buffers_with_damage_khr =
-		(check_egl_ext(egl->exts_str, "EGL_KHR_swap_buffers_with_damage") &&
-			eglSwapBuffersWithDamageKHR);
-
-	egl->exts.image_dmabuf_import_ext =
-		check_egl_ext(egl->exts_str, "EGL_EXT_image_dma_buf_import");
-	egl->exts.image_dmabuf_import_modifiers_ext =
-		check_egl_ext(egl->exts_str, "EGL_EXT_image_dma_buf_import_modifiers")
-		&& eglQueryDmaBufFormatsEXT && eglQueryDmaBufModifiersEXT;
-
-	egl->exts.image_dma_buf_export_mesa =
-		check_egl_ext(egl->exts_str, "EGL_MESA_image_dma_buf_export") &&
-		eglExportDMABUFImageQueryMESA && eglExportDMABUFImageMESA;
 
 	init_dmabuf_formats(egl);
 
-	egl->exts.bind_wayland_display_wl =
-		check_egl_ext(egl->exts_str, "EGL_WL_bind_wayland_display")
-		&& eglBindWaylandDisplayWL && eglUnbindWaylandDisplayWL
-		&& eglQueryWaylandBufferWL;
-
 	bool ext_context_priority =
-		check_egl_ext(egl->exts_str, "EGL_IMG_context_priority");
+		check_egl_ext(exts_str, "EGL_IMG_context_priority");
 
 	size_t atti = 0;
 	EGLint attribs[5];
@@ -272,7 +313,7 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	if (egl->wl_display) {
 		assert(egl->exts.bind_wayland_display_wl);
-		eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
+		egl->procs.eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
 	}
 
 	eglDestroyContext(egl->display, egl->context);
@@ -285,7 +326,7 @@ bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display)
 		return false;
 	}
 
-	if (eglBindWaylandDisplayWL(egl->display, local_display)) {
+	if (egl->procs.eglBindWaylandDisplayWL(egl->display, local_display)) {
 		egl->wl_display = local_display;
 		return true;
 	}
@@ -300,13 +341,13 @@ bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
 	if (!image) {
 		return true;
 	}
-	return eglDestroyImageKHR(egl->display, image);
+	return egl->procs.eglDestroyImageKHR(egl->display, image);
 }
 
 EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window) {
-	assert(eglCreatePlatformWindowSurfaceEXT);
-	EGLSurface surf = eglCreatePlatformWindowSurfaceEXT(egl->display,
-		egl->config, window, NULL);
+	assert(egl->procs.eglCreatePlatformWindowSurfaceEXT);
+	EGLSurface surf = egl->procs.eglCreatePlatformWindowSurfaceEXT(
+		egl->display, egl->config, window, NULL);
 	if (surf == EGL_NO_SURFACE) {
 		wlr_log(WLR_ERROR, "Failed to create EGL surface");
 		return EGL_NO_SURFACE;
@@ -355,8 +396,7 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 	}
 
 	EGLBoolean ret;
-	if (damage != NULL && (egl->exts.swap_buffers_with_damage_ext ||
-				egl->exts.swap_buffers_with_damage_khr)) {
+	if (damage != NULL && egl->exts.swap_buffers_with_damage) {
 		EGLint width = 0, height = 0;
 		eglQuerySurface(egl->display, surface, EGL_WIDTH, &width);
 		eglQuerySurface(egl->display, surface, EGL_HEIGHT, &height);
@@ -387,13 +427,8 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 			memset(egl_damage, 0, sizeof(egl_damage));
 		}
 
-		if (egl->exts.swap_buffers_with_damage_ext) {
-			ret = eglSwapBuffersWithDamageEXT(egl->display, surface, egl_damage,
-				nrects);
-		} else {
-			ret = eglSwapBuffersWithDamageKHR(egl->display, surface, egl_damage,
-				nrects);
-		}
+		ret = egl->procs.eglSwapBuffersWithDamage(egl->display, surface,
+			egl_damage, nrects);
 	} else {
 		ret = eglSwapBuffers(egl->display, surface);
 	}
@@ -412,16 +447,17 @@ EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
 		return NULL;
 	}
 
-	if (!eglQueryWaylandBufferWL(egl->display, data, EGL_TEXTURE_FORMAT, fmt)) {
+	if (!egl->procs.eglQueryWaylandBufferWL(egl->display, data,
+			EGL_TEXTURE_FORMAT, fmt)) {
 		return NULL;
 	}
 
-	eglQueryWaylandBufferWL(egl->display, data, EGL_WIDTH, width);
-	eglQueryWaylandBufferWL(egl->display, data, EGL_HEIGHT, height);
+	egl->procs.eglQueryWaylandBufferWL(egl->display, data, EGL_WIDTH, width);
+	egl->procs.eglQueryWaylandBufferWL(egl->display, data, EGL_HEIGHT, height);
 
 	EGLint _inverted_y;
-	if (eglQueryWaylandBufferWL(egl->display, data, EGL_WAYLAND_Y_INVERTED_WL,
-			&_inverted_y)) {
+	if (egl->procs.eglQueryWaylandBufferWL(egl->display, data,
+			EGL_WAYLAND_Y_INVERTED_WL, &_inverted_y)) {
 		*inverted_y = !!_inverted_y;
 	} else {
 		*inverted_y = false;
@@ -431,8 +467,8 @@ EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
 		EGL_WAYLAND_PLANE_WL, 0,
 		EGL_NONE,
 	};
-	return eglCreateImageKHR(egl->display, egl->context, EGL_WAYLAND_BUFFER_WL,
-		data, attribs);
+	return egl->procs.eglCreateImageKHR(egl->display, egl->context,
+		EGL_WAYLAND_BUFFER_WL, data, attribs);
 }
 
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
@@ -517,7 +553,7 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 	attribs[atti++] = EGL_NONE;
 	assert(atti < sizeof(attribs)/sizeof(attribs[0]));
 
-	return eglCreateImageKHR(egl->display, EGL_NO_CONTEXT,
+	return egl->procs.eglCreateImageKHR(egl->display, EGL_NO_CONTEXT,
 		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
 }
 
@@ -551,7 +587,7 @@ static int get_egl_dmabuf_formats(struct wlr_egl *egl, int **formats) {
 	}
 
 	EGLint num;
-	if (!eglQueryDmaBufFormatsEXT(egl->display, 0, NULL, &num)) {
+	if (!egl->procs.eglQueryDmaBufFormatsEXT(egl->display, 0, NULL, &num)) {
 		wlr_log(WLR_ERROR, "Failed to query number of dmabuf formats");
 		return -1;
 	}
@@ -562,7 +598,7 @@ static int get_egl_dmabuf_formats(struct wlr_egl *egl, int **formats) {
 		return -1;
 	}
 
-	if (!eglQueryDmaBufFormatsEXT(egl->display, num, *formats, &num)) {
+	if (!egl->procs.eglQueryDmaBufFormatsEXT(egl->display, num, *formats, &num)) {
 		wlr_log(WLR_ERROR, "Failed to query dmabuf format");
 		free(*formats);
 		return -1;
@@ -582,7 +618,7 @@ static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
 	}
 
 	EGLint num;
-	if (!eglQueryDmaBufModifiersEXT(egl->display, format, 0,
+	if (!egl->procs.eglQueryDmaBufModifiersEXT(egl->display, format, 0,
 			NULL, NULL, &num)) {
 		wlr_log(WLR_ERROR, "Failed to query dmabuf number of modifiers");
 		return -1;
@@ -598,7 +634,7 @@ static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
 		return -1;
 	}
 
-	if (!eglQueryDmaBufModifiersEXT(egl->display, format, num,
+	if (!egl->procs.eglQueryDmaBufModifiersEXT(egl->display, format, num,
 		*modifiers, NULL, &num)) {
 		wlr_log(WLR_ERROR, "Failed to query dmabuf modifiers");
 		free(*modifiers);
@@ -621,7 +657,7 @@ bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
 	}
 
 	// Only one set of modifiers is returned for all planes
-	if (!eglExportDMABUFImageQueryMESA(egl->display, image,
+	if (!egl->procs.eglExportDMABUFImageQueryMESA(egl->display, image,
 			(int *)&attribs->format, &attribs->n_planes, &attribs->modifier)) {
 		return false;
 	}
@@ -631,7 +667,7 @@ bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
 		return false;
 	}
 
-	if (!eglExportDMABUFImageMESA(egl->display, image, attribs->fd,
+	if (!egl->procs.eglExportDMABUFImageMESA(egl->display, image, attribs->fd,
 			(EGLint *)attribs->stride, (EGLint *)attribs->offset)) {
 		return false;
 	}

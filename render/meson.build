@@ -1,12 +1,3 @@
-glgen = find_program('../glgen.sh')
-
-glapi = custom_target(
-	'glapi',
-	input: 'glapi.txt',
-	output: ['@BASENAME@.c', '@BASENAME@.h'],
-	command: [glgen, '@INPUT@', '@OUTDIR@'],
-)
-
 lib_wlr_render = static_library(
 	'wlr_render',
 	files(
@@ -20,7 +11,6 @@ lib_wlr_render = static_library(
 		'wlr_renderer.c',
 		'wlr_texture.c',
 	),
-	glapi,
 	include_directories: wlr_inc,
 	dependencies: [
 		egl,
@@ -33,5 +23,4 @@ lib_wlr_render = static_library(
 
 wlr_render = declare_dependency(
 	link_with: lib_wlr_render,
-	sources: glapi[1],
 )

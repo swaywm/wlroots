@@ -6,7 +6,6 @@
 #include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include "backend/rdp.h"
-#include "glapi.h"
 #include "util/signal.h"
 
 struct wlr_rdp_backend *rdp_backend_from_backend(
