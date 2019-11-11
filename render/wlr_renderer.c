@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <wlr/interfaces/wlr_buffer.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
@@ -178,6 +179,8 @@ void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	}
 }
 
+extern const struct wlr_buffer_impl wl_shm_buf_implementation;
+
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
 		EGLenum platform, void *remote_display, EGLint *config_attribs,
 		EGLint visual_id) {
@@ -208,6 +211,8 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
 		wlr_log(WLR_ERROR, "Could not initialize EGL");
 		return NULL;
 	}
+
+	wlr_buffer_register_implementation(&wl_shm_buf_implementation);
 
 	struct wlr_renderer *renderer = wlr_gles2_renderer_create(egl);
 	if (!renderer) {

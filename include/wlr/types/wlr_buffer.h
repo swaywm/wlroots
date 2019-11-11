@@ -13,6 +13,9 @@
 #include <wayland-server-core.h>
 #include <wlr/render/dmabuf.h>
 
+struct wlr_buffer_impl;
+struct wlr_renderer;
+
 /**
  * A client buffer.
  */
@@ -21,9 +24,15 @@ struct wlr_buffer {
 	 * The buffer resource, if any. Will be NULL if the client destroys it.
 	 */
 	struct wl_resource *resource;
+
+	const struct wlr_buffer_impl *impl;
+
+	struct wlr_renderer *renderer;
+
 	/**
 	 * The buffer's texture, if any. A buffer will not have a texture if the
-	 * client destroys the buffer before it has been released.
+	 * client destroys the buffer before it has been released, or if the
+	 * underlying implementation does not support it.
 	 */
 	struct wlr_texture *texture;
 	bool released;
@@ -32,12 +41,11 @@ struct wlr_buffer {
 	struct wl_listener resource_destroy;
 };
 
-struct wlr_renderer;
-
 /**
  * Check if a resource is a wl_buffer resource.
  */
 bool wlr_resource_is_buffer(struct wl_resource *resource);
+
 /**
  * Get the size of a wl_buffer resource.
  */
@@ -49,15 +57,18 @@ bool wlr_buffer_get_resource_size(struct wl_resource *resource,
  */
 struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 	struct wl_resource *resource);
+
 /**
  * Reference the buffer.
  */
 struct wlr_buffer *wlr_buffer_ref(struct wlr_buffer *buffer);
+
 /**
  * Unreference the buffer. After this call, `buffer` may not be accessed
  * anymore.
  */
 void wlr_buffer_unref(struct wlr_buffer *buffer);
+
 /**
  * Try to update the buffer's content. On success, returns the updated buffer
  * and destroys the provided `buffer`. On error, `buffer` is intact and NULL is
@@ -67,7 +78,8 @@ void wlr_buffer_unref(struct wlr_buffer *buffer);
  * isn't mutable.
  */
 struct wlr_buffer *wlr_buffer_apply_damage(struct wlr_buffer *buffer,
-	struct wl_resource *resource, pixman_region32_t *damage);
+		struct wl_resource *resource, pixman_region32_t *damage);
+
 /**
  * Reads the DMA-BUF attributes of the buffer. If this buffer isn't a DMA-BUF,
  * returns false.

@@ -1,9 +1,34 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <wlr/interfaces/wlr_buffer.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
+
+struct wlr_buffer_impl_registration {
+	const struct wlr_buffer_impl *impl;
+	struct wl_list link;
+};
+
+static struct wl_list buffer_impls = {0}; // wlr_buffer_impl_registration::link
+
+void wlr_buffer_register_implementation(const struct wlr_buffer_impl *impl) {
+	if (buffer_impls.prev == 0 && buffer_impls.next == 0) {
+		wl_list_init(&buffer_impls);
+	}
+
+	struct wlr_buffer_impl_registration *registration;
+	wl_list_for_each(registration, &buffer_impls, link) {
+		if (registration->impl == impl) {
+			return; /* no-op */
+		}
+	}
+
+	registration = calloc(1, sizeof(struct wlr_buffer_impl_registration));
+	registration->impl = impl;
+	wl_list_insert(&buffer_impls, &registration->link);
+}
 
 bool wlr_resource_is_buffer(struct wl_resource *resource) {
 	return strcmp(wl_resource_get_class(resource), wl_buffer_interface.name) == 0;
@@ -13,19 +38,21 @@ bool wlr_buffer_get_resource_size(struct wl_resource *resource,
 		struct wlr_renderer *renderer, int *width, int *height) {
 	assert(wlr_resource_is_buffer(resource));
 
-	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
-	if (shm_buf != NULL) {
-		*width = wl_shm_buffer_get_width(shm_buf);
-		*height = wl_shm_buffer_get_height(shm_buf);
-	} else if (wlr_renderer_resource_is_wl_drm_buffer(renderer,
-			resource)) {
-		wlr_renderer_wl_drm_buffer_get_size(renderer, resource,
-			width, height);
-	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
-		struct wlr_dmabuf_v1_buffer *dmabuf =
-			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
-		*width = dmabuf->attributes.width;
-		*height = dmabuf->attributes.height;
+	struct wlr_buffer_impl_registration *r;
+	wl_list_for_each(r, &buffer_impls, link) {
+		if (r->impl->is_instance(resource)) {
+			if (!r->impl->get_resource_size) {
+				*width = *height = 0;
+				return false;
+			}
+			return r->impl->get_resource_size(
+					resource, renderer, width, height);
+		}
+	}
+
+	if (wlr_renderer_resource_is_wl_drm_buffer(renderer, resource)) {
+		/* Special case */
+		wlr_renderer_wl_drm_buffer_get_size(renderer, resource, width, height);
 	} else {
 		*width = *height = 0;
 		return false;
@@ -33,7 +60,6 @@ bool wlr_buffer_get_resource_size(struct wl_resource *resource,
 
 	return true;
 }
-
 
 static void buffer_resource_handle_destroy(struct wl_listener *listener,
 		void *data) {
@@ -55,63 +81,51 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 		struct wl_resource *resource) {
 	assert(wlr_resource_is_buffer(resource));
 
-	struct wlr_texture *texture = NULL;
-	bool released = false;
-
-	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
-	if (shm_buf != NULL) {
-		enum wl_shm_format fmt = wl_shm_buffer_get_format(shm_buf);
-		int32_t stride = wl_shm_buffer_get_stride(shm_buf);
-		int32_t width = wl_shm_buffer_get_width(shm_buf);
-		int32_t height = wl_shm_buffer_get_height(shm_buf);
-
-		wl_shm_buffer_begin_access(shm_buf);
-		void *data = wl_shm_buffer_get_data(shm_buf);
-		texture = wlr_texture_from_pixels(renderer, fmt, stride,
-			width, height, data);
-		wl_shm_buffer_end_access(shm_buf);
-
-		// We have uploaded the data, we don't need to access the wl_buffer
-		// anymore
-		wl_buffer_send_release(resource);
-		released = true;
-	} else if (wlr_renderer_resource_is_wl_drm_buffer(renderer, resource)) {
-		texture = wlr_texture_from_wl_drm(renderer, resource);
-	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
-		struct wlr_dmabuf_v1_buffer *dmabuf =
-			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
-		texture = wlr_texture_from_dmabuf(renderer, &dmabuf->attributes);
-
-		// We have imported the DMA-BUF, but we need to prevent the client from
-		// re-using the same DMA-BUF for the next frames, so we don't release
-		// the buffer yet.
-	} else {
-		wlr_log(WLR_ERROR, "Cannot upload texture: unknown buffer type");
-
-		// Instead of just logging the error, also disconnect the client with a
-		// fatal protocol error so that it's clear something went wrong.
-		wl_resource_post_error(resource, 0, "unknown buffer type");
-		return NULL;
-	}
-
-	if (texture == NULL) {
-		wlr_log(WLR_ERROR, "Failed to upload texture");
-		return NULL;
+	const struct wlr_buffer_impl *impl = NULL;
+	struct wlr_buffer_impl_registration *registration;
+	wl_list_for_each(registration, &buffer_impls, link) {
+		if (registration->impl->is_instance(resource)) {
+			impl = registration->impl;
+			break;
+		}
 	}
 
 	struct wlr_buffer *buffer = calloc(1, sizeof(struct wlr_buffer));
 	if (buffer == NULL) {
-		wlr_texture_destroy(texture);
 		return NULL;
 	}
-	buffer->resource = resource;
-	buffer->texture = texture;
-	buffer->released = released;
+
 	buffer->n_refs = 1;
+	buffer->resource = resource;
+
+	if (impl != NULL) {
+		if (!impl->initialize(buffer, resource, renderer)) {
+			free(buffer);
+			return NULL;
+		}
+		buffer->impl = impl;
+	} else if (wlr_renderer_resource_is_wl_drm_buffer(renderer, resource)) {
+		/*
+		 * Special case. This Wayland interface is implemented in mesa, so we
+		 * need a renderer reference to determine if a type is a wl_drm
+		 * instance. Instead of muddying the API for this one use-case, we just
+		 * special-case wl_drm.
+		 *
+		 * wl_drm will eventually be deprecated anyway, so we can get rid of
+		 * this branch in the future.
+		 */
+		buffer->texture = wlr_texture_from_wl_drm(renderer, resource);
+	} else {
+		wlr_log(WLR_ERROR, "Cannot upload texture: unknown buffer type");
+		// Instead of just logging the error, also disconnect the client with a
+		// fatal protocol error so that it's clear something went wrong.
+		wl_resource_post_error(resource, 0, "unknown buffer type");
+		free(buffer);
+		return NULL;
+	}
 
 	wl_resource_add_destroy_listener(resource, &buffer->resource_destroy);
 	buffer->resource_destroy.notify = buffer_resource_handle_destroy;
-
 	return buffer;
 }
 
@@ -135,6 +149,10 @@ void wlr_buffer_unref(struct wlr_buffer *buffer) {
 		wl_buffer_send_release(buffer->resource);
 	}
 
+	if (buffer->impl && buffer->impl->destroy) {
+		buffer->impl->destroy(buffer);
+	}
+
 	wl_list_remove(&buffer->resource_destroy.link);
 	wlr_texture_destroy(buffer->texture);
 	free(buffer);
@@ -145,62 +163,28 @@ struct wlr_buffer *wlr_buffer_apply_damage(struct wlr_buffer *buffer,
 	assert(wlr_resource_is_buffer(resource));
 
 	if (buffer->n_refs > 1) {
-		// Someone else still has a reference to the buffer
+		/* Cannot update buffer with multiple references held */
 		return NULL;
 	}
 
-	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
-	struct wl_shm_buffer *old_shm_buf = wl_shm_buffer_get(buffer->resource);
-	if (shm_buf == NULL || old_shm_buf == NULL) {
-		// Uploading only damaged regions only works for wl_shm buffers and
-		// mutable textures (created from wl_shm buffer)
+	if (!buffer->impl || !buffer->impl->is_instance(resource)) {
+		/* Cannot update from foreign buffer type */
 		return NULL;
 	}
 
-	enum wl_shm_format new_fmt = wl_shm_buffer_get_format(shm_buf);
-	enum wl_shm_format old_fmt = wl_shm_buffer_get_format(old_shm_buf);
-	if (new_fmt != old_fmt) {
-		// Uploading to textures can't change the format
+	if (!buffer->impl->apply_damage) {
 		return NULL;
 	}
 
-	int32_t stride = wl_shm_buffer_get_stride(shm_buf);
-	int32_t width = wl_shm_buffer_get_width(shm_buf);
-	int32_t height = wl_shm_buffer_get_height(shm_buf);
-
-	int32_t texture_width, texture_height;
-	wlr_texture_get_size(buffer->texture, &texture_width, &texture_height);
-	if (width != texture_width || height != texture_height) {
+	if (!buffer->impl->apply_damage(buffer, resource, damage)) {
 		return NULL;
 	}
-
-	wl_shm_buffer_begin_access(shm_buf);
-	void *data = wl_shm_buffer_get_data(shm_buf);
-
-	int n;
-	pixman_box32_t *rects = pixman_region32_rectangles(damage, &n);
-	for (int i = 0; i < n; ++i) {
-		pixman_box32_t *r = &rects[i];
-		if (!wlr_texture_write_pixels(buffer->texture, stride,
-				r->x2 - r->x1, r->y2 - r->y1, r->x1, r->y1,
-				r->x1, r->y1, data)) {
-			wl_shm_buffer_end_access(shm_buf);
-			return NULL;
-		}
-	}
-
-	wl_shm_buffer_end_access(shm_buf);
-
-	// We have uploaded the data, we don't need to access the wl_buffer
-	// anymore
-	wl_buffer_send_release(resource);
 
 	wl_list_remove(&buffer->resource_destroy.link);
-	wl_resource_add_destroy_listener(resource, &buffer->resource_destroy);
+	wl_resource_add_destroy_listener(
+			resource, &buffer->resource_destroy);
 	buffer->resource_destroy.notify = buffer_resource_handle_destroy;
-
 	buffer->resource = resource;
-	buffer->released = true;
 	return buffer;
 }
 

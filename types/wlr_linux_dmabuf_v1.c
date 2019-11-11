@@ -4,8 +4,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <wayland-server-core.h>
+#include <wlr/interfaces/wlr_buffer.h>
 #include <wlr/render/drm_format_set.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include "linux-dmabuf-unstable-v1-protocol.h"
@@ -473,6 +475,33 @@ static void handle_renderer_destroy(struct wl_listener *listener, void *data) {
 	wlr_linux_dmabuf_v1_destroy(linux_dmabuf);
 }
 
+static bool wl_drm_buf_is_instance(struct wl_resource *resource) {
+	return wlr_dmabuf_v1_resource_is_buffer(resource);
+}
+
+static bool wl_drm_buf_initialize(struct wlr_buffer *buffer,
+			struct wl_resource *resource, struct wlr_renderer *renderer) {
+	struct wlr_dmabuf_v1_buffer *dmabuf =
+		wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
+	buffer->texture = wlr_texture_from_dmabuf(renderer, &dmabuf->attributes);
+	return true;
+}
+
+static bool wl_drm_buf_get_resource_size(struct wl_resource *resource,
+		struct wlr_renderer *renderer, int *width, int *height) {
+	struct wlr_dmabuf_v1_buffer *dmabuf =
+		wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
+	*width = dmabuf->attributes.width;
+	*height = dmabuf->attributes.height;
+	return true;
+}
+
+const struct wlr_buffer_impl zwp_linux_dmabuf_buf_implementation = {
+	.is_instance = wl_drm_buf_is_instance,
+	.initialize = wl_drm_buf_initialize,
+	.get_resource_size = wl_drm_buf_get_resource_size,
+};
+
 struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *display,
 		struct wlr_renderer *renderer) {
 	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
@@ -482,6 +511,8 @@ struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *displa
 		return NULL;
 	}
 	linux_dmabuf->renderer = renderer;
+
+	wlr_buffer_register_implementation(&zwp_linux_dmabuf_buf_implementation);
 
 	wl_list_init(&linux_dmabuf->resources);
 	wl_signal_init(&linux_dmabuf->events.destroy);
