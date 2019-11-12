@@ -332,3 +332,8 @@ error_wl:
 	free(wl);
 	return NULL;
 }
+
+struct wl_display *wlr_wl_backend_get_remote_display(struct wlr_backend *backend) {
+	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
+	return wl->remote_display;
+}

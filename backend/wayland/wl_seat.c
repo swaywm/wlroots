@@ -603,3 +603,9 @@ const struct wl_seat_listener seat_listener = {
 	.capabilities = seat_handle_capabilities,
 	.name = seat_handle_name,
 };
+
+struct wl_seat *wlr_wl_input_device_get_seat(struct wlr_input_device *wlr_dev) {
+	struct wlr_wl_input_device *dev =
+		get_wl_input_device_from_input_device(wlr_dev);
+	return dev->backend->seat;
+}
