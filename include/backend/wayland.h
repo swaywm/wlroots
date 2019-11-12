@@ -36,6 +36,7 @@ struct wlr_wl_backend {
 	struct zxdg_decoration_manager_v1 *zxdg_decoration_manager_v1;
 	struct zwp_pointer_gestures_v1 *zwp_pointer_gestures_v1;
 	struct zwp_linux_dmabuf_v1 *zwp_linux_dmabuf_v1;
+	struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1;
 	struct wl_seat *seat;
 	struct wl_pointer *pointer;
 	struct wl_keyboard *keyboard;
@@ -86,6 +87,7 @@ struct wlr_wl_pointer {
 	struct wl_pointer *wl_pointer;
 	struct zwp_pointer_gesture_swipe_v1 *gesture_swipe;
 	struct zwp_pointer_gesture_pinch_v1 *gesture_pinch;
+	struct zwp_relative_pointer_v1 *relative_pointer;
 	enum wlr_axis_source axis_source;
 	int32_t axis_discrete;
 	struct wlr_wl_output *output;

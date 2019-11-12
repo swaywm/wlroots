@@ -16,6 +16,7 @@
 #include <wlr/util/log.h>
 
 #include "pointer-gestures-unstable-v1-client-protocol.h"
+#include "relative-pointer-unstable-v1-client-protocol.h"
 #include "backend/wayland.h"
 #include "util/signal.h"
 
@@ -446,6 +447,31 @@ static struct zwp_pointer_gesture_pinch_v1_listener gesture_pinch_impl = {
 };
 
 
+void relative_pointer_handle_relative_motion(void *data,
+		struct zwp_relative_pointer_v1 *relative_pointer, uint32_t utime_hi,
+		uint32_t utime_lo, wl_fixed_t dx, wl_fixed_t dy, wl_fixed_t dx_unaccel,
+		wl_fixed_t dy_unaccel) {
+	struct wlr_wl_input_device *input_device = data;
+	struct wlr_input_device *wlr_dev = &input_device->wlr_input_device;
+
+	uint64_t time_usec = (uint64_t)utime_hi << 32 | utime_lo;
+
+	struct wlr_event_pointer_motion wlr_event = {
+		.device = wlr_dev,
+		.time_msec = (uint32_t)(time_usec / 1000),
+		.delta_x = wl_fixed_to_double(dx),
+		.delta_y = wl_fixed_to_double(dy),
+		.unaccel_dx = wl_fixed_to_double(dx_unaccel),
+		.unaccel_dy = wl_fixed_to_double(dy_unaccel),
+	};
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.motion, &wlr_event);
+}
+
+static const struct zwp_relative_pointer_v1_listener relative_pointer_listener = {
+	.relative_motion = relative_pointer_handle_relative_motion,
+};
+
+
 static void pointer_handle_output_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_wl_pointer *pointer =
@@ -499,6 +525,14 @@ void create_wl_pointer(struct wl_pointer *wl_pointer, struct wlr_wl_output *outp
 		pointer->gesture_pinch = zwp_pointer_gestures_v1_get_pinch_gesture(
 				backend->zwp_pointer_gestures_v1, wl_pointer);
 		zwp_pointer_gesture_pinch_v1_add_listener(pointer->gesture_pinch, &gesture_pinch_impl, dev);
+	}
+
+	if (backend->zwp_relative_pointer_manager_v1) {
+		pointer->relative_pointer =
+			zwp_relative_pointer_manager_v1_get_relative_pointer(
+			backend->zwp_relative_pointer_manager_v1, wl_pointer);
+		zwp_relative_pointer_v1_add_listener(pointer->relative_pointer,
+			&relative_pointer_listener, dev);
 	}
 
 	wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_dev);

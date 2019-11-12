@@ -22,6 +22,7 @@
 #include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 #include "tablet-unstable-v2-client-protocol.h"
+#include "relative-pointer-unstable-v1-client-protocol.h"
 
 struct wlr_wl_backend *get_wl_backend_from_backend(struct wlr_backend *backend) {
 	assert(wlr_backend_is_wl(backend));
@@ -116,6 +117,9 @@ static void registry_global(void *data, struct wl_registry *registry,
 			&zwp_linux_dmabuf_v1_interface, 3);
 		zwp_linux_dmabuf_v1_add_listener(wl->zwp_linux_dmabuf_v1,
 			&linux_dmabuf_v1_listener, wl);
+	} else if (strcmp(iface, zwp_relative_pointer_manager_v1_interface.name) == 0) {
+		wl->zwp_relative_pointer_manager_v1 = wl_registry_bind(registry, name,
+			&zwp_relative_pointer_manager_v1_interface, 1);
 	}
 }
 
@@ -200,6 +204,9 @@ static void backend_destroy(struct wlr_backend *backend) {
 	}
 	if (wl->zwp_linux_dmabuf_v1) {
 		zwp_linux_dmabuf_v1_destroy(wl->zwp_linux_dmabuf_v1);
+	}
+	if (wl->zwp_relative_pointer_manager_v1) {
+		zwp_relative_pointer_manager_v1_destroy(wl->zwp_relative_pointer_manager_v1);
 	}
 	xdg_wm_base_destroy(wl->xdg_wm_base);
 	wl_compositor_destroy(wl->compositor);
