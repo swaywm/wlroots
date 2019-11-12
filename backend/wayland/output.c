@@ -478,3 +478,8 @@ void wlr_wl_output_set_title(struct wlr_output *output, const char *title) {
 
 	xdg_toplevel_set_title(wl_output->xdg_toplevel, title);
 }
+
+struct wl_surface *wlr_wl_output_get_surface(struct wlr_output *output) {
+	struct wlr_wl_output *wl_output = get_wl_output_from_output(output);
+	return wl_output->surface;
+}
