@@ -152,7 +152,6 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 	glBindTexture(texture->target, texture->tex);
 
 	glTexParameteri(texture->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(texture->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	glUseProgram(shader->program);
 
