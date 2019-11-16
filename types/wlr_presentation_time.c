@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 199309L
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wlr/types/wlr_presentation_time.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/backend.h>
@@ -250,6 +251,8 @@ struct wlr_presentation_feedback *wlr_presentation_surface_sampled(
 	return NULL;
 }
 
+static void feedback_unset_output(struct wlr_presentation_feedback *feedback);
+
 void wlr_presentation_feedback_destroy(
 		struct wlr_presentation_feedback *feedback) {
 	if (feedback == NULL) {
@@ -265,6 +268,84 @@ void wlr_presentation_feedback_destroy(
 	assert(wl_list_empty(&feedback->resources));
 
 	feedback_unset_surface(feedback);
+	feedback_unset_output(feedback);
 	wl_list_remove(&feedback->link);
 	free(feedback);
+}
+
+void wlr_presentation_event_from_output(struct wlr_presentation_event *event,
+		const struct wlr_output_event_present *output_event) {
+	memset(event, 0, sizeof(*event));
+	event->output = output_event->output;
+	event->tv_sec = (uint64_t)output_event->when->tv_sec;
+	event->tv_nsec = (uint32_t)output_event->when->tv_nsec;
+	event->refresh = (uint32_t)output_event->refresh;
+	event->seq = (uint64_t)output_event->seq;
+	event->flags = output_event->flags;
+}
+
+static void feedback_unset_output(struct wlr_presentation_feedback *feedback) {
+	if (feedback->output == NULL) {
+		return;
+	}
+
+	feedback->output = NULL;
+	wl_list_remove(&feedback->output_commit.link);
+	wl_list_remove(&feedback->output_present.link);
+	wl_list_remove(&feedback->output_destroy.link);
+}
+
+static void feedback_handle_output_commit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_presentation_feedback *feedback =
+		wl_container_of(listener, feedback, output_commit);
+	if (feedback->output_committed) {
+		return;
+	}
+	feedback->output_committed = true;
+	feedback->output_commit_seq = feedback->output->commit_seq;
+}
+
+static void feedback_handle_output_present(struct wl_listener *listener,
+		void *data) {
+	struct wlr_presentation_feedback *feedback =
+		wl_container_of(listener, feedback, output_present);
+	struct wlr_output_event_present *output_event = data;
+
+	if (!feedback->output_committed ||
+			output_event->commit_seq != feedback->output_commit_seq) {
+		return;
+	}
+
+	struct wlr_presentation_event event = {0};
+	wlr_presentation_event_from_output(&event, output_event);
+	wlr_presentation_feedback_send_presented(feedback, &event);
+	wlr_presentation_feedback_destroy(feedback);
+}
+
+static void feedback_handle_output_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_presentation_feedback *feedback =
+		wl_container_of(listener, feedback, output_destroy);
+	wlr_presentation_feedback_destroy(feedback);
+}
+
+void wlr_presentation_surface_sampled_on_output(
+		struct wlr_presentation *presentation, struct wlr_surface *surface,
+		struct wlr_output *output) {
+	struct wlr_presentation_feedback *feedback =
+		wlr_presentation_surface_sampled(presentation, surface);
+	if (feedback == NULL) {
+		return;
+	}
+
+	assert(feedback->output == NULL);
+	feedback->output = output;
+
+	feedback->output_commit.notify = feedback_handle_output_commit;
+	wl_signal_add(&output->events.commit, &feedback->output_commit);
+	feedback->output_present.notify = feedback_handle_output_present;
+	wl_signal_add(&output->events.present, &feedback->output_present);
+	feedback->output_destroy.notify = feedback_handle_output_destroy;
+	wl_signal_add(&output->events.destroy, &feedback->output_destroy);
 }

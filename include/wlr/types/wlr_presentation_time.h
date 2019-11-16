@@ -14,6 +14,9 @@
 #include <time.h>
 #include <wayland-server-core.h>
 
+struct wlr_output;
+struct wlr_output_event_present;
+
 struct wlr_presentation {
 	struct wl_global *global;
 	struct wl_list resources; // wl_resource_get_link
@@ -42,8 +45,17 @@ struct wlr_presentation_feedback {
 	bool sampled;
 	bool presented;
 
+	// Only when the wlr_presentation_surface_sampled_on_output helper has been
+	// called
+	struct wlr_output *output;
+	bool output_committed;
+	uint32_t output_commit_seq;
+
 	struct wl_listener surface_commit;
 	struct wl_listener surface_destroy;
+	struct wl_listener output_commit;
+	struct wl_listener output_present;
+	struct wl_listener output_destroy;
 };
 
 struct wlr_presentation_event {
@@ -80,5 +92,23 @@ void wlr_presentation_feedback_send_presented(
 	struct wlr_presentation_event *event);
 void wlr_presentation_feedback_destroy(
 	struct wlr_presentation_feedback *feedback);
+
+/**
+ * Fill a wlr_presentation_event from a wlr_output_event_present.
+ */
+void wlr_presentation_event_from_output(struct wlr_presentation_event *event,
+		const struct wlr_output_event_present *output_event);
+
+/**
+ * Mark the current surface's buffer as sampled on the given output.
+ *
+ * Instead of calling wlr_presentation_surface_sampled and managing the
+ * wlr_presentation_feedback itself, the compositor can call this function
+ * before a wlr_output_commit call to indicate that the surface's current
+ * contents will be displayed on the output.
+ */
+void wlr_presentation_surface_sampled_on_output(
+	struct wlr_presentation *presentation, struct wlr_surface *surface,
+	struct wlr_output *output);
 
 #endif
