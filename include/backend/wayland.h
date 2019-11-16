@@ -35,6 +35,7 @@ struct wlr_wl_backend {
 	struct xdg_wm_base *xdg_wm_base;
 	struct zxdg_decoration_manager_v1 *zxdg_decoration_manager_v1;
 	struct zwp_pointer_gestures_v1 *zwp_pointer_gestures_v1;
+	struct wp_presentation *presentation;
 	struct zwp_linux_dmabuf_v1 *zwp_linux_dmabuf_v1;
 	struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1;
 	struct wl_seat *seat;
@@ -44,6 +45,13 @@ struct wlr_wl_backend {
 	struct zwp_tablet_manager_v2 *tablet_manager;
 	char *seat_name;
 	struct wlr_drm_format_set linux_dmabuf_v1_formats;
+};
+
+struct wlr_wl_presentation_feedback {
+	struct wlr_wl_output *output;
+	struct wl_list link;
+	struct wp_presentation_feedback *feedback;
+	uint32_t commit_seq;
 };
 
 struct wlr_wl_output {
@@ -61,6 +69,7 @@ struct wlr_wl_output {
 	EGLSurface egl_surface;
 	struct wl_buffer *pending_wl_buffer, *current_wl_buffer;
 	struct wlr_buffer *current_buffer;
+	struct wl_list presentation_feedbacks;
 
 	uint32_t enter_serial;
 
