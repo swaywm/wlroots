@@ -19,6 +19,7 @@
 #include "util/signal.h"
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
 #include "pointer-gestures-unstable-v1-client-protocol.h"
+#include "presentation-time-client-protocol.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 #include "tablet-unstable-v2-client-protocol.h"
@@ -108,6 +109,9 @@ static void registry_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(iface, zwp_pointer_gestures_v1_interface.name) == 0) {
 		wl->zwp_pointer_gestures_v1 = wl_registry_bind(registry, name,
 			&zwp_pointer_gestures_v1_interface, 1);
+	} else if (strcmp(iface, wp_presentation_interface.name) == 0) {
+		wl->presentation = wl_registry_bind(registry, name,
+			&wp_presentation_interface, 1);
 	} else if (strcmp(iface, zwp_tablet_manager_v2_interface.name) == 0) {
 		wl->tablet_manager = wl_registry_bind(registry, name,
 			&zwp_tablet_manager_v2_interface, 1);
@@ -201,6 +205,9 @@ static void backend_destroy(struct wlr_backend *backend) {
 	}
 	if (wl->zwp_pointer_gestures_v1) {
 		zwp_pointer_gestures_v1_destroy(wl->zwp_pointer_gestures_v1);
+	}
+	if (wl->presentation) {
+		wp_presentation_destroy(wl->presentation);
 	}
 	if (wl->zwp_linux_dmabuf_v1) {
 		zwp_linux_dmabuf_v1_destroy(wl->zwp_linux_dmabuf_v1);

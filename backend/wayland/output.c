@@ -17,6 +17,7 @@
 #include "backend/wayland.h"
 #include "util/signal.h"
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
+#include "presentation-time-client-protocol.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
@@ -25,8 +26,6 @@ static struct wlr_wl_output *get_wl_output_from_output(
 	assert(wlr_output_is_wl(wlr_output));
 	return (struct wlr_wl_output *)wlr_output;
 }
-
-static struct wl_callback_listener frame_listener;
 
 static void surface_frame_callback(void *data, struct wl_callback *cb,
 		uint32_t time) {
@@ -38,8 +37,58 @@ static void surface_frame_callback(void *data, struct wl_callback *cb,
 	wlr_output_send_frame(&output->wlr_output);
 }
 
-static struct wl_callback_listener frame_listener = {
+static const struct wl_callback_listener frame_listener = {
 	.done = surface_frame_callback
+};
+
+static void presentation_feedback_destroy(
+		struct wlr_wl_presentation_feedback *feedback) {
+	wl_list_remove(&feedback->link);
+	wp_presentation_feedback_destroy(feedback->feedback);
+	free(feedback);
+}
+
+static void presentation_feedback_handle_sync_output(void *data,
+		struct wp_presentation_feedback *feedback, struct wl_output *output) {
+	// This space is intentionally left blank
+}
+
+static void presentation_feedback_handle_presented(void *data,
+		struct wp_presentation_feedback *wp_feedback, uint32_t tv_sec_hi,
+		uint32_t tv_sec_lo, uint32_t tv_nsec, uint32_t refresh_ns,
+		uint32_t seq_hi, uint32_t seq_lo, uint32_t flags) {
+	struct wlr_wl_presentation_feedback *feedback = data;
+
+	struct timespec t = {
+		.tv_sec = ((uint64_t)tv_sec_hi << 32) | tv_sec_lo,
+		.tv_nsec = tv_nsec,
+	};
+	struct wlr_output_event_present event = {
+		.commit_seq = feedback->commit_seq,
+		.when = &t,
+		.seq = ((uint64_t)seq_hi << 32) | seq_lo,
+		.refresh = refresh_ns,
+		.flags = flags,
+	};
+	wlr_output_send_present(&feedback->output->wlr_output, &event);
+
+	presentation_feedback_destroy(feedback);
+}
+
+static void presentation_feedback_handle_discarded(void *data,
+		struct wp_presentation_feedback *wp_feedback) {
+	struct wlr_wl_presentation_feedback *feedback = data;
+
+	wlr_output_send_present(&feedback->output->wlr_output, NULL);
+
+	presentation_feedback_destroy(feedback);
+}
+
+static const struct wp_presentation_feedback_listener
+		presentation_feedback_listener = {
+	.sync_output = presentation_feedback_handle_sync_output,
+	.presented = presentation_feedback_handle_presented,
+	.discarded = presentation_feedback_handle_discarded,
 };
 
 static bool output_set_custom_mode(struct wlr_output *wlr_output,
@@ -137,6 +186,12 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		output->current_wl_buffer = NULL;
 	}
 
+	struct wp_presentation_feedback *wp_feedback = NULL;
+	if (output->backend->presentation != NULL) {
+		wp_feedback = wp_presentation_feedback(output->backend->presentation,
+			output->surface);
+	}
+
 	assert(wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER);
 	switch (wlr_output->pending.buffer_type) {
 	case WLR_OUTPUT_STATE_BUFFER_RENDER:
@@ -167,8 +222,23 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		break;
 	}
 
-	// TODO: if available, use the presentation-time protocol
-	wlr_output_send_present(wlr_output, NULL);
+	if (wp_feedback != NULL) {
+		struct wlr_wl_presentation_feedback *feedback =
+			calloc(1, sizeof(*feedback));
+		if (feedback == NULL) {
+			wp_presentation_feedback_destroy(wp_feedback);
+			return false;
+		}
+		feedback->output = output;
+		feedback->feedback = wp_feedback;
+		feedback->commit_seq = output->wlr_output.commit_seq + 1;
+		wl_list_insert(&output->presentation_feedbacks, &feedback->link);
+
+		wp_presentation_feedback_add_listener(wp_feedback,
+			&presentation_feedback_listener, feedback);
+	} else {
+		wlr_output_send_present(wlr_output, NULL);
+	}
 
 	return true;
 }
@@ -265,6 +335,12 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 	if (output->frame_callback) {
 		wl_callback_destroy(output->frame_callback);
+	}
+
+	struct wlr_wl_presentation_feedback *feedback, *feedback_tmp;
+	wl_list_for_each_safe(feedback, feedback_tmp,
+			&output->presentation_feedbacks, link) {
+		presentation_feedback_destroy(feedback);
 	}
 
 	wlr_egl_destroy_surface(&output->backend->egl, output->egl_surface);
@@ -383,6 +459,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 		++backend->last_output_num);
 
 	output->backend = backend;
+	wl_list_init(&output->presentation_feedbacks);
 
 	output->surface = wl_compositor_create_surface(backend->compositor);
 	if (!output->surface) {
