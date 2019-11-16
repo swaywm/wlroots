@@ -88,11 +88,6 @@ static void relative_pointer_handle_pointer_destroy(struct wl_listener *listener
  * relative_pointer_manager handler functions
  */
 
-static void relative_pointer_manager_v1_handle_resource_destroy(struct wl_resource *resource) {
-	wl_list_remove(wl_resource_get_link(resource));
-}
-
-
 static void relative_pointer_manager_v1_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -158,25 +153,22 @@ static void relative_pointer_manager_v1_bind(struct wl_client *wl_client, void *
 
 	struct wl_resource *manager_resource = wl_resource_create(wl_client,
 		&zwp_relative_pointer_manager_v1_interface, version, id);
-
 	if (manager_resource == NULL) {
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
 
-	wl_list_insert(&manager->resources, wl_resource_get_link(manager_resource));
-
 	wl_resource_set_implementation(manager_resource, &relative_pointer_manager_v1_impl,
-		manager, relative_pointer_manager_v1_handle_resource_destroy);
-
-	wlr_log(WLR_DEBUG, "relative_pointer_v1 manager bound to client %p",
-		wl_client);
+		manager, NULL);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_relative_pointer_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy_listener);
-	wlr_relative_pointer_manager_v1_destroy(manager);
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy_listener.link);
+	wl_global_destroy(manager->global);
+	free(manager);
 }
 
 
@@ -202,18 +194,15 @@ static const struct zwp_relative_pointer_v1_interface relative_pointer_v1_impl =
 struct wlr_relative_pointer_manager_v1 *wlr_relative_pointer_manager_v1_create(struct wl_display *display) {
 	struct wlr_relative_pointer_manager_v1 *manager =
 		calloc(1, sizeof(struct wlr_relative_pointer_manager_v1));
-
 	if (manager == NULL) {
 		return NULL;
 	}
 
-	wl_list_init(&manager->resources);
 	wl_list_init(&manager->relative_pointers);
 
 	manager->global = wl_global_create(display,
 		&zwp_relative_pointer_manager_v1_interface, RELATIVE_POINTER_MANAGER_VERSION,
 		manager, relative_pointer_manager_v1_bind);
-
 	if (manager->global == NULL) {
 		free(manager);
 		return NULL;
@@ -225,30 +214,8 @@ struct wlr_relative_pointer_manager_v1 *wlr_relative_pointer_manager_v1_create(s
 	manager->display_destroy_listener.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &manager->display_destroy_listener);
 
-	wlr_log(WLR_DEBUG, "relative_pointer_v1 manager created");
-
 	return manager;
 }
-
-
-void wlr_relative_pointer_manager_v1_destroy(struct wlr_relative_pointer_manager_v1 *manager) {
-	if (manager == NULL) {
-		return;
-	}
-
-	wlr_signal_emit_safe(&manager->events.destroy, manager);
-	wl_list_remove(&manager->display_destroy_listener.link);
-
-	struct wl_resource *resource;
-	struct wl_resource *tmp_resource;
-	wl_resource_for_each_safe(resource, tmp_resource, &manager->resources) {
-		wl_resource_destroy(resource);
-	}
-
-	wl_global_destroy(manager->global);
-	free(manager);
-}
-
 
 void wlr_relative_pointer_manager_v1_send_relative_motion(
 		struct wlr_relative_pointer_manager_v1 *manager, struct wlr_seat *seat,

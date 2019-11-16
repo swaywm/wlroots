@@ -44,7 +44,7 @@ enum wlr_server_decoration_manager_mode {
  */
 struct wlr_server_decoration_manager {
 	struct wl_global *global;
-	struct wl_list resources;
+	struct wl_list resources; // wl_resource_get_link
 	struct wl_list decorations; // wlr_server_decoration::link
 
 	uint32_t default_mode; // enum wlr_server_decoration_manager_mode
@@ -80,7 +80,5 @@ struct wlr_server_decoration_manager *wlr_server_decoration_manager_create(
 	struct wl_display *display);
 void wlr_server_decoration_manager_set_default_mode(
 	struct wlr_server_decoration_manager *manager, uint32_t default_mode);
-void wlr_server_decoration_manager_destroy(
-	struct wlr_server_decoration_manager *manager);
 
 #endif

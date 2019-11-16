@@ -60,8 +60,6 @@ struct wlr_text_input_v3 {
 
 struct wlr_text_input_manager_v3 {
 	struct wl_global *global;
-
-	struct wl_list bound_resources; // struct wl_resource*::link
 	struct wl_list text_inputs; // struct wlr_text_input_v3::resource::link
 
 	struct wl_listener display_destroy;
@@ -74,8 +72,6 @@ struct wlr_text_input_manager_v3 {
 
 struct wlr_text_input_manager_v3 *wlr_text_input_manager_v3_create(
 	struct wl_display *wl_display);
-void wlr_text_input_manager_v3_destroy(
-	struct wlr_text_input_manager_v3 *manager);
 
 // Sends enter to the surface and saves it
 void wlr_text_input_v3_send_enter(struct wlr_text_input_v3 *text_input,
@@ -90,4 +86,5 @@ void wlr_text_input_v3_send_delete_surrounding_text(
 	struct wlr_text_input_v3 *text_input, uint32_t before_length,
 	uint32_t after_length);
 void wlr_text_input_v3_send_done(struct wlr_text_input_v3 *text_input);
+
 #endif

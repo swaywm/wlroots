@@ -146,10 +146,6 @@ static const struct wp_presentation_interface presentation_impl = {
 	.destroy = presentation_handle_destroy,
 };
 
-static void presentation_handle_resource_destroy(struct wl_resource *resource) {
-	wl_list_remove(wl_resource_get_link(resource));
-}
-
 static void presentation_bind(struct wl_client *client, void *data,
 		uint32_t version, uint32_t id) {
 	struct wlr_presentation *presentation = data;
@@ -161,8 +157,7 @@ static void presentation_bind(struct wl_client *client, void *data,
 		return;
 	}
 	wl_resource_set_implementation(resource, &presentation_impl, presentation,
-		presentation_handle_resource_destroy);
-	wl_list_insert(&presentation->resources, wl_resource_get_link(resource));
+		NULL);
 
 	wp_presentation_send_clock_id(resource, (uint32_t)presentation->clock);
 }
@@ -170,7 +165,10 @@ static void presentation_bind(struct wl_client *client, void *data,
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_presentation *presentation =
 		wl_container_of(listener, presentation, display_destroy);
-	wlr_presentation_destroy(presentation);
+	wlr_signal_emit_safe(&presentation->events.destroy, presentation);
+	wl_list_remove(&presentation->display_destroy.link);
+	wl_global_destroy(presentation->global);
+	free(presentation);
 }
 
 struct wlr_presentation *wlr_presentation_create(struct wl_display *display,
@@ -190,7 +188,6 @@ struct wlr_presentation *wlr_presentation_create(struct wl_display *display,
 
 	presentation->clock = wlr_backend_get_presentation_clock(backend);
 
-	wl_list_init(&presentation->resources);
 	wl_list_init(&presentation->feedbacks);
 	wl_signal_init(&presentation->events.destroy);
 
@@ -198,31 +195,6 @@ struct wlr_presentation *wlr_presentation_create(struct wl_display *display,
 	wl_display_add_destroy_listener(display, &presentation->display_destroy);
 
 	return presentation;
-}
-
-void wlr_presentation_destroy(struct wlr_presentation *presentation) {
-	if (presentation == NULL) {
-		return;
-	}
-
-	wlr_signal_emit_safe(&presentation->events.destroy, presentation);
-
-	wl_global_destroy(presentation->global);
-
-	struct wlr_presentation_feedback *feedback, *feedback_tmp;
-	wl_list_for_each_safe(feedback, feedback_tmp, &presentation->feedbacks,
-			link) {
-		wlr_presentation_feedback_destroy(feedback);
-	}
-
-	struct wl_resource *resource, *resource_tmp;
-	wl_resource_for_each_safe(resource, resource_tmp,
-			&presentation->resources) {
-		wl_resource_destroy(resource);
-	}
-
-	wl_list_remove(&presentation->display_destroy.link);
-	free(presentation);
 }
 
 void wlr_presentation_feedback_send_presented(

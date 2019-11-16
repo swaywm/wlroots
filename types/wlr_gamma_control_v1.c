@@ -200,11 +200,6 @@ static const struct zwlr_gamma_control_manager_v1_interface
 	.destroy = gamma_control_manager_destroy,
 };
 
-static void gamma_control_manager_handle_resource_destroy(
-		struct wl_resource *resource) {
-	wl_list_remove(wl_resource_get_link(resource));
-}
-
 static void gamma_control_manager_bind(struct wl_client *client, void *data,
 		uint32_t version, uint32_t id) {
 	struct wlr_gamma_control_manager_v1 *manager = data;
@@ -216,33 +211,16 @@ static void gamma_control_manager_bind(struct wl_client *client, void *data,
 		return;
 	}
 	wl_resource_set_implementation(resource, &gamma_control_manager_impl,
-		manager, gamma_control_manager_handle_resource_destroy);
-	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
-}
-
-void wlr_gamma_control_manager_v1_destroy(
-		struct wlr_gamma_control_manager_v1 *manager) {
-	if (!manager) {
-		return;
-	}
-	struct wlr_gamma_control_v1 *gamma_control, *tmp;
-	wl_list_for_each_safe(gamma_control, tmp, &manager->controls, link) {
-		wl_resource_destroy(gamma_control->resource);
-	}
-	wlr_signal_emit_safe(&manager->events.destroy, manager);
-	wl_list_remove(&manager->display_destroy.link);
-	struct wl_resource *resource, *resource_tmp;
-	wl_resource_for_each_safe(resource, resource_tmp, &manager->resources) {
-		wl_resource_destroy(resource);
-	}
-	wl_global_destroy(manager->global);
-	free(manager);
+		manager, NULL);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_gamma_control_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wlr_gamma_control_manager_v1_destroy(manager);
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
+	wl_global_destroy(manager->global);
+	free(manager);
 }
 
 struct wlr_gamma_control_manager_v1 *wlr_gamma_control_manager_v1_create(
@@ -262,7 +240,6 @@ struct wlr_gamma_control_manager_v1 *wlr_gamma_control_manager_v1_create(
 	}
 
 	wl_signal_init(&manager->events.destroy);
-	wl_list_init(&manager->resources);
 	wl_list_init(&manager->controls);
 
 	manager->display_destroy.notify = handle_display_destroy;

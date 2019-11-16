@@ -1,4 +1,4 @@
-﻿#ifndef _POSIX_C_SOURCE
+#ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include <assert.h>
@@ -232,10 +232,6 @@ static const struct zwp_input_method_manager_v2_interface
 	.destroy = manager_destroy,
 };
 
-static void input_method_manager_unbind(struct wl_resource *resource) {
-	wl_list_remove(wl_resource_get_link(resource));
-}
-
 static void input_method_manager_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
 	assert(wl_client);
@@ -248,15 +244,16 @@ static void input_method_manager_bind(struct wl_client *wl_client, void *data,
 		return;
 	}
 	wl_resource_set_implementation(bound_resource, &input_method_manager_impl,
-		im_manager, input_method_manager_unbind);
-	wl_list_insert(&im_manager->bound_resources,
-		wl_resource_get_link(bound_resource));
+		im_manager, NULL);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_input_method_manager_v2 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wlr_input_method_manager_v2_destroy(manager);
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
+	wl_global_destroy(manager->global);
+	free(manager);
 }
 
 struct wlr_input_method_manager_v2 *wlr_input_method_manager_v2_create(
@@ -268,32 +265,18 @@ struct wlr_input_method_manager_v2 *wlr_input_method_manager_v2_create(
 	}
 	wl_signal_init(&im_manager->events.input_method);
 	wl_signal_init(&im_manager->events.destroy);
-	wl_list_init(&im_manager->bound_resources);
 	wl_list_init(&im_manager->input_methods);
-
-	im_manager->display_destroy.notify = handle_display_destroy;
-	wl_display_add_destroy_listener(display, &im_manager->display_destroy);
 
 	im_manager->global = wl_global_create(display,
 		&zwp_input_method_manager_v2_interface, 1, im_manager,
 		input_method_manager_bind);
+	if (!im_manager->global) {
+		free(im_manager);
+		return NULL;
+	}
+
+	im_manager->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &im_manager->display_destroy);
+
 	return im_manager;
-}
-
-void wlr_input_method_manager_v2_destroy(
-		struct wlr_input_method_manager_v2 *manager) {
-	wlr_signal_emit_safe(&manager->events.destroy, manager);
-	wl_list_remove(&manager->display_destroy.link);
-
-	struct wl_resource *resource, *resource_tmp;
-	wl_resource_for_each_safe(resource, resource_tmp,
-			&manager->bound_resources) {
-		wl_resource_destroy(resource);
-	}
-	struct wlr_input_method_v2 *im, *im_tmp;
-	wl_list_for_each_safe(im, im_tmp, &manager->input_methods, link) {
-		wl_resource_destroy(im->resource);
-	}
-	wl_global_destroy(manager->global);
-	free(manager);
 }

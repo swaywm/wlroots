@@ -650,10 +650,6 @@ static const struct zwlr_data_control_manager_v1_interface manager_impl = {
 	.destroy = manager_handle_destroy,
 };
 
-static void manager_handle_resource_destroy(struct wl_resource *resource) {
-	wl_list_remove(wl_resource_get_link(resource));
-}
-
 static void manager_bind(struct wl_client *client, void *data, uint32_t version,
 		uint32_t id) {
 	struct wlr_data_control_manager_v1 *manager = data;
@@ -664,16 +660,16 @@ static void manager_bind(struct wl_client *client, void *data, uint32_t version,
 		wl_client_post_no_memory(client);
 		return;
 	}
-	wl_resource_set_implementation(resource, &manager_impl, manager,
-		manager_handle_resource_destroy);
-
-	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
+	wl_resource_set_implementation(resource, &manager_impl, manager, NULL);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_data_control_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wlr_data_control_manager_v1_destroy(manager);
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
+	wl_global_destroy(manager->global);
+	free(manager);
 }
 
 struct wlr_data_control_manager_v1 *wlr_data_control_manager_v1_create(
@@ -683,7 +679,6 @@ struct wlr_data_control_manager_v1 *wlr_data_control_manager_v1_create(
 	if (manager == NULL) {
 		return NULL;
 	}
-	wl_list_init(&manager->resources);
 	wl_list_init(&manager->devices);
 	wl_signal_init(&manager->events.destroy);
 	wl_signal_init(&manager->events.new_device);
@@ -700,26 +695,4 @@ struct wlr_data_control_manager_v1 *wlr_data_control_manager_v1_create(
 	wl_display_add_destroy_listener(display, &manager->display_destroy);
 
 	return manager;
-}
-
-void wlr_data_control_manager_v1_destroy(
-		struct wlr_data_control_manager_v1 *manager) {
-	if (manager == NULL) {
-		return;
-	}
-
-	wlr_signal_emit_safe(&manager->events.destroy, manager);
-
-	struct wlr_data_control_device_v1 *device, *control_tmp;
-	wl_list_for_each_safe(device, control_tmp, &manager->devices, link) {
-		wl_resource_destroy(device->resource);
-	}
-
-	struct wl_resource *resource, *resource_tmp;
-	wl_resource_for_each_safe(resource, resource_tmp, &manager->resources) {
-		wl_resource_destroy(resource);
-	}
-
-	wl_list_remove(&manager->display_destroy.link);
-	free(manager);
 }

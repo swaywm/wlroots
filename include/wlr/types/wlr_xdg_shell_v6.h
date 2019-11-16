@@ -243,7 +243,6 @@ struct wlr_xdg_toplevel_v6_show_window_menu_event {
 };
 
 struct wlr_xdg_shell_v6 *wlr_xdg_shell_v6_create(struct wl_display *display);
-void wlr_xdg_shell_v6_destroy(struct wlr_xdg_shell_v6 *xdg_shell);
 
 /**
  * Send a ping to the surface. If the surface does not respond in a reasonable

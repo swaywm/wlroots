@@ -243,7 +243,6 @@ struct wlr_xdg_toplevel_show_window_menu_event {
 };
 
 struct wlr_xdg_shell *wlr_xdg_shell_create(struct wl_display *display);
-void wlr_xdg_shell_destroy(struct wlr_xdg_shell *xdg_shell);
 
 struct wlr_xdg_surface *wlr_xdg_surface_from_resource(
 		struct wl_resource *resource);

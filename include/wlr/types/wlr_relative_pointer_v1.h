@@ -23,7 +23,6 @@
  */
 struct wlr_relative_pointer_manager_v1 {
 	struct wl_global *global;
-	struct wl_list resources; // wl_resource_get_link()
 	struct wl_list relative_pointers; // wlr_relative_pointer_v1::link
 
 	struct {
@@ -60,8 +59,6 @@ struct wlr_relative_pointer_v1 {
 
 struct wlr_relative_pointer_manager_v1 *wlr_relative_pointer_manager_v1_create(
 	struct wl_display *display);
-void wlr_relative_pointer_manager_v1_destroy(
-	struct wlr_relative_pointer_manager_v1 *manager);
 
 /**
  * Send a relative motion event to the seat. Time is given in microseconds

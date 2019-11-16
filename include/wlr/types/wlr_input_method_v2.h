@@ -53,7 +53,6 @@ struct wlr_input_method_v2 {
 
 struct wlr_input_method_manager_v2 {
 	struct wl_global *global;
-	struct wl_list bound_resources; // struct wl_resource*::link
 	struct wl_list input_methods; // struct wlr_input_method_v2*::link
 
 	struct wl_listener display_destroy;
@@ -66,8 +65,6 @@ struct wlr_input_method_manager_v2 {
 
 struct wlr_input_method_manager_v2 *wlr_input_method_manager_v2_create(
 	struct wl_display *display);
-void wlr_input_method_manager_v2_destroy(
-	struct wlr_input_method_manager_v2 *manager);
 
 void wlr_input_method_v2_send_activate(
 	struct wlr_input_method_v2 *input_method);
@@ -84,4 +81,5 @@ void wlr_input_method_v2_send_text_change_cause(
 void wlr_input_method_v2_send_done(struct wlr_input_method_v2 *input_method);
 void wlr_input_method_v2_send_unavailable(
 	struct wlr_input_method_v2 *input_method);
+
 #endif

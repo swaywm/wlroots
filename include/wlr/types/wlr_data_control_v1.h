@@ -14,7 +14,6 @@
 
 struct wlr_data_control_manager_v1 {
 	struct wl_global *global;
-	struct wl_list resources; // wl_resource_get_link
 	struct wl_list devices; // wlr_data_control_device_v1::link
 
 	struct {
@@ -41,8 +40,6 @@ struct wlr_data_control_device_v1 {
 
 struct wlr_data_control_manager_v1 *wlr_data_control_manager_v1_create(
 	struct wl_display *display);
-void wlr_data_control_manager_v1_destroy(
-	struct wlr_data_control_manager_v1 *manager);
 
 void wlr_data_control_device_v1_destroy(
 	struct wlr_data_control_device_v1 *device);

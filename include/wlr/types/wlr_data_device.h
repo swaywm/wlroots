@@ -23,7 +23,6 @@ extern const struct wlr_touch_grab_interface
 
 struct wlr_data_device_manager {
 	struct wl_global *global;
-	struct wl_list resources;
 	struct wl_list data_sources;
 
 	struct wl_listener display_destroy;
@@ -161,11 +160,6 @@ struct wlr_drag_drop_event {
  */
 struct wlr_data_device_manager *wlr_data_device_manager_create(
 	struct wl_display *display);
-
-/**
- * Destroys a wlr_data_device_manager and removes its wl_data_device_manager global.
- */
-void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager);
 
 /**
  * Requests a selection to be set for the seat. If the request comes from

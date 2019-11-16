@@ -19,7 +19,6 @@ struct wlr_output_event_present;
 
 struct wlr_presentation {
 	struct wl_global *global;
-	struct wl_list resources; // wl_resource_get_link
 	struct wl_list feedbacks; // wlr_presentation_feedback::link
 	clockid_t clock;
 
@@ -71,7 +70,6 @@ struct wlr_backend;
 
 struct wlr_presentation *wlr_presentation_create(struct wl_display *display,
 	struct wlr_backend *backend);
-void wlr_presentation_destroy(struct wlr_presentation *presentation);
 /**
  * Mark the current surface's buffer as sampled.
  *

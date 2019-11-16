@@ -273,22 +273,8 @@ static void tablet_v2_bind(struct wl_client *wl_client, void *data,
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_tablet_manager_v2 *tablet =
-		wl_container_of(listener, tablet, display_destroy);
-	wlr_tablet_v2_destroy(tablet);
-}
-
-void wlr_tablet_v2_destroy(struct wlr_tablet_manager_v2 *manager) {
-	struct wlr_tablet_manager_client_v2 *client, *client_tmp;
-	wl_list_for_each_safe(client, client_tmp, &manager->clients, link) {
-		wlr_tablet_manager_v2_destroy(client->resource);
-	}
-
-	struct wlr_tablet_seat_v2 *seat, *seat_tmp;
-	wl_list_for_each_safe(seat, seat_tmp, &manager->seats, link) {
-		tablet_seat_destroy(seat);
-	}
-
+	struct wlr_tablet_manager_v2 *manager =
+		wl_container_of(listener, manager, display_destroy);
 	wlr_signal_emit_safe(&manager->events.destroy, manager);
 	wl_list_remove(&manager->display_destroy.link);
 	wl_global_destroy(manager->wl_global);
