@@ -495,13 +495,14 @@ bool wlr_output_commit(struct wlr_output *output) {
 		wlr_surface_send_frame_done(cursor->surface, &now);
 	}
 
+	output->commit_seq++;
+
 	wlr_signal_emit_safe(&output->events.commit, output);
 
 	output->frame_pending = true;
 	output->needs_frame = false;
 	output_state_clear(&output->pending);
 	pixman_region32_clear(&output->damage);
-	output->commit_seq++;
 	return true;
 }
 
