@@ -28,10 +28,11 @@ struct wlr_presentation {
 };
 
 struct wlr_presentation_feedback {
-	struct wl_resource *resource;
 	struct wlr_presentation *presentation;
-	struct wlr_surface *surface;
+	struct wlr_surface *surface; // NULL if the surface has been destroyed
 	struct wl_list link; // wlr_presentation::feedbacks
+
+	struct wl_list resources; // wl_resource_get_link
 
 	// The surface contents were committed.
 	bool committed;
@@ -39,6 +40,7 @@ struct wlr_presentation_feedback {
 	// presented on the next flip. Can become true only after committed becomes
 	// true.
 	bool sampled;
+	bool presented;
 
 	struct wl_listener surface_commit;
 	struct wl_listener surface_destroy;
@@ -58,10 +60,25 @@ struct wlr_backend;
 struct wlr_presentation *wlr_presentation_create(struct wl_display *display,
 	struct wlr_backend *backend);
 void wlr_presentation_destroy(struct wlr_presentation *presentation);
-void wlr_presentation_send_surface_presented(
-	struct wlr_presentation *presentation, struct wlr_surface *surface,
-	struct wlr_presentation_event *event);
-void wlr_presentation_surface_sampled(
+/**
+ * Mark the current surface's buffer as sampled.
+ *
+ * The compositor must call this function when it uses the surface's current
+ * contents (e.g. when rendering the surface's current texture, when
+ * referencing its current buffer, or when directly scanning out its current
+ * buffer). A wlr_presentation_feedback is returned. The compositor should call
+ * wlr_presentation_feedback_send_presented if this content has been displayed,
+ * then wlr_presentation_feedback_destroy.
+ *
+ * NULL is returned if the client hasn't requested presentation feedback for
+ * this surface.
+ */
+struct wlr_presentation_feedback *wlr_presentation_surface_sampled(
 	struct wlr_presentation *presentation, struct wlr_surface *surface);
+void wlr_presentation_feedback_send_presented(
+	struct wlr_presentation_feedback *feedback,
+	struct wlr_presentation_event *event);
+void wlr_presentation_feedback_destroy(
+	struct wlr_presentation_feedback *feedback);
 
 #endif
