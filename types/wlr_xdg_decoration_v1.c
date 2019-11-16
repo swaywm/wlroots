@@ -238,11 +238,6 @@ static const struct zxdg_decoration_manager_v1_interface
 	.get_toplevel_decoration = decoration_manager_handle_get_toplevel_decoration,
 };
 
-static void decoration_manager_handle_resource_destroy(
-		struct wl_resource *resource) {
-	wl_list_remove(wl_resource_get_link(resource));
-}
-
 static void decoration_manager_bind(struct wl_client *client, void *data,
 		uint32_t version, uint32_t id) {
 	struct wlr_xdg_decoration_manager_v1 *manager = data;
@@ -254,15 +249,16 @@ static void decoration_manager_bind(struct wl_client *client, void *data,
 		return;
 	}
 	wl_resource_set_implementation(resource, &decoration_manager_impl,
-		manager, decoration_manager_handle_resource_destroy);
-
-	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
+		manager, NULL);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xdg_decoration_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wlr_xdg_decoration_manager_v1_destroy(manager);
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
+	wl_global_destroy(manager->global);
+	free(manager);
 }
 
 struct wlr_xdg_decoration_manager_v1 *
@@ -279,7 +275,6 @@ struct wlr_xdg_decoration_manager_v1 *
 		free(manager);
 		return NULL;
 	}
-	wl_list_init(&manager->resources);
 	wl_list_init(&manager->decorations);
 	wl_signal_init(&manager->events.new_toplevel_decoration);
 	wl_signal_init(&manager->events.destroy);
@@ -288,24 +283,4 @@ struct wlr_xdg_decoration_manager_v1 *
 	wl_display_add_destroy_listener(display, &manager->display_destroy);
 
 	return manager;
-}
-
-void wlr_xdg_decoration_manager_v1_destroy(
-		struct wlr_xdg_decoration_manager_v1 *manager) {
-	if (manager == NULL) {
-		return;
-	}
-	wlr_signal_emit_safe(&manager->events.destroy, manager);
-	wl_list_remove(&manager->display_destroy.link);
-	struct wlr_xdg_toplevel_decoration_v1 *decoration, *tmp_decoration;
-	wl_list_for_each_safe(decoration, tmp_decoration, &manager->decorations,
-			link) {
-		wl_resource_destroy(decoration->resource);
-	}
-	struct wl_resource *resource, *tmp_resource;
-	wl_resource_for_each_safe(resource, tmp_resource, &manager->resources) {
-		wl_resource_destroy(resource);
-	}
-	wl_global_destroy(manager->global);
-	free(manager);
 }

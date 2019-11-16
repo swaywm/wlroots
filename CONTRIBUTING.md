@@ -242,14 +242,12 @@ at least one struct for each interface in the protocol. For instance,
 ### Globals
 
 Global interfaces generally have public constructors and destructors. Their
-struct has a field holding the `wl_global` itself, a list of resources clients
-created by binding to the global, a destroy signal and a `wl_display` destroy
-listener. Example:
+struct has a field holding the `wl_global` itself, a destroy signal and a
+`wl_display` destroy listener. Example:
 
 ```c
 struct wlr_compositor {
 	struct wl_global *global;
-	struct wl_list resources;
 	…
 
 	struct wl_listener display_destroy;
@@ -262,8 +260,9 @@ struct wlr_compositor {
 ```
 
 When the destructor is called, it should emit the destroy signal, remove the
-display destroy listener, destroy the `wl_global`, destroy all bound resources
-and then destroy the struct.
+display destroy listener, destroy the `wl_global` and then destroy the struct.
+The destructor can assume all clients and resources have been already
+destroyed.
 
 ### Resources
 

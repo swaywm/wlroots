@@ -422,10 +422,6 @@ static void linux_dmabuf_send_formats(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
 	}
 }
 
-static void linux_dmabuf_resource_destroy(struct wl_resource *resource) {
-	wl_list_remove(wl_resource_get_link(resource));
-}
-
 static void linux_dmabuf_bind(struct wl_client *client, void *data,
 		uint32_t version, uint32_t id) {
 	struct wlr_linux_dmabuf_v1 *linux_dmabuf = data;
@@ -437,25 +433,15 @@ static void linux_dmabuf_bind(struct wl_client *client, void *data,
 		return;
 	}
 	wl_resource_set_implementation(resource, &linux_dmabuf_impl,
-		linux_dmabuf, linux_dmabuf_resource_destroy);
-	wl_list_insert(&linux_dmabuf->resources, wl_resource_get_link(resource));
+		linux_dmabuf, NULL);
 	linux_dmabuf_send_formats(linux_dmabuf, resource, version);
 }
 
-void wlr_linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf) {
-	if (!linux_dmabuf) {
-		return;
-	}
-
+static void linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf) {
 	wlr_signal_emit_safe(&linux_dmabuf->events.destroy, linux_dmabuf);
 
 	wl_list_remove(&linux_dmabuf->display_destroy.link);
 	wl_list_remove(&linux_dmabuf->renderer_destroy.link);
-
-	struct wl_resource *resource, *tmp;
-	wl_resource_for_each_safe(resource, tmp, &linux_dmabuf->resources) {
-		wl_resource_destroy(resource);
-	}
 
 	wl_global_destroy(linux_dmabuf->global);
 	free(linux_dmabuf);
@@ -464,13 +450,13 @@ void wlr_linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf) {
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
 		wl_container_of(listener, linux_dmabuf, display_destroy);
-	wlr_linux_dmabuf_v1_destroy(linux_dmabuf);
+	linux_dmabuf_v1_destroy(linux_dmabuf);
 }
 
 static void handle_renderer_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
 		wl_container_of(listener, linux_dmabuf, renderer_destroy);
-	wlr_linux_dmabuf_v1_destroy(linux_dmabuf);
+	linux_dmabuf_v1_destroy(linux_dmabuf);
 }
 
 struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *display,
@@ -483,7 +469,6 @@ struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *displa
 	}
 	linux_dmabuf->renderer = renderer;
 
-	wl_list_init(&linux_dmabuf->resources);
 	wl_signal_init(&linux_dmabuf->events.destroy);
 
 	linux_dmabuf->global =

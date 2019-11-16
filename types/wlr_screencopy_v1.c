@@ -481,7 +481,6 @@ static void manager_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_screencopy_v1_client *client =
 		client_from_resource(resource);
 	client_unref(client);
-	wl_list_remove(wl_resource_get_link(resource));
 }
 
 static void manager_bind(struct wl_client *wl_client, void *data,
@@ -507,8 +506,6 @@ static void manager_bind(struct wl_client *wl_client, void *data,
 	wl_resource_set_implementation(resource, &manager_impl, client,
 		manager_handle_resource_destroy);
 
-	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
-
 	return;
 failure:
 	free(client);
@@ -518,7 +515,10 @@ failure:
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_screencopy_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wlr_screencopy_manager_v1_destroy(manager);
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
+	wl_global_destroy(manager->global);
+	free(manager);
 }
 
 struct wlr_screencopy_manager_v1 *wlr_screencopy_manager_v1_create(
@@ -536,7 +536,6 @@ struct wlr_screencopy_manager_v1 *wlr_screencopy_manager_v1_create(
 		free(manager);
 		return NULL;
 	}
-	wl_list_init(&manager->resources);
 	wl_list_init(&manager->frames);
 
 	wl_signal_init(&manager->events.destroy);
@@ -545,23 +544,4 @@ struct wlr_screencopy_manager_v1 *wlr_screencopy_manager_v1_create(
 	wl_display_add_destroy_listener(display, &manager->display_destroy);
 
 	return manager;
-}
-
-void wlr_screencopy_manager_v1_destroy(
-		struct wlr_screencopy_manager_v1 *manager) {
-	if (manager == NULL) {
-		return;
-	}
-	wlr_signal_emit_safe(&manager->events.destroy, manager);
-	wl_list_remove(&manager->display_destroy.link);
-	struct wlr_screencopy_frame_v1 *frame, *tmp_frame;
-	wl_list_for_each_safe(frame, tmp_frame, &manager->frames, link) {
-		wl_resource_destroy(frame->resource);
-	}
-	struct wl_resource *resource, *tmp_resource;
-	wl_resource_for_each_safe(resource, tmp_resource, &manager->resources) {
-		wl_resource_destroy(resource);
-	}
-	wl_global_destroy(manager->global);
-	free(manager);
 }

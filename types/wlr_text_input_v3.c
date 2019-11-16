@@ -280,10 +280,6 @@ static const struct zwp_text_input_manager_v3_interface
 	.get_text_input = text_input_manager_get_text_input,
 };
 
-static void text_input_manager_unbind(struct wl_resource *resource) {
-	wl_list_remove(wl_resource_get_link(resource));
-}
-
 static void text_input_manager_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
 	struct wlr_text_input_manager_v3 *manager = data;
@@ -295,43 +291,40 @@ static void text_input_manager_bind(struct wl_client *wl_client, void *data,
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
-	wl_list_insert(&manager->bound_resources, wl_resource_get_link(resource));
 	wl_resource_set_implementation(resource, &text_input_manager_impl,
-		manager, text_input_manager_unbind);
+		manager, NULL);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_text_input_manager_v3 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
+	wl_global_destroy(manager->global);
+	free(manager);
 }
 
 struct wlr_text_input_manager_v3 *wlr_text_input_manager_v3_create(
-		struct wl_display *wl_display) {
+		struct wl_display *display) {
 	struct wlr_text_input_manager_v3 *manager =
 		calloc(1, sizeof(struct wlr_text_input_manager_v3));
-	wl_list_init(&manager->bound_resources);
+	if (!manager) {
+		return NULL;
+	}
+
 	wl_list_init(&manager->text_inputs);
 	wl_signal_init(&manager->events.text_input);
-	manager->global = wl_global_create(wl_display,
+
+	manager->global = wl_global_create(display,
 		&zwp_text_input_manager_v3_interface, 1, manager,
 		text_input_manager_bind);
 	if (!manager->global) {
 		free(manager);
 		return NULL;
 	}
+
+	manager->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &manager->display_destroy);
+
 	return manager;
-}
-
-void wlr_text_input_manager_v3_destroy(
-		struct wlr_text_input_manager_v3 *manager) {
-	wlr_signal_emit_safe(&manager->events.destroy, manager);
-	wl_list_remove(&manager->display_destroy.link);
-
-	struct wl_resource *resource, *resource_tmp;
-	wl_resource_for_each_safe(resource, resource_tmp,
-			&manager->bound_resources) {
-		wl_resource_destroy(resource);
-	}
-	struct wlr_text_input_v3 *text_input, *text_input_tmp;
-	wl_list_for_each_safe(text_input, text_input_tmp, &manager->text_inputs,
-			link) {
-		wl_resource_destroy(text_input->resource);
-	}
-	wl_global_destroy(manager->global);
-	free(manager);
 }

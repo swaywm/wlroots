@@ -45,7 +45,6 @@ struct wlr_dmabuf_v1_buffer *wlr_dmabuf_v1_buffer_from_params_resource(
 struct wlr_linux_dmabuf_v1 {
 	struct wl_global *global;
 	struct wlr_renderer *renderer;
-	struct wl_list resources;
 
 	struct {
 		struct wl_signal destroy;
@@ -60,10 +59,6 @@ struct wlr_linux_dmabuf_v1 {
  */
 struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *display,
 	struct wlr_renderer *renderer);
-/**
- * Destroy the linux-dmabuf interface
- */
-void wlr_linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf);
 
 /**
  * Returns the wlr_linux_dmabuf if the given resource was created

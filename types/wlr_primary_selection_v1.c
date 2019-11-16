@@ -434,11 +434,6 @@ static const struct zwp_primary_selection_device_manager_v1_interface
 	.destroy = device_manager_handle_destroy,
 };
 
-static void device_manager_handle_resource_destroy(
-		struct wl_resource *resource) {
-	wl_list_remove(wl_resource_get_link(resource));
-}
-
 
 static void primary_selection_device_manager_bind(struct wl_client *client,
 		void *data, uint32_t version, uint32_t id) {
@@ -451,15 +446,16 @@ static void primary_selection_device_manager_bind(struct wl_client *client,
 		return;
 	}
 	wl_resource_set_implementation(resource, &device_manager_impl, manager,
-		device_manager_handle_resource_destroy);
-
-	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
+		NULL);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_primary_selection_v1_device_manager *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wlr_primary_selection_v1_device_manager_destroy(manager);
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
+	wl_global_destroy(manager->global);
+	free(manager);
 }
 
 struct wlr_primary_selection_v1_device_manager *
@@ -478,7 +474,6 @@ struct wlr_primary_selection_v1_device_manager *
 		return NULL;
 	}
 
-	wl_list_init(&manager->resources);
 	wl_list_init(&manager->devices);
 	wl_signal_init(&manager->events.destroy);
 
@@ -486,19 +481,4 @@ struct wlr_primary_selection_v1_device_manager *
 	wl_display_add_destroy_listener(display, &manager->display_destroy);
 
 	return manager;
-}
-
-void wlr_primary_selection_v1_device_manager_destroy(
-		struct wlr_primary_selection_v1_device_manager *manager) {
-	if (manager == NULL) {
-		return;
-	}
-	wlr_signal_emit_safe(&manager->events.destroy, manager);
-	wl_list_remove(&manager->display_destroy.link);
-	struct wl_resource *resource, *resource_tmp;
-	wl_resource_for_each_safe(resource, resource_tmp, &manager->resources) {
-		wl_resource_destroy(resource);
-	}
-	wl_global_destroy(manager->global);
-	free(manager);
 }

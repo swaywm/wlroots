@@ -29,7 +29,6 @@
  */
 struct wlr_layer_shell_v1 {
 	struct wl_global *global;
-	struct wl_list resources; // wl_resource
 	struct wl_list surfaces; // wl_layer_surface
 
 	struct wl_listener display_destroy;
@@ -97,7 +96,6 @@ struct wlr_layer_surface_v1 {
 };
 
 struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display);
-void wlr_layer_shell_v1_destroy(struct wlr_layer_shell_v1 *layer_shell);
 
 /**
  * Notifies the layer surface to configure itself with this width/height. The

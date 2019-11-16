@@ -63,10 +63,6 @@ static const struct zwp_fullscreen_shell_v1_interface shell_impl = {
 	.present_surface_for_mode = shell_handle_present_surface_for_mode,
 };
 
-static void shell_handle_resource_destroy(struct wl_resource *resource) {
-	wl_list_remove(wl_resource_get_link(resource));
-}
-
 static void shell_bind(struct wl_client *client, void *data, uint32_t version,
 		uint32_t id) {
 	struct wlr_fullscreen_shell_v1 *shell = data;
@@ -77,16 +73,16 @@ static void shell_bind(struct wl_client *client, void *data, uint32_t version,
 		wl_client_post_no_memory(client);
 		return;
 	}
-	wl_resource_set_implementation(resource, &shell_impl, shell,
-		shell_handle_resource_destroy);
-
-	wl_list_insert(&shell->resources, wl_resource_get_link(resource));
+	wl_resource_set_implementation(resource, &shell_impl, shell, NULL);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_fullscreen_shell_v1 *shell =
 		wl_container_of(listener, shell, display_destroy);
-	wlr_fullscreen_shell_v1_destroy(shell);
+	wlr_signal_emit_safe(&shell->events.destroy, shell);
+	wl_list_remove(&shell->display_destroy.link);
+	wl_global_destroy(shell->global);
+	free(shell);
 }
 
 struct wlr_fullscreen_shell_v1 *wlr_fullscreen_shell_v1_create(
@@ -96,7 +92,6 @@ struct wlr_fullscreen_shell_v1 *wlr_fullscreen_shell_v1_create(
 	if (shell == NULL) {
 		return NULL;
 	}
-	wl_list_init(&shell->resources);
 	wl_signal_init(&shell->events.destroy);
 	wl_signal_init(&shell->events.present_surface);
 
@@ -112,18 +107,4 @@ struct wlr_fullscreen_shell_v1 *wlr_fullscreen_shell_v1_create(
 	wl_display_add_destroy_listener(display, &shell->display_destroy);
 
 	return shell;
-}
-
-void wlr_fullscreen_shell_v1_destroy(struct wlr_fullscreen_shell_v1 *shell) {
-	if (shell == NULL) {
-		return;
-	}
-	wlr_signal_emit_safe(&shell->events.destroy, shell);
-	wl_list_remove(&shell->display_destroy.link);
-	wl_global_destroy(shell->global);
-	struct wl_resource *resource, *resource_tmp;
-	wl_resource_for_each_safe(resource, resource_tmp, &shell->resources) {
-		wl_resource_destroy(resource);
-	}
-	free(shell);
 }

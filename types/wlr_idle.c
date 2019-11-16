@@ -210,23 +210,12 @@ static void idle_bind(struct wl_client *wl_client, void *data,
 	wl_resource_set_implementation(wl_resource, &idle_impl, idle, NULL);
 }
 
-void wlr_idle_destroy(struct wlr_idle *idle) {
-	if (!idle) {
-		return;
-	}
-	wlr_signal_emit_safe(&idle->events.destroy, idle);
-	wl_list_remove(&idle->display_destroy.link);
-	struct wlr_idle_timeout *timer, *tmp;
-	wl_list_for_each_safe(timer, tmp, &idle->idle_timers, link) {
-		wlr_idle_timeout_destroy(timer);
-	}
-	wl_global_destroy(idle->global);
-	free(idle);
-}
-
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_idle *idle = wl_container_of(listener, idle, display_destroy);
-	wlr_idle_destroy(idle);
+	wlr_signal_emit_safe(&idle->events.destroy, idle);
+	wl_list_remove(&idle->display_destroy.link);
+	wl_global_destroy(idle->global);
+	free(idle);
 }
 
 struct wlr_idle *wlr_idle_create(struct wl_display *display) {
@@ -249,7 +238,7 @@ struct wlr_idle *wlr_idle_create(struct wl_display *display) {
 	wl_display_add_destroy_listener(display, &idle->display_destroy);
 
 	idle->global = wl_global_create(display, &org_kde_kwin_idle_interface,
-				1, idle, idle_bind);
+		1, idle, idle_bind);
 	if (idle->global == NULL) {
 		wl_list_remove(&idle->display_destroy.link);
 		free(idle);

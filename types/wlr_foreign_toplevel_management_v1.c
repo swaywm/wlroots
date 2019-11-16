@@ -568,33 +568,13 @@ static void foreign_toplevel_manager_bind(struct wl_client *client, void *data,
 	}
 }
 
-void wlr_foreign_toplevel_manager_v1_destroy(
-		struct wlr_foreign_toplevel_manager_v1 *manager) {
-	if (!manager) {
-		return;
-	}
-
-	struct wlr_foreign_toplevel_handle_v1 *toplevel, *tmp_toplevel;
-	wl_list_for_each_safe(toplevel, tmp_toplevel, &manager->toplevels, link) {
-		wlr_foreign_toplevel_handle_v1_destroy(toplevel);
-	}
-
-	struct wl_resource *resource, *tmp_resource;
-	wl_resource_for_each_safe(resource, tmp_resource, &manager->resources) {
-		wl_resource_destroy(resource);
-	}
-
-	wlr_signal_emit_safe(&manager->events.destroy, manager);
-	wl_list_remove(&manager->display_destroy.link);
-
-	wl_global_destroy(manager->global);
-	free(manager);
-}
-
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_foreign_toplevel_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wlr_foreign_toplevel_manager_v1_destroy(manager);
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
+	wl_global_destroy(manager->global);
+	free(manager);
 }
 
 struct wlr_foreign_toplevel_manager_v1 *wlr_foreign_toplevel_manager_v1_create(

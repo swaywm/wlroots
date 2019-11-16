@@ -441,18 +441,6 @@ static const struct zwlr_layer_shell_v1_interface layer_shell_implementation = {
 	.get_layer_surface = layer_shell_handle_get_layer_surface,
 };
 
-static void client_handle_destroy(struct wl_resource *resource) {
-	struct wl_client *client = wl_resource_get_client(resource);
-	struct wlr_layer_shell_v1 *shell = layer_shell_from_resource(resource);
-	struct wlr_layer_surface_v1 *surface, *tmp = NULL;
-	wl_list_for_each_safe(surface, tmp, &shell->surfaces, link) {
-		if (wl_resource_get_client(surface->resource) == client) {
-			layer_surface_destroy(surface);
-		}
-	}
-	wl_list_remove(wl_resource_get_link(resource));
-}
-
 static void layer_shell_bind(struct wl_client *wl_client, void *data,
 		uint32_t version, uint32_t id) {
 	struct wlr_layer_shell_v1 *layer_shell = data;
@@ -465,14 +453,16 @@ static void layer_shell_bind(struct wl_client *wl_client, void *data,
 		return;
 	}
 	wl_resource_set_implementation(resource,
-			&layer_shell_implementation, layer_shell, client_handle_destroy);
-	wl_list_insert(&layer_shell->resources, wl_resource_get_link(resource));
+			&layer_shell_implementation, layer_shell, NULL);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_layer_shell_v1 *layer_shell =
 		wl_container_of(listener, layer_shell, display_destroy);
-	wlr_layer_shell_v1_destroy(layer_shell);
+	wlr_signal_emit_safe(&layer_shell->events.destroy, layer_shell);
+	wl_list_remove(&layer_shell->display_destroy.link);
+	wl_global_destroy(layer_shell->global);
+	free(layer_shell);
 }
 
 struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display) {
@@ -482,7 +472,6 @@ struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display)
 		return NULL;
 	}
 
-	wl_list_init(&layer_shell->resources);
 	wl_list_init(&layer_shell->surfaces);
 
 	struct wl_global *global = wl_global_create(display,
@@ -500,20 +489,6 @@ struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display)
 	wl_display_add_destroy_listener(display, &layer_shell->display_destroy);
 
 	return layer_shell;
-}
-
-void wlr_layer_shell_v1_destroy(struct wlr_layer_shell_v1 *layer_shell) {
-	if (!layer_shell) {
-		return;
-	}
-	struct wl_resource *resource, *tmp;
-	wl_resource_for_each_safe(resource, tmp, &layer_shell->resources) {
-		wl_resource_destroy(resource);
-	}
-	wlr_signal_emit_safe(&layer_shell->events.destroy, layer_shell);
-	wl_list_remove(&layer_shell->display_destroy.link);
-	wl_global_destroy(layer_shell->global);
-	free(layer_shell);
 }
 
 struct layer_surface_iterator_data {

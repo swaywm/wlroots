@@ -163,30 +163,13 @@ static void server_decoration_manager_bind(struct wl_client *client, void *data,
 		manager->default_mode);
 }
 
-void wlr_server_decoration_manager_destroy(
-		struct wlr_server_decoration_manager *manager) {
-	if (manager == NULL) {
-		return;
-	}
-	struct wlr_server_decoration *decoration, *tmp_decoration;
-	wl_list_for_each_safe(decoration, tmp_decoration, &manager->decorations,
-			link) {
-		server_decoration_destroy(decoration);
-	}
-	wlr_signal_emit_safe(&manager->events.destroy, manager);
-	wl_list_remove(&manager->display_destroy.link);
-	struct wl_resource *resource, *tmp_resource;
-	wl_resource_for_each_safe(resource, tmp_resource, &manager->resources) {
-		server_decoration_manager_destroy_resource(resource);
-	}
-	wl_global_destroy(manager->global);
-	free(manager);
-}
-
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_server_decoration_manager *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wlr_server_decoration_manager_destroy(manager);
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
+	wl_global_destroy(manager->global);
+	free(manager);
 }
 
 struct wlr_server_decoration_manager *wlr_server_decoration_manager_create(

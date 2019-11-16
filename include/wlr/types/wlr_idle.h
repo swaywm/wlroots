@@ -60,8 +60,6 @@ struct wlr_idle_timeout {
 
 struct wlr_idle *wlr_idle_create(struct wl_display *display);
 
-void wlr_idle_destroy(struct wlr_idle *idle);
-
 /**
  * Send notification to restart all timers for the given seat. Called by
  * compositor when there is an user activity event on that seat.

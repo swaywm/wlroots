@@ -15,7 +15,6 @@
 
 struct wlr_screencopy_manager_v1 {
 	struct wl_global *global;
-	struct wl_list resources; // wl_resource
 	struct wl_list frames; // wlr_screencopy_frame_v1::link
 
 	struct wl_listener display_destroy;
@@ -59,7 +58,5 @@ struct wlr_screencopy_frame_v1 {
 
 struct wlr_screencopy_manager_v1 *wlr_screencopy_manager_v1_create(
 	struct wl_display *display);
-void wlr_screencopy_manager_v1_destroy(
-	struct wlr_screencopy_manager_v1 *screencopy);
 
 #endif

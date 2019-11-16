@@ -287,27 +287,13 @@ static void pointer_gestures_v1_bind(struct wl_client *wl_client, void *data,
 	}
 
 	wl_resource_set_implementation(resource,
-			&gestures_impl, gestures, resource_remove_from_list);
-	wl_list_insert(&gestures->resources, wl_resource_get_link(resource));
+			&gestures_impl, gestures, NULL);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_pointer_gestures_v1 *tablet =
-		wl_container_of(listener, tablet, display_destroy);
-	wlr_pointer_gestures_v1_destroy(tablet);
-}
-
-void wlr_pointer_gestures_v1_destroy(struct wlr_pointer_gestures_v1 *gestures) {
-	struct wl_resource *resource, *tmp;
-	wl_resource_for_each_safe(resource, tmp, &gestures->resources) {
-		wl_resource_destroy(resource);
-	}
-	wl_resource_for_each_safe(resource, tmp, &gestures->swipes) {
-		wl_resource_destroy(resource);
-	}
-	wl_resource_for_each_safe(resource, tmp, &gestures->pinches) {
-		wl_resource_destroy(resource);
-	}
+	struct wlr_pointer_gestures_v1 *gestures =
+		wl_container_of(listener, gestures, display_destroy);
+	wl_list_remove(&gestures->display_destroy.link);
 	wl_global_destroy(gestures->global);
 	free(gestures);
 }
@@ -320,7 +306,6 @@ struct wlr_pointer_gestures_v1 *wlr_pointer_gestures_v1_create(
 		return NULL;
 	}
 
-	wl_list_init(&gestures->resources);
 	wl_list_init(&gestures->swipes);
 	wl_list_init(&gestures->pinches);
 

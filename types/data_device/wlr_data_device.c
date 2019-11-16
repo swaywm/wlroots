@@ -262,11 +262,6 @@ static const struct wl_data_device_manager_interface
 	.get_data_device = data_device_manager_get_data_device,
 };
 
-static void data_device_manager_handle_resource_destroy(
-		struct wl_resource *resource) {
-	wl_list_remove(wl_resource_get_link(resource));
-}
-
 static void data_device_manager_bind(struct wl_client *client,
 		void *data, uint32_t version, uint32_t id) {
 	struct wlr_data_device_manager *manager = data;
@@ -278,32 +273,16 @@ static void data_device_manager_bind(struct wl_client *client,
 		return;
 	}
 	wl_resource_set_implementation(resource, &data_device_manager_impl,
-		manager, data_device_manager_handle_resource_destroy);
-
-	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
-}
-
-void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
-	if (!manager) {
-		return;
-	}
-	wlr_signal_emit_safe(&manager->events.destroy, manager);
-	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
-	struct wl_resource *resource, *tmp;
-	wl_resource_for_each_safe(resource, tmp, &manager->resources) {
-		wl_resource_destroy(resource);
-	}
-	wl_resource_for_each_safe(resource, tmp, &manager->data_sources) {
-		wl_resource_destroy(resource);
-	}
-	free(manager);
+		manager, NULL);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_data_device_manager *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wlr_data_device_manager_destroy(manager);
+	wlr_signal_emit_safe(&manager->events.destroy, manager);
+	wl_list_remove(&manager->display_destroy.link);
+	wl_global_destroy(manager->global);
+	free(manager);
 }
 
 struct wlr_data_device_manager *wlr_data_device_manager_create(
@@ -315,7 +294,6 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 		return NULL;
 	}
 
-	wl_list_init(&manager->resources);
 	wl_list_init(&manager->data_sources);
 	wl_signal_init(&manager->events.destroy);
 

@@ -103,25 +103,13 @@ static void inhibit_manager_bind(struct wl_client *wl_client, void *data,
 			input_manager_resource_destroy);
 }
 
-void wlr_input_inhibit_manager_destroy(
-		struct wlr_input_inhibit_manager *manager) {
-	if (!manager) {
-		return;
-	}
-	if (manager->active_client) {
-		input_inhibitor_destroy(manager->active_client,
-				manager->active_inhibitor);
-	}
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_input_inhibit_manager *manager =
+		wl_container_of(listener, manager, display_destroy);
 	wlr_signal_emit_safe(&manager->events.destroy, manager);
 	wl_list_remove(&manager->display_destroy.link);
 	wl_global_destroy(manager->global);
 	free(manager);
-}
-
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_input_inhibit_manager *manager =
-		wl_container_of(listener, manager, display_destroy);
-	wlr_input_inhibit_manager_destroy(manager);
 }
 
 struct wlr_input_inhibit_manager *wlr_input_inhibit_manager_create(
@@ -137,7 +125,6 @@ struct wlr_input_inhibit_manager *wlr_input_inhibit_manager_create(
 			&zwlr_input_inhibit_manager_v1_interface,
 			1, manager, inhibit_manager_bind);
 	if (manager->global == NULL){
-		wl_list_remove(&manager->display_destroy.link);
 		free(manager);
 		return NULL;
 	}

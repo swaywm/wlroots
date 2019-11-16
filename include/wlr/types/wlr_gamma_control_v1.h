@@ -5,7 +5,6 @@
 
 struct wlr_gamma_control_manager_v1 {
 	struct wl_global *global;
-	struct wl_list resources;
 	struct wl_list controls; // wlr_gamma_control_v1::link
 
 	struct wl_listener display_destroy;
@@ -29,7 +28,5 @@ struct wlr_gamma_control_v1 {
 
 struct wlr_gamma_control_manager_v1 *wlr_gamma_control_manager_v1_create(
 	struct wl_display *display);
-void wlr_gamma_control_manager_v1_destroy(
-	struct wlr_gamma_control_manager_v1 *manager);
 
 #endif
