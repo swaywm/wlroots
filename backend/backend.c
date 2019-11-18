@@ -297,10 +297,12 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 			getenv("WAYLAND_SOCKET")) {
 		struct wlr_backend *wl_backend = attempt_wl_backend(display,
 			create_renderer_func);
-		if (wl_backend) {
-			wlr_multi_backend_add(backend, wl_backend);
-			return backend;
+		if (!wl_backend) {
+			goto error;
 		}
+
+		wlr_multi_backend_add(backend, wl_backend);
+		return backend;
 	}
 
 #if WLR_HAS_X11_BACKEND
@@ -308,10 +310,12 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	if (x11_display) {
 		struct wlr_backend *x11_backend =
 			attempt_x11_backend(display, x11_display, create_renderer_func);
-		if (x11_backend) {
-			wlr_multi_backend_add(backend, x11_backend);
-			return backend;
+		if (!x11_backend) {
+			goto error;
 		}
+
+		wlr_multi_backend_add(backend, x11_backend);
+		return backend;
 	}
 #endif
 
@@ -344,4 +348,8 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	}
 
 	return backend;
+
+error:
+	wlr_backend_destroy(backend);
+	return NULL;
 }
