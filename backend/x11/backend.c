@@ -228,12 +228,11 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	x11->present_opcode = ext->major_opcode;
 
 	xcb_present_query_version_cookie_t present_cookie =
-		xcb_present_query_version(x11->xcb, 1, 2);
+		xcb_present_query_version(x11->xcb, 1, 0);
 	xcb_present_query_version_reply_t *present_reply =
 		xcb_present_query_version_reply(x11->xcb, present_cookie, NULL);
 
-	if (!present_reply || (present_reply->major_version <= 1 &&
-			present_reply->minor_version < 2)) {
+	if (!present_reply) {
 		wlr_log(WLR_ERROR, "X11 does not support required Present version");
 		free(present_reply);
 		goto error_display;
