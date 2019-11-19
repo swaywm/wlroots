@@ -447,7 +447,7 @@ static struct zwp_pointer_gesture_pinch_v1_listener gesture_pinch_impl = {
 };
 
 
-void relative_pointer_handle_relative_motion(void *data,
+static void relative_pointer_handle_relative_motion(void *data,
 		struct zwp_relative_pointer_v1 *relative_pointer, uint32_t utime_hi,
 		uint32_t utime_lo, wl_fixed_t dx, wl_fixed_t dy, wl_fixed_t dx_unaccel,
 		wl_fixed_t dy_unaccel) {

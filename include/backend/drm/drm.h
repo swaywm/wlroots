@@ -151,4 +151,9 @@ bool set_drm_connector_gamma(struct wlr_output *output, size_t size,
 bool drm_connector_set_mode(struct wlr_output *output,
 	struct wlr_output_mode *mode);
 
+bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
+	struct wlr_drm_crtc *crtc, struct gbm_bo *bo);
+bool legacy_crtc_move_cursor(struct wlr_drm_backend *drm,
+	struct wlr_drm_crtc *crtc, int x, int y);
+
 #endif

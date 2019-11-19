@@ -52,7 +52,7 @@ static const struct org_kde_kwin_idle_timeout_listener idle_timer_listener = {
 	.resumed = handle_resume,
 };
 
-int parse_args(int argc, char *argv[]) {
+static int parse_args(int argc, char *argv[]) {
 	int c;
 	while ((c = getopt(argc, argv, "c:hs:t:")) != -1) {
 		switch(c)
@@ -81,7 +81,7 @@ int parse_args(int argc, char *argv[]) {
 	return 0;
 }
 
-void *simulate_activity(void *data) {
+static void *simulate_activity(void *data) {
 	sleep(simulate_activity_timeout);
 	fprintf(stdout, "simulate user activity\n");
 	struct thread_args *arg = data;
@@ -90,7 +90,7 @@ void *simulate_activity(void *data) {
 	return NULL;
 }
 
-void *close_program(void *data) {
+static void *close_program(void *data) {
 	sleep(close_timeout);
 	struct thread_args *arg = data;
 	org_kde_kwin_idle_timeout_release(arg->timer);
@@ -100,7 +100,7 @@ void *close_program(void *data) {
 	return NULL;
 }
 
-void *main_loop(void *data) {
+static void *main_loop(void *data) {
 	struct wl_display *display = data;
 	while (wl_display_dispatch(display) != -1) {
 		;

@@ -9,7 +9,7 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
-struct wlr_libinput_input_device *get_libinput_device_from_device(
+static struct wlr_libinput_input_device *get_libinput_device_from_device(
 		struct wlr_input_device *wlr_dev) {
 	assert(wlr_input_device_is_libinput(wlr_dev));
 	return (struct wlr_libinput_input_device *)wlr_dev;

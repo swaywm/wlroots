@@ -34,6 +34,7 @@ add_project_arguments(cc.get_supported_arguments([
 	'-Wendif-labels',
 	'-Wstrict-aliasing=2',
 	'-Woverflow',
+	'-Wmissing-prototypes',
 
 	'-Wno-missing-braces',
 	'-Wno-missing-field-initializers',

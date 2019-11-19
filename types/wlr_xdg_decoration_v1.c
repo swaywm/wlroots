@@ -238,7 +238,8 @@ static const struct zxdg_decoration_manager_v1_interface
 	.get_toplevel_decoration = decoration_manager_handle_get_toplevel_decoration,
 };
 
-void decoration_manager_handle_resource_destroy(struct wl_resource *resource) {
+static void decoration_manager_handle_resource_destroy(
+		struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 

@@ -154,9 +154,6 @@ static bool atomic_conn_enable(struct wlr_drm_backend *drm,
 		true);
 }
 
-bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, struct gbm_bo *bo);
-
 static bool atomic_crtc_set_cursor(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, struct gbm_bo *bo) {
 	if (!crtc || !crtc->cursor) {
@@ -184,9 +181,6 @@ static bool atomic_crtc_set_cursor(struct wlr_drm_backend *drm,
 
 	return atomic_end(drm->fd, &atom);
 }
-
-bool legacy_crtc_move_cursor(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, int x, int y);
 
 static bool atomic_crtc_move_cursor(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, int x, int y) {

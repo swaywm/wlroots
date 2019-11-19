@@ -452,7 +452,7 @@ enum distance_selection_method {
 	FARTHEST
 };
 
-struct wlr_output *wlr_output_layout_output_in_direction(
+static struct wlr_output *wlr_output_layout_output_in_direction(
 		struct wlr_output_layout *layout, enum wlr_direction direction,
 		struct wlr_output *reference, double ref_lx, double ref_ly,
 		enum distance_selection_method distance_method) {
