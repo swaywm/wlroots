@@ -6,7 +6,6 @@
 #include <X11/Xlib-xcb.h>
 #include <wayland-server-core.h>
 #include <xcb/xcb.h>
-#include <xcb/present.h>
 
 #include <wlr/backend/x11.h>
 #include <wlr/config.h>
@@ -16,6 +15,8 @@
 #include <wlr/render/wlr_renderer.h>
 
 #define XCB_EVENT_RESPONSE_TYPE_MASK 0x7f
+
+#define X11_DEFAULT_REFRESH (60 * 1000) // 60 Hz
 
 struct wlr_x11_backend;
 
@@ -34,7 +35,8 @@ struct wlr_x11_output {
 	struct wlr_input_device touch_dev;
 	struct wl_list touchpoints; // wlr_x11_touchpoint::link
 
-	xcb_present_event_t present_context;
+	struct wl_event_source *frame_timer;
+	int frame_delay;
 
 	bool cursor_hidden;
 };
@@ -76,7 +78,6 @@ struct wlr_x11_backend {
 	xcb_timestamp_t time;
 
 	uint8_t xinput_opcode;
-	uint8_t present_opcode;
 
 	struct wl_listener display_destroy;
 };
@@ -96,7 +97,7 @@ void handle_x11_xinput_event(struct wlr_x11_backend *x11,
 void update_x11_pointer_position(struct wlr_x11_output *output,
 	xcb_timestamp_t time);
 
-void handle_x11_present_event(struct wlr_x11_backend *x11,
-		xcb_present_generic_event_t *ev);
+void handle_x11_configure_notify(struct wlr_x11_output *output,
+	xcb_configure_notify_event_t *event);
 
 #endif
