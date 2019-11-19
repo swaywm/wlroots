@@ -213,8 +213,7 @@ message('\n'.join(summary))
 subdir('examples')
 
 pkgconfig = import('pkgconfig')
-pkgconfig.generate(
-	libraries: lib_wlr,
+pkgconfig.generate(lib_wlr,
 	version: meson.project_version(),
 	filebase: meson.project_name(),
 	name: meson.project_name(),
