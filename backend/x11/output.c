@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include <xcb/xcb.h>
-#include <xcb/present.h>
 #include <xcb/xinput.h>
 
 #include <wlr/interfaces/wlr_output.h>
@@ -15,6 +14,13 @@
 
 #include "backend/x11.h"
 #include "util/signal.h"
+
+static int signal_frame(void *data) {
+	struct wlr_x11_output *output = data;
+	wlr_output_send_frame(&output->wlr_output);
+	wl_event_source_timer_update(output->frame_timer, output->frame_delay);
+	return 0;
+}
 
 static void parse_xcb_setup(struct wlr_output *output,
 		xcb_connection_t *xcb) {
@@ -34,10 +40,25 @@ static struct wlr_x11_output *get_x11_output_from_output(
 	return (struct wlr_x11_output *)wlr_output;
 }
 
+static void output_set_refresh(struct wlr_output *wlr_output, int32_t refresh) {
+	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
+
+	if (refresh <= 0) {
+		refresh = X11_DEFAULT_REFRESH;
+	}
+
+	wlr_output_update_custom_mode(&output->wlr_output, wlr_output->width,
+		wlr_output->height, refresh);
+
+	output->frame_delay = 1000000 / refresh;
+}
+
 static bool output_set_custom_mode(struct wlr_output *wlr_output,
 		int32_t width, int32_t height, int32_t refresh) {
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
 	struct wlr_x11_backend *x11 = output->x11;
+
+	output_set_refresh(&output->wlr_output, refresh);
 
 	const uint32_t values[] = { width, height };
 	xcb_void_cookie_t cookie = xcb_configure_window_checked(
@@ -63,6 +84,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	wlr_input_device_destroy(&output->touch_dev);
 
 	wl_list_remove(&output->link);
+	wl_event_source_remove(output->frame_timer);
 	wlr_egl_destroy_surface(&x11->egl, output->surf);
 	xcb_destroy_window(x11->xcb, output->win);
 	xcb_flush(x11->xcb);
@@ -118,15 +140,19 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	struct wlr_output *wlr_output = &output->wlr_output;
 	wlr_output_init(wlr_output, &x11->backend, &output_impl, x11->wl_display);
 
-	wlr_output_update_custom_mode(&output->wlr_output, 1024, 768, 0);
-	wlr_output_update_enabled(wlr_output, true);
+	wlr_output->width = 1024;
+	wlr_output->height = 768;
+
+	output_set_refresh(&output->wlr_output, 0);
 
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "X11-%zd",
 		++x11->last_output_num);
 	parse_xcb_setup(wlr_output, x11->xcb);
 
 	uint32_t mask = XCB_CW_EVENT_MASK;
-	uint32_t values[] = { XCB_EVENT_MASK_EXPOSURE };
+	uint32_t values[] = {
+		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY
+	};
 	output->win = xcb_generate_id(x11->xcb);
 	xcb_create_window(x11->xcb, XCB_COPY_FROM_PARENT, output->win,
 		x11->screen->root, 0, 0, wlr_output->width, wlr_output->height, 1,
@@ -150,11 +176,6 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	};
 	xcb_input_xi_select_events(x11->xcb, output->win, 1, &xinput_mask.head);
 
-	output->present_context = xcb_generate_id(x11->xcb);
-	xcb_present_select_input(x11->xcb, output->present_context, output->win,
-		XCB_PRESENT_EVENT_MASK_CONFIGURE_NOTIFY |
-		XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY);
-
 	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
 	if (!output->surf) {
 		wlr_log(WLR_ERROR, "Failed to create EGL surface");
@@ -168,7 +189,16 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 	wlr_x11_output_set_title(wlr_output, NULL);
 
+	xcb_map_window(x11->xcb, output->win);
+	xcb_flush(x11->xcb);
+
+	struct wl_event_loop *ev = wl_display_get_event_loop(x11->wl_display);
+	output->frame_timer = wl_event_loop_add_timer(ev, signal_frame, output);
+
 	wl_list_insert(&x11->outputs, &output->link);
+
+	wl_event_source_timer_update(output->frame_timer, output->frame_delay);
+	wlr_output_update_enabled(wlr_output, true);
 
 	wlr_input_device_init(&output->pointer_dev, WLR_INPUT_DEVICE_POINTER,
 		&input_device_impl, "X11 pointer", 0, 0);
@@ -187,60 +217,22 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &output->pointer_dev);
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &output->touch_dev);
 
-	// Start the vsync loop
-	xcb_present_notify_msc(x11->xcb, output->win, 0, 0, 1, 0);
-	xcb_map_window(x11->xcb, output->win);
-	xcb_flush(x11->xcb);
-
 	return wlr_output;
 }
 
-void handle_x11_present_event(struct wlr_x11_backend *x11,
-		xcb_present_generic_event_t *base) {
-	struct wlr_x11_output *output;
-
-	switch (base->evtype) {
-	case XCB_PRESENT_CONFIGURE_NOTIFY: {
-		xcb_present_configure_notify_event_t *ev =
-			(xcb_present_configure_notify_event_t *)base;
-
-		output = get_x11_output_from_window_id(x11, ev->window);
-		if (!output || output->present_context != ev->event) {
-			break;
-		}
-
-		if (ev->width <= 0 || ev->height <= 0) {
-			break;
-		}
-
-		/*
-		 * We don't need to resize anything here ourselves.
-		 * The EGL/OpenGL driver does that automatically.
-		 */
-		wlr_output_update_custom_mode(&output->wlr_output,
-			ev->width, ev->height, 0);
+void handle_x11_configure_notify(struct wlr_x11_output *output,
+		xcb_configure_notify_event_t *ev) {
+	// ignore events that set an invalid size:
+	if (ev->width > 0 && ev->height > 0) {
+		wlr_output_update_custom_mode(&output->wlr_output, ev->width,
+			ev->height, output->wlr_output.refresh);
 
 		// Move the pointer to its new location
 		update_x11_pointer_position(output, output->x11->time);
-
-		break;
-	}
-	case XCB_PRESENT_COMPLETE_NOTIFY: {
-		xcb_present_complete_notify_event_t *ev =
-			(xcb_present_complete_notify_event_t *)base;
-
-		output = get_x11_output_from_window_id(x11, ev->window);
-		if (!output || output->present_context != ev->event) {
-			break;
-		}
-
-		wlr_output_send_frame(&output->wlr_output);
-
-		xcb_present_notify_msc(x11->xcb, output->win, 0, 0, 1, 0);
-		xcb_flush(x11->xcb);
-
-		break;
-	}
+	} else {
+		wlr_log(WLR_DEBUG,
+			"Ignoring X11 configure event for height=%d, width=%d",
+			ev->width, ev->height);
 	}
 }
 

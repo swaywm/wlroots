@@ -2,9 +2,8 @@ x11_libs = []
 x11_required = [
 	'x11-xcb',
 	'xcb',
-	'xcb-present',
-	'xcb-xfixes',
 	'xcb-xinput',
+	'xcb-xfixes',
 ]
 
 foreach lib : x11_required
