@@ -27,7 +27,7 @@ struct wlr_gles2_texture *gles2_get_texture(
 	return (struct wlr_gles2_texture *)wlr_texture;
 }
 
-struct wlr_gles2_texture *get_gles2_texture_in_context(
+static struct wlr_gles2_texture *get_gles2_texture_in_context(
 		struct wlr_texture *wlr_texture) {
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
 	if (!wlr_egl_is_current(texture->egl)) {

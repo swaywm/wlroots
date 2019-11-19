@@ -477,7 +477,7 @@ static const struct zwlr_screencopy_manager_v1_interface manager_impl = {
 	.destroy = manager_handle_destroy,
 };
 
-void manager_handle_resource_destroy(struct wl_resource *resource) {
+static void manager_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_screencopy_v1_client *client =
 		client_from_resource(resource);
 	client_unref(client);

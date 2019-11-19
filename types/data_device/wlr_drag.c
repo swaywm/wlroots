@@ -244,7 +244,7 @@ static const struct wlr_pointer_grab_interface
 	.cancel = drag_handle_pointer_cancel,
 };
 
-uint32_t drag_handle_touch_down(struct wlr_seat_touch_grab *grab,
+static uint32_t drag_handle_touch_down(struct wlr_seat_touch_grab *grab,
 		uint32_t time, struct wlr_touch_point *point) {
 	// eat the event
 	return 0;

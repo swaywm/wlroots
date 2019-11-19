@@ -138,7 +138,8 @@ void wlr_server_decoration_manager_set_default_mode(
 	}
 }
 
-void server_decoration_manager_destroy_resource(struct wl_resource *resource) {
+static void server_decoration_manager_destroy_resource(
+		struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 

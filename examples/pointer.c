@@ -90,7 +90,7 @@ static void warp_to_touch(struct sample_state *state,
 	wlr_cursor_warp_absolute(state->cursor, dev, x, y);
 }
 
-void output_frame_notify(struct wl_listener *listener, void *data) {
+static void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct sample_output *sample_output = wl_container_of(listener, sample_output, frame);
 	struct sample_state *state = sample_output->state;
 	struct wlr_output *wlr_output = sample_output->output;
@@ -221,7 +221,7 @@ static void handle_tablet_tool_axis(struct wl_listener *listener, void *data) {
 	}
 }
 
-void keyboard_key_notify(struct wl_listener *listener, void *data) {
+static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	struct sample_keyboard *keyboard = wl_container_of(listener, keyboard, key);
 	struct sample_state *sample = keyboard->state;
 	struct wlr_event_keyboard_key *event = data;
@@ -237,7 +237,7 @@ void keyboard_key_notify(struct wl_listener *listener, void *data) {
 	}
 }
 
-void output_remove_notify(struct wl_listener *listener, void *data) {
+static void output_remove_notify(struct wl_listener *listener, void *data) {
 	struct sample_output *sample_output = wl_container_of(listener, sample_output, destroy);
 	struct sample_state *sample = sample_output->state;
 	wlr_output_layout_remove(sample->layout, sample_output->output);
@@ -246,7 +246,7 @@ void output_remove_notify(struct wl_listener *listener, void *data) {
 	free(sample_output);
 }
 
-void new_output_notify(struct wl_listener *listener, void *data) {
+static void new_output_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct sample_state *sample = wl_container_of(listener, sample, new_output);
 	struct sample_output *sample_output = calloc(1, sizeof(struct sample_output));
@@ -268,14 +268,14 @@ void new_output_notify(struct wl_listener *listener, void *data) {
 }
 
 
-void keyboard_destroy_notify(struct wl_listener *listener, void *data) {
+static void keyboard_destroy_notify(struct wl_listener *listener, void *data) {
 	struct sample_keyboard *keyboard = wl_container_of(listener, keyboard, destroy);
 	wl_list_remove(&keyboard->destroy.link);
 	wl_list_remove(&keyboard->key.link);
 	free(keyboard);
 }
 
-void new_input_notify(struct wl_listener *listener, void *data) {
+static void new_input_notify(struct wl_listener *listener, void *data) {
 	struct wlr_input_device *device = data;
 	struct sample_state *state = wl_container_of(listener, state, new_input);
 	switch (device->type) {

@@ -35,12 +35,12 @@ static void toplevel_handle_send_maximized_event(struct wl_resource *resource,
 	wlr_signal_emit_safe(&toplevel->events.request_maximize, &event);
 }
 
-void foreign_toplevel_handle_set_maximized(struct wl_client *client,
+static void foreign_toplevel_handle_set_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
 	toplevel_handle_send_maximized_event(resource, true);
 }
 
-void foreign_toplevel_handle_unset_maximized(struct wl_client *client,
+static void foreign_toplevel_handle_unset_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
 	toplevel_handle_send_maximized_event(resource, false);
 }

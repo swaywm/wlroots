@@ -461,7 +461,7 @@ static void register_cb(struct capture_context *ctx) {
 			&frame_listener, ctx);
 }
 
-void *vid_encode_thread(void *arg) {
+static void *vid_encode_thread(void *arg) {
 	int err = 0;
 	struct capture_context *ctx = arg;
 
@@ -686,7 +686,7 @@ static int init_encoding(struct capture_context *ctx) {
 
 struct capture_context *q_ctx = NULL;
 
-void on_quit_signal(int signo) {
+static void on_quit_signal(int signo) {
 	printf("\r");
 	av_log(q_ctx, AV_LOG_WARNING, "Quitting!\n");
 	q_ctx->quit = true;
