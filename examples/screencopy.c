@@ -32,6 +32,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <wayland-client-protocol.h>
@@ -69,7 +70,7 @@ static struct wl_buffer *create_shm_buffer(enum wl_shm_format fmt,
 	int size = stride * height;
 
 	const char shm_name[] = "/wlroots-screencopy";
-	int fd = shm_open(shm_name, O_RDWR | O_CREAT | O_EXCL, 0);
+	int fd = shm_open(shm_name, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
 	if (fd < 0) {
 		fprintf(stderr, "shm_open failed\n");
 		return NULL;
