@@ -3,7 +3,7 @@ project(
 	'c',
 	version: '0.8.1',
 	license: 'MIT',
-	meson_version: '>=0.49.0',
+	meson_version: '>=0.51.0',
 	default_options: [
 		'c_std=c11',
 		'warning_level=2',
@@ -88,8 +88,6 @@ conf_data.set10('WLR_HAS_XWAYLAND', false)
 conf_data.set10('WLR_HAS_XCB_ERRORS', false)
 conf_data.set10('WLR_HAS_XCB_ICCCM', false)
 
-wlr_inc = include_directories('.', 'include')
-
 # Clang complains about some zeroed initializer lists (= {0}), even though they
 # are valid
 if cc.get_id() == 'clang'
@@ -99,66 +97,21 @@ endif
 
 wayland_server = dependency('wayland-server', version: '>=1.16')
 wayland_client = dependency('wayland-client')
-wayland_egl    = dependency('wayland-egl')
+wayland_egl = dependency('wayland-egl')
 wayland_protos = dependency('wayland-protocols', version: '>=1.17')
-egl            = dependency('egl')
-freerdp        = dependency('freerdp2', required: get_option('freerdp'))
-winpr2         = dependency('winpr2', required: get_option('freerdp'))
-glesv2         = dependency('glesv2')
-drm            = dependency('libdrm', version: '>=2.4.95')
-gbm            = dependency('gbm', version: '>=17.1.0')
-libinput       = dependency('libinput', version: '>=1.9.0')
-xkbcommon      = dependency('xkbcommon')
-udev           = dependency('libudev')
-pixman         = dependency('pixman-1')
-libcap         = dependency('libcap', required: get_option('libcap'))
-logind         = dependency('lib' + get_option('logind-provider'), required: get_option('logind'), version: '>=237')
-math           = cc.find_library('m')
-rt             = cc.find_library('rt')
+egl = dependency('egl')
+glesv2 = dependency('glesv2')
+drm = dependency('libdrm', version: '>=2.4.95')
+gbm = dependency('gbm', version: '>=17.1.0')
+libinput = dependency('libinput', version: '>=1.9.0')
+xkbcommon = dependency('xkbcommon')
+udev = dependency('libudev')
+pixman = dependency('pixman-1')
+math = cc.find_library('m')
+rt = cc.find_library('rt')
 
-wlr_parts = []
-wlr_deps = []
-
-if libcap.found()
-	conf_data.set10('WLR_HAS_LIBCAP', true)
-	wlr_deps += libcap
-endif
-
-if logind.found()
-	conf_data.set10('WLR_HAS_' + get_option('logind-provider').to_upper(), true)
-	wlr_deps += logind
-endif
-
-if libinput.found()
-	ver = libinput.version().split('.')
-	add_project_arguments([
-		'-DLIBINPUT_MAJOR=' + ver[0],
-		'-DLIBINPUT_MINOR=' + ver[1],
-		'-DLIBINPUT_PATCH=' + ver[2],
-	], language: 'c')
-endif
-
-subdir('protocol')
-subdir('render')
-
-subdir('backend')
-subdir('types')
-subdir('util')
-subdir('xcursor')
-subdir('xwayland')
-
-subdir('include')
-
-wlr_parts += [
-	lib_wl_protos,
-	lib_wlr_backend,
-	lib_wlr_render,
-	lib_wlr_types,
-	lib_wlr_util,
-	lib_wlr_xcursor,
-]
-
-wlr_deps += [
+wlr_files = []
+wlr_deps = [
 	wayland_server,
 	wayland_client,
 	wayland_egl,
@@ -172,16 +125,37 @@ wlr_deps += [
 	udev,
 	pixman,
 	math,
+	rt,
 ]
+
+libinput_ver = libinput.version().split('.')
+add_project_arguments([
+	'-DLIBINPUT_MAJOR=' + libinput_ver[0],
+	'-DLIBINPUT_MINOR=' + libinput_ver[1],
+	'-DLIBINPUT_PATCH=' + libinput_ver[2],
+], language: 'c')
+
+subdir('protocol')
+subdir('render')
+
+subdir('backend')
+subdir('types')
+subdir('util')
+subdir('xcursor')
+subdir('xwayland')
+
+subdir('include')
+
+wlr_inc = include_directories('.', 'include')
+proto_inc = include_directories('protocol')
 
 symbols_file = 'wlroots.syms'
 symbols_flag = '-Wl,--version-script,@0@/@1@'.format(meson.current_source_dir(), symbols_file)
 lib_wlr = library(
-	meson.project_name(),
+	meson.project_name(), wlr_files,
 	version: '.'.join(so_version),
-	link_whole: wlr_parts,
 	dependencies: wlr_deps,
-	include_directories: wlr_inc,
+	include_directories: [wlr_inc, proto_inc],
 	install: true,
 	link_args : symbols_flag,
 	link_depends: symbols_file,

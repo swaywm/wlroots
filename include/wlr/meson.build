@@ -8,19 +8,15 @@ version_data.set('WLR_VERSION_API_CURRENT',  so_version[0])
 version_data.set('WLR_VERSION_API_REVISION', so_version[1])
 version_data.set('WLR_VERSION_API_AGE',      so_version[2])
 
-install_headers(
-	configure_file(input: 'config.h.in', output: 'config.h',configuration: conf_data),
-	configure_file(input: 'version.h.in', output: 'version.h', configuration: version_data),
-	'backend.h',
-	'xcursor.h',
-	subdir: 'wlr'
+conf_h = configure_file(
+	input: 'config.h.in',
+	output: 'config.h',
+	configuration: conf_data,
 )
-if conf_data.get('WLR_HAS_XWAYLAND', 0) == 1
-	install_headers('xwayland.h', subdir: 'wlr')
-endif
+ver_h = configure_file(
+	input: 'version.h.in',
+	output: 'version.h',
+	configuration: version_data,
+)
 
-subdir('backend')
-subdir('interfaces')
-subdir('render')
-subdir('types')
-subdir('util')
+install_headers(conf_h, ver_h, subdir: 'wlr')
