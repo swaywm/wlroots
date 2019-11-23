@@ -486,7 +486,7 @@ struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display)
 	wl_list_init(&layer_shell->surfaces);
 
 	struct wl_global *global = wl_global_create(display,
-		&zwlr_layer_shell_v1_interface, 1, layer_shell, layer_shell_bind);
+		&zwlr_layer_shell_v1_interface, 2, layer_shell, layer_shell_bind);
 	if (!global) {
 		free(layer_shell);
 		return NULL;
