@@ -591,7 +591,7 @@ uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
 
 /**
  * Send a touch up event for the touch point given by the `touch_id`. The event
- * will go to the client for the surface given in the cooresponding touch down
+ * will go to the client for the surface given in the corresponding touch down
  * event. This will remove the touch point. Compositors should use
  * `wlr_seat_touch_notify_up()` to respect any grabs of the touch device.
  */

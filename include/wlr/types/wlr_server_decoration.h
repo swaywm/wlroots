@@ -40,7 +40,7 @@ enum wlr_server_decoration_manager_mode {
 };
 
 /**
- * A decoration negociation interface which implements the KDE protocol.
+ * A decoration negotiation interface which implements the KDE protocol.
  */
 struct wlr_server_decoration_manager {
 	struct wl_global *global;

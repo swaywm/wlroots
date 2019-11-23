@@ -201,7 +201,7 @@ static bool init_planes(struct wlr_drm_backend *drm) {
 		 * logic. Primary and cursor planes should only work on a
 		 * single CRTC, and this should be perfectly adequate, but
 		 * overlay planes can potentially work with multiple CRTCs,
-		 * meaning this could return inefficent/skewed results.
+		 * meaning this could return inefficient/skewed results.
 		 *
 		 * However, we don't really care about overlay planes, as we
 		 * don't support them yet. We only bother to keep basic
