@@ -110,7 +110,7 @@
         - The output doesn't support gamma tables
         - Setting the gamma tables failed
         - Another client already has exclusive gamma control for this output
-        - The compositor has transfered gamma control to another client
+        - The compositor has transferred gamma control to another client
 
         Upon receiving this event, the client should destroy this object.
       </description>
