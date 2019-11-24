@@ -44,7 +44,7 @@ struct wlr_texture *wlr_texture_from_dmabuf(struct wlr_renderer *renderer,
 
 void wlr_texture_get_size(struct wlr_texture *texture, int *width,
 		int *height) {
-	return texture->impl->get_size(texture, width, height);
+	texture->impl->get_size(texture, width, height);
 }
 
 bool wlr_texture_is_opaque(struct wlr_texture *texture) {
