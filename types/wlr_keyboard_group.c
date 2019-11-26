@@ -36,7 +36,7 @@ static void keyboard_set_leds(struct wlr_keyboard *kb, uint32_t leds) {
 
 static void keyboard_destroy(struct wlr_keyboard *kb) {
 	// Just remove the event listeners. The keyboard will be freed as part of
-	// the wlr_keyboard_group in wlr_keyboard_group_destroy.
+	// the wlr_keyboard_group in keyboard_group_consider_destroy.
 	wl_list_remove(&kb->events.key.listener_list);
 	wl_list_remove(&kb->events.modifiers.listener_list);
 	wl_list_remove(&kb->events.keymap.listener_list);
@@ -48,6 +48,26 @@ static const struct wlr_keyboard_impl impl = {
 	.destroy = keyboard_destroy,
 	.led_update = keyboard_set_leds
 };
+
+static void keyboard_group_consider_destroy(struct wlr_keyboard_group *group) {
+	if (!group->destroying || group->nrefs > 0) {
+		return;
+	}
+	wlr_log(WLR_DEBUG, "Destroying wlr_keyboard_group %p", group);
+	wlr_keyboard_destroy(&group->keyboard);
+	wl_list_remove(&group->input_device->events.destroy.listener_list);
+	free(group->input_device);
+	free(group);
+}
+
+static void keyboard_group_ref(struct wlr_keyboard_group *group) {
+	group->nrefs++;
+}
+
+static void keyboard_group_unref(struct wlr_keyboard_group *group) {
+	group->nrefs--;
+	keyboard_group_consider_destroy(group);
+}
 
 struct wlr_keyboard_group *wlr_keyboard_group_create(void) {
 	struct wlr_keyboard_group *group =
@@ -70,6 +90,7 @@ struct wlr_keyboard_group *wlr_keyboard_group_create(void) {
 	wl_list_init(&group->devices);
 	wl_list_init(&group->keys);
 
+	wlr_log(WLR_DEBUG, "Created wlr_keyboard_group %p", group);
 	return group;
 }
 
@@ -131,7 +152,9 @@ static void handle_keyboard_key(struct wl_listener *listener, void *data) {
 		wl_list_insert(&group->keys, &key->link);
 	}
 
-	wlr_keyboard_notify_key(&group_device->keyboard->group->keyboard, data);
+	keyboard_group_ref(group);
+	wlr_keyboard_notify_key(&group->keyboard, data);
+	keyboard_group_unref(group);
 }
 
 static void handle_keyboard_modifiers(struct wl_listener *listener,
@@ -154,8 +177,10 @@ static void handle_keyboard_modifiers(struct wl_listener *listener,
 		}
 	}
 
+	keyboard_group_ref(group_device->keyboard->group);
 	wlr_keyboard_notify_modifiers(&group_device->keyboard->group->keyboard,
 			mods.depressed, mods.latched, mods.locked, mods.group);
+	keyboard_group_unref(group_device->keyboard->group);
 }
 
 static void handle_keyboard_keymap(struct wl_listener *listener, void *data) {
@@ -173,7 +198,9 @@ static void handle_keyboard_keymap(struct wl_listener *listener, void *data) {
 		}
 	}
 
+	keyboard_group_ref(keyboard->group);
 	wlr_keyboard_set_keymap(&keyboard->group->keyboard, keyboard->keymap);
+	keyboard_group_unref(keyboard->group);
 }
 
 static void handle_keyboard_repeat_info(struct wl_listener *listener,
@@ -193,8 +220,10 @@ static void handle_keyboard_repeat_info(struct wl_listener *listener,
 		}
 	}
 
+	keyboard_group_ref(keyboard->group);
 	wlr_keyboard_set_repeat_info(&keyboard->group->keyboard,
 			keyboard->repeat_info.rate, keyboard->repeat_info.delay);
+	keyboard_group_unref(keyboard->group);
 }
 
 static void refresh_state(struct keyboard_group_device *device,
@@ -217,6 +246,7 @@ static void refresh_state(struct keyboard_group_device *device,
 }
 
 static void remove_keyboard_group_device(struct keyboard_group_device *device) {
+	struct wlr_keyboard_group *group = device->keyboard->group;
 	refresh_state(device, WLR_KEY_RELEASED);
 	device->keyboard->group = NULL;
 	wl_list_remove(&device->link);
@@ -225,6 +255,8 @@ static void remove_keyboard_group_device(struct keyboard_group_device *device) {
 	wl_list_remove(&device->keymap.link);
 	wl_list_remove(&device->repeat_info.link);
 	wl_list_remove(&device->destroy.link);
+	wlr_log(WLR_DEBUG, "Removed wlr_keyboard %p from wlr_keyboard_group %p",
+			device->keyboard, group);
 	free(device);
 }
 
@@ -290,6 +322,8 @@ bool wlr_keyboard_group_add_keyboard(struct wlr_keyboard_group *group,
 	}
 
 	refresh_state(device, WLR_KEY_PRESSED);
+	wlr_log(WLR_DEBUG, "Added wlr_keyboard %p to wlr_keyboard_group %p",
+			device->keyboard, group);
 	return true;
 }
 
@@ -310,8 +344,6 @@ void wlr_keyboard_group_destroy(struct wlr_keyboard_group *group) {
 	wl_list_for_each_safe(device, tmp, &group->devices, link) {
 		wlr_keyboard_group_remove_keyboard(group, device->keyboard);
 	}
-	wlr_keyboard_destroy(&group->keyboard);
-	wl_list_remove(&group->input_device->events.destroy.listener_list);
-	free(group->input_device);
-	free(group);
+	group->destroying = true;
+	keyboard_group_consider_destroy(group);
 }
