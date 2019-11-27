@@ -24,7 +24,6 @@ bool set_add(uint32_t values[], size_t *len, size_t cap, uint32_t target) {
 	if (*len == cap) {
 		return false;
 	}
-	assert(target > 0);
 	for (uint32_t i = 0; i < *len; ++i) {
 		if (values[i] == target) {
 			return false;
