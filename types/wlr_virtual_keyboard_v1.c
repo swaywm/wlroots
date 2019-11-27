@@ -75,9 +75,6 @@ context_fail:
 static void virtual_keyboard_key(struct wl_client *client,
 		struct wl_resource *resource, uint32_t time, uint32_t key,
 		uint32_t state) {
-	if (key == 0) {
-		return;
-	}
 	struct wlr_virtual_keyboard_v1 *keyboard =
 		virtual_keyboard_from_resource(resource);
 	if (!keyboard->has_keymap) {
