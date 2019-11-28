@@ -9,7 +9,7 @@ wlroots reads these environment variables
   mode setting
 * *WLR_LIBINPUT_NO_DEVICES*: set to 1 to not fail without any input devices
 * *WLR_BACKENDS*: comma-separated list of backends to use (available backends:
-  drm, wayland, x11, rdp, headless, noop)
+  libinput, drm, wayland, x11, rdp, headless, noop)
 * *WLR_NO_HARDWARE_CURSORS*: set to 1 to use software cursors instead of
   hardware cursors
 * *WLR_SESSION*: specifies the wlr\_session to be used (available sessions:
