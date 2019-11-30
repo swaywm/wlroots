@@ -88,12 +88,12 @@ void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
 
 void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
+	keyboard_key_update(keyboard, event);
+	wlr_signal_emit_safe(&keyboard->events.key, event);
+
 	if (keyboard->xkb_state == NULL) {
 		return;
 	}
-
-	keyboard_key_update(keyboard, event);
-	wlr_signal_emit_safe(&keyboard->events.key, event);
 
 	if (event->update_state) {
 		uint32_t keycode = event->keycode + 8;
