@@ -82,6 +82,7 @@ struct wlr_drm_backend {
 	struct wl_event_source *drm_event;
 
 	struct wl_listener display_destroy;
+	struct wl_listener session_destroy;
 	struct wl_listener session_signal;
 	struct wl_listener drm_invalidated;
 

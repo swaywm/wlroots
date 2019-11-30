@@ -44,6 +44,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wlr_signal_emit_safe(&backend->events.destroy, backend);
 
 	wl_list_remove(&drm->display_destroy.link);
+	wl_list_remove(&drm->session_destroy.link);
 	wl_list_remove(&drm->session_signal.link);
 	wl_list_remove(&drm->drm_invalidated.link);
 
@@ -135,6 +136,12 @@ static void drm_invalidated(struct wl_listener *listener, void *data) {
 	scan_drm_connectors(drm);
 }
 
+static void handle_session_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_drm_backend *drm =
+		wl_container_of(listener, drm, session_destroy);
+	backend_destroy(&drm->backend);
+}
+
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *drm =
 		wl_container_of(listener, drm, display_destroy);
@@ -196,6 +203,9 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		wlr_log(WLR_ERROR, "Failed to initialize renderer");
 		goto error_event;
 	}
+
+	drm->session_destroy.notify = handle_session_destroy;
+	wl_signal_add(&session->events.destroy, &drm->session_destroy);
 
 	drm->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &drm->display_destroy);

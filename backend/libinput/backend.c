@@ -121,6 +121,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 	wlr_signal_emit_safe(&wlr_backend->events.destroy, wlr_backend);
 
 	wl_list_remove(&backend->display_destroy.link);
+	wl_list_remove(&backend->session_destroy.link);
 	wl_list_remove(&backend->session_signal.link);
 
 	wlr_list_finish(&backend->wlr_device_lists);
@@ -156,6 +157,12 @@ static void session_signal(struct wl_listener *listener, void *data) {
 	}
 }
 
+static void handle_session_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_libinput_backend *backend =
+		wl_container_of(listener, backend, session_destroy);
+	backend_destroy(&backend->backend);
+}
+
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_libinput_backend *backend =
 		wl_container_of(listener, backend, display_destroy);
@@ -182,6 +189,9 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 
 	backend->session_signal.notify = session_signal;
 	wl_signal_add(&session->session_signal, &backend->session_signal);
+
+	backend->session_destroy.notify = handle_session_destroy;
+	wl_signal_add(&session->events.destroy, &backend->session_destroy);
 
 	backend->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &backend->display_destroy);
