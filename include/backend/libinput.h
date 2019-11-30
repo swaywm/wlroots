@@ -19,6 +19,7 @@ struct wlr_libinput_backend {
 	struct wl_event_source *input_event;
 
 	struct wl_listener display_destroy;
+	struct wl_listener session_destroy;
 	struct wl_listener session_signal;
 
 	struct wlr_list wlr_device_lists; // list of struct wl_list
