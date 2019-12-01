@@ -148,8 +148,6 @@ struct wlr_output {
 	struct wl_listener display_destroy;
 
 	void *data;
-
-	bool block_idle_frame;
 };
 
 struct wlr_output_event_precommit {
