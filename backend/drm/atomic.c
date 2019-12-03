@@ -101,6 +101,7 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn,
 		struct wlr_drm_crtc *crtc,
 		uint32_t fb_id, drmModeModeInfo *mode) {
+	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT;
 	if (mode != NULL) {
 		if (crtc->mode_id != 0) {
 			drmModeDestroyPropertyBlob(drm->fd, crtc->mode_id);
@@ -111,10 +112,6 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 			wlr_log_errno(WLR_ERROR, "Unable to create property blob");
 			return false;
 		}
-	}
-
-	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT;
-	if (mode != NULL) {
 		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
 	} else {
 		flags |= DRM_MODE_ATOMIC_NONBLOCK;
