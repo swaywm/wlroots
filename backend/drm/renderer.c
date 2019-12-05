@@ -81,6 +81,7 @@ bool init_drm_surface(struct wlr_drm_surface *surf,
 			surf->back = NULL;
 		}
 		gbm_surface_destroy(surf->gbm);
+		surf->gbm = NULL;
 	}
 	wlr_egl_destroy_surface(&surf->renderer->egl, surf->egl);
 
