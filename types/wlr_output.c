@@ -791,6 +791,9 @@ static void output_cursor_reset(struct wlr_output_cursor *cursor) {
 	if (cursor->surface != NULL) {
 		wl_list_remove(&cursor->surface_commit.link);
 		wl_list_remove(&cursor->surface_destroy.link);
+		if (cursor->visible) {
+			wlr_surface_send_leave(cursor->surface, cursor->output);
+		}
 		cursor->surface = NULL;
 	}
 }
