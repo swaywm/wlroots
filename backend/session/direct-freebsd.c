@@ -139,6 +139,51 @@ static int vt_handler(int signo, void *data) {
 	return 1;
 }
 
+static bool get_tty_path(int tty, char path[static 11], size_t len) {
+	assert(tty > 0);
+
+	const char prefix[] = "/dev/ttyv";
+	static_assert(sizeof(prefix) + 1 <= 11, "TTY path prefix is too long");
+
+	const size_t prefix_len = sizeof(prefix) - 1;
+	strcpy(path, prefix);
+
+	size_t offset = prefix_len;
+	const int num = tty - 1;
+	if (num == 0) {
+		path[offset++] = '0';
+		path[offset++] = '\0';
+		return true;
+	}
+
+	const int base = 32;
+	for (int remaning = num; remaning > 0; remaning /= base, offset++) {
+		// Return early if the buffer is too small.
+		if (offset + 1 >= len) {
+			return false;
+		}
+
+		const int value = remaning % base;
+		if (value >= 10) {
+			path[offset] = 'a' + value - 10;
+		} else {
+			path[offset] = '0' + value;
+		}
+	}
+
+	const size_t num_len = offset - prefix_len;
+	for (size_t i = 0; i < num_len / 2; i++) {
+		const size_t p1 = prefix_len + i;
+		const size_t p2 = offset - 1 - i;
+		const char tmp = path[p1];
+		path[p1] = path[p2];
+		path[p2] = tmp;
+	}
+
+	path[offset++] = '\0';
+	return true;
+}
+
 static bool setup_tty(struct direct_session *session, struct wl_display *display) {
 	int fd = -1, tty = -1, tty0_fd = -1, old_tty = 1;
 	if ((tty0_fd = open("/dev/ttyv0", O_RDWR | O_CLOEXEC)) < 0) {
@@ -155,7 +200,10 @@ static bool setup_tty(struct direct_session *session, struct wl_display *display
 	}
 	close(tty0_fd);
 	char tty_path[64];
-	snprintf(tty_path, sizeof(tty_path), "/dev/ttyv%d", tty - 1);
+	if (!get_tty_path(tty, tty_path, sizeof(tty_path))) {
+		wlr_log(WLR_ERROR, "Could not get tty %d path", tty);
+		goto error;
+	}
 	wlr_log(WLR_INFO, "Using tty %s", tty_path);
 	fd = open(tty_path, O_RDWR | O_NOCTTY | O_CLOEXEC);
 
