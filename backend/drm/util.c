@@ -39,6 +39,7 @@ static const char *get_manufacturer(uint16_t id) {
 	case ID('A', 'S', 'K'): return "Ask A/S";
 	case ID('A', 'V', 'T'): return "Avtek (Electronics) Pty Ltd";
 	case ID('B', 'N', 'O'): return "Bang & Olufsen";
+	case ID('B', 'N', 'Q'): return "BenQ Corporation";
 	case ID('C', 'M', 'N'): return "Chimei Innolux Corporation";
 	case ID('C', 'M', 'O'): return "Chi Mei Optoelectronics corp.";
 	case ID('C', 'R', 'O'): return "Extraordinary Technologies PTY Limited";
