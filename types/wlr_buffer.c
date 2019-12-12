@@ -96,12 +96,14 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 
 	if (texture == NULL) {
 		wlr_log(WLR_ERROR, "Failed to upload texture");
+		wl_buffer_send_release(resource);
 		return NULL;
 	}
 
 	struct wlr_buffer *buffer = calloc(1, sizeof(struct wlr_buffer));
 	if (buffer == NULL) {
 		wlr_texture_destroy(texture);
+		wl_resource_post_no_memory(resource);
 		return NULL;
 	}
 	buffer->resource = resource;
