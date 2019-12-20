@@ -62,3 +62,4 @@ done like so:
 * *WAYLAND_DISPLAY*, *_WAYLAND_DISPLAY*, *WAYLAND_SOCKET*: if set probe Wayland
   backend in *wlr_backend_autocreate*
 * *XCURSOR_PATH*: directory where xcursors are located
+* *XDG_RUNTIME_DIR*: used to store non persistent temporary files

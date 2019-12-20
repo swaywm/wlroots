@@ -3,6 +3,7 @@ lib_wlr_util = static_library(
 	files(
 		'array.c',
 		'log.c',
+		'os-compatibility.c',
 		'region.c',
 		'shm.c',
 		'signal.c',

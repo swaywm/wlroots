@@ -14,4 +14,6 @@
 #mesondefine WLR_HAS_XCB_ERRORS
 #mesondefine WLR_HAS_XCB_ICCCM
 
+#mesondefine WLR_HAS_POSIX_FALLOCATE
+
 #endif

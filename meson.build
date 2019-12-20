@@ -83,6 +83,7 @@ conf_data.set10('WLR_HAS_LIBCAP', false)
 conf_data.set10('WLR_HAS_SYSTEMD', false)
 conf_data.set10('WLR_HAS_ELOGIND', false)
 conf_data.set10('WLR_HAS_RDP_BACKEND', false)
+conf_data.set10('WLR_USE_XDG_DIR', get_option('xdg-dir'))
 conf_data.set10('WLR_HAS_X11_BACKEND', false)
 conf_data.set10('WLR_HAS_XWAYLAND', false)
 conf_data.set10('WLR_HAS_XCB_ERRORS', false)
@@ -127,6 +128,10 @@ endif
 if logind.found()
 	conf_data.set10('WLR_HAS_' + get_option('logind-provider').to_upper(), true)
 	wlr_deps += logind
+endif
+
+if cc.has_header_symbol('fcntl.h', 'posix_fallocate', prefix: '#define _POSIX_C_SOURCE 200112L')
+       conf_data.set('WLR_HAS_POSIX_FALLOCATE', true)
 endif
 
 if libinput.found()
@@ -203,6 +208,7 @@ summary = [
 	'     elogind: @0@'.format(conf_data.get('WLR_HAS_ELOGIND', false)),
 	'    xwayland: @0@'.format(conf_data.get('WLR_HAS_XWAYLAND', false)),
 	' rdp_backend: @0@'.format(conf_data.get('WLR_HAS_RDP_BACKEND', false)),
+	'     xdg_dir: @0@'.format(conf_data.get('WLR_USE_XDG_DIR', false)),
 	' x11_backend: @0@'.format(conf_data.get('WLR_HAS_X11_BACKEND', false)),
 	'   xcb-icccm: @0@'.format(conf_data.get('WLR_HAS_XCB_ICCCM', false)),
 	'  xcb-errors: @0@'.format(conf_data.get('WLR_HAS_XCB_ERRORS', false)),

@@ -22,6 +22,7 @@
  */
 
 #define _POSIX_C_SOURCE 200112L
+#define _XOPEN_SOURCE 700
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -69,13 +70,23 @@ static struct wl_buffer *create_shm_buffer(enum wl_shm_format fmt,
 		int width, int height, int stride, void **data_out) {
 	int size = stride * height;
 
+#ifndef WLR_USE_XDG_DIR
 	const char shm_name[] = "/wlroots-screencopy";
 	int fd = shm_open(shm_name, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+#else
+	char shm_name[] = "/tmp/wlroots-shared-XXXXXX";
+	int fd = mkstemp(shm_name);
+#endif
+
 	if (fd < 0) {
-		fprintf(stderr, "shm_open failed\n");
+		fprintf(stderr, "tmp file open failed\n");
 		return NULL;
 	}
+#ifndef WLR_USE_XDG_DIR
 	shm_unlink(shm_name);
+#else
+	unlink(shm_name);
+#endif
 
 	int ret;
 	while ((ret = ftruncate(fd, size)) == EINTR) {
