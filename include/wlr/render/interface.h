@@ -82,6 +82,6 @@ struct wlr_texture_impl {
 };
 
 void wlr_texture_init(struct wlr_texture *texture,
-	const struct wlr_texture_impl *impl);
+	struct wlr_renderer *renderer, const struct wlr_texture_impl *impl);
 
 #endif

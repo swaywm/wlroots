@@ -18,7 +18,7 @@ struct wlr_gles2_procs gles2_procs = {0};
 
 static const struct wlr_renderer_impl renderer_impl;
 
-static struct wlr_gles2_renderer *gles2_get_renderer(
+struct wlr_gles2_renderer *gles2_get_renderer(
 		struct wlr_renderer *wlr_renderer) {
 	assert(wlr_renderer->impl == &renderer_impl);
 	return (struct wlr_gles2_renderer *)wlr_renderer;
@@ -334,22 +334,19 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 static struct wlr_texture *gles2_texture_from_pixels(
 		struct wlr_renderer *wlr_renderer, enum wl_shm_format wl_fmt,
 		uint32_t stride, uint32_t width, uint32_t height, const void *data) {
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	return wlr_gles2_texture_from_pixels(renderer->egl, wl_fmt, stride, width,
+	return wlr_gles2_texture_from_pixels(wlr_renderer, wl_fmt, stride, width,
 		height, data);
 }
 
 static struct wlr_texture *gles2_texture_from_wl_drm(
 		struct wlr_renderer *wlr_renderer, struct wl_resource *data) {
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	return wlr_gles2_texture_from_wl_drm(renderer->egl, data);
+	return wlr_gles2_texture_from_wl_drm(wlr_renderer, data);
 }
 
 static struct wlr_texture *gles2_texture_from_dmabuf(
 		struct wlr_renderer *wlr_renderer,
 		struct wlr_dmabuf_attributes *attribs) {
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	return wlr_gles2_texture_from_dmabuf(renderer->egl, attribs);
+	return wlr_gles2_texture_from_dmabuf(wlr_renderer, attribs);
 }
 
 static bool gles2_init_wl_display(struct wlr_renderer *wlr_renderer,

@@ -118,6 +118,8 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 		return;
 	}
 
+	wl_list_remove(&wlr_texture->renderer_destroy.link);
+
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
 
 	if (!wlr_egl_is_current(texture->egl)) {
@@ -142,9 +144,28 @@ static const struct wlr_texture_impl texture_impl = {
 	.destroy = gles2_texture_destroy,
 };
 
-struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
+static struct wlr_gles2_texture *create_gles2_texture(
+	struct wlr_renderer *renderer){
+	struct wlr_gles2_texture *texture;
+
+	texture = calloc(1, sizeof(struct wlr_gles2_texture));
+	if (texture == NULL) {
+		wlr_log(WLR_ERROR, "Allocation failed");
+		return NULL;
+	}
+	wlr_texture_init(&texture->wlr_texture, renderer,
+		&texture_impl);
+
+	return texture;
+}
+
+struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_renderer *renderer,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data) {
+
+	struct wlr_gles2_renderer *gles_renderer = gles2_get_renderer(renderer);
+	struct wlr_egl *egl = gles_renderer->egl;
+
 	if (!wlr_egl_is_current(egl)) {
 		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 	}
@@ -155,13 +176,10 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 		return NULL;
 	}
 
-	struct wlr_gles2_texture *texture =
-		calloc(1, sizeof(struct wlr_gles2_texture));
+	struct wlr_gles2_texture *texture = create_gles2_texture(renderer);
 	if (texture == NULL) {
-		wlr_log(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
-	wlr_texture_init(&texture->wlr_texture, &texture_impl);
 	texture->egl = egl;
 	texture->width = width;
 	texture->height = height;
@@ -185,8 +203,11 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 	return &texture->wlr_texture;
 }
 
-struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
+struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_renderer *renderer,
 		struct wl_resource *data) {
+	struct wlr_gles2_renderer *gles_renderer = gles2_get_renderer(renderer);
+	struct wlr_egl *egl = gles_renderer->egl;
+
 	if (!wlr_egl_is_current(egl)) {
 		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 	}
@@ -195,13 +216,10 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 		return NULL;
 	}
 
-	struct wlr_gles2_texture *texture =
-		calloc(1, sizeof(struct wlr_gles2_texture));
+	struct wlr_gles2_texture *texture = create_gles2_texture(renderer);
 	if (texture == NULL) {
-		wlr_log(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
-	wlr_texture_init(&texture->wlr_texture, &texture_impl);
 	texture->egl = egl;
 
 	EGLint fmt;
@@ -241,8 +259,11 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 	return &texture->wlr_texture;
 }
 
-struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
+struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_renderer *renderer,
 		struct wlr_dmabuf_attributes *attribs) {
+	struct wlr_gles2_renderer *gles_renderer = gles2_get_renderer(renderer);
+	struct wlr_egl *egl = gles_renderer->egl;
+
 	if (!wlr_egl_is_current(egl)) {
 		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 	}
@@ -269,13 +290,10 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		break;
 	}
 
-	struct wlr_gles2_texture *texture =
-		calloc(1, sizeof(struct wlr_gles2_texture));
+	struct wlr_gles2_texture *texture = create_gles2_texture(renderer);
 	if (texture == NULL) {
-		wlr_log(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
-	wlr_texture_init(&texture->wlr_texture, &texture_impl);
 	texture->egl = egl;
 	texture->width = attribs->width;
 	texture->height = attribs->height;

@@ -3,12 +3,24 @@
 #include <stdlib.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_texture.h>
+#include <wlr/render/wlr_renderer.h>
+
+static void wlr_texture_handle_renderer_destroy(struct wl_listener *listener,
+		 void *data){
+	struct wlr_texture *wlr_texture;
+	wlr_texture = wl_container_of(listener, wlr_texture, renderer_destroy);
+	wlr_texture_destroy(wlr_texture);
+}
+
 
 void wlr_texture_init(struct wlr_texture *texture,
-		const struct wlr_texture_impl *impl) {
+		struct wlr_renderer *renderer, const struct wlr_texture_impl *impl) {
 	assert(impl->get_size);
 	assert(impl->write_pixels);
 	texture->impl = impl;
+
+	texture->renderer_destroy.notify = wlr_texture_handle_renderer_destroy;
+	wl_signal_add(&renderer->events.destroy, &texture->renderer_destroy);
 }
 
 void wlr_texture_destroy(struct wlr_texture *texture) {
