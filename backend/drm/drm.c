@@ -1370,9 +1370,10 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 					mode->wlr_mode.preferred = true;
 				}
 
-				wlr_log(WLR_INFO, "  %"PRId32"x%"PRId32"@%"PRId32,
+				wlr_log(WLR_INFO, "  %"PRId32"x%"PRId32"@%"PRId32" %s",
 					mode->wlr_mode.width, mode->wlr_mode.height,
-					mode->wlr_mode.refresh);
+					mode->wlr_mode.refresh,
+					mode->wlr_mode.preferred ? "(preferred)" : "");
 
 				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
 			}
