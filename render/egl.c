@@ -133,6 +133,9 @@ out:
 
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		EGLint *config_attribs, EGLint visual_id) {
+	// Check for EGL_EXT_platform_base before creating a display, because we
+	// actually use this extension to create displays. Check for EGL_KHR_debug
+	// before creating display to get EGL logs as soon as possible.
 	const char *exts_str = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
 	if (exts_str == NULL) {
 		wlr_log(WLR_ERROR, "Failed to query EGL extensions");
@@ -147,6 +150,52 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		"eglGetPlatformDisplayEXT");
 	load_egl_proc(&egl->procs.eglCreatePlatformWindowSurfaceEXT,
 		"eglCreatePlatformWindowSurfaceEXT");
+
+	if (check_egl_ext(exts_str, "EGL_KHR_debug")) {
+		load_egl_proc(&egl->procs.eglDebugMessageControlKHR,
+			"eglDebugMessageControlKHR");
+
+		static const EGLAttrib debug_attribs[] = {
+			EGL_DEBUG_MSG_CRITICAL_KHR, EGL_TRUE,
+			EGL_DEBUG_MSG_ERROR_KHR, EGL_TRUE,
+			EGL_DEBUG_MSG_WARN_KHR, EGL_TRUE,
+			EGL_DEBUG_MSG_INFO_KHR, EGL_TRUE,
+			EGL_NONE,
+		};
+		egl->procs.eglDebugMessageControlKHR(egl_log, debug_attribs);
+	}
+
+	if (eglBindAPI(EGL_OPENGL_ES_API) == EGL_FALSE) {
+		wlr_log(WLR_ERROR, "Failed to bind to the OpenGL ES API");
+		goto error;
+	}
+
+	if (platform == EGL_PLATFORM_SURFACELESS_MESA) {
+		assert(remote_display == NULL);
+		egl->display = egl->procs.eglGetPlatformDisplayEXT(platform,
+			EGL_DEFAULT_DISPLAY, NULL);
+	} else {
+		egl->display = egl->procs.eglGetPlatformDisplayEXT(platform,
+			remote_display, NULL);
+	}
+	if (egl->display == EGL_NO_DISPLAY) {
+		wlr_log(WLR_ERROR, "Failed to create EGL display");
+		goto error;
+	}
+
+	egl->platform = platform;
+
+	EGLint major, minor;
+	if (eglInitialize(egl->display, &major, &minor) == EGL_FALSE) {
+		wlr_log(WLR_ERROR, "Failed to initialize EGL");
+		goto error;
+	}
+
+	exts_str = eglQueryString(egl->display, EGL_EXTENSIONS);
+	if (exts_str == NULL) {
+		wlr_log(WLR_ERROR, "Failed to query EGL extensions");
+		return false;
+	}
 
 	if (check_egl_ext(exts_str, "EGL_KHR_image_base")) {
 		egl->exts.image_base_khr = true;
@@ -193,46 +242,6 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 			"eglUnbindWaylandDisplayWL");
 		load_egl_proc(&egl->procs.eglQueryWaylandBufferWL,
 			"eglQueryWaylandBufferWL");
-	}
-
-	if (check_egl_ext(exts_str, "EGL_KHR_debug")) {
-		load_egl_proc(&egl->procs.eglDebugMessageControlKHR,
-			"eglDebugMessageControlKHR");
-
-		static const EGLAttrib debug_attribs[] = {
-			EGL_DEBUG_MSG_CRITICAL_KHR, EGL_TRUE,
-			EGL_DEBUG_MSG_ERROR_KHR, EGL_TRUE,
-			EGL_DEBUG_MSG_WARN_KHR, EGL_TRUE,
-			EGL_DEBUG_MSG_INFO_KHR, EGL_TRUE,
-			EGL_NONE,
-		};
-		egl->procs.eglDebugMessageControlKHR(egl_log, debug_attribs);
-	}
-
-	if (eglBindAPI(EGL_OPENGL_ES_API) == EGL_FALSE) {
-		wlr_log(WLR_ERROR, "Failed to bind to the OpenGL ES API");
-		goto error;
-	}
-
-	if (platform == EGL_PLATFORM_SURFACELESS_MESA) {
-		assert(remote_display == NULL);
-		egl->display = egl->procs.eglGetPlatformDisplayEXT(platform,
-			EGL_DEFAULT_DISPLAY, NULL);
-	} else {
-		egl->display = egl->procs.eglGetPlatformDisplayEXT(platform,
-			remote_display, NULL);
-	}
-	if (egl->display == EGL_NO_DISPLAY) {
-		wlr_log(WLR_ERROR, "Failed to create EGL display");
-		goto error;
-	}
-
-	egl->platform = platform;
-
-	EGLint major, minor;
-	if (eglInitialize(egl->display, &major, &minor) == EGL_FALSE) {
-		wlr_log(WLR_ERROR, "Failed to initialize EGL");
-		goto error;
 	}
 
 	if (!egl_get_config(egl->display, config_attribs, &egl->config, visual_id)) {
