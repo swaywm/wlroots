@@ -14,7 +14,6 @@ packages:
   - xcb-util-errors
   - xcb-util-image
   - xcb-util-wm
-  - xorgproto
 sources:
   - https://github.com/swaywm/wlroots
 tasks:
