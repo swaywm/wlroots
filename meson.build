@@ -194,36 +194,3 @@ pkgconfig.generate(lib_wlr,
 	name: meson.project_name(),
 	description: 'Wayland compositor library',
 )
-
-git = find_program('git', required: false)
-if git.found()
-	all_files = run_command(
-		git,
-		'--git-dir=@0@/.git'.format(meson.current_source_dir()),
-		'ls-files',
-		':/*.[ch]',
-	)
-	all_files = files(all_files.stdout().split())
-
-	etags = find_program('etags', required: false)
-	if etags.found() and all_files.length() > 0
-		custom_target(
-			'etags',
-			build_by_default: true,
-			input: all_files,
-			output: 'TAGS',
-			command: [etags, '-o', '@OUTPUT@', '@INPUT@'],
-		)
-	endif
-
-	ctags = find_program('ctags', required: false)
-	if ctags.found() and all_files.length() > 0
-		custom_target(
-			'ctags',
-			build_by_default: true,
-			input: all_files,
-			output: 'tags',
-			command: [ctags, '-f', '@OUTPUT@', '@INPUT@'],
-		)
-	endif
-endif
