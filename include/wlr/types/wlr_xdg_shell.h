@@ -244,6 +244,11 @@ struct wlr_xdg_toplevel_show_window_menu_event {
 
 struct wlr_xdg_shell *wlr_xdg_shell_create(struct wl_display *display);
 
+/** Returns the wlr_xdg_surface from an xdg_surface resource.
+ *
+ * Aborts if the resource doesn't have the correct type. Returns NULL if the
+ * resource is inert.
+ */
 struct wlr_xdg_surface *wlr_xdg_surface_from_resource(
 		struct wl_resource *resource);
 struct wlr_xdg_surface *wlr_xdg_surface_from_popup_resource(
