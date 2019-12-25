@@ -26,39 +26,12 @@ static void send_geometry(struct wl_resource *resource) {
 		output->make, output->model, output->transform);
 }
 
-static void send_all_modes(struct wl_resource *resource) {
-	struct wlr_output *output = wlr_output_from_resource(resource);
-
-	struct wlr_output_mode *mode;
-	wl_list_for_each(mode, &output->modes, link) {
-		uint32_t flags = 0;
-		if (mode->preferred) {
-			flags |= WL_OUTPUT_MODE_PREFERRED;
-		}
-		if (output->current_mode == mode) {
-			flags |= WL_OUTPUT_MODE_CURRENT;
-		}
-		wl_output_send_mode(resource, flags, mode->width, mode->height,
-			mode->refresh);
-	}
-
-	if (wl_list_empty(&output->modes)) {
-		// Output has no mode, send the current width/height
-		wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT,
-			output->width, output->height, output->refresh);
-	}
-}
-
 static void send_current_mode(struct wl_resource *resource) {
 	struct wlr_output *output = wlr_output_from_resource(resource);
 	if (output->current_mode != NULL) {
 		struct wlr_output_mode *mode = output->current_mode;
-		uint32_t flags = WL_OUTPUT_MODE_CURRENT;
-		if (mode->preferred) {
-			flags |= WL_OUTPUT_MODE_PREFERRED;
-		}
-		wl_output_send_mode(resource, flags, mode->width, mode->height,
-			mode->refresh);
+		wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT,
+			mode->width, mode->height, mode->refresh);
 	} else {
 		// Output has no mode
 		wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT, output->width,
@@ -109,7 +82,7 @@ static void output_bind(struct wl_client *wl_client, void *data,
 	wl_list_insert(&output->resources, wl_resource_get_link(resource));
 
 	send_geometry(resource);
-	send_all_modes(resource);
+	send_current_mode(resource);
 	send_scale(resource);
 	send_done(resource);
 }
