@@ -22,3 +22,7 @@ tasks:
   - build: |
       cd wlroots
       ninja -C build
+  - build-features-disabled: |
+      cd wlroots
+      meson build --reconfigure -Dauto_features=disabled
+      ninja -C build
