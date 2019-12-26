@@ -278,6 +278,11 @@ struct wlr_rdp_output *wlr_rdp_output_create(struct wlr_rdp_backend *backend,
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "RDP-%d",
 		wl_list_length(&backend->clients));
 
+	char description[128];
+	snprintf(description, sizeof(description),
+		"RDP output %d", wl_list_length(&backend->clients));
+	wlr_output_set_description(wlr_output, description);
+
 	if (!wlr_egl_make_current(&output->backend->egl, output->egl_surface,
 			NULL)) {
 		goto error;

@@ -149,6 +149,11 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 		++x11->last_output_num);
 	parse_xcb_setup(wlr_output, x11->xcb);
 
+	char description[128];
+	snprintf(description, sizeof(description),
+		"X11 output %zd", x11->last_output_num);
+	wlr_output_set_description(wlr_output, description);
+
 	uint32_t mask = XCB_CW_EVENT_MASK;
 	uint32_t values[] = {
 		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY
