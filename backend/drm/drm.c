@@ -1348,6 +1348,12 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			parse_edid(&wlr_conn->output, edid_len, edid);
 			free(edid);
 
+			struct wlr_output *output = &wlr_conn->output;
+			char description[128];
+			snprintf(description, sizeof(description), "%s %s %s (%s)",
+				output->make, output->model, output->serial, output->name);
+			wlr_output_set_description(output, description);
+
 			wlr_log(WLR_INFO, "Detected modes:");
 
 			for (int i = 0; i < drm_conn->count_modes; ++i) {

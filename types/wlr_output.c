@@ -270,6 +270,22 @@ void wlr_output_set_subpixel(struct wlr_output *output,
 	wlr_output_schedule_done(output);
 }
 
+void wlr_output_set_description(struct wlr_output *output, const char *desc) {
+	if (output->description != NULL && desc != NULL &&
+			strcmp(output->description, desc) == 0) {
+		return;
+	}
+
+	free(output->description);
+	if (desc != NULL) {
+		output->description = strdup(desc);
+	} else {
+		output->description = NULL;
+	}
+
+	wlr_signal_emit_safe(&output->events.description, output);
+}
+
 static void schedule_done_handle_idle_timer(void *data) {
 	struct wlr_output *output = data;
 	output->idle_done = NULL;
@@ -323,6 +339,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.mode);
 	wl_signal_init(&output->events.scale);
 	wl_signal_init(&output->events.transform);
+	wl_signal_init(&output->events.description);
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->damage);
 	pixman_region32_init(&output->pending.damage);
@@ -364,6 +381,8 @@ void wlr_output_destroy(struct wlr_output *output) {
 	if (output->idle_done != NULL) {
 		wl_event_source_remove(output->idle_done);
 	}
+
+	free(output->description);
 
 	pixman_region32_fini(&output->pending.damage);
 	pixman_region32_fini(&output->damage);

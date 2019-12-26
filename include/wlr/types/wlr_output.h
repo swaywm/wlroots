@@ -90,6 +90,7 @@ struct wlr_output {
 	struct wl_list resources;
 
 	char name[24];
+	char *description; // may be NULL
 	char make[56];
 	char model[16];
 	char serial[16];
@@ -133,6 +134,7 @@ struct wlr_output {
 		struct wl_signal mode;
 		struct wl_signal scale;
 		struct wl_signal transform;
+		struct wl_signal description;
 		struct wl_signal destroy;
 	} events;
 
@@ -214,6 +216,7 @@ void wlr_output_set_transform(struct wlr_output *output,
 void wlr_output_set_scale(struct wlr_output *output, float scale);
 void wlr_output_set_subpixel(struct wlr_output *output,
 	enum wl_output_subpixel subpixel);
+void wlr_output_set_description(struct wlr_output *output, const char *desc);
 /**
  * Schedule a done event.
  *

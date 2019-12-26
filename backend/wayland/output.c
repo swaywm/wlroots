@@ -458,6 +458,11 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%zd",
 		++backend->last_output_num);
 
+	char description[128];
+	snprintf(description, sizeof(description),
+		"Wayland output %zd", backend->last_output_num);
+	wlr_output_set_description(wlr_output, description);
+
 	output->backend = backend;
 	wl_list_init(&output->presentation_feedbacks);
 
