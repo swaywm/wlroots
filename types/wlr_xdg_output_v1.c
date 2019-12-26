@@ -10,6 +10,7 @@
 
 #define OUTPUT_MANAGER_VERSION 3
 #define OUTPUT_DONE_DEPRECATED_SINCE_VERSION 3
+#define OUTPUT_DESCRIPTION_MUTABLE_SINCE_VERSION 3
 
 static void output_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -70,6 +71,7 @@ static void output_destroy(struct wlr_xdg_output_v1 *output) {
 		wl_list_init(wl_resource_get_link(resource));
 	}
 	wl_list_remove(&output->destroy.link);
+	wl_list_remove(&output->description.link);
 	wl_list_remove(&output->link);
 	free(output);
 }
@@ -124,11 +126,10 @@ static void output_manager_handle_get_xdg_output(struct wl_client *client,
 	if (version >= ZXDG_OUTPUT_V1_NAME_SINCE_VERSION) {
 		zxdg_output_v1_send_name(xdg_output_resource, output->name);
 	}
-	if (version >= ZXDG_OUTPUT_V1_DESCRIPTION_SINCE_VERSION) {
-		char description[128];
-		snprintf(description, sizeof(description), "%s %s %s (%s)",
-			output->make, output->model, output->serial, output->name);
-		zxdg_output_v1_send_description(xdg_output_resource, description);
+	if (version >= ZXDG_OUTPUT_V1_DESCRIPTION_SINCE_VERSION &&
+			output->description != NULL) {
+		zxdg_output_v1_send_description(xdg_output_resource,
+			output->description);
 	}
 
 	output_send_details(xdg_output, xdg_output_resource);
@@ -161,6 +162,25 @@ static void handle_output_destroy(struct wl_listener *listener, void *data) {
 	output_destroy(output);
 }
 
+static void handle_output_description(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xdg_output_v1 *xdg_output =
+		wl_container_of(listener, xdg_output, description);
+	struct wlr_output *output = xdg_output->layout_output->output;
+
+	if (output->description == NULL) {
+		return;
+	}
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &xdg_output->resources) {
+		if (wl_resource_get_version(resource) >=
+				OUTPUT_DESCRIPTION_MUTABLE_SINCE_VERSION) {
+			zxdg_output_v1_send_description(resource, output->description);
+		}
+	}
+}
+
 static void add_output(struct wlr_xdg_output_manager_v1 *manager,
 		struct wlr_output_layout_output *layout_output) {
 	struct wlr_xdg_output_v1 *output = calloc(1, sizeof(struct wlr_xdg_output_v1));
@@ -172,6 +192,9 @@ static void add_output(struct wlr_xdg_output_manager_v1 *manager,
 	output->layout_output = layout_output;
 	output->destroy.notify = handle_output_destroy;
 	wl_signal_add(&layout_output->events.destroy, &output->destroy);
+	output->description.notify = handle_output_description;
+	wl_signal_add(&layout_output->output->events.description,
+		&output->description);
 	wl_list_insert(&manager->outputs, &output->link);
 	output_update(output);
 }
