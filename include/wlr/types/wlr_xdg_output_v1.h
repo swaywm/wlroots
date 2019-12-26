@@ -22,6 +22,7 @@ struct wlr_xdg_output_v1 {
 	int32_t width, height;
 
 	struct wl_listener destroy;
+	struct wl_listener description;
 };
 
 struct wlr_xdg_output_manager_v1 {
