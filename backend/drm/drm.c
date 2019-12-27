@@ -446,7 +446,9 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		}
 	}
 
-	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+	// TODO: support modesetting with a buffer
+	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER &&
+			!(output->pending.committed & WLR_OUTPUT_STATE_MODE)) {
 		if (!drm_connector_commit_buffer(output)) {
 			return false;
 		}

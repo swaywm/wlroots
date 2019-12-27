@@ -224,7 +224,7 @@ void wlr_output_destroy_global(struct wlr_output *output);
  */
 struct wlr_output_mode *wlr_output_preferred_mode(struct wlr_output *output);
 /**
- * Sets the output mode. Enables the output if it's currently disabled.
+ * Sets the output mode. The output needs to be enabled.
  *
  * Mode is double-buffered state, see `wlr_output_commit`.
  */
@@ -232,7 +232,8 @@ void wlr_output_set_mode(struct wlr_output *output,
 	struct wlr_output_mode *mode);
 /**
  * Sets a custom mode on the output. If modes are available, they are preferred.
- * Setting `refresh` to zero lets the backend pick a preferred value.
+ * Setting `refresh` to zero lets the backend pick a preferred value. The
+ * output needs to be enabled.
  *
  * Custom mode is double-buffered state, see `wlr_output_commit`.
  */
@@ -274,15 +275,19 @@ void wlr_output_effective_resolution(struct wlr_output *output,
 /**
  * Attach the renderer's buffer to the output. Compositors must call this
  * function before rendering. After they are done rendering, they should call
- * `wlr_output_commit` to submit the new frame.
+ * `wlr_output_commit` to submit the new frame. The output needs to be
+ * enabled.
  *
  * If non-NULL, `buffer_age` is set to the drawing buffer age in number of
  * frames or -1 if unknown. This is useful for damage tracking.
+ *
+ * If the compositor decides not to render after calling this function, it
+ * must call wlr_output_rollback.
  */
 bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age);
 /**
  * Attach a buffer to the output. Compositors should call `wlr_output_commit`
- * to submit the new frame.
+ * to submit the new frame. The output needs to be enabled.
  */
 bool wlr_output_attach_buffer(struct wlr_output *output,
 	struct wlr_buffer *buffer);
@@ -314,6 +319,10 @@ void wlr_output_set_damage(struct wlr_output *output,
  * On failure, the pending changes are rolled back.
  */
 bool wlr_output_commit(struct wlr_output *output);
+/**
+ * Discard the pending output state.
+ */
+void wlr_output_rollback(struct wlr_output *output);
 /**
  * Manually schedules a `frame` event. If a `frame` event is already pending,
  * it is a no-op.

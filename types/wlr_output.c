@@ -483,12 +483,26 @@ bool wlr_output_commit(struct wlr_output *output) {
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		if (output->frame_pending) {
 			wlr_log(WLR_ERROR, "Tried to commit a buffer while a frame is pending");
-			return false;
+			goto error;
 		}
 		if (output->idle_frame != NULL) {
 			wl_event_source_remove(output->idle_frame);
 			output->idle_frame = NULL;
 		}
+	}
+
+	bool enabled = output->enabled;
+	if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
+		enabled = output->pending.enabled;
+	}
+
+	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+		wlr_log(WLR_ERROR, "Tried to commit a buffer on a disabled output");
+		goto error;
+	}
+	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_MODE) {
+		wlr_log(WLR_ERROR, "Tried to modeset a disabled output");
+		goto error;
 	}
 
 	struct timespec now;
@@ -554,6 +568,14 @@ bool wlr_output_commit(struct wlr_output *output) {
 
 	output_state_clear(&output->pending);
 	return true;
+
+error:
+	output_state_clear(&output->pending);
+	return false;
+}
+
+void wlr_output_rollback(struct wlr_output *output) {
+	output_state_clear(&output->pending);
 }
 
 bool wlr_output_attach_buffer(struct wlr_output *output,
