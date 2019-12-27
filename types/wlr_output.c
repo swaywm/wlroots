@@ -156,6 +156,7 @@ static void output_update_matrix(struct wlr_output *output) {
 
 void wlr_output_enable(struct wlr_output *output, bool enable) {
 	if (output->enabled == enable) {
+		output->pending.committed &= ~WLR_OUTPUT_STATE_ENABLED;
 		return;
 	}
 
@@ -175,11 +176,12 @@ static void output_state_clear_mode(struct wlr_output_state *state) {
 
 void wlr_output_set_mode(struct wlr_output *output,
 		struct wlr_output_mode *mode) {
+	output_state_clear_mode(&output->pending);
+
 	if (output->current_mode == mode) {
 		return;
 	}
 
-	output_state_clear_mode(&output->pending);
 	output->pending.committed |= WLR_OUTPUT_STATE_MODE;
 	output->pending.mode_type = WLR_OUTPUT_STATE_MODE_FIXED;
 	output->pending.mode = mode;
@@ -187,12 +189,13 @@ void wlr_output_set_mode(struct wlr_output *output,
 
 void wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 		int32_t height, int32_t refresh) {
+	output_state_clear_mode(&output->pending);
+
 	if (output->width == width && output->height == height &&
 			output->refresh == refresh) {
 		return;
 	}
 
-	output_state_clear_mode(&output->pending);
 	output->pending.committed |= WLR_OUTPUT_STATE_MODE;
 	output->pending.mode_type = WLR_OUTPUT_STATE_MODE_CUSTOM;
 	output->pending.custom_mode.width = width;
@@ -236,6 +239,7 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 void wlr_output_set_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
 	if (output->transform == transform) {
+		output->pending.committed &= ~WLR_OUTPUT_STATE_TRANSFORM;
 		return;
 	}
 
@@ -245,6 +249,7 @@ void wlr_output_set_transform(struct wlr_output *output,
 
 void wlr_output_set_scale(struct wlr_output *output, float scale) {
 	if (output->scale == scale) {
+		output->pending.committed &= ~WLR_OUTPUT_STATE_SCALE;
 		return;
 	}
 
