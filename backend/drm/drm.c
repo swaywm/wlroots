@@ -422,12 +422,6 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		return false;
 	}
 
-	if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
-		if (!enable_drm_connector(output, output->pending.enabled)) {
-			return false;
-		}
-	}
-
 	if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
 		switch (output->pending.mode_type) {
 		case WLR_OUTPUT_STATE_MODE_FIXED:
@@ -443,6 +437,12 @@ static bool drm_connector_commit(struct wlr_output *output) {
 				return false;
 			}
 			break;
+		}
+	}
+
+	if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
+		if (!enable_drm_connector(output, output->pending.enabled)) {
+			return false;
 		}
 	}
 
