@@ -648,12 +648,15 @@ static void server_new_output(struct wl_listener *listener, void *data) {
 	/* Some backends don't have modes. DRM+KMS does, and we need to set a mode
 	 * before we can use the output. The mode is a tuple of (width, height,
 	 * refresh rate), and each monitor supports only a specific set of modes. We
-	 * just pick the first, a more sophisticated compositor would let the user
-	 * configure it or pick the mode the display advertises as preferred. */
+	 * just pick the monitor's preferred mode, a more sophisticated compositor
+	 * would let the user configure it. */
 	if (!wl_list_empty(&wlr_output->modes)) {
-		struct wlr_output_mode *mode =
-			wl_container_of(wlr_output->modes.prev, mode, link);
+		struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
 		wlr_output_set_mode(wlr_output, mode);
+		wlr_output_enable(wlr_output, true);
+		if (!wlr_output_commit(wlr_output)) {
+			return;
+		}
 	}
 
 	/* Allocates and configures our state for this output */
