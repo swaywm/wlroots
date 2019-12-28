@@ -39,20 +39,30 @@ void wlr_renderer_destroy(struct wlr_renderer *r) {
 }
 
 void wlr_renderer_begin(struct wlr_renderer *r, int width, int height) {
+	assert(!r->rendering);
+
 	r->impl->begin(r, width, height);
+
+	r->rendering = true;
 }
 
 void wlr_renderer_end(struct wlr_renderer *r) {
+	assert(r->rendering);
+
 	if (r->impl->end) {
 		r->impl->end(r);
 	}
+
+	r->rendering = false;
 }
 
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]) {
+	assert(r->rendering);
 	r->impl->clear(r, color);
 }
 
 void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box) {
+	assert(r->rendering);
 	r->impl->scissor(r, box);
 }
 
@@ -71,6 +81,7 @@ bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
 bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
 		struct wlr_texture *texture, const float matrix[static 9],
 		float alpha) {
+	assert(r->rendering);
 	return r->impl->render_texture_with_matrix(r, texture, matrix, alpha);
 }
 
@@ -85,6 +96,7 @@ void wlr_render_rect(struct wlr_renderer *r, const struct wlr_box *box,
 
 void wlr_render_quad_with_matrix(struct wlr_renderer *r,
 		const float color[static 4], const float matrix[static 9]) {
+	assert(r->rendering);
 	r->impl->render_quad_with_matrix(r, color, matrix);
 }
 
@@ -99,6 +111,7 @@ void wlr_render_ellipse(struct wlr_renderer *r, const struct wlr_box *box,
 
 void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
 		const float color[static 4], const float matrix[static 9]) {
+	assert(r->rendering);
 	r->impl->render_ellipse_with_matrix(r, color, matrix);
 }
 

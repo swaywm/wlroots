@@ -25,6 +25,8 @@ struct wlr_drm_format_set;
 struct wlr_renderer {
 	const struct wlr_renderer_impl *impl;
 
+	bool rendering;
+
 	struct {
 		struct wl_signal destroy;
 	} events;
