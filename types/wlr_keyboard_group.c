@@ -200,19 +200,15 @@ static void handle_keyboard_repeat_info(struct wl_listener *listener,
 static void refresh_state(struct keyboard_group_device *device,
 		enum wlr_key_state state) {
 	for (size_t i = 0; i < device->keyboard->num_keycodes; i++) {
-		struct wlr_event_keyboard_key *event =
-			calloc(1, sizeof(struct wlr_event_keyboard_key));
-		if (!event) {
-			wlr_log(WLR_ERROR, "Failed to allocate wlr_event_keyboard_key");
-			continue;  // TODO: Handle corrupt state somehow
-		}
 		struct timespec now;
 		clock_gettime(CLOCK_MONOTONIC, &now);
-		event->time_msec = (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
-		event->keycode = device->keyboard->keycodes[i];
-		event->update_state = true;
-		event->state = state;
-		handle_keyboard_key(&device->key, event);
+		struct wlr_event_keyboard_key event = {
+			.time_msec = (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000,
+			.keycode = device->keyboard->keycodes[i],
+			.update_state = true,
+			.state = state
+		};
+		handle_keyboard_key(&device->key, &event);
 	}
 }
 
