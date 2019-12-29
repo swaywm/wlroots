@@ -88,6 +88,7 @@ static void virtual_keyboard_key(struct wl_client *client,
 		.keycode = key,
 		.update_state = false,
 		.state = state,
+		.group_update = false,
 	};
 	wlr_keyboard_notify_key(keyboard->input_device.keyboard, &event);
 }

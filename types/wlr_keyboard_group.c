@@ -206,7 +206,8 @@ static void refresh_state(struct keyboard_group_device *device,
 			.time_msec = (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000,
 			.keycode = device->keyboard->keycodes[i],
 			.update_state = true,
-			.state = state
+			.state = state,
+			.group_update = true,
 		};
 		handle_keyboard_key(&device->key, &event);
 	}

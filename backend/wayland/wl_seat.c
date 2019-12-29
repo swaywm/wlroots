@@ -215,6 +215,7 @@ static void keyboard_handle_enter(void *data, struct wl_keyboard *wl_keyboard,
 			.state = WLR_KEY_PRESSED,
 			.time_msec = time,
 			.update_state = false,
+			.group_update = false,
 		};
 		wlr_keyboard_notify_key(dev->keyboard, &event);
 	}
@@ -238,6 +239,7 @@ static void keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
 			.state = WLR_KEY_RELEASED,
 			.time_msec = time,
 			.update_state = false,
+			.group_update = false,
 		};
 		wlr_keyboard_notify_key(dev->keyboard, &event);
 	}
@@ -253,6 +255,7 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 		.state = state,
 		.time_msec = time,
 		.update_state = false,
+		.group_update = false,
 	};
 	wlr_keyboard_notify_key(dev->keyboard, &wlr_event);
 }

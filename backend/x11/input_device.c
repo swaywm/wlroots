@@ -24,6 +24,7 @@ static void send_key_event(struct wlr_x11_backend *x11, uint32_t key,
 		.keycode = key,
 		.state = st,
 		.update_state = true,
+		.group_update = false,
 	};
 	wlr_keyboard_notify_key(&x11->keyboard, &ev);
 }

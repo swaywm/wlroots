@@ -101,6 +101,12 @@ struct wlr_event_keyboard_key {
 	uint32_t keycode;
 	bool update_state; // if backend doesn't update modifiers on its own
 	enum wlr_key_state state;
+
+	// wlr_keyboard_group only: set when a keyboard is added to or removed from
+	// a group and it is the only keyboard that has/had the key pressed in the
+	// group. compositors should use this to update their internal state without
+	// triggering any associated bindings
+	bool group_update;
 };
 
 void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
