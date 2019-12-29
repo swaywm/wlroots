@@ -237,8 +237,10 @@ static void xdg_surface_handle_get_popup(struct wl_client *client,
 		struct wl_resource *positioner_resource) {
 	struct wlr_xdg_surface *xdg_surface =
 		wlr_xdg_surface_from_resource(resource);
-	struct wlr_xdg_surface *parent =
-		wlr_xdg_surface_from_resource(parent_resource);
+	struct wlr_xdg_surface *parent = NULL;
+	if (parent_resource != NULL) {
+		parent = wlr_xdg_surface_from_resource(parent_resource);
+	}
 	if (xdg_surface == NULL) {
 		return; // TODO: create an inert xdg_popup
 	}
@@ -517,9 +519,6 @@ void destroy_xdg_surface(struct wlr_xdg_surface *surface) {
 
 struct wlr_xdg_surface *wlr_xdg_surface_from_resource(
 		struct wl_resource *resource) {
-	if (!resource) {
-		return NULL;
-	}
 	assert(wl_resource_instance_of(resource, &xdg_surface_interface,
 		&xdg_surface_implementation));
 	return wl_resource_get_user_data(resource);
