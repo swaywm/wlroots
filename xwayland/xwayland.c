@@ -219,18 +219,17 @@ static int xserver_handle_ready(int signal_number, void *data) {
 			continue;
 		}
 		wlr_log_errno(WLR_ERROR, "waitpid for Xwayland fork failed");
-		return 1;
+		goto error;
 	}
 	if (stat_val) {
 		wlr_log(WLR_ERROR, "Xwayland startup failed, not setting up xwm");
-		return 1;
+		goto error;
 	}
 	wlr_log(WLR_DEBUG, "Xserver is ready");
 
 	wlr_xwayland->xwm = xwm_create(wlr_xwayland);
 	if (!wlr_xwayland->xwm) {
-		xwayland_finish_server(wlr_xwayland);
-		return 1;
+		goto error;
 	}
 
 	if (wlr_xwayland->seat) {
@@ -254,6 +253,13 @@ static int xserver_handle_ready(int signal_number, void *data) {
 	wl_signal_init(&wlr_xwayland->events.ready);
 
 	return 1; /* wayland event loop dispatcher's count */
+error:
+	/* clean up */
+	wlr_xwayland_set_seat(wlr_xwayland, NULL);
+	xwayland_finish_server(wlr_xwayland);
+	xwayland_finish_display(wlr_xwayland);
+
+	return 1;
 }
 
 static int xwayland_socket_connected(int fd, uint32_t mask, void* data){
