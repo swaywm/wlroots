@@ -200,6 +200,14 @@ static bool output_commit(struct wlr_output *wlr_output) {
 			damage = &wlr_output->pending.damage;
 		}
 
+		if (output->frame_callback != NULL) {
+			wlr_log(WLR_ERROR, "Skipping buffer swap");
+			return false;
+		}
+
+		output->frame_callback = wl_surface_frame(output->surface);
+		wl_callback_add_listener(output->frame_callback, &frame_listener, output);
+
 		switch (wlr_output->pending.buffer_type) {
 		case WLR_OUTPUT_STATE_BUFFER_RENDER:
 			if (!wlr_egl_swap_buffers(&output->backend->egl,
