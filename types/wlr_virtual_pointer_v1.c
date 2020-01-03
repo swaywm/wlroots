@@ -195,6 +195,7 @@ static void virtual_pointer_axis_discrete(struct wl_client *client,
 	pointer->axis_event[pointer->axis].device = wlr_dev;
 	pointer->axis_event[pointer->axis].time_msec = time;
 	pointer->axis_event[pointer->axis].orientation = axis;
+	pointer->axis_event[pointer->axis].delta = wl_fixed_to_double(value);
 	pointer->axis_event[pointer->axis].delta_discrete = discrete;
 }
 
