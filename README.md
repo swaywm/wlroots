@@ -1,3 +1,5 @@
+This is a fork of wlroots that provides the best experience when used with Wayfire. We try to upstream as many patches as possible, so in practice it is almost the same as a specific wlroots commit.
+
 # wlroots
 
 Pluggable, composable, unopinionated modules for building a
