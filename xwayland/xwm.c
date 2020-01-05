@@ -1231,12 +1231,6 @@ static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 			ev->mode == XCB_NOTIFY_MODE_UNGRAB) {
 		return;
 	}
-
-	// Do not let X clients change the focus behind the compositor's
-	// back. Reset the focus to the old one if it changed.
-	if (!xwm->focus_surface || ev->event != xwm->focus_surface->window_id) {
-		xwm_send_focus_window(xwm, xwm->focus_surface);
-	}
 }
 
 static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
