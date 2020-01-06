@@ -1,7 +1,7 @@
 project(
 	'wlroots',
 	'c',
-	version: '0.9.0',
+	version: '0.9.1',
 	license: 'MIT',
 	meson_version: '>=0.51.0',
 	default_options: [
@@ -14,7 +14,7 @@ project(
 # Format of so_version is CURRENT, REVISION, AGE.
 # See: https://autotools.io/libtool/version.html
 # for a reference about clean library versioning.
-so_version = ['4', '7', '1']
+so_version = ['4', '8', '1']
 
 add_project_arguments([
 	'-DWLR_USE_UNSTABLE',
