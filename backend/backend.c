@@ -157,9 +157,9 @@ static struct wlr_backend *attempt_rdp_backend(struct wl_display *display,
 	if (_port) {
 		char *endptr;
 		int port = strtol(_port, &endptr, 10);
-		if (*endptr || port <= 0 || port >= 1024) {
+		if (*endptr || port <= 0 || port > 65535) {
 			wlr_log(WLR_ERROR, "Expected WLR_RDP_PORT to be a "
-					"positive integer less than 1024");
+					"positive integer less or equal to 65535");
 			wlr_backend_destroy(backend);
 			return NULL;
 		}
