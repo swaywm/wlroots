@@ -34,24 +34,31 @@ static int dispatch_events(int fd, uint32_t mask, void *data) {
 	struct wlr_wl_backend *wl = data;
 
 	if ((mask & WL_EVENT_HANGUP) || (mask & WL_EVENT_ERROR)) {
+		if (mask & WL_EVENT_ERROR) {
+			wlr_log(WLR_ERROR, "Failed to read from remote Wayland display");
+		}
 		wl_display_terminate(wl->local_display);
 		return 0;
 	}
 
+	int count = 0;
 	if (mask & WL_EVENT_READABLE) {
-		return wl_display_dispatch(wl->remote_display);
+		count = wl_display_dispatch(wl->remote_display);
 	}
 	if (mask & WL_EVENT_WRITABLE) {
 		wl_display_flush(wl->remote_display);
-		return 0;
 	}
 	if (mask == 0) {
-		int count = wl_display_dispatch_pending(wl->remote_display);
+		count = wl_display_dispatch_pending(wl->remote_display);
 		wl_display_flush(wl->remote_display);
-		return count;
 	}
 
-	return 0;
+	if (count < 0) {
+		wlr_log(WLR_ERROR, "Failed to dispatch remote Wayland display");
+		wl_display_terminate(wl->local_display);
+		return 0;
+	}
+	return count;
 }
 
 static void xdg_wm_base_handle_ping(void *data,
