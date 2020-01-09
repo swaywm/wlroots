@@ -21,7 +21,8 @@
 	(WLR_OUTPUT_STATE_DAMAGE | \
 	WLR_OUTPUT_STATE_SCALE | \
 	WLR_OUTPUT_STATE_TRANSFORM | \
-	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED)
+	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED | \
+	WLR_OUTPUT_STATE_LAYERS)
 
 /**
  * A backend implementation of wlr_output.
@@ -93,6 +94,8 @@ struct wlr_output_impl {
 	 */
 	const struct wlr_drm_format_set *(*get_primary_formats)(
 		struct wlr_output *output, uint32_t buffer_caps);
+	struct wlr_output_layer *(*create_layer)(struct wlr_output *output);
+	void (*destroy_layer)(struct wlr_output_layer *layer);
 };
 
 /**
@@ -145,5 +148,8 @@ void wlr_output_send_frame(struct wlr_output *output);
  */
 void wlr_output_send_present(struct wlr_output *output,
 	struct wlr_output_event_present *event);
+
+void wlr_output_layer_init(struct wlr_output_layer *layer,
+	struct wlr_output *output);
 
 #endif
