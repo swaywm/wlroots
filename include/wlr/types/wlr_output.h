@@ -60,6 +60,7 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_SCALE = 1 << 4,
 	WLR_OUTPUT_STATE_TRANSFORM = 1 << 5,
 	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED = 1 << 6,
+	WLR_OUTPUT_STATE_LAYERS = 1 << 7,
 };
 
 enum wlr_output_state_buffer_type {
@@ -94,6 +95,8 @@ struct wlr_output_state {
 		int32_t width, height;
 		int32_t refresh; // mHz, may be zero
 	} custom_mode;
+
+	struct wl_list layers; // wlr_output_layer.pending.link
 };
 
 struct wlr_output_impl;
@@ -140,6 +143,8 @@ struct wlr_output {
 	// damage for cursors and fullscreen surface, in output-local coordinates
 	bool frame_pending;
 	float transform_matrix[9];
+
+	struct wl_list layers; // wlr_output_layer.current.link
 
 	struct wlr_output_state pending;
 
