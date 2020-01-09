@@ -109,25 +109,39 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		buffer_age);
 }
 
-static bool output_attach_buffer(struct wlr_output *wlr_output,
-		struct wlr_buffer *buffer) {
-	struct wlr_wl_output *output =
-		get_wl_output_from_output(wlr_output);
-	struct wlr_wl_backend *wl = output->backend;
+static void destroy_wl_buffer(struct wlr_wl_buffer *buffer) {
+	if (buffer == NULL) {
+		return;
+	}
+	wl_buffer_destroy(buffer->wl_buffer);
+	wlr_buffer_unref(buffer->buffer);
+	free(buffer);
+}
 
+static void buffer_handle_release(void *data, struct wl_buffer *wl_buffer) {
+	struct wlr_wl_buffer *buffer = data;
+	destroy_wl_buffer(buffer);
+}
+
+static const struct wl_buffer_listener buffer_listener = {
+	.release = buffer_handle_release,
+};
+
+static struct wlr_wl_buffer *create_wl_buffer(struct wlr_wl_backend *wl,
+		struct wlr_buffer *wlr_buffer,
+		int required_width, int required_height) {
 	struct wlr_dmabuf_attributes attribs;
-	if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
-		return false;
+	if (!wlr_buffer_get_dmabuf(wlr_buffer, &attribs)) {
+		return NULL;
 	}
 
-	if (attribs.width != wlr_output->width ||
-			attribs.height != wlr_output->height) {
-		return false;
+	if (attribs.width != required_width || attribs.height != required_height) {
+		return NULL;
 	}
 
 	if (!wlr_drm_format_set_has(&wl->linux_dmabuf_v1_formats,
 			attribs.format, attribs.modifier)) {
-		return false;
+		return NULL;
 	}
 
 	uint32_t modifier_hi = attribs.modifier >> 32;
@@ -153,12 +167,33 @@ static bool output_attach_buffer(struct wlr_output *wlr_output,
 		params, attribs.width, attribs.height, attribs.format, flags);
 	// TODO: handle create() errors
 
-	wl_surface_attach(output->surface, wl_buffer, 0, 0);
-
-	if (output->pending_wl_buffer != NULL) {
-		wl_buffer_destroy(output->pending_wl_buffer);
+	struct wlr_wl_buffer *buffer = calloc(1, sizeof(struct wlr_wl_buffer));
+	if (buffer == NULL) {
+		wl_buffer_destroy(wl_buffer);
+		return NULL;
 	}
-	output->pending_wl_buffer = wl_buffer;
+	buffer->wl_buffer = wl_buffer;
+	buffer->buffer = wlr_buffer_ref(wlr_buffer);
+
+	wl_buffer_add_listener(wl_buffer, &buffer_listener, buffer);
+
+	return buffer;
+}
+
+static bool output_attach_buffer(struct wlr_output *wlr_output,
+		struct wlr_buffer *wlr_buffer) {
+	struct wlr_wl_output *output =
+		get_wl_output_from_output(wlr_output);
+	struct wlr_wl_backend *wl = output->backend;
+
+	struct wlr_wl_buffer *buffer = create_wl_buffer(wl, wlr_buffer,
+		wlr_output->width, wlr_output->height);
+	if (buffer == NULL) {
+		return false;
+	}
+
+	destroy_wl_buffer(output->pending_buffer);
+	output->pending_buffer = buffer;
 	return true;
 }
 
@@ -182,13 +217,6 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	}
 
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
-		wlr_buffer_unref(output->current_buffer);
-		output->current_buffer = NULL;
-		if (output->current_wl_buffer != NULL) {
-			wl_buffer_destroy(output->current_wl_buffer);
-			output->current_wl_buffer = NULL;
-		}
-
 		struct wp_presentation_feedback *wp_feedback = NULL;
 		if (output->backend->presentation != NULL) {
 			wp_feedback = wp_presentation_feedback(output->backend->presentation,
@@ -216,6 +244,10 @@ static bool output_commit(struct wlr_output *wlr_output) {
 			}
 			break;
 		case WLR_OUTPUT_STATE_BUFFER_SCANOUT:
+			assert(output->pending_buffer != NULL);
+			wl_surface_attach(output->surface,
+				output->pending_buffer->wl_buffer, 0, 0);
+
 			if (damage == NULL) {
 				wl_surface_damage_buffer(output->surface,
 					0, 0, INT32_MAX, INT32_MAX);
@@ -231,9 +263,7 @@ static bool output_commit(struct wlr_output *wlr_output) {
 			}
 			wl_surface_commit(output->surface);
 
-			output->current_buffer = wlr_buffer_ref(wlr_output->pending.buffer);
-			output->current_wl_buffer = output->pending_wl_buffer;
-			output->pending_wl_buffer = NULL;
+			output->pending_buffer = NULL;
 			break;
 		}
 
@@ -358,6 +388,8 @@ static void output_destroy(struct wlr_output *wlr_output) {
 			&output->presentation_feedbacks, link) {
 		presentation_feedback_destroy(feedback);
 	}
+
+	destroy_wl_buffer(output->pending_buffer);
 
 	wlr_egl_destroy_surface(&output->backend->egl, output->egl_surface);
 	wl_egl_window_destroy(output->egl_window);

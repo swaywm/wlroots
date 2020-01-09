@@ -47,6 +47,11 @@ struct wlr_wl_backend {
 	struct wlr_drm_format_set linux_dmabuf_v1_formats;
 };
 
+struct wlr_wl_buffer {
+	struct wlr_buffer *buffer;
+	struct wl_buffer *wl_buffer;
+};
+
 struct wlr_wl_presentation_feedback {
 	struct wlr_wl_output *output;
 	struct wl_list link;
@@ -67,8 +72,7 @@ struct wlr_wl_output {
 	struct zxdg_toplevel_decoration_v1 *zxdg_toplevel_decoration_v1;
 	struct wl_egl_window *egl_window;
 	EGLSurface egl_surface;
-	struct wl_buffer *pending_wl_buffer, *current_wl_buffer;
-	struct wlr_buffer *current_buffer;
+	struct wlr_wl_buffer *pending_buffer;
 	struct wl_list presentation_feedbacks;
 
 	uint32_t enter_serial;
