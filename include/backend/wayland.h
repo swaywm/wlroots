@@ -9,10 +9,11 @@
 #include <wayland-util.h>
 
 #include <wlr/backend/wayland.h>
+#include <wlr/render/drm_format_set.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_box.h>
-#include <wlr/render/drm_format_set.h>
+#include <wlr/types/wlr_output_layer.h>
 
 struct wlr_wl_backend {
 	struct wlr_backend backend;
@@ -32,6 +33,7 @@ struct wlr_wl_backend {
 	struct wl_event_source *remote_display_src;
 	struct wl_registry *registry;
 	struct wl_compositor *compositor;
+	struct wl_subcompositor *subcompositor;
 	struct xdg_wm_base *xdg_wm_base;
 	struct zxdg_decoration_manager_v1 *zxdg_decoration_manager_v1;
 	struct zwp_pointer_gestures_v1 *zwp_pointer_gestures_v1;
@@ -82,6 +84,13 @@ struct wlr_wl_output {
 		int32_t hotspot_x, hotspot_y;
 		int32_t width, height;
 	} cursor;
+};
+
+struct wlr_wl_output_layer {
+	struct wlr_output_layer base;
+	struct wl_surface *surface;
+	struct wl_subsurface *subsurface;
+	bool prev_accepted;
 };
 
 struct wlr_wl_input_device {
