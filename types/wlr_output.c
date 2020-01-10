@@ -240,6 +240,18 @@ void wlr_output_set_scale(struct wlr_output *output, float scale) {
 	output->pending.scale = scale;
 }
 
+void wlr_output_enable_adaptive_sync(struct wlr_output *output, bool enabled) {
+	bool currently_enabled =
+		output->adaptive_sync_status != WLR_OUTPUT_ADAPTIVE_SYNC_DISABLED;
+	if (currently_enabled == enabled) {
+		output->pending.committed &= ~WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED;
+		return;
+	}
+
+	output->pending.committed |= WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED;
+	output->pending.adaptive_sync_enabled = enabled;
+}
+
 void wlr_output_set_subpixel(struct wlr_output *output,
 		enum wl_output_subpixel subpixel) {
 	if (output->subpixel == subpixel) {
@@ -485,6 +497,10 @@ bool wlr_output_commit(struct wlr_output *output) {
 	}
 	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_MODE) {
 		wlr_log(WLR_ERROR, "Tried to modeset a disabled output");
+		goto error;
+	}
+	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) {
+		wlr_log(WLR_ERROR, "Tried to enable adaptive sync on a disabled output");
 		goto error;
 	}
 
