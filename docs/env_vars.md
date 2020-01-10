@@ -9,7 +9,7 @@ wlroots reads these environment variables
   mode setting
 * *WLR_LIBINPUT_NO_DEVICES*: set to 1 to not fail without any input devices
 * *WLR_BACKENDS*: comma-separated list of backends to use (available backends:
-  libinput, drm, wayland, x11, rdp, headless, noop)
+  libinput, drm, wayland, x11, headless, noop)
 * *WLR_NO_HARDWARE_CURSORS*: set to 1 to use software cursors instead of
   hardware cursors
 * *WLR_SESSION*: specifies the wlr\_session to be used (available sessions:
@@ -20,28 +20,6 @@ wlroots reads these environment variables
 
 * *WLR_HEADLESS_OUTPUTS*: when using the headless backend specifies the number
   of outputs
-
-# RDP backend
-
-* *WLR_RDP_TLS_CERT_PATH*: required when using `wlr_backend_autocreate`,
-  specifies the path to the TLS certificate to use for encrypting connections
-* *WLR_RDP_TLS_KEY_PATH*: required when using `wlr_backend_autocreate`,
-  specifies the path to the TLS private key to use for encrypting connections
-* *WLR_RDP_ADDRESS*: the IP address to bind to, defaults to `127.0.0.1`
-* *WLR_RDP_PORT*: the port to bind to, defaults to 3389.
-
-Note: a TLS certificate and key can be generated like so:
-
-```
-$ openssl genrsa -out tls.key 2048
-$ openssl req -new -key tls.key -out tls.csr
-$ openssl x509 -req -days 365 -signkey tls.key -in tls.csr -out tls.crt
-```
-
-`tls.csr` can be discarded. Connecting to the RDP backend with xfreedrp can be
-done like so:
-
-	xfreerdp -v localhost --bpp 32 --size 1920x1080 --rfx
 
 # Wayland backend
 

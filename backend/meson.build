@@ -5,7 +5,6 @@ subdir('headless')
 subdir('libinput')
 subdir('multi')
 subdir('noop')
-subdir('rdp')
 subdir('wayland')
 subdir('x11')
 

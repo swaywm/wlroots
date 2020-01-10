@@ -11,7 +11,6 @@ packages:
 - graphics/wayland
 - graphics/wayland-protocols
 - multimedia/ffmpeg
-- net/freerdp
 - x11/libX11
 - x11/libinput
 - x11/libxcb
