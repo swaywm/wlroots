@@ -46,6 +46,12 @@ struct wlr_output_cursor {
 	} events;
 };
 
+enum wlr_output_adaptive_sync_status {
+	WLR_OUTPUT_ADAPTIVE_SYNC_DISABLED,
+	WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED,
+	WLR_OUTPUT_ADAPTIVE_SYNC_UNKNOWN, // requested, but maybe disabled
+};
+
 enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_BUFFER = 1 << 0,
 	WLR_OUTPUT_STATE_DAMAGE = 1 << 1,
@@ -53,6 +59,7 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_ENABLED = 1 << 3,
 	WLR_OUTPUT_STATE_SCALE = 1 << 4,
 	WLR_OUTPUT_STATE_TRANSFORM = 1 << 5,
+	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED = 1 << 6,
 };
 
 enum wlr_output_state_buffer_type {
@@ -74,6 +81,7 @@ struct wlr_output_state {
 	bool enabled;
 	float scale;
 	enum wl_output_transform transform;
+	bool adaptive_sync_enabled;
 
 	// only valid if WLR_OUTPUT_STATE_BUFFER
 	enum wlr_output_state_buffer_type buffer_type;
@@ -126,6 +134,7 @@ struct wlr_output {
 	float scale;
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;
+	enum wlr_output_adaptive_sync_status adaptive_sync_status;
 
 	bool needs_frame;
 	// damage for cursors and fullscreen surface, in output-local coordinates
@@ -246,6 +255,16 @@ void wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
  */
 void wlr_output_set_transform(struct wlr_output *output,
 	enum wl_output_transform transform);
+/**
+ * Enables or disables adaptive sync (ie. variable refresh rate) on this
+ * output. This is just a hint, the backend is free to ignore this setting.
+ *
+ * When enabled, compositors can submit frames a little bit later than the
+ * deadline without dropping a frame.
+ *
+ * Adaptive sync is double-buffered state, see `wlr_output_commit`.
+ */
+void wlr_output_enable_adaptive_sync(struct wlr_output *output, bool enabled);
 /**
  * Sets a scale for the output.
  *
