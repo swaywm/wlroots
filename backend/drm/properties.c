@@ -24,6 +24,7 @@ static const struct prop_info connector_info[] = {
 	{ "EDID", INDEX(edid) },
 	{ "PATH", INDEX(path) },
 	{ "link-status", INDEX(link_status) },
+	{ "vrr_capable", INDEX(vrr_capable) },
 #undef INDEX
 };
 
@@ -33,6 +34,7 @@ static const struct prop_info crtc_info[] = {
 	{ "GAMMA_LUT", INDEX(gamma_lut) },
 	{ "GAMMA_LUT_SIZE", INDEX(gamma_lut_size) },
 	{ "MODE_ID", INDEX(mode_id) },
+	{ "VRR_ENABLED", INDEX(vrr_enabled) },
 	{ "rotation", INDEX(rotation) },
 	{ "scaling mode", INDEX(scaling_mode) },
 #undef INDEX
