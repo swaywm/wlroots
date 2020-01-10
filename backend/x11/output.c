@@ -118,6 +118,21 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		}
 	}
 
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED &&
+			x11->atoms.variable_refresh != XCB_ATOM_NONE) {
+		if (wlr_output->pending.adaptive_sync_enabled) {
+			uint32_t enabled = 1;
+			xcb_change_property(x11->xcb, XCB_PROP_MODE_REPLACE, output->win,
+				x11->atoms.variable_refresh, XCB_ATOM_CARDINAL, 32, 1,
+				&enabled);
+			wlr_output->adaptive_sync_status = WLR_OUTPUT_ADAPTIVE_SYNC_UNKNOWN;
+		} else {
+			xcb_delete_property(x11->xcb, output->win,
+				x11->atoms.variable_refresh);
+			wlr_output->adaptive_sync_status = WLR_OUTPUT_ADAPTIVE_SYNC_DISABLED;
+		}
+	}
+
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		pixman_region32_t *damage = NULL;
 		if (wlr_output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {

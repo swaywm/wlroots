@@ -72,6 +72,7 @@ struct wlr_x11_backend {
 		xcb_atom_t wm_delete_window;
 		xcb_atom_t net_wm_name;
 		xcb_atom_t utf8_string;
+		xcb_atom_t variable_refresh;
 	} atoms;
 
 	// The time we last received an event

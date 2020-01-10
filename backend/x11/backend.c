@@ -203,6 +203,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		{ .name = "WM_DELETE_WINDOW", .atom = &x11->atoms.wm_delete_window },
 		{ .name = "_NET_WM_NAME", .atom = &x11->atoms.net_wm_name },
 		{ .name = "UTF8_STRING", .atom = &x11->atoms.utf8_string },
+		{ .name = "_VARIABLE_REFRESH", .atom = &x11->atoms.variable_refresh },
 	};
 
 	for (size_t i = 0; i < sizeof(atom) / sizeof(atom[0]); ++i) {
