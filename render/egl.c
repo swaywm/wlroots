@@ -170,14 +170,8 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		goto error;
 	}
 
-	if (platform == EGL_PLATFORM_SURFACELESS_MESA) {
-		assert(remote_display == NULL);
-		egl->display = egl->procs.eglGetPlatformDisplayEXT(platform,
-			EGL_DEFAULT_DISPLAY, NULL);
-	} else {
-		egl->display = egl->procs.eglGetPlatformDisplayEXT(platform,
-			remote_display, NULL);
-	}
+	egl->display = egl->procs.eglGetPlatformDisplayEXT(platform,
+		remote_display, NULL);
 	if (egl->display == EGL_NO_DISPLAY) {
 		wlr_log(WLR_ERROR, "Failed to create EGL display");
 		goto error;
