@@ -247,12 +247,34 @@ static void config_head_handle_set_scale(struct wl_client *client,
 	config_head->state.scale = scale;
 }
 
+static void config_head_handle_set_scale_by_target_width(struct wl_client *client,
+		struct wl_resource *config_head_resource, int32_t target_width) {
+
+	struct wlr_output_configuration_head_v1 *config_head =
+		config_head_from_resource(config_head_resource);
+
+	if(config_head == NULL) {
+		return;
+	}
+
+	double scale = (double) config_head->state.output->width / (double) target_width;
+	if(scale <= 0) {
+		wl_resource_post_error(config_head_resource,
+				ZWLR_OUTPUT_CONFIGURATION_HEAD_V1_ERROR_INVALID_SCALE,
+				"invalid scale");
+		return;
+	}
+
+	config_head->state.scale = scale;
+}
+
 static const struct zwlr_output_configuration_head_v1_interface config_head_impl = {
 	.set_mode = config_head_handle_set_mode,
 	.set_custom_mode = config_head_handle_set_custom_mode,
 	.set_position = config_head_handle_set_position,
 	.set_transform = config_head_handle_set_transform,
 	.set_scale = config_head_handle_set_scale,
+	.set_scale_by_target_width = config_head_handle_set_scale_by_target_width,
 };
 
 static void config_head_handle_resource_destroy(struct wl_resource *resource) {

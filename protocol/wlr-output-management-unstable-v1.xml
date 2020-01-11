@@ -479,5 +479,12 @@
       </description>
       <arg name="scale" type="fixed"/>
     </request>
+
+    <request name="set_scale_by_target_width">
+      <description summary="set the scaled target width">
+        This request sets the head's scale.
+      </description>
+      <arg name="target_width" type="int" summary="scaled width"/>
+    </request>
   </interface>
 </protocol>
