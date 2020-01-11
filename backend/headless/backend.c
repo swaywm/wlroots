@@ -113,7 +113,8 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
 	}
 
 	backend->renderer = create_renderer_func(&backend->egl,
-		EGL_PLATFORM_SURFACELESS_MESA, NULL, (EGLint*)config_attribs, 0);
+		EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY,
+		(EGLint*)config_attribs, 0);
 	if (!backend->renderer) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
 		free(backend);
