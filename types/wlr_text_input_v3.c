@@ -314,6 +314,7 @@ struct wlr_text_input_manager_v3 *wlr_text_input_manager_v3_create(
 
 	wl_list_init(&manager->text_inputs);
 	wl_signal_init(&manager->events.text_input);
+	wl_signal_init(&manager->events.destroy);
 
 	manager->global = wl_global_create(display,
 		&zwp_text_input_manager_v3_interface, 1, manager,
