@@ -79,6 +79,8 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, 0);
 	glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, 0);
 
+	glBindTexture(GL_TEXTURE_2D, 0);
+
 	POP_GLES2_DEBUG;
 	return true;
 }
@@ -177,6 +179,8 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 		fmt->gl_format, fmt->gl_type, data);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
 
+	glBindTexture(GL_TEXTURE_2D, 0);
+
 	POP_GLES2_DEBUG;
 	return &texture->wlr_texture;
 }
@@ -231,6 +235,7 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture->tex);
 	gles2_procs.glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
 		texture->image);
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
 
 	POP_GLES2_DEBUG;
 	return &texture->wlr_texture;
@@ -292,6 +297,7 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture->tex);
 	gles2_procs.glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
 		texture->image);
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
 
 	POP_GLES2_DEBUG;
 	return &texture->wlr_texture;
