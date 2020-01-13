@@ -163,6 +163,8 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 
 	draw_quad();
 
+	glBindTexture(texture->target, 0);
+
 	POP_GLES2_DEBUG;
 	return true;
 }
