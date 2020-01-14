@@ -41,3 +41,4 @@ wlroots reads these environment variables
 * *WAYLAND_DISPLAY*, *_WAYLAND_DISPLAY*, *WAYLAND_SOCKET*: if set probe Wayland
   backend in *wlr_backend_autocreate*
 * *XCURSOR_PATH*: directory where xcursors are located
+* *XDG_SESSION_ID*: if set, session ID used by the logind session
