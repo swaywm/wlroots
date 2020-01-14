@@ -29,11 +29,6 @@ wlroots reads these environment variables
 
 * *WLR_X11_OUTPUTS*: when using the X11 backend specifies the number of outputs
 
-# Rootston specific
-
-* *XKB_DEFAULT_RULES*, *XKB_DEFAULT_MODEL*, *XKB_DEFAULT_LAYOUT*,
-  *XKB_DEFAULT_VARIANT*, *XKB_DEFAULT_OPTIONS*: xkb setup
-
 # Generic
 
 * *DISPLAY*: if set probe X11 backend in *wlr_backend_autocreate*
