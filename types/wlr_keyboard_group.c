@@ -82,6 +82,9 @@ struct wlr_keyboard_group *wlr_keyboard_group_from_wlr_keyboard(
 }
 
 static bool keymaps_match(struct xkb_keymap *km1, struct xkb_keymap *km2) {
+	if (!km1 && !km2) {
+		return true;
+	}
 	if (!km1 || !km2) {
 		return false;
 	}
