@@ -1213,9 +1213,10 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 		struct wlr_drm_mode *mode =
 			(struct wlr_drm_mode *)conn->output.current_mode;
 		if (!drm_connector_init_renderer(conn, mode)) {
-			wlr_log(WLR_ERROR, "Failed to initialize renderer for plane");
-			drm_connector_cleanup(conn);
-			break;
+			wlr_log(WLR_ERROR, "Failed to initialize renderer on output %s",
+				conn->output.name);
+			wlr_output_update_enabled(&conn->output, false);
+			continue;
 		}
 
 		wlr_output_damage_whole(&conn->output);
