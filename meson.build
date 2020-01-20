@@ -183,7 +183,9 @@ summary = [
 ]
 message('\n'.join(summary))
 
-subdir('examples')
+if get_option('examples')
+	subdir('examples')
+endif
 
 pkgconfig = import('pkgconfig')
 pkgconfig.generate(lib_wlr,
