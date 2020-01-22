@@ -11,10 +11,11 @@ project(
 	],
 )
 
-# Format of so_version is CURRENT, REVISION, AGE.
-# See: https://autotools.io/libtool/version.html
-# for a reference about clean library versioning.
-so_version = ['5', '9', '1']
+# When doing a major or minor release, *always* increase soversion. This isn't
+# necessary for bugfix releases. Increasing soversion is required because
+# wlroots never guarantees ABI stability -- only API stability is guaranteed
+# between minor releases.
+soversion = 5
 
 add_project_arguments([
 	'-DWLR_USE_UNSTABLE',
@@ -152,7 +153,7 @@ symbols_file = 'wlroots.syms'
 symbols_flag = '-Wl,--version-script,@0@/@1@'.format(meson.current_source_dir(), symbols_file)
 lib_wlr = library(
 	meson.project_name(), wlr_files,
-	version: '.'.join(so_version),
+	soversion: soversion,
 	dependencies: wlr_deps,
 	include_directories: [wlr_inc, proto_inc],
 	install: true,
