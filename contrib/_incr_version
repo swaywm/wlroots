@@ -3,31 +3,26 @@ old_version="$1"
 new_version="$2"
 sed -i meson.build -e "s/version: '$old_version'/version: '$new_version'/g"
 
-printf "Backwards-incompatible ABI changes? (y/n) "
-read inc_age
-if [ "$inc_age" = 'n' ]
+bugfix='n'
+printf "Breaking API changes? (y/n) "
+read breaking
+if [ "$breaking" = 'n' ]
 then
-	printf "Interface(s) added, removed, or changed? (y/n) "
-	read inc_current
+	printf "Bugfix release (no backwards-incompatible ABI changes)? (y/n) "
+	read bugfix
 fi
 
-so_version=$(egrep '^so_version =' meson.build | cut -d'[' -f2- | cut -d']' -f1)
-current=$(echo "$so_version" | cut -d',' -f1 | sed -e "s/'//g" -e "s/ //g")
-revision=$(echo "$so_version" | cut -d',' -f2 | sed -e "s/'//g" -e "s/ //g")
-age=$(echo "$so_version" | cut -d',' -f3 | sed -e "s/'//g" -e "s/ //g")
+soversion=$(egrep '^soversion =' meson.build | cut -d'=' -f2-)
+soversion=$((soversion))
 
-if [ "$inc_age" = 'y' ]
+if [ "$bugfix" != 'y' ]
 then
-	age=$((age+1))
-	current=$((current+1))
-elif [ "$inc_current" = 'y' ]
-then
-	current=$((current+1))
+	soversion=$((soversion+1))
 fi
-revision=$((revision+1))
 
 sed -i meson.build \
-	-e "s/so_version = .*/so_version = ['$current', '$revision', '$age']/g"
+	-e "s/soversion = .*/soversion = $soversion/g"
 
+exit 1
 git add meson.build
 git commit -m "Update version to $new_version"
