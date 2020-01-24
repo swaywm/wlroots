@@ -603,21 +603,41 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	int height = mode->wlr_mode.height;
 	uint32_t format = drm->renderer.gbm_format;
 
-	if (!init_drm_plane_surfaces(plane, drm, width, height, format, true) ||
+	bool modifiers = true;
+	const char *no_modifiers = getenv("WLR_DRM_NO_MODIFIERS");
+	if (no_modifiers != NULL && strcmp(no_modifiers, "1") == 0) {
+		wlr_log(WLR_DEBUG,
+			"WLR_DRM_NO_MODIFIERS set, initializing planes without modifiers");
+		modifiers = false;
+	}
+
+	if (!init_drm_plane_surfaces(plane, drm, width, height, format, modifiers) ||
 			!drm_connector_pageflip_renderer(conn, mode)) {
 		// If page-flipping with modifiers enabled doesn't work, retry without
 		// modifiers
-		wlr_log(WLR_INFO, "Page-flip failed with primary FB modifiers enabled, "
-			"retrying without modifiers");
 		finish_drm_surface(&plane->surf);
 		finish_drm_surface(&plane->mgpu_surf);
-		if (!init_drm_plane_surfaces(plane, drm, width, height, format, false)) {
+
+		if (!modifiers) {
+			wlr_log(WLR_ERROR, "Failed to initialize renderer "
+				"on connector '%s': initial page-flip failed",
+				conn->output.name);
+			return false;
+		}
+		wlr_log(WLR_INFO, "Page-flip failed with primary FB modifiers enabled, "
+			"retrying without modifiers");
+		modifiers = false;
+
+		if (!init_drm_plane_surfaces(plane, drm, width, height, format,
+				modifiers)) {
 			return false;
 		}
 		if (!drm_connector_pageflip_renderer(conn, mode)) {
 			wlr_log(WLR_ERROR, "Failed to initialize renderer "
 				"on connector '%s': initial page-flip failed",
 				conn->output.name);
+			finish_drm_surface(&plane->surf);
+			finish_drm_surface(&plane->mgpu_surf);
 			return false;
 		}
 	}

@@ -17,6 +17,8 @@ wlroots reads these environment variables
   considered the primary DRM device.
 * *WLR_DRM_NO_ATOMIC*: set to 1 to use legacy DRM interface instead of atomic
   mode setting
+* *WLR_DRM_NO_MODIFIERS*: set to 1 to always allocate planes without modifiers,
+  this can fix certain modeset failures because of bandwidth restrictions.
 
 ## Headless backend
 
