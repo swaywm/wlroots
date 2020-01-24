@@ -53,14 +53,15 @@ foreach name, path : protocols
 	)
 	wlr_files += code
 
-	wlr_files += custom_target(
+	server_header = custom_target(
 		name.underscorify() + '_server_h',
 		input: path,
 		output: '@BASENAME@-protocol.h',
 		command: [wayland_scanner, 'server-header', '@INPUT@', '@OUTPUT@'],
 	)
+	wlr_files += server_header
 
-	header = custom_target(
+	client_header = custom_target(
 		name.underscorify() + '_client_h',
 		input: path,
 		output: '@BASENAME@-client-protocol.h',
@@ -69,5 +70,6 @@ foreach name, path : protocols
 	)
 
 	set_variable(name.underscorify() + '_c', code)
-	set_variable(name.underscorify() + '_h', header)
+	set_variable(name.underscorify() + '_server_h', server_header)
+	set_variable(name.underscorify() + '_client_h', client_header)
 endforeach

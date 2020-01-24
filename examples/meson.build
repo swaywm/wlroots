@@ -42,6 +42,7 @@ compositors = {
 	},
 	'fullscreen-shell': {
 		'src': 'fullscreen-shell.c',
+		'proto': ['fullscreen-shell-unstable-v1'],
 	},
 }
 
@@ -151,9 +152,14 @@ clients = {
 }
 
 foreach name, info : compositors
+	extra_src = []
+	foreach p : info.get('proto', [])
+		extra_src += get_variable(p.underscorify() + '_server_h')
+	endforeach
+
 	executable(
 		name,
-		info.get('src'),
+		[info.get('src'), extra_src],
 		dependencies: wlroots,
 		include_directories: [wlr_inc, proto_inc],
 		build_by_default: get_option('examples'),
@@ -164,7 +170,7 @@ foreach name, info : clients
 	extra_src = []
 	foreach p : info.get('proto')
 		extra_src += get_variable(p.underscorify() + '_c')
-		extra_src += get_variable(p.underscorify() + '_h')
+		extra_src += get_variable(p.underscorify() + '_client_h')
 	endforeach
 
 	executable(
