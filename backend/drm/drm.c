@@ -613,17 +613,17 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 
 	if (!init_drm_plane_surfaces(plane, drm, width, height, format, modifiers) ||
 			!drm_connector_pageflip_renderer(conn, mode)) {
-		// If page-flipping with modifiers enabled doesn't work, retry without
-		// modifiers
-		finish_drm_surface(&plane->surf);
-		finish_drm_surface(&plane->mgpu_surf);
-
 		if (!modifiers) {
 			wlr_log(WLR_ERROR, "Failed to initialize renderer "
 				"on connector '%s': initial page-flip failed",
 				conn->output.name);
 			return false;
 		}
+
+		// If page-flipping with modifiers enabled doesn't work, retry without
+		// modifiers
+		finish_drm_surface(&plane->surf);
+		finish_drm_surface(&plane->mgpu_surf);
 		wlr_log(WLR_INFO, "Page-flip failed with primary FB modifiers enabled, "
 			"retrying without modifiers");
 		modifiers = false;
@@ -636,8 +636,6 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 			wlr_log(WLR_ERROR, "Failed to initialize renderer "
 				"on connector '%s': initial page-flip failed",
 				conn->output.name);
-			finish_drm_surface(&plane->surf);
-			finish_drm_surface(&plane->mgpu_surf);
 			return false;
 		}
 	}
