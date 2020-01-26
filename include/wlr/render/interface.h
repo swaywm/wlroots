@@ -9,15 +9,11 @@
 #ifndef WLR_RENDER_INTERFACE_H
 #define WLR_RENDER_INTERFACE_H
 
-#include <wlr/config.h>
-
-#if !WLR_HAS_X11_BACKEND && !WLR_HAS_XWAYLAND
 #ifndef MESA_EGL_NO_X11_HEADERS
 #define MESA_EGL_NO_X11_HEADERS
 #endif
 #ifndef EGL_NO_X11
 #define EGL_NO_X11
-#endif
 #endif
 
 #include <EGL/egl.h>
