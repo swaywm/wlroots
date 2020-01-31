@@ -57,7 +57,7 @@ static void gles2_end(struct wlr_renderer *wlr_renderer) {
 }
 
 static void gles2_clear(struct wlr_renderer *wlr_renderer,
-		const float color[static 4]) {
+		const float color[4]) {
 	gles2_get_renderer_in_context(wlr_renderer);
 
 	PUSH_GLES2_DEBUG;
@@ -112,7 +112,7 @@ static void draw_quad(void) {
 }
 
 static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
-		struct wlr_texture *wlr_texture, const float matrix[static 9],
+		struct wlr_texture *wlr_texture, const float matrix[9],
 		float alpha) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
@@ -171,7 +171,7 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 
 
 static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
-		const float color[static 4], const float matrix[static 9]) {
+		const float color[4], const float matrix[9]) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
 
@@ -190,7 +190,7 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 }
 
 static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
-		const float color[static 4], const float matrix[static 9]) {
+		const float color[4], const float matrix[9]) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
 

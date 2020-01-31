@@ -139,7 +139,7 @@ static int vt_handler(int signo, void *data) {
 	return 1;
 }
 
-static bool get_tty_path(int tty, char path[static 11], size_t len) {
+static bool get_tty_path(int tty, char path[11], size_t len) {
 	assert(tty > 0);
 
 	const char prefix[] = "/dev/ttyv";

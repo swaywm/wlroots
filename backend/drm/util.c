@@ -221,7 +221,7 @@ uint32_t get_fb_for_bo(struct gbm_bo *bo, uint32_t drm_format,
 	return id;
 }
 
-static inline bool is_taken(size_t n, const uint32_t arr[static n], uint32_t key) {
+static inline bool is_taken(size_t n, const uint32_t arr[n], uint32_t key) {
 	for (size_t i = 0; i < n; ++i) {
 		if (arr[i] == key) {
 			return true;
@@ -343,9 +343,9 @@ static bool match_obj_(struct match_state *st, size_t skips, size_t score, size_
 	return match_obj_(st, skips, score, replaced, i + 1);
 }
 
-size_t match_obj(size_t num_objs, const uint32_t objs[static restrict num_objs],
-		size_t num_res, const uint32_t res[static restrict num_res],
-		uint32_t out[static restrict num_res]) {
+size_t match_obj(size_t num_objs, const uint32_t objs[restrict num_objs],
+		size_t num_res, const uint32_t res[restrict num_res],
+		uint32_t out[restrict num_res]) {
 	uint32_t solution[num_res];
 	for (size_t i = 0; i < num_res; ++i) {
 		solution[i] = UNMATCHED;

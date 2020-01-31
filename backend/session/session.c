@@ -251,7 +251,7 @@ out_fd:
 }
 
 static size_t explicit_find_gpus(struct wlr_session *session,
-		size_t ret_len, int ret[static ret_len], const char *str) {
+		size_t ret_len, int ret[ret_len], const char *str) {
 	char *gpus = strdup(str);
 	if (!gpus) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");

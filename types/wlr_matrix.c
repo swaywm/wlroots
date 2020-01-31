@@ -5,7 +5,7 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 
-void wlr_matrix_identity(float mat[static 9]) {
+void wlr_matrix_identity(float mat[9]) {
 	static const float identity[9] = {
 		1.0f, 0.0f, 0.0f,
 		0.0f, 1.0f, 0.0f,
@@ -14,8 +14,8 @@ void wlr_matrix_identity(float mat[static 9]) {
 	memcpy(mat, identity, sizeof(identity));
 }
 
-void wlr_matrix_multiply(float mat[static 9], const float a[static 9],
-		const float b[static 9]) {
+void wlr_matrix_multiply(float mat[9], const float a[9],
+		const float b[9]) {
 	float product[9];
 
 	product[0] = a[0]*b[0] + a[1]*b[3] + a[2]*b[6];
@@ -33,7 +33,7 @@ void wlr_matrix_multiply(float mat[static 9], const float a[static 9],
 	memcpy(mat, product, sizeof(product));
 }
 
-void wlr_matrix_transpose(float mat[static 9], const float a[static 9]) {
+void wlr_matrix_transpose(float mat[9], const float a[9]) {
 	float transposition[9] = {
 		a[0], a[3], a[6],
 		a[1], a[4], a[7],
@@ -42,7 +42,7 @@ void wlr_matrix_transpose(float mat[static 9], const float a[static 9]) {
 	memcpy(mat, transposition, sizeof(transposition));
 }
 
-void wlr_matrix_translate(float mat[static 9], float x, float y) {
+void wlr_matrix_translate(float mat[9], float x, float y) {
 	float translate[9] = {
 		1.0f, 0.0f, x,
 		0.0f, 1.0f, y,
@@ -51,7 +51,7 @@ void wlr_matrix_translate(float mat[static 9], float x, float y) {
 	wlr_matrix_multiply(mat, mat, translate);
 }
 
-void wlr_matrix_scale(float mat[static 9], float x, float y) {
+void wlr_matrix_scale(float mat[9], float x, float y) {
 	float scale[9] = {
 		x,    0.0f, 0.0f,
 		0.0f, y,    0.0f,
@@ -60,7 +60,7 @@ void wlr_matrix_scale(float mat[static 9], float x, float y) {
 	wlr_matrix_multiply(mat, mat, scale);
 }
 
-void wlr_matrix_rotate(float mat[static 9], float rad) {
+void wlr_matrix_rotate(float mat[9], float rad) {
 	float rotate[9] = {
 		cos(rad), -sin(rad), 0.0f,
 		sin(rad),  cos(rad), 0.0f,
@@ -112,13 +112,13 @@ static const float transforms[][9] = {
 	},
 };
 
-void wlr_matrix_transform(float mat[static 9],
+void wlr_matrix_transform(float mat[9],
 		enum wl_output_transform transform) {
 	wlr_matrix_multiply(mat, mat, transforms[transform]);
 }
 
 // Equivalent to glOrtho(0, width, 0, height, 1, -1) with the transform applied
-void wlr_matrix_projection(float mat[static 9], int width, int height,
+void wlr_matrix_projection(float mat[9], int width, int height,
 		enum wl_output_transform transform) {
 	memset(mat, 0, sizeof(*mat) * 9);
 
@@ -140,9 +140,9 @@ void wlr_matrix_projection(float mat[static 9], int width, int height,
 	mat[8] = 1.0f;
 }
 
-void wlr_matrix_project_box(float mat[static 9], const struct wlr_box *box,
+void wlr_matrix_project_box(float mat[9], const struct wlr_box *box,
 		enum wl_output_transform transform, float rotation,
-		const float projection[static 9]) {
+		const float projection[9]) {
 	int x = box->x;
 	int y = box->y;
 	int width = box->width;

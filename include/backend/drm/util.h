@@ -35,8 +35,8 @@ enum {
  * This solution is left in out.
  * Returns the total number of matched solutions.
  */
-size_t match_obj(size_t num_objs, const uint32_t objs[static restrict num_objs],
-		size_t num_res, const uint32_t res[static restrict num_res],
-		uint32_t out[static restrict num_res]);
+size_t match_obj(size_t num_objs, const uint32_t objs[restrict num_objs],
+		size_t num_res, const uint32_t res[restrict num_res],
+		uint32_t out[restrict num_res]);
 
 #endif

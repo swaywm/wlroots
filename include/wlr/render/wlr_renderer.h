@@ -37,7 +37,7 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl, EGLenum platfo
 
 void wlr_renderer_begin(struct wlr_renderer *r, int width, int height);
 void wlr_renderer_end(struct wlr_renderer *r);
-void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
+void wlr_renderer_clear(struct wlr_renderer *r, const float color[4]);
 /**
  * Defines a scissor box. Only pixels that lie within the scissor box can be
  * modified by drawing functions. Providing a NULL `box` disables the scissor
@@ -48,32 +48,32 @@ void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box);
  * Renders the requested texture.
  */
 bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
-	const float projection[static 9], int x, int y, float alpha);
+	const float projection[9], int x, int y, float alpha);
 /**
  * Renders the requested texture using the provided matrix.
  */
 bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
-	struct wlr_texture *texture, const float matrix[static 9], float alpha);
+	struct wlr_texture *texture, const float matrix[9], float alpha);
 /**
  * Renders a solid rectangle in the specified color.
  */
 void wlr_render_rect(struct wlr_renderer *r, const struct wlr_box *box,
-	const float color[static 4], const float projection[static 9]);
+	const float color[4], const float projection[9]);
 /**
  * Renders a solid quadrangle in the specified color with the specified matrix.
  */
 void wlr_render_quad_with_matrix(struct wlr_renderer *r,
-	const float color[static 4], const float matrix[static 9]);
+	const float color[4], const float matrix[9]);
 /**
  * Renders a solid ellipse in the specified color.
  */
 void wlr_render_ellipse(struct wlr_renderer *r, const struct wlr_box *box,
-	const float color[static 4], const float projection[static 9]);
+	const float color[4], const float projection[9]);
 /**
  * Renders a solid ellipse in the specified color with the specified matrix.
  */
 void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
-	const float color[static 4], const float matrix[static 9]);
+	const float color[4], const float matrix[9]);
 /**
  * Returns a list of pixel formats supported by this renderer.
  */
