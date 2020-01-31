@@ -16,6 +16,15 @@
 #include "util/signal.h"
 #include "xwayland/xwm.h"
 
+
+static int32_t scale(struct wlr_xwm *xwm, int32_t val) {
+	return val * xwm->xwayland->server->scale;
+}
+
+static int32_t unscale(struct wlr_xwm *xwm, int32_t val) {
+	return (val + xwm->xwayland->server->scale/2) / xwm->xwayland->server->scale;
+}
+
 const char *atom_map[ATOM_LAST] = {
 	[WL_SURFACE_ID] = "WL_SURFACE_ID",
 	[WM_DELETE_WINDOW] = "WM_DELETE_WINDOW",
@@ -834,8 +843,13 @@ static void xwm_handle_create_notify(struct wlr_xwm *xwm,
 		return;
 	}
 
-	xwayland_surface_create(xwm, ev->window, ev->x, ev->y,
-		ev->width, ev->height, ev->override_redirect);
+	xwayland_surface_create(xwm, ev->window,
+		unscale(xwm, ev->x),
+		unscale(xwm, ev->y),
+		unscale(xwm, ev->width),
+		unscale(xwm, ev->height),
+		ev->override_redirect
+	);
 }
 
 static void xwm_handle_destroy_notify(struct wlr_xwm *xwm,
@@ -867,10 +881,10 @@ static void xwm_handle_configure_request(struct wlr_xwm *xwm,
 
 	struct wlr_xwayland_surface_configure_event wlr_event = {
 		.surface = surface,
-		.x = mask & XCB_CONFIG_WINDOW_X ? ev->x : surface->x,
-		.y = mask & XCB_CONFIG_WINDOW_Y ? ev->y : surface->y,
-		.width = mask & XCB_CONFIG_WINDOW_WIDTH ? ev->width : surface->width,
-		.height = mask & XCB_CONFIG_WINDOW_HEIGHT ? ev->height : surface->height,
+		.x = unscale(xwm, mask & XCB_CONFIG_WINDOW_X ? ev->x : surface->x),
+		.y = unscale(xwm, mask & XCB_CONFIG_WINDOW_Y ? ev->y : surface->y),
+		.width = unscale(xwm, mask & XCB_CONFIG_WINDOW_WIDTH ? ev->width : surface->width),
+		.height = unscale(xwm, mask & XCB_CONFIG_WINDOW_HEIGHT ? ev->height : surface->height),
 		.mask = mask,
 	};
 	wlr_log(WLR_DEBUG, "XCB_CONFIGURE_REQUEST (%u) [%ux%u+%d,%d]", ev->window,
@@ -886,10 +900,10 @@ static void xwm_handle_configure_notify(struct wlr_xwm *xwm,
 		return;
 	}
 
-	xsurface->x = ev->x;
-	xsurface->y = ev->y;
-	xsurface->width = ev->width;
-	xsurface->height = ev->height;
+	xsurface->x = unscale(xwm, ev->x);
+	xsurface->y = unscale(xwm, ev->y);
+	xsurface->width = unscale(xwm, ev->width);
+	xsurface->height = unscale(xwm, ev->height);
 
 	if (xsurface->override_redirect != ev->override_redirect) {
 		xsurface->override_redirect = ev->override_redirect;
@@ -1439,7 +1453,13 @@ void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *xsurface,
 	uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
 		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
 		XCB_CONFIG_WINDOW_BORDER_WIDTH;
-	uint32_t values[] = {x, y, width, height, 0};
+	uint32_t values[] = {
+		scale(xsurface->xwm, x),
+		scale(xsurface->xwm, y),
+		scale(xsurface->xwm, width),
+		scale(xsurface->xwm, height),
+		0,
+	};
 	xcb_configure_window(xwm->xcb_conn, xsurface->window_id, mask, values);
 	xcb_flush(xwm->xcb_conn);
 }

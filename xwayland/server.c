@@ -404,6 +404,8 @@ struct wlr_xwayland_server *wlr_xwayland_server_create(
 	server->wl_fd[0] = server->wl_fd[1] = -1;
 	server->wm_fd[0] = server->wm_fd[1] = -1;
 
+	server->scale = 1;
+
 	wl_signal_init(&server->events.ready);
 	wl_signal_init(&server->events.destroy);
 
