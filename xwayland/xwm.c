@@ -351,7 +351,7 @@ static void xwayland_surface_destroy(
 	wl_event_source_remove(xsurface->ping_timer);
 
 	free(xsurface->title);
-	free(xsurface->class);
+	free(xsurface->class_name);
 	free(xsurface->instance);
 	free(xsurface->role);
 	free(xsurface->window_type);
@@ -380,15 +380,15 @@ static void read_surface_class(struct wlr_xwm *xwm,
 	} else {
 		surface->instance = NULL;
 	}
-	free(surface->class);
+	free(surface->class_name);
 	if (len > 0) {
-		surface->class = strndup(class, len);
+		surface->class_name = strndup(class, len);
 	} else {
-		surface->class = NULL;
+		surface->class_name = NULL;
 	}
 
 	wlr_log(WLR_DEBUG, "XCB_ATOM_WM_CLASS: %s %s", surface->instance,
-		surface->class);
+		surface->class_name);
 	wlr_signal_emit_safe(&surface->events.set_class, surface);
 }
 

@@ -116,7 +116,7 @@ struct wlr_xwayland_surface {
 	bool mapped;
 
 	char *title;
-	char *class;
+	char *class_name;
 	char *instance;
 	char *role;
 	pid_t pid;
