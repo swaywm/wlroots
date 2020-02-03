@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "types/wlr_seat.h"
+#include "util/global.h"
 #include "util/signal.h"
 
 #define SEAT_VERSION 7
@@ -182,7 +183,7 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 		}
 	}
 
-	wl_global_destroy(seat->global);
+	wlr_global_destroy_safe(seat->global, seat->display);
 	free(seat->pointer_state.default_grab);
 	free(seat->keyboard_state.default_grab);
 	free(seat->touch_state.default_grab);
