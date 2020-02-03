@@ -6,5 +6,6 @@
 		_wlr_strip_path;
 	local:
 		wlr_signal_emit_safe;
+		wlr_global_destroy_safe;
 		*;
 };
