@@ -1245,6 +1245,7 @@ static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 		xwm_send_focus_window(xwm, xwm->focus_surface);
 	} else {
 		xwm->focus_surface = requested_focus;
+		xwm_send_focus_window(xwm, xwm->focus_surface);
 	}
 }
 
