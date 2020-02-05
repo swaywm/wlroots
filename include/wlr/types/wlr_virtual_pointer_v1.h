@@ -13,6 +13,7 @@
 #include <wayland-server-protocol.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_pointer.h>
+#include <wlr/interfaces/wlr_output.h>
 
 struct wlr_virtual_pointer_manager_v1 {
 	struct wl_global *global;
@@ -45,6 +46,7 @@ struct wlr_virtual_pointer_v1_new_pointer_event {
 	struct wlr_virtual_pointer_v1 *new_pointer;
 	/** Suggested by client; may be NULL. */
 	struct wlr_seat *suggested_seat;
+	struct wlr_output *suggested_output;
 };
 
 struct wlr_virtual_pointer_manager_v1* wlr_virtual_pointer_manager_v1_create(
