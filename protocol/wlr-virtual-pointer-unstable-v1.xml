@@ -23,7 +23,7 @@
     DEALINGS IN THE SOFTWARE.
   </copyright>
 
-  <interface name="zwlr_virtual_pointer_v1" version="1">
+  <interface name="zwlr_virtual_pointer_v1" version="2">
     <description summary="virtual pointer">
       This protocol allows clients to emulate a physical pointer device. The
       requests are mostly mirror opposites of those specified in wl_pointer.
@@ -118,7 +118,7 @@
     </request>
   </interface>
 
-  <interface name="zwlr_virtual_pointer_manager_v1" version="1">
+  <interface name="zwlr_virtual_pointer_manager_v1" version="2">
     <description summary="virtual pointer manager">
       This object allows clients to create individual virtual pointer objects.
     </description>
@@ -134,6 +134,19 @@
 
     <request name="destroy" type="destructor" since="1">
       <description summary="destroy the virtual pointer manager"/>
+    </request>
+
+    <!-- Version 2 additions -->
+    <request name="create_virtual_pointer_with_output" since="2">
+      <description summary="Create a new virtual pointer">
+        Creates a new virtual pointer. The seat and the output arguments are
+        optional. If the seat argument is set, the compositor should assign the
+        input device to the requested seat. If the output argument is set, the
+        compositor should map the input device to the requested output.
+      </description>
+      <arg name="seat" type="object" interface="wl_seat" allow-null="true"/>
+      <arg name="output" type="object" interface="wl_output" allow-null="true"/>
+      <arg name="id" type="new_id" interface="zwlr_virtual_pointer_v1"/>
     </request>
   </interface>
 </protocol>

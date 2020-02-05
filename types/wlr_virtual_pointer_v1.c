@@ -233,9 +233,10 @@ static struct wlr_virtual_pointer_manager_v1 *manager_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-static void virtual_pointer_manager_create_virtual_pointer(
+static void virtual_pointer_manager_create_virtual_pointer_with_output(
 		struct wl_client *client, struct wl_resource *resource,
-		struct wl_resource *seat, uint32_t id) {
+		struct wl_resource *seat, struct wl_resource *output,
+		uint32_t id) {
 	struct wlr_virtual_pointer_manager_v1 *manager = manager_from_resource(resource);
 
 	struct wlr_virtual_pointer_v1 *virtual_pointer = calloc(1,
@@ -281,6 +282,11 @@ static void virtual_pointer_manager_create_virtual_pointer(
 		event.suggested_seat = seat_client->seat;
 	}
 
+	if (output) {
+		struct wlr_output *wlr_output = wlr_output_from_resource(output);
+		event.suggested_output = wlr_output;
+	}
+
 	virtual_pointer->input_device.pointer = pointer;
 	virtual_pointer->resource = pointer_resource;
 	wl_signal_init(&virtual_pointer->events.destroy);
@@ -289,6 +295,12 @@ static void virtual_pointer_manager_create_virtual_pointer(
 	wlr_signal_emit_safe(&manager->events.new_virtual_pointer, &event);
 }
 
+static void virtual_pointer_manager_create_virtual_pointer(
+		struct wl_client *client, struct wl_resource *resource,
+		struct wl_resource *seat, uint32_t id) {
+	virtual_pointer_manager_create_virtual_pointer_with_output(client,
+			resource, seat, NULL, id);
+}
 static void virtual_pointer_manager_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -296,6 +308,7 @@ static void virtual_pointer_manager_destroy(struct wl_client *client,
 
 static const struct zwlr_virtual_pointer_manager_v1_interface manager_impl = {
 	.create_virtual_pointer = virtual_pointer_manager_create_virtual_pointer,
+	.create_virtual_pointer_with_output = virtual_pointer_manager_create_virtual_pointer_with_output,
 	.destroy = virtual_pointer_manager_destroy,
 };
 
@@ -341,7 +354,7 @@ struct wlr_virtual_pointer_manager_v1* wlr_virtual_pointer_manager_v1_create(
 	wl_signal_init(&manager->events.new_virtual_pointer);
 	wl_signal_init(&manager->events.destroy);
 	manager->global = wl_global_create(display,
-		&zwlr_virtual_pointer_manager_v1_interface, 1, manager,
+		&zwlr_virtual_pointer_manager_v1_interface, 2, manager,
 		virtual_pointer_manager_bind);
 	if (!manager->global) {
 		free(manager);
