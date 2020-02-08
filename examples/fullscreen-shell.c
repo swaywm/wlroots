@@ -163,6 +163,8 @@ static void server_handle_new_output(struct wl_listener *listener, void *data) {
 
 	wlr_output_layout_add_auto(server->output_layout, wlr_output);
 	wlr_output_create_global(wlr_output);
+
+	wlr_output_commit(wlr_output);
 }
 
 static void server_handle_present_surface(struct wl_listener *listener,

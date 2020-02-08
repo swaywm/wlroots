@@ -171,6 +171,8 @@ static void new_output_notify(struct wl_listener *listener, void *data) {
 			cursor->cursor->y);
 	}
 	wl_list_insert(&sample->outputs, &sample_output->link);
+
+	wlr_output_commit(output);
 }
 
 static void keyboard_key_notify(struct wl_listener *listener, void *data) {
