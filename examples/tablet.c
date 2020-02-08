@@ -248,6 +248,8 @@ static void new_output_notify(struct wl_listener *listener, void *data) {
 	sample_output->frame.notify = output_frame_notify;
 	wl_signal_add(&output->events.destroy, &sample_output->destroy);
 	sample_output->destroy.notify = output_remove_notify;
+
+	wlr_output_commit(output);
 }
 
 static void keyboard_key_notify(struct wl_listener *listener, void *data) {
