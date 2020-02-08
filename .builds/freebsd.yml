@@ -10,6 +10,7 @@ packages:
 - graphics/png
 - graphics/wayland
 - graphics/wayland-protocols
+- misc/e2fsprogs-libuuid
 - multimedia/ffmpeg
 - x11/libX11
 - x11/libinput

@@ -291,6 +291,12 @@ uint32_t wlr_xdg_toplevel_v6_set_resizing(struct wlr_xdg_surface_v6 *surface,
 void wlr_xdg_surface_v6_send_close(struct wlr_xdg_surface_v6 *surface);
 
 /**
+ * Sets the parent of this toplevel. Parent can be NULL.
+ */
+void wlr_xdg_toplevel_v6_set_parent(struct wlr_xdg_surface_v6 *surface,
+		struct wlr_xdg_surface_v6 *parent);
+
+/**
  * Find a surface within this xdg-surface tree at the given surface-local
  * coordinates. Returns the surface and coordinates in the leaf surface
  * coordinate system or NULL if no surface is found at that location.

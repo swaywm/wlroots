@@ -68,3 +68,10 @@ wlr_files += files(
 	'wlr_xdg_decoration_v1.c',
 	'wlr_xdg_output_v1.c',
 )
+if uuid.found() or uuid_create
+	conf_data.set10('WLR_HAS_XDG_FOREIGN', true)
+	wlr_files += files(
+		'wlr_xdg_foreign_v1.c',
+		'wlr_xdg_foreign_v2.c',
+	)
+endif

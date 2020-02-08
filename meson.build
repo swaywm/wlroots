@@ -87,6 +87,7 @@ conf_data.set10('WLR_HAS_X11_BACKEND', false)
 conf_data.set10('WLR_HAS_XWAYLAND', false)
 conf_data.set10('WLR_HAS_XCB_ERRORS', false)
 conf_data.set10('WLR_HAS_XCB_ICCCM', false)
+conf_data.set10('WLR_HAS_XDG_FOREIGN', false)
 
 # Clang complains about some zeroed initializer lists (= {0}), even though they
 # are valid
@@ -107,6 +108,8 @@ libinput = dependency('libinput', version: '>=1.9.0')
 xkbcommon = dependency('xkbcommon')
 udev = dependency('libudev')
 pixman = dependency('pixman-1')
+uuid = dependency('uuid', required: false)
+uuid_create = cc.has_function('uuid_create')
 math = cc.find_library('m')
 rt = cc.find_library('rt')
 
@@ -179,6 +182,7 @@ summary = [
 	' x11_backend: @0@'.format(conf_data.get('WLR_HAS_X11_BACKEND', false)),
 	'   xcb-icccm: @0@'.format(conf_data.get('WLR_HAS_XCB_ICCCM', false)),
 	'  xcb-errors: @0@'.format(conf_data.get('WLR_HAS_XCB_ERRORS', false)),
+	' xdg-foreign: @0@'.format(conf_data.get('WLR_HAS_XDG_FOREIGN', false)),
 	'----------------',
 	''
 ]

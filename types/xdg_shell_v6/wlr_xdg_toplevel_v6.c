@@ -36,6 +36,15 @@ static void xdg_toplevel_handle_destroy(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
+void wlr_xdg_toplevel_v6_set_parent(struct wlr_xdg_surface_v6 *surface,
+		struct wlr_xdg_surface_v6 *parent) {
+	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
+	assert(!parent || parent->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
+
+	surface->toplevel->parent = parent;
+	wlr_signal_emit_safe(&surface->toplevel->events.set_parent, surface);
+}
+
 static void xdg_toplevel_handle_set_parent(struct wl_client *client,
 		struct wl_resource *resource, struct wl_resource *parent_resource) {
 	struct wlr_xdg_surface_v6 *surface =
@@ -45,9 +54,7 @@ static void xdg_toplevel_handle_set_parent(struct wl_client *client,
 	if (parent_resource != NULL) {
 		parent = xdg_surface_from_xdg_toplevel_resource(parent_resource);
 	}
-
-	surface->toplevel->parent = parent;
-	wlr_signal_emit_safe(&surface->toplevel->events.set_parent, surface);
+	wlr_xdg_toplevel_v6_set_parent(surface, parent);
 }
 
 static void xdg_toplevel_handle_set_title(struct wl_client *client,

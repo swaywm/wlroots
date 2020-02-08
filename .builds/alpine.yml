@@ -8,6 +8,7 @@ packages:
   - mesa-dev
   - meson
   - pixman-dev
+  - util-linux-dev
   - wayland-dev
   - wayland-protocols
   - xcb-util-image-dev
