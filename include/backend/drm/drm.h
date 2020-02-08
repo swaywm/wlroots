@@ -25,11 +25,17 @@ struct wlr_drm_plane {
 	struct wlr_drm_surface surf;
 	struct wlr_drm_surface mgpu_surf;
 
+	/* Buffer to be submitted to the kernel on the next page-flip */
+	struct wlr_drm_fb pending_fb;
+	/* Buffer submitted to the kernel, will be presented on next vblank */
+	struct wlr_drm_fb queued_fb;
+	/* Buffer currently displayed on screen */
+	struct wlr_drm_fb current_fb;
+
 	uint32_t drm_format; // ARGB8888 or XRGB8888
 	struct wlr_drm_format_set formats;
 
 	// Only used by cursor
-	float matrix[9];
 	bool cursor_enabled;
 	int32_t cursor_hotspot_x, cursor_hotspot_y;
 
@@ -124,16 +130,16 @@ struct wlr_drm_connector {
 
 	drmModeCrtc *old_crtc;
 
-	bool pageflip_pending;
 	struct wl_event_source *retry_pageflip;
 	struct wl_list link;
 
-	// Buffer submitted to the kernel but not yet displayed
-	struct wlr_buffer *pending_buffer;
-	struct gbm_bo *pending_bo;
-	// Buffer currently being displayed
-	struct wlr_buffer *current_buffer;
-	struct gbm_bo *current_bo;
+	/*
+	 * We've asked for a state change in the kernel, and yet to recieve a
+	 * notification for its completion. Currently, the kernel only has a
+	 * queue length of 1, and no way to modify your submissions after
+	 * they're sent.
+	 */
+	bool pageflip_pending;
 };
 
 struct wlr_drm_backend *get_drm_backend_from_backend(
@@ -149,6 +155,8 @@ bool set_drm_connector_gamma(struct wlr_output *output, size_t size,
 	const uint16_t *r, const uint16_t *g, const uint16_t *b);
 bool drm_connector_set_mode(struct wlr_output *output,
 	struct wlr_output_mode *mode);
+
+struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane);
 
 bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc, struct gbm_bo *bo);
