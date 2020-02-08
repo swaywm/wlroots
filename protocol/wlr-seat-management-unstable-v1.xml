@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="wlr_seat_management_unstable_v1">
+  <copyright>
+    Copyright © 2020 Andri Yngvason
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice (including the next
+    paragraph) shall be included in all copies or substantial portions of the
+    Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+  </copyright>
+
+  <description summary="Protocol for managing seats">
+  </description>
+
+  <interface name="zwlr_seat_manager_v1" version="1">
+    <request name="create_chair">
+      <description summary="Create a transient seat">
+        Create a new seat that is removed when the client closes the connection.
+      </description>
+      <arg name="name" type="string"/>
+      <arg name="seat" type="new_id" interface="zwlr_chair_v1"/>
+    </request>
+
+    <request name="destroy" type="destructor">
+      <description summary="Destroy the manager">
+        Destroy the manager
+      </description>
+    </request>
+  </interface>
+
+  <interface name="zwlr_chair_v1" version="1">
+    <request name="destroy" type="destructor">
+      <description summary="Destroy the chair">
+        Destroy the chair
+      </description>
+    </request>
+  </interface>
+</protocol>
