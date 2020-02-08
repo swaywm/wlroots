@@ -123,6 +123,8 @@ static void new_output_notify(struct wl_listener *listener, void *data) {
 	wl_signal_add(&output->events.destroy, &sample_output->destroy);
 	sample_output->destroy.notify = output_remove_notify;
 	wl_list_insert(&sample->outputs, &sample_output->link);
+
+	wlr_output_commit(output);
 }
 
 static void keyboard_key_notify(struct wl_listener *listener, void *data) {

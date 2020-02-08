@@ -265,6 +265,8 @@ static void new_output_notify(struct wl_listener *listener, void *data) {
 	wlr_xcursor_manager_load(sample->xcursor_manager, output->scale);
 	wlr_xcursor_manager_set_cursor_image(sample->xcursor_manager, "left_ptr",
 		sample->cursor);
+
+	wlr_output_commit(output);
 }
 
 
