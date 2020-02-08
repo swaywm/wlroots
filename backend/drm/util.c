@@ -179,8 +179,7 @@ static void free_fb(struct gbm_bo *bo, void *data) {
 	}
 }
 
-uint32_t get_fb_for_bo(struct gbm_bo *bo, uint32_t drm_format,
-		bool with_modifiers) {
+uint32_t get_fb_for_bo(struct gbm_bo *bo, bool with_modifiers) {
 	uint32_t id = (uintptr_t)gbm_bo_get_user_data(bo);
 	if (id) {
 		return id;
@@ -191,6 +190,7 @@ uint32_t get_fb_for_bo(struct gbm_bo *bo, uint32_t drm_format,
 	int fd = gbm_device_get_fd(gbm);
 	uint32_t width = gbm_bo_get_width(bo);
 	uint32_t height = gbm_bo_get_height(bo);
+	uint32_t format = gbm_bo_get_format(bo);
 
 	uint32_t handles[4] = {0};
 	uint32_t strides[4] = {0};
@@ -205,12 +205,12 @@ uint32_t get_fb_for_bo(struct gbm_bo *bo, uint32_t drm_format,
 	}
 
 	if (with_modifiers && gbm_bo_get_modifier(bo) != DRM_FORMAT_MOD_INVALID) {
-		if (drmModeAddFB2WithModifiers(fd, width, height, drm_format, handles,
+		if (drmModeAddFB2WithModifiers(fd, width, height, format, handles,
 				strides, offsets, modifiers, &id, DRM_MODE_FB_MODIFIERS)) {
 			wlr_log_errno(WLR_ERROR, "Unable to add DRM framebuffer");
 		}
 	} else {
-		if (drmModeAddFB2(fd, width, height, drm_format, handles, strides,
+		if (drmModeAddFB2(fd, width, height, format, handles, strides,
 				offsets, &id, 0)) {
 			wlr_log_errno(WLR_ERROR, "Unable to add DRM framebuffer");
 		}
