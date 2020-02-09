@@ -56,10 +56,10 @@ void wlr_region_transform(pixman_region32_t *dst, pixman_region32_t *src,
 			dst_rects[i].y2 = src_rects[i].y2;
 			break;
 		case WL_OUTPUT_TRANSFORM_90:
-			dst_rects[i].x1 = src_rects[i].y1;
-			dst_rects[i].y1 = width - src_rects[i].x2;
-			dst_rects[i].x2 = src_rects[i].y2;
-			dst_rects[i].y2 = width - src_rects[i].x1;
+			dst_rects[i].x1 = height - src_rects[i].y2;
+			dst_rects[i].y1 = src_rects[i].x1;
+			dst_rects[i].x2 = height - src_rects[i].y1;
+			dst_rects[i].y2 = src_rects[i].x2;
 			break;
 		case WL_OUTPUT_TRANSFORM_180:
 			dst_rects[i].x1 = width - src_rects[i].x2;
@@ -68,10 +68,10 @@ void wlr_region_transform(pixman_region32_t *dst, pixman_region32_t *src,
 			dst_rects[i].y2 = height - src_rects[i].y1;
 			break;
 		case WL_OUTPUT_TRANSFORM_270:
-			dst_rects[i].x1 = height - src_rects[i].y2;
-			dst_rects[i].y1 = src_rects[i].x1;
-			dst_rects[i].x2 = height - src_rects[i].y1;
-			dst_rects[i].y2 = src_rects[i].x2;
+			dst_rects[i].x1 = src_rects[i].y1;
+			dst_rects[i].y1 = width - src_rects[i].x2;
+			dst_rects[i].x2 = src_rects[i].y2;
+			dst_rects[i].y2 = width - src_rects[i].x1;
 			break;
 		case WL_OUTPUT_TRANSFORM_FLIPPED:
 			dst_rects[i].x1 = width - src_rects[i].x2;
@@ -80,10 +80,10 @@ void wlr_region_transform(pixman_region32_t *dst, pixman_region32_t *src,
 			dst_rects[i].y2 = src_rects[i].y2;
 			break;
 		case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-			dst_rects[i].x1 = height - src_rects[i].y2;
-			dst_rects[i].y1 = width - src_rects[i].x2;
-			dst_rects[i].x2 = height - src_rects[i].y1;
-			dst_rects[i].y2 = width - src_rects[i].x1;
+			dst_rects[i].x1 = src_rects[i].y1;
+			dst_rects[i].y1 = src_rects[i].x1;
+			dst_rects[i].x2 = src_rects[i].y2;
+			dst_rects[i].y2 = src_rects[i].x2;
 			break;
 		case WL_OUTPUT_TRANSFORM_FLIPPED_180:
 			dst_rects[i].x1 = src_rects[i].x1;
@@ -92,10 +92,10 @@ void wlr_region_transform(pixman_region32_t *dst, pixman_region32_t *src,
 			dst_rects[i].y2 = height - src_rects[i].y1;
 			break;
 		case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-			dst_rects[i].x1 = src_rects[i].y1;
-			dst_rects[i].y1 = src_rects[i].x1;
-			dst_rects[i].x2 = src_rects[i].y2;
-			dst_rects[i].y2 = src_rects[i].x2;
+			dst_rects[i].x1 = height - src_rects[i].y2;
+			dst_rects[i].y1 = width - src_rects[i].x2;
+			dst_rects[i].x2 = height - src_rects[i].y1;
+			dst_rects[i].y2 = width - src_rects[i].x1;
 			break;
 		}
 	}

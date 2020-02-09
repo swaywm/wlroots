@@ -366,32 +366,32 @@ static void apply_output_transform(double *x, double *y,
 		dy = *y;
 		break;
 	case WL_OUTPUT_TRANSFORM_90:
-		dx = *y;
-		dy = width - *x;
+		dx = height - *y;
+		dy = *x;
 		break;
 	case WL_OUTPUT_TRANSFORM_180:
 		dx = width - *x;
 		dy = height - *y;
 		break;
 	case WL_OUTPUT_TRANSFORM_270:
-		dx = height - *y;
-		dy = *x;
+		dx = *y;
+		dy = width - *x;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED:
 		dx = width - *x;
 		dy = *y;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-		dx = height - *y;
-		dy = width - *x;
+		dx = *y;
+		dy = *x;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
 		dx = *x;
 		dy = height - *y;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-		dx = *y;
-		dy = *x;
+		dx = height - *y;
+		dy = width - *x;
 		break;
 	}
 	*x = dx;

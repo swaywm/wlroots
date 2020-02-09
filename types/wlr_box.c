@@ -91,32 +91,32 @@ void wlr_box_transform(struct wlr_box *dest, const struct wlr_box *box,
 		dest->y = src.y;
 		break;
 	case WL_OUTPUT_TRANSFORM_90:
-		dest->x = src.y;
-		dest->y = width - src.x - src.width;
+		dest->x = height - src.y - src.height;
+		dest->y = src.x;
 		break;
 	case WL_OUTPUT_TRANSFORM_180:
 		dest->x = width - src.x - src.width;
 		dest->y = height - src.y - src.height;
 		break;
 	case WL_OUTPUT_TRANSFORM_270:
-		dest->x = height - src.y - src.height;
-		dest->y = src.x;
+		dest->x = src.y;
+		dest->y = width - src.x - src.width;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED:
 		dest->x = width - src.x - src.width;
 		dest->y = src.y;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
-		dest->x = height - src.y - src.height;
-		dest->y = width - src.x - src.width;
+		dest->x = src.y;
+		dest->y = src.x;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
 		dest->x = src.x;
 		dest->y = height - src.y - src.height;
 		break;
 	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
-		dest->x = src.y;
-		dest->y = src.x;
+		dest->x = height - src.y - src.height;
+		dest->y = width - src.x - src.width;
 		break;
 	}
 }
