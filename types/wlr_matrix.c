@@ -76,8 +76,8 @@ static const float transforms[][9] = {
 		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_90] = {
-		0.0f, -1.0f, 0.0f,
-		1.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		-1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_180] = {
@@ -86,8 +86,8 @@ static const float transforms[][9] = {
 		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_270] = {
-		0.0f, 1.0f, 0.0f,
-		-1.0f, 0.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED] = {
@@ -96,8 +96,8 @@ static const float transforms[][9] = {
 		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_90] = {
-		0.0f, -1.0f, 0.0f,
-		-1.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_180] = {
@@ -106,8 +106,8 @@ static const float transforms[][9] = {
 		0.0f, 0.0f, 1.0f,
 	},
 	[WL_OUTPUT_TRANSFORM_FLIPPED_270] = {
-		0.0f, 1.0f, 0.0f,
-		1.0f, 0.0f, 0.0f,
+		0.0f, -1.0f, 0.0f,
+		-1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f,
 	},
 };
