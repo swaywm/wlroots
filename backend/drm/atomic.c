@@ -28,14 +28,14 @@ static void atomic_begin(struct wlr_drm_crtc *crtc, struct atomic *atom) {
 	atom->failed = false;
 }
 
-static bool atomic_end(int drm_fd, struct atomic *atom) {
+static bool atomic_end(int drm_fd, uint32_t flags, struct atomic *atom) {
 	if (atom->failed) {
 		return false;
 	}
 
-	uint32_t flags = DRM_MODE_ATOMIC_TEST_ONLY | DRM_MODE_ATOMIC_NONBLOCK;
+	flags |= DRM_MODE_ATOMIC_TEST_ONLY;
 	if (drmModeAtomicCommit(drm_fd, atom->req, flags, NULL)) {
-		wlr_log_errno(WLR_ERROR, "Atomic test failed");
+		wlr_log_errno(WLR_DEBUG, "Atomic test failed");
 		drmModeAtomicSetCursor(atom->req, atom->cursor);
 		return false;
 	}
@@ -55,14 +55,6 @@ static bool atomic_commit(int drm_fd, struct atomic *atom,
 	if (ret) {
 		wlr_log_errno(WLR_ERROR, "%s: Atomic commit failed (%s)",
 			conn->output.name, modeset ? "modeset" : "pageflip");
-
-		// Try to commit without new changes
-		drmModeAtomicSetCursor(atom->req, atom->cursor);
-		if (drmModeAtomicCommit(drm_fd, atom->req, flags, drm)) {
-			wlr_log_errno(WLR_ERROR,
-				"%s: Atomic commit without new changes failed (%s)",
-				conn->output.name, modeset ? "modeset" : "pageflip");
-		}
 	}
 
 	drmModeAtomicSetCursor(atom->req, 0);
@@ -70,7 +62,7 @@ static bool atomic_commit(int drm_fd, struct atomic *atom,
 	return !ret;
 }
 
-static inline void atomic_add(struct atomic *atom, uint32_t id, uint32_t prop, uint64_t val) {
+static void atomic_add(struct atomic *atom, uint32_t id, uint32_t prop, uint64_t val) {
 	if (!atom->failed && drmModeAtomicAddProperty(atom->req, id, prop, val) < 0) {
 		wlr_log_errno(WLR_ERROR, "Failed to add atomic DRM property");
 		atom->failed = true;
@@ -130,6 +122,12 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 	atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
 	atomic_add(&atom, crtc->id, crtc->props.active, 1);
 	set_plane_props(&atom, crtc->primary, crtc->id, fb_id, true);
+
+	if (!atomic_end(drm->fd, mode ? DRM_MODE_ATOMIC_ALLOW_MODESET : 0, &atom)) {
+		drmModeAtomicSetCursor(atom.req, 0);
+		return false;
+	}
+
 	return atomic_commit(drm->fd, &atom, conn, flags, mode);
 }
 
@@ -238,7 +236,7 @@ static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 	struct atomic atom;
 	atomic_begin(crtc, &atom);
 	atomic_add(&atom, crtc->id, crtc->props.gamma_lut, crtc->gamma_lut);
-	return atomic_end(drm->fd, &atom);
+	return atomic_end(drm->fd, 0, &atom);
 }
 
 static size_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
