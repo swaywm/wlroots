@@ -13,6 +13,12 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_surface.h>
 
+enum wlr_text_input_v3_features {
+	WLR_TEXT_INPUT_V3_FEATURE_SURROUNDING_TEXT = 1 << 0,
+	WLR_TEXT_INPUT_v3_FEATURE_CONTENT_TYPE = 1 << 1,
+	WLR_TEXT_INPUT_V3_FEATURE_CURSOR_RECTANGLE = 1 << 2,
+};
+
 struct wlr_text_input_v3_state {
 	struct {
 		char *text; // NULL is allowed and equivalent to empty string
@@ -33,6 +39,10 @@ struct wlr_text_input_v3_state {
 		int32_t width;
 		int32_t height;
 	} cursor_rectangle;
+
+	// Tracks which features were used in the current commit.
+	// Useful in the enabling commit, where usage means support.
+	uint32_t features; // OR'ed wlr_text_input_v3_features
 };
 
 struct wlr_text_input_v3 {
@@ -44,6 +54,8 @@ struct wlr_text_input_v3 {
 	uint32_t current_serial; // next in line to send
 	bool pending_enabled;
 	bool current_enabled;
+	// supported in the current text input, more granular than surface
+	uint32_t active_features; // OR'ed wlr_text_input_v3_features
 
 	struct wl_list link;
 

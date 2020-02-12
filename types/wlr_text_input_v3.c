@@ -121,7 +121,7 @@ static void text_input_set_surrounding_text(struct wl_client *client,
 	if (!text_input->pending.surrounding.text) {
 		wl_client_post_no_memory(client);
 	}
-
+	text_input->pending.features |= WLR_TEXT_INPUT_V3_FEATURE_SURROUNDING_TEXT;
 	text_input->pending.surrounding.cursor = cursor;
 	text_input->pending.surrounding.anchor = anchor;
 }
@@ -141,6 +141,7 @@ static void text_input_set_content_type(struct wl_client *client,
 	if (!text_input) {
 		return;
 	}
+	text_input->pending.features |= WLR_TEXT_INPUT_v3_FEATURE_CONTENT_TYPE;
 	text_input->pending.content_type.hint = hint;
 	text_input->pending.content_type.purpose = purpose;
 }
@@ -152,6 +153,7 @@ static void text_input_set_cursor_rectangle(struct wl_client *client,
 	if (!text_input) {
 		return;
 	}
+	text_input->pending.features |= WLR_TEXT_INPUT_V3_FEATURE_CURSOR_RECTANGLE;
 	text_input->pending.cursor_rectangle.x = x;
 	text_input->pending.cursor_rectangle.y = y;
 	text_input->pending.cursor_rectangle.width = width;
@@ -180,8 +182,10 @@ static void text_input_commit(struct wl_client *client,
 	}
 
 	if (!old_enabled && text_input->current_enabled) {
+		text_input->active_features	= text_input->current.features;
 		wlr_signal_emit_safe(&text_input->events.enable, text_input);
 	} else if (old_enabled && !text_input->current_enabled) {
+		text_input->active_features	= 0;
 		wlr_signal_emit_safe(&text_input->events.disable, text_input);
 	} else { // including never enabled
 		wlr_signal_emit_safe(&text_input->events.commit, text_input);
