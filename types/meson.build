@@ -38,6 +38,7 @@ wlr_files += files(
 	'wlr_input_method_v2.c',
 	'wlr_keyboard.c',
 	'wlr_keyboard_group.c',
+	'wlr_keyboard_shortcuts_inhibit_v1.c',
 	'wlr_layer_shell_v1.c',
 	'wlr_linux_dmabuf_v1.c',
 	'wlr_list.c',
