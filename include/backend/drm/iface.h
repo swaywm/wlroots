@@ -18,8 +18,7 @@ struct wlr_drm_interface {
 		struct wlr_drm_connector *conn, bool enable);
 	// Pageflip on crtc. If mode is non-NULL perform a full modeset using it.
 	bool (*crtc_pageflip)(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, struct wlr_drm_crtc *crtc,
-		uint32_t fb_id, drmModeModeInfo *mode);
+		struct wlr_drm_connector *conn, drmModeModeInfo *mode);
 	// Enable the cursor buffer on crtc. Set bo to NULL to disable
 	bool (*crtc_set_cursor)(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, struct gbm_bo *bo);

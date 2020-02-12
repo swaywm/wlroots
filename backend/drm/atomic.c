@@ -69,10 +69,27 @@ static void atomic_add(struct atomic *atom, uint32_t id, uint32_t prop, uint64_t
 	}
 }
 
-static void set_plane_props(struct atomic *atom, struct wlr_drm_plane *plane,
-		uint32_t crtc_id, uint32_t fb_id, bool set_crtc_xy) {
+static void plane_disable(struct atomic *atom, struct wlr_drm_plane *plane) {
 	uint32_t id = plane->id;
 	const union wlr_drm_plane_props *props = &plane->props;
+	atomic_add(atom, id, props->fb_id, 0);
+	atomic_add(atom, id, props->crtc_id, 0);
+}
+
+static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
+		struct wlr_drm_plane *plane, uint32_t crtc_id, int32_t x, int32_t y) {
+	uint32_t id = plane->id;
+	const union wlr_drm_plane_props *props = &plane->props;
+	struct wlr_drm_fb *fb = plane_get_next_fb(plane);
+	struct gbm_bo *bo = drm_fb_acquire(fb, drm, &plane->mgpu_surf);
+	if (!bo) {
+		goto error;
+	}
+
+	uint32_t fb_id = get_fb_for_bo(bo, drm->addfb2_modifiers);
+	if (!fb_id) {
+		goto error;
+	}
 
 	// The src_* properties are in 16.16 fixed point
 	atomic_add(atom, id, props->src_x, 0);
@@ -83,16 +100,19 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_plane *plane,
 	atomic_add(atom, id, props->crtc_h, plane->surf.height);
 	atomic_add(atom, id, props->fb_id, fb_id);
 	atomic_add(atom, id, props->crtc_id, crtc_id);
-	if (set_crtc_xy) {
-		atomic_add(atom, id, props->crtc_x, 0);
-		atomic_add(atom, id, props->crtc_y, 0);
-	}
+	atomic_add(atom, id, props->crtc_x, (uint64_t)x);
+	atomic_add(atom, id, props->crtc_y, (uint64_t)y);
+
+	return;
+
+error:
+	atom->failed = true;
 }
 
 static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn,
-		struct wlr_drm_crtc *crtc,
-		uint32_t fb_id, drmModeModeInfo *mode) {
+		struct wlr_drm_connector *conn, drmModeModeInfo *mode) {
+	struct wlr_drm_crtc *crtc = conn->crtc;
+
 	if (mode != NULL) {
 		if (crtc->mode_id != 0) {
 			drmModeDestroyPropertyBlob(drm->fd, crtc->mode_id);
@@ -121,14 +141,29 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 	}
 	atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
 	atomic_add(&atom, crtc->id, crtc->props.active, 1);
-	set_plane_props(&atom, crtc->primary, crtc->id, fb_id, true);
+	set_plane_props(&atom, drm, crtc->primary, crtc->id, 0, 0);
+	if (crtc->cursor) {
+		if (crtc->cursor->cursor_enabled) {
+			set_plane_props(&atom, drm, crtc->cursor, crtc->id,
+				conn->cursor_x, conn->cursor_y);
+		} else {
+			plane_disable(&atom, crtc->cursor);
+		}
+	}
 
 	if (!atomic_end(drm->fd, mode ? DRM_MODE_ATOMIC_ALLOW_MODESET : 0, &atom)) {
 		drmModeAtomicSetCursor(atom.req, 0);
 		return false;
 	}
 
-	return atomic_commit(drm->fd, &atom, conn, flags, mode);
+	if (!atomic_commit(drm->fd, &atom, conn, flags, mode)) {
+		return false;
+	}
+
+	if (crtc->cursor) {
+		drm_fb_move(&crtc->cursor->queued_fb, &crtc->cursor->pending_fb);
+	}
+	return true;
 }
 
 static bool atomic_conn_enable(struct wlr_drm_backend *drm,
@@ -154,50 +189,14 @@ static bool atomic_conn_enable(struct wlr_drm_backend *drm,
 
 static bool atomic_crtc_set_cursor(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, struct gbm_bo *bo) {
-	if (!crtc || !crtc->cursor) {
-		return true;
-	}
-
-	struct wlr_drm_plane *plane = crtc->cursor;
-	// We can't use atomic operations on fake planes
-	if (plane->id == 0) {
-		return legacy_crtc_set_cursor(drm, crtc, bo);
-	}
-
-	struct atomic atom;
-
-	atomic_begin(crtc, &atom);
-
-	if (bo) {
-		uint32_t fb_id =
-			get_fb_for_bo(bo, drm->addfb2_modifiers);
-		set_plane_props(&atom, plane, crtc->id, fb_id, false);
-	} else {
-		atomic_add(&atom, plane->id, plane->props.fb_id, 0);
-		atomic_add(&atom, plane->id, plane->props.crtc_id, 0);
-	}
-
-	return atomic_end(drm->fd, &atom);
+	/* Cursor updates happen when we pageflip */
+	return true;
 }
 
 static bool atomic_crtc_move_cursor(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, int x, int y) {
-	if (!crtc || !crtc->cursor) {
-		return true;
-	}
-
-	struct wlr_drm_plane *plane = crtc->cursor;
-	// We can't use atomic operations on fake planes
-	if (plane->id == 0) {
-		return legacy_crtc_move_cursor(drm, crtc, x, y);
-	}
-
-	struct atomic atom;
-
-	atomic_begin(crtc, &atom);
-	atomic_add(&atom, plane->id, plane->props.crtc_x, x);
-	atomic_add(&atom, plane->id, plane->props.crtc_y, y);
-	return atomic_end(drm->fd, &atom);
+	/* Cursor updates happen when we pageflip */
+	return true;
 }
 
 static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,

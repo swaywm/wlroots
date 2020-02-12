@@ -338,9 +338,6 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn,
 		struct wlr_drm_mode *mode) {
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(conn->output.backend);
 	struct wlr_drm_crtc *crtc = conn->crtc;
-	struct wlr_drm_plane *plane = crtc->primary;
-	struct gbm_bo *bo;
-	uint32_t fb_id;
 	drmModeModeInfo *drm_mode = mode ? &mode->drm_mode : NULL;
 
 	if (conn->pageflip_pending) {
@@ -348,13 +345,7 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn,
 		return false;
 	}
 
-	bo = drm_fb_acquire(&plane->queued_fb, drm, &plane->mgpu_surf);
-	if (!bo) {
-		return false;
-	}
-
-	fb_id = get_fb_for_bo(bo, drm->addfb2_modifiers);
-	if (!drm->iface->crtc_pageflip(drm, conn, crtc, fb_id, drm_mode)) {
+	if (!drm->iface->crtc_pageflip(drm, conn, drm_mode)) {
 		return false;
 	}
 
