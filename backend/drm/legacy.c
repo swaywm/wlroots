@@ -7,8 +7,19 @@
 #include "backend/drm/util.h"
 
 static bool legacy_crtc_pageflip(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, struct wlr_drm_crtc *crtc,
-		uint32_t fb_id, drmModeModeInfo *mode) {
+		struct wlr_drm_connector *conn, drmModeModeInfo *mode) {
+	struct wlr_drm_crtc *crtc = conn->crtc;
+	struct wlr_drm_fb *fb = plane_get_next_fb(crtc->primary);
+	struct gbm_bo *bo = drm_fb_acquire(fb, drm, &crtc->primary->mgpu_surf);
+	if (!bo) {
+		return false;
+	}
+
+	uint32_t fb_id = get_fb_for_bo(bo, drm->addfb2_modifiers);
+	if (!fb_id) {
+		return false;
+	}
+
 	if (mode) {
 		if (drmModeSetCrtc(drm->fd, crtc->id, fb_id, 0, 0,
 				&conn->id, 1, mode)) {
@@ -60,6 +71,7 @@ bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
 		return false;
 	}
 
+	drm_fb_move(&crtc->cursor->queued_fb, &crtc->cursor->pending_fb);
 	return true;
 }
 
