@@ -17,6 +17,7 @@ protocols = {
 	# Unstable upstream protocols
 	'fullscreen-shell-unstable-v1': wl_protocol_dir / 'unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml',
 	'idle-inhibit-unstable-v1': wl_protocol_dir / 'unstable/idle-inhibit/idle-inhibit-unstable-v1.xml',
+	'keyboard-shortcuts-inhibit-unstable-v1': wl_protocol_dir / 'unstable/keyboard-shortcuts-inhibit/keyboard-shortcuts-inhibit-unstable-v1.xml',
 	'linux-dmabuf-unstable-v1': wl_protocol_dir / 'unstable/linux-dmabuf/linux-dmabuf-unstable-v1.xml',
 	'pointer-constraints-unstable-v1': wl_protocol_dir / 'unstable/pointer-constraints/pointer-constraints-unstable-v1.xml',
 	'pointer-gestures-unstable-v1': wl_protocol_dir / 'unstable/pointer-gestures/pointer-gestures-unstable-v1.xml',
