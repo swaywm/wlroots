@@ -60,6 +60,14 @@ clients = {
 			'xdg-shell',
 		],
 	},
+	'keyboard-shortcuts-inhibit': {
+		'src': 'keyboard-shortcuts-inhibit.c',
+		'dep': [wayland_cursor, wlroots],
+		'proto': [
+			'keyboard-shortcuts-inhibit-unstable-v1',
+			'xdg-shell',
+		],
+	},
 	'layer-shell': {
 		'src': 'layer-shell.c',
 		'dep': [wayland_cursor, wlroots],
