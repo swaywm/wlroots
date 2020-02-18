@@ -348,7 +348,7 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		float matrix[9];
 		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, projection);
 
-		wlr_renderer_begin(backend->renderer, width, height);
+		wlr_renderer_begin(backend->renderer, width, height, NULL);
 		wlr_renderer_clear(backend->renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 		wlr_render_texture_with_matrix(backend->renderer, texture, matrix, 1.0);
 		wlr_renderer_end(backend->renderer);
@@ -566,7 +566,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 		goto error;
 	}
 
-	wlr_renderer_begin(backend->renderer, wlr_output->width, wlr_output->height);
+	wlr_renderer_begin(backend->renderer, wlr_output->width, wlr_output->height, NULL);
 	wlr_renderer_clear(backend->renderer, (float[]){ 1.0, 1.0, 1.0, 1.0 });
 	wlr_renderer_end(backend->renderer);
 

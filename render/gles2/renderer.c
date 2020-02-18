@@ -31,12 +31,14 @@ static struct wlr_gles2_renderer *gles2_get_renderer_in_context(
 }
 
 static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
-		uint32_t height) {
+		uint32_t height, struct wlr_texture *target) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
 
 	PUSH_GLES2_DEBUG;
 
+	glBindFramebuffer(GL_FRAMEBUFFER,
+		target ? wlr_gles2_texture_get_fbo(gles2_get_texture(target)) : 0);
 	glViewport(0, 0, width, height);
 	renderer->viewport_width = width;
 	renderer->viewport_height = height;

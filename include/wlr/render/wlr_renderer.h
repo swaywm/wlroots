@@ -35,7 +35,11 @@ struct wlr_renderer {
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl, EGLenum platform,
 	void *remote_display, EGLint *config_attribs, EGLint visual_id);
 
-void wlr_renderer_begin(struct wlr_renderer *r, int width, int height);
+/**
+ * Begins the rendering.
+ * If `target` is not NULL, the rendering will be done to a provided texture.
+ */
+void wlr_renderer_begin(struct wlr_renderer *r, int width, int height, struct wlr_texture *target);
 void wlr_renderer_end(struct wlr_renderer *r);
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
 /**

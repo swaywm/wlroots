@@ -148,7 +148,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		goto error;
 	}
 
-	wlr_renderer_begin(backend->renderer, wlr_output->width, wlr_output->height);
+	wlr_renderer_begin(backend->renderer, wlr_output->width, wlr_output->height, NULL);
 	wlr_renderer_clear(backend->renderer, (float[]){ 1.0, 1.0, 1.0, 1.0 });
 	wlr_renderer_end(backend->renderer);
 

@@ -98,7 +98,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	assert(renderer);
 
 	wlr_output_attach_render(wlr_output, NULL);
-	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
+	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height, NULL);
 	wlr_renderer_clear(renderer, state->clear_color);
 	wlr_output_render_software_cursors(wlr_output, NULL);
 	wlr_output_commit(wlr_output);

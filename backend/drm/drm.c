@@ -888,7 +888,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		float matrix[9];
 		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, plane->matrix);
 
-		wlr_renderer_begin(rend, plane->surf.width, plane->surf.height);
+		wlr_renderer_begin(rend, plane->surf.width, plane->surf.height, NULL);
 		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 		wlr_render_texture_with_matrix(rend, texture, matrix, 1.0);
 		wlr_renderer_end(rend);

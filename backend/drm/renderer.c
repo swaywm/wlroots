@@ -162,7 +162,7 @@ struct gbm_bo *get_drm_surface_front(struct wlr_drm_surface *surf) {
 
 	make_drm_surface_current(surf, NULL);
 	struct wlr_renderer *renderer = surf->renderer->wlr_rend;
-	wlr_renderer_begin(renderer, surf->width, surf->height);
+	wlr_renderer_begin(renderer, surf->width, surf->height, NULL);
 	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 1.0 });
 	wlr_renderer_end(renderer);
 	return swap_drm_surface_buffers(surf, NULL);
@@ -277,7 +277,7 @@ struct gbm_bo *copy_drm_surface_mgpu(struct wlr_drm_surface *dest,
 	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_NORMAL);
 
 	struct wlr_renderer *renderer = dest->renderer->wlr_rend;
-	wlr_renderer_begin(renderer, dest->width, dest->height);
+	wlr_renderer_begin(renderer, dest->width, dest->height, NULL);
 	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 	wlr_render_texture_with_matrix(renderer, tex, mat, 1.0f);
 	wlr_renderer_end(renderer);

@@ -115,7 +115,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *wlr_output = output->output;
 
 	wlr_output_attach_render(wlr_output, NULL);
-	wlr_renderer_begin(sample->renderer, wlr_output->width, wlr_output->height);
+	wlr_renderer_begin(sample->renderer, wlr_output->width, wlr_output->height, NULL);
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
 	animate_cat(sample, output->output);

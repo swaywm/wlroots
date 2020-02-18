@@ -78,6 +78,7 @@ struct wlr_gles2_texture {
 	//   GL_TEXTURE_EXTERNAL_OES == immutable
 	GLenum target;
 	GLuint tex;
+	GLuint fbo;
 
 	EGLImageKHR image;
 
@@ -97,6 +98,8 @@ const enum wl_shm_format *get_gles2_wl_formats(size_t *len);
 
 struct wlr_gles2_texture *gles2_get_texture(
 	struct wlr_texture *wlr_texture);
+
+GLuint wlr_gles2_texture_get_fbo(struct wlr_gles2_texture *texture);
 
 void push_gles2_marker(const char *file, const char *func);
 void pop_gles2_marker(void);

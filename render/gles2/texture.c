@@ -47,6 +47,18 @@ static bool gles2_texture_is_opaque(struct wlr_texture *wlr_texture) {
 	return !texture->has_alpha;
 }
 
+GLuint wlr_gles2_texture_get_fbo(struct wlr_gles2_texture *texture) {
+	if (!texture->fbo) {
+		PUSH_GLES2_DEBUG;
+		glGenFramebuffers(1, &texture->fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, texture->fbo);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture->tex, 0);
+		POP_GLES2_DEBUG;
+	}
+
+	return texture->fbo;
+}
+
 static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 		uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
@@ -126,6 +138,9 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 
 	PUSH_GLES2_DEBUG;
 
+	if (texture->fbo) {
+		glDeleteFramebuffers(1, &texture->fbo);
+	}
 	glDeleteTextures(1, &texture->tex);
 	wlr_egl_destroy_image(texture->egl, texture->image);
 

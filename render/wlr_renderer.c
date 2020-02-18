@@ -38,10 +38,10 @@ void wlr_renderer_destroy(struct wlr_renderer *r) {
 	}
 }
 
-void wlr_renderer_begin(struct wlr_renderer *r, int width, int height) {
+void wlr_renderer_begin(struct wlr_renderer *r, int width, int height, struct wlr_texture *target) {
 	assert(!r->rendering);
 
-	r->impl->begin(r, width, height);
+	r->impl->begin(r, width, height, target);
 
 	r->rendering = true;
 }
