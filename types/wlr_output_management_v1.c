@@ -57,6 +57,7 @@ static void head_handle_output_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_output_head_v1 *head =
 		wl_container_of(listener, head, output_destroy);
+	head->manager->current_configuration_dirty = true;
 	head_destroy(head);
 }
 
@@ -817,7 +818,7 @@ static bool manager_update_head(struct wlr_output_manager_v1 *manager,
 void wlr_output_manager_v1_set_configuration(
 		struct wlr_output_manager_v1 *manager,
 		struct wlr_output_configuration_v1 *config) {
-	bool changed = false;
+	bool changed = manager->current_configuration_dirty;
 
 	// Either update or destroy existing heads
 	struct wlr_output_head_v1 *existing_head, *head_tmp;
@@ -868,4 +869,5 @@ void wlr_output_manager_v1_set_configuration(
 		zwlr_output_manager_v1_send_done(manager_resource,
 			manager->serial);
 	}
+	manager->current_configuration_dirty = false;
 }

@@ -20,6 +20,7 @@ struct wlr_output_manager_v1 {
 
 	struct wl_list heads; // wlr_output_head_v1::link
 	uint32_t serial;
+	bool current_configuration_dirty;
 
 	struct {
 		/**
