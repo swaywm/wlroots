@@ -1231,6 +1231,10 @@ static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 			ev->mode == XCB_NOTIFY_MODE_UNGRAB) {
 		return;
 	}
+	// Ignore pointer focus change events
+	if (ev->detail == XCB_NOTIFY_DETAIL_POINTER) {
+		return;
+	}
 
 	// Do not let X clients change the focus behind the compositor's
 	// back. Reset the focus to the old one if it changed.
