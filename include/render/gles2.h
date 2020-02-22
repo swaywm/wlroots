@@ -100,6 +100,14 @@ struct wlr_gles2_texture *gles2_get_texture(
 struct wlr_gles2_renderer *gles2_get_renderer(
 		struct wlr_renderer *wlr_renderer);
 
+struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *renderer,
+	enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width, uint32_t height,
+	const void *data);
+struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *renderer,
+	struct wl_resource *data);
+struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *renderer,
+	struct wlr_dmabuf_attributes *attribs);
+
 void push_gles2_marker(const char *file, const char *func);
 void pop_gles2_marker(void);
 #define PUSH_GLES2_DEBUG push_gles2_marker(_WLR_FILENAME, __func__)

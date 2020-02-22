@@ -331,24 +331,6 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 	return glGetError() == GL_NO_ERROR;
 }
 
-static struct wlr_texture *gles2_texture_from_pixels(
-		struct wlr_renderer *wlr_renderer, enum wl_shm_format wl_fmt,
-		uint32_t stride, uint32_t width, uint32_t height, const void *data) {
-	return wlr_gles2_texture_from_pixels(wlr_renderer, wl_fmt, stride, width,
-		height, data);
-}
-
-static struct wlr_texture *gles2_texture_from_wl_drm(
-		struct wlr_renderer *wlr_renderer, struct wl_resource *data) {
-	return wlr_gles2_texture_from_wl_drm(wlr_renderer, data);
-}
-
-static struct wlr_texture *gles2_texture_from_dmabuf(
-		struct wlr_renderer *wlr_renderer,
-		struct wlr_dmabuf_attributes *attribs) {
-	return wlr_gles2_texture_from_dmabuf(wlr_renderer, attribs);
-}
-
 static bool gles2_init_wl_display(struct wlr_renderer *wlr_renderer,
 		struct wl_display *wl_display) {
 	struct wlr_gles2_renderer *renderer =
