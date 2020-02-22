@@ -474,10 +474,10 @@ static bool xdg_popup_v6_unconstrain_flip(struct wlr_xdg_popup_v6 *popup,
 	}
 
 	// revert the positioner back if it didn't fix it and go to the next part
-	if (flip_x) {
+	if (offset_x && flip_x) {
 		wlr_positioner_v6_invert_x(&popup->positioner);
 	}
-	if (flip_y) {
+	if (offset_y && flip_y) {
 		wlr_positioner_v6_invert_y(&popup->positioner);
 	}
 
