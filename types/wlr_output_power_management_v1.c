@@ -123,6 +123,7 @@ static void output_power_manager_get_output_power(struct wl_client *client,
 	}
 	output_power->output = output;
 	output_power->manager = manager;
+	wl_list_init(&output_power->link);
 
 	uint32_t version = wl_resource_get_version(manager_resource);
 	output_power->resource = wl_resource_create(client,
