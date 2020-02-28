@@ -59,7 +59,7 @@ struct wlr_surface {
 	 * have a buffer if it has never committed one, has committed a null buffer,
 	 * or something went wrong with uploading the buffer.
 	 */
-	struct wlr_buffer *buffer;
+	struct wlr_client_buffer *buffer;
 	/**
 	 * The buffer position, in surface-local units.
 	 */
