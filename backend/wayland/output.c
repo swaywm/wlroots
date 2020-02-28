@@ -114,7 +114,7 @@ static void destroy_wl_buffer(struct wlr_wl_buffer *buffer) {
 		return;
 	}
 	wl_buffer_destroy(buffer->wl_buffer);
-	wlr_buffer_unref(buffer->buffer);
+	wlr_buffer_unlock(buffer->buffer);
 	free(buffer);
 }
 
@@ -173,7 +173,7 @@ static struct wlr_wl_buffer *create_wl_buffer(struct wlr_wl_backend *wl,
 		return NULL;
 	}
 	buffer->wl_buffer = wl_buffer;
-	buffer->buffer = wlr_buffer_ref(wlr_buffer);
+	buffer->buffer = wlr_buffer_lock(wlr_buffer);
 
 	wl_buffer_add_listener(wl_buffer, &buffer_listener, buffer);
 

@@ -404,8 +404,8 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 
 	conn->pageflip_pending = true;
 	if (output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
-		wlr_buffer_unref(conn->pending_buffer);
-		conn->pending_buffer = wlr_buffer_ref(output->pending.buffer);
+		wlr_buffer_unlock(conn->pending_buffer);
+		conn->pending_buffer = wlr_buffer_lock(output->pending.buffer);
 	}
 
 	wlr_output_update_enabled(output, true);
@@ -1539,7 +1539,7 @@ static void page_flip_handler(int fd, unsigned seq,
 
 	// Release the old buffer as it's not displayed anymore. The pending
 	// buffer becomes the current buffer.
-	wlr_buffer_unref(conn->current_buffer);
+	wlr_buffer_unlock(conn->current_buffer);
 	conn->current_buffer = conn->pending_buffer;
 	conn->pending_buffer = NULL;
 
@@ -1660,8 +1660,8 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		conn->output.needs_frame = false;
 		conn->output.frame_pending = false;
 
-		wlr_buffer_unref(conn->pending_buffer);
-		wlr_buffer_unref(conn->current_buffer);
+		wlr_buffer_unlock(conn->pending_buffer);
+		wlr_buffer_unlock(conn->current_buffer);
 		conn->pending_buffer = conn->current_buffer = NULL;
 
 		/* Fallthrough */

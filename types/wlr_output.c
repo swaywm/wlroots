@@ -429,7 +429,7 @@ static void output_state_clear_buffer(struct wlr_output_state *state) {
 		return;
 	}
 
-	wlr_buffer_unref(state->buffer);
+	wlr_buffer_unlock(state->buffer);
 	state->buffer = NULL;
 
 	state->committed &= ~WLR_OUTPUT_STATE_BUFFER;
@@ -601,7 +601,7 @@ bool wlr_output_attach_buffer(struct wlr_output *output,
 	output_state_clear_buffer(&output->pending);
 	output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
 	output->pending.buffer_type = WLR_OUTPUT_STATE_BUFFER_SCANOUT;
-	output->pending.buffer = wlr_buffer_ref(buffer);
+	output->pending.buffer = wlr_buffer_lock(buffer);
 	return true;
 }
 
