@@ -4,12 +4,14 @@
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
+#include "util/signal.h"
 
 void wlr_buffer_init(struct wlr_buffer *buffer,
 		const struct wlr_buffer_impl *impl) {
 	assert(impl->destroy);
 	buffer->impl = impl;
 	buffer->n_refs = 1;
+	wl_signal_init(&buffer->events.destroy);
 }
 
 struct wlr_buffer *wlr_buffer_ref(struct wlr_buffer *buffer) {
@@ -27,6 +29,8 @@ void wlr_buffer_unref(struct wlr_buffer *buffer) {
 	if (buffer->n_refs > 0) {
 		return;
 	}
+
+	wlr_signal_emit_safe(&buffer->events.destroy, NULL);
 
 	buffer->impl->destroy(buffer);
 }

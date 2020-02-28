@@ -25,6 +25,10 @@ struct wlr_buffer {
 	const struct wlr_buffer_impl *impl;
 
 	size_t n_refs;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
 };
 
 void wlr_buffer_init(struct wlr_buffer *buffer,
