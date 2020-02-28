@@ -5,11 +5,46 @@
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 
+void wlr_buffer_init(struct wlr_buffer *buffer,
+		const struct wlr_buffer_impl *impl) {
+	assert(impl->destroy);
+	buffer->impl = impl;
+	buffer->n_refs = 1;
+}
+
+struct wlr_buffer *wlr_buffer_ref(struct wlr_buffer *buffer) {
+	buffer->n_refs++;
+	return buffer;
+}
+
+void wlr_buffer_unref(struct wlr_buffer *buffer) {
+	if (buffer == NULL) {
+		return;
+	}
+
+	assert(buffer->n_refs > 0);
+	buffer->n_refs--;
+	if (buffer->n_refs > 0) {
+		return;
+	}
+
+	buffer->impl->destroy(buffer);
+}
+
+bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
+		struct wlr_dmabuf_attributes *attribs) {
+	if (!buffer->impl->get_dmabuf) {
+		return false;
+	}
+	return buffer->impl->get_dmabuf(buffer, attribs);
+}
+
+
 bool wlr_resource_is_buffer(struct wl_resource *resource) {
 	return strcmp(wl_resource_get_class(resource), wl_buffer_interface.name) == 0;
 }
 
-bool wlr_buffer_get_resource_size(struct wl_resource *resource,
+bool wlr_resource_get_buffer_size(struct wl_resource *resource,
 		struct wlr_renderer *renderer, int *width, int *height) {
 	assert(wlr_resource_is_buffer(resource));
 
@@ -34,10 +69,54 @@ bool wlr_buffer_get_resource_size(struct wl_resource *resource,
 	return true;
 }
 
+static const struct wlr_buffer_impl client_buffer_impl;
 
-static void buffer_resource_handle_destroy(struct wl_listener *listener,
+static struct wlr_client_buffer *client_buffer_from_buffer(
+		struct wlr_buffer *buffer) {
+	assert(buffer->impl == &client_buffer_impl);
+	return (struct wlr_client_buffer *) buffer;
+}
+
+static void client_buffer_destroy(struct wlr_buffer *_buffer) {
+	struct wlr_client_buffer *buffer = client_buffer_from_buffer(_buffer);
+
+	if (!buffer->resource_released && buffer->resource != NULL) {
+		wl_buffer_send_release(buffer->resource);
+	}
+
+	wl_list_remove(&buffer->resource_destroy.link);
+	wlr_texture_destroy(buffer->texture);
+	free(buffer);
+}
+
+static bool client_buffer_get_dmabuf(struct wlr_buffer *_buffer,
+		struct wlr_dmabuf_attributes *attribs) {
+	struct wlr_client_buffer *buffer = client_buffer_from_buffer(_buffer);
+
+	if (buffer->resource == NULL) {
+		return false;
+	}
+
+	struct wl_resource *buffer_resource = buffer->resource;
+	if (!wlr_dmabuf_v1_resource_is_buffer(buffer_resource)) {
+		return false;
+	}
+
+	struct wlr_dmabuf_v1_buffer *dmabuf_buffer =
+		wlr_dmabuf_v1_buffer_from_buffer_resource(buffer_resource);
+	memcpy(attribs, &dmabuf_buffer->attributes,
+		sizeof(struct wlr_dmabuf_attributes));
+	return true;
+}
+
+static const struct wlr_buffer_impl client_buffer_impl = {
+	.destroy = client_buffer_destroy,
+	.get_dmabuf = client_buffer_get_dmabuf,
+};
+
+static void client_buffer_resource_handle_destroy(struct wl_listener *listener,
 		void *data) {
-	struct wlr_buffer *buffer =
+	struct wlr_client_buffer *buffer =
 		wl_container_of(listener, buffer, resource_destroy);
 	wl_list_remove(&buffer->resource_destroy.link);
 	wl_list_init(&buffer->resource_destroy.link);
@@ -51,8 +130,8 @@ static void buffer_resource_handle_destroy(struct wl_listener *listener,
 	// which case we'll read garbage. We decide to accept this risk.
 }
 
-struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
-		struct wl_resource *resource) {
+struct wlr_client_buffer *wlr_client_buffer_create(
+		struct wlr_renderer *renderer, struct wl_resource *resource) {
 	assert(wlr_resource_is_buffer(resource));
 
 	struct wlr_texture *texture = NULL;
@@ -100,50 +179,27 @@ struct wlr_buffer *wlr_buffer_create(struct wlr_renderer *renderer,
 		return NULL;
 	}
 
-	struct wlr_buffer *buffer = calloc(1, sizeof(struct wlr_buffer));
+	struct wlr_client_buffer *buffer =
+		calloc(1, sizeof(struct wlr_client_buffer));
 	if (buffer == NULL) {
 		wlr_texture_destroy(texture);
 		wl_resource_post_no_memory(resource);
 		return NULL;
 	}
+	wlr_buffer_init(&buffer->base, &client_buffer_impl);
 	buffer->resource = resource;
 	buffer->texture = texture;
-	buffer->released = released;
-	buffer->n_refs = 1;
+	buffer->resource_released = released;
 
 	wl_resource_add_destroy_listener(resource, &buffer->resource_destroy);
-	buffer->resource_destroy.notify = buffer_resource_handle_destroy;
+	buffer->resource_destroy.notify = client_buffer_resource_handle_destroy;
 
 	return buffer;
 }
 
-struct wlr_buffer *wlr_buffer_ref(struct wlr_buffer *buffer) {
-	buffer->n_refs++;
-	return buffer;
-}
-
-void wlr_buffer_unref(struct wlr_buffer *buffer) {
-	if (buffer == NULL) {
-		return;
-	}
-
-	assert(buffer->n_refs > 0);
-	buffer->n_refs--;
-	if (buffer->n_refs > 0) {
-		return;
-	}
-
-	if (!buffer->released && buffer->resource != NULL) {
-		wl_buffer_send_release(buffer->resource);
-	}
-
-	wl_list_remove(&buffer->resource_destroy.link);
-	wlr_texture_destroy(buffer->texture);
-	free(buffer);
-}
-
-struct wlr_buffer *wlr_buffer_apply_damage(struct wlr_buffer *buffer,
-		struct wl_resource *resource, pixman_region32_t *damage) {
+struct wlr_client_buffer *wlr_client_buffer_apply_damage(
+		struct wlr_client_buffer *buffer, struct wl_resource *resource,
+		pixman_region32_t *damage) {
 	assert(wlr_resource_is_buffer(resource));
 
 	if (buffer->n_refs > 1) {
@@ -199,27 +255,9 @@ struct wlr_buffer *wlr_buffer_apply_damage(struct wlr_buffer *buffer,
 
 	wl_list_remove(&buffer->resource_destroy.link);
 	wl_resource_add_destroy_listener(resource, &buffer->resource_destroy);
-	buffer->resource_destroy.notify = buffer_resource_handle_destroy;
+	buffer->resource_destroy.notify = client_buffer_resource_handle_destroy;
 
 	buffer->resource = resource;
 	buffer->released = true;
 	return buffer;
-}
-
-bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
-		struct wlr_dmabuf_attributes *attribs) {
-	if (buffer->resource == NULL) {
-		return false;
-	}
-
-	struct wl_resource *buffer_resource = buffer->resource;
-	if (!wlr_dmabuf_v1_resource_is_buffer(buffer_resource)) {
-		return false;
-	}
-
-	struct wlr_dmabuf_v1_buffer *dmabuf_buffer =
-		wlr_dmabuf_v1_buffer_from_buffer_resource(buffer_resource);
-	memcpy(attribs, &dmabuf_buffer->attributes,
-		sizeof(struct wlr_dmabuf_attributes));
-	return true;
 }
