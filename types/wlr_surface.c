@@ -283,7 +283,7 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 	if (resource == NULL) {
 		// NULL commit
 		if (surface->buffer != NULL) {
-			wlr_buffer_unref(&surface->buffer->base);
+			wlr_buffer_unlock(&surface->buffer->base);
 		}
 		surface->buffer = NULL;
 		return;
@@ -300,14 +300,14 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 	}
 
 	struct wlr_client_buffer *buffer =
-		wlr_client_buffer_create(surface->renderer, resource);
+		wlr_client_buffer_import(surface->renderer, resource);
 	if (buffer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to upload buffer");
 		return;
 	}
 
 	if (surface->buffer != NULL) {
-		wlr_buffer_unref(&surface->buffer->base);
+		wlr_buffer_unlock(&surface->buffer->base);
 	}
 	surface->buffer = buffer;
 }
@@ -580,7 +580,7 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 	pixman_region32_fini(&surface->opaque_region);
 	pixman_region32_fini(&surface->input_region);
 	if (surface->buffer != NULL) {
-		wlr_buffer_unref(&surface->buffer->base);
+		wlr_buffer_unlock(&surface->buffer->base);
 	}
 	free(surface);
 }
