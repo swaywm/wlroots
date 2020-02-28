@@ -32,6 +32,8 @@ struct wlr_buffer_impl {
 struct wlr_buffer {
 	const struct wlr_buffer_impl *impl;
 
+	int width, height;
+
 	bool dropped;
 	size_t n_locks;
 
@@ -47,7 +49,7 @@ struct wlr_buffer {
  * they should call wlr_buffer_drop.
  */
 void wlr_buffer_init(struct wlr_buffer *buffer,
-	const struct wlr_buffer_impl *impl);
+	const struct wlr_buffer_impl *impl, int width, int height);
 /**
  * Unreference the buffer. This function should be called by producers when
  * they are done with the buffer.
