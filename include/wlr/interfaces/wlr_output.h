@@ -27,7 +27,6 @@ struct wlr_output_impl {
 	size_t (*get_gamma_size)(struct wlr_output *output);
 	bool (*export_dmabuf)(struct wlr_output *output,
 		struct wlr_dmabuf_attributes *attribs);
-	bool (*schedule_frame)(struct wlr_output *output);
 	bool (*attach_buffer)(struct wlr_output *output, struct wlr_buffer *buffer);
 };
 
