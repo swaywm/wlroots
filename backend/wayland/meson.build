@@ -1,7 +1,7 @@
 wlr_files += files(
 	'backend.c',
 	'output.c',
-	'wl_seat.c',
+	'seat.c',
 	'tablet_v2.c',
 )
 

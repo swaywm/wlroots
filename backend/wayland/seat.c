@@ -566,7 +566,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 	assert(backend->seat == wl_seat);
 
 	if ((caps & WL_SEAT_CAPABILITY_POINTER)) {
-		wlr_log(WLR_DEBUG, "seat %p offered pointer", (void*) wl_seat);
+		wlr_log(WLR_DEBUG, "seat %p offered pointer", (void *)wl_seat);
 
 		struct wl_pointer *wl_pointer = wl_seat_get_pointer(wl_seat);
 		backend->pointer = wl_pointer;
@@ -579,7 +579,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		wl_pointer_add_listener(wl_pointer, &pointer_listener, backend);
 	}
 	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
-		wlr_log(WLR_DEBUG, "seat %p offered keyboard", (void*) wl_seat);
+		wlr_log(WLR_DEBUG, "seat %p offered keyboard", (void *)wl_seat);
 
 		struct wl_keyboard *wl_keyboard = wl_seat_get_keyboard(wl_seat);
 		backend->keyboard = wl_keyboard;
