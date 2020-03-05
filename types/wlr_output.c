@@ -683,6 +683,9 @@ bool wlr_output_export_dmabuf(struct wlr_output *output,
 }
 
 void wlr_output_update_needs_frame(struct wlr_output *output) {
+	if (output->needs_frame) {
+		return;
+	}
 	output->needs_frame = true;
 	wlr_signal_emit_safe(&output->events.needs_frame, output);
 }
