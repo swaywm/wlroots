@@ -11,6 +11,7 @@
 
 static bool colored = true;
 static enum wlr_log_importance log_importance = WLR_ERROR;
+static struct timespec start_time = {-1};
 
 static const char *verbosity_colors[] = {
 	[WLR_SILENT] = "",
@@ -19,20 +20,39 @@ static const char *verbosity_colors[] = {
 	[WLR_DEBUG ] = "\x1B[1;30m",
 };
 
+static void timespec_sub(struct timespec *r, const struct timespec *a,
+		const struct timespec *b) {
+	const long NSEC_PER_SEC = 1000000000;
+	r->tv_sec = a->tv_sec - b->tv_sec;
+	r->tv_nsec = a->tv_nsec - b->tv_nsec;
+	if (r->tv_nsec < 0) {
+		r->tv_sec--;
+		r->tv_nsec += NSEC_PER_SEC;
+	}
+}
+
+static void init_start_time(void) {
+	if (start_time.tv_sec >= 0) {
+		return;
+	}
+	clock_gettime(CLOCK_MONOTONIC, &start_time);
+}
+
 static void log_stderr(enum wlr_log_importance verbosity, const char *fmt,
 		va_list args) {
+	init_start_time();
+
 	if (verbosity > log_importance) {
 		return;
 	}
-	// prefix the time to the log message
-	struct tm result;
-	time_t t = time(NULL);
-	struct tm *tm_info = localtime_r(&t, &result);
-	char buffer[26];
 
-	// generate time prefix
-	strftime(buffer, sizeof(buffer), "%F %T - ", tm_info);
-	fprintf(stderr, "%s", buffer);
+	struct timespec ts = {0};
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	timespec_sub(&ts, &ts, &start_time);
+
+	fprintf(stderr, "%02d:%02d:%02d.%03ld ", (int)(ts.tv_sec / 60 / 60),
+		(int)(ts.tv_sec / 60 % 60), (int)(ts.tv_sec % 60),
+		ts.tv_nsec / 1000000);
 
 	unsigned c = (verbosity < WLR_LOG_IMPORTANCE_LAST) ? verbosity : WLR_LOG_IMPORTANCE_LAST - 1;
 
@@ -60,6 +80,8 @@ static void log_wl(const char *fmt, va_list args) {
 }
 
 void wlr_log_init(enum wlr_log_importance verbosity, wlr_log_func_t callback) {
+	init_start_time();
+
 	if (verbosity < WLR_LOG_IMPORTANCE_LAST) {
 		log_importance = verbosity;
 	}
