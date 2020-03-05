@@ -621,6 +621,8 @@ static void schedule_frame_handle_idle_timer(void *data) {
 }
 
 void wlr_output_schedule_frame(struct wlr_output *output) {
+	wlr_output_update_needs_frame(output);
+
 	if (output->frame_pending || output->idle_frame != NULL) {
 		return;
 	}
