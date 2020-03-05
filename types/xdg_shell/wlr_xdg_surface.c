@@ -357,7 +357,10 @@ void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 
 	switch (surface->role) {
 	case WLR_XDG_SURFACE_ROLE_NONE:
-		assert(false);
+		wl_resource_post_error(surface->resource,
+			XDG_SURFACE_ERROR_NOT_CONSTRUCTED,
+			"xdg_surface must have a role");
+		return;
 	case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
 		handle_xdg_surface_toplevel_committed(surface);
 		break;
