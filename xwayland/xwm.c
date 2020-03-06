@@ -37,7 +37,6 @@ const char *atom_map[ATOM_LAST] = {
 	[WINDOW] = "WINDOW",
 	[_NET_ACTIVE_WINDOW] = "_NET_ACTIVE_WINDOW",
 	[_NET_WM_MOVERESIZE] = "_NET_WM_MOVERESIZE",
-	[_NET_WM_NAME] = "_NET_WM_NAME",
 	[_NET_SUPPORTING_WM_CHECK] = "_NET_SUPPORTING_WM_CHECK",
 	[_NET_WM_STATE_MODAL] = "_NET_WM_STATE_MODAL",
 	[_NET_WM_STATE_FULLSCREEN] = "_NET_WM_STATE_FULLSCREEN",
@@ -1562,7 +1561,7 @@ static void xwm_create_wm_window(struct wlr_xwm *xwm) {
 	xcb_change_property(xwm->xcb_conn,
 		XCB_PROP_MODE_REPLACE,
 		xwm->window,
-		xwm->atoms[_NET_WM_NAME],
+		xwm->atoms[NET_WM_NAME],
 		xwm->atoms[UTF8_STRING],
 		8, // format
 		strlen(name), name);
