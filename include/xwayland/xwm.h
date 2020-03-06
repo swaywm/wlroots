@@ -81,7 +81,7 @@ enum atom_name {
 	DND_ACTION_ASK,
 	DND_ACTION_PRIVATE,
 	_NET_CLIENT_LIST,
-	ATOM_LAST,
+	ATOM_LAST // keep last
 };
 
 extern const char *atom_map[ATOM_LAST];
