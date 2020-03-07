@@ -110,6 +110,7 @@ static void client_buffer_destroy(struct wlr_buffer *_buffer) {
 	}
 
 	wl_list_remove(&buffer->resource_destroy.link);
+	wl_list_remove(&buffer->renderer_destroy.link);
 	wlr_texture_destroy(buffer->texture);
 	free(buffer);
 }
@@ -163,6 +164,14 @@ static void client_buffer_handle_release(struct wl_listener *listener,
 		wl_buffer_send_release(buffer->resource);
 		buffer->resource_released = true;
 	}
+}
+
+static void client_buffer_renderer_handle_destroy(struct wl_listener *listener,
+		void * data) {
+	// The renderer destroys the texture, set texture to NULL to prevent use-after-free
+	struct wlr_client_buffer *buffer;
+	buffer = wl_container_of(listener, buffer, renderer_destroy);
+	buffer->texture = NULL;
 }
 
 struct wlr_client_buffer *wlr_client_buffer_import(
@@ -231,6 +240,8 @@ struct wlr_client_buffer *wlr_client_buffer_import(
 
 	wl_resource_add_destroy_listener(resource, &buffer->resource_destroy);
 	buffer->resource_destroy.notify = client_buffer_resource_handle_destroy;
+	wl_signal_add(&renderer->events.destroy, &buffer->renderer_destroy);
+	buffer->renderer_destroy.notify = client_buffer_renderer_handle_destroy;
 
 	buffer->release.notify = client_buffer_handle_release;
 	wl_signal_add(&buffer->base.events.release, &buffer->release);
@@ -247,8 +258,9 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 		pixman_region32_t *damage) {
 	assert(wlr_resource_is_buffer(resource));
 
-	if (buffer->base.n_locks > 1) {
-		// Someone else still has a reference to the buffer
+	if (buffer->base.n_locks > 1 || !buffer->texture) {
+		// Someone else still has a reference to the buffer or the texture has
+		// been destroyed
 		return NULL;
 	}
 

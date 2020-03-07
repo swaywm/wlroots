@@ -89,12 +89,14 @@ struct wlr_client_buffer {
 	bool resource_released;
 	/**
 	 * The buffer's texture, if any. A buffer will not have a texture if the
-	 * client destroys the buffer before it has been released.
+	 * client destroys the buffer before it has been released. The texture will
+	 * be set to NULL if the renderer is destroyed.
 	 */
 	struct wlr_texture *texture;
 
 	struct wl_listener resource_destroy;
 	struct wl_listener release;
+	struct wl_listener renderer_destroy;
 };
 
 struct wlr_renderer;
