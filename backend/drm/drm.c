@@ -555,7 +555,7 @@ bool set_drm_connector_gamma(struct wlr_output *output, size_t size,
 
 	bool ok = drm->iface->crtc_set_gamma(drm, conn->crtc, size, _r, _g, _b);
 	if (ok) {
-		wlr_output_update_needs_frame(output);
+		wlr_output_update_needs_frame(output, true);
 
 		free(conn->crtc->gamma_table);
 		conn->crtc->gamma_table = gamma_table;
@@ -900,7 +900,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		wlr_output_update_needs_frame(output);
+		wlr_output_update_needs_frame(output, true);
 	}
 
 	if (!update_texture) {
@@ -960,7 +960,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 	}
 	bool ok = drm->iface->crtc_set_cursor(drm, crtc, bo);
 	if (ok) {
-		wlr_output_update_needs_frame(output);
+		wlr_output_update_needs_frame(output, true);
 	}
 	return ok;
 }
@@ -997,7 +997,7 @@ static bool drm_connector_move_cursor(struct wlr_output *output,
 
 	bool ok = drm->iface->crtc_move_cursor(drm, conn->crtc, box.x, box.y);
 	if (ok) {
-		wlr_output_update_needs_frame(output);
+		wlr_output_update_needs_frame(output, true);
 	}
 	return ok;
 }

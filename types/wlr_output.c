@@ -621,7 +621,7 @@ static void schedule_frame_handle_idle_timer(void *data) {
 }
 
 void wlr_output_schedule_frame(struct wlr_output *output) {
-	wlr_output_update_needs_frame(output);
+	wlr_output_update_needs_frame(output, true);
 
 	if (output->frame_pending || output->idle_frame != NULL) {
 		return;
@@ -682,8 +682,8 @@ bool wlr_output_export_dmabuf(struct wlr_output *output,
 	return output->impl->export_dmabuf(output, attribs);
 }
 
-void wlr_output_update_needs_frame(struct wlr_output *output) {
-	if (output->needs_frame) {
+void wlr_output_update_needs_frame(struct wlr_output *output, bool idempotent) {
+	if (output->needs_frame && idempotent) {
 		return;
 	}
 	output->needs_frame = true;
@@ -696,7 +696,7 @@ void wlr_output_damage_whole(struct wlr_output *output) {
 
 	pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
 		width, height);
-	wlr_output_update_needs_frame(output);
+	wlr_output_update_needs_frame(output, false);
 }
 
 struct wlr_output *wlr_output_from_resource(struct wl_resource *resource) {
@@ -854,7 +854,7 @@ static void output_cursor_damage_whole(struct wlr_output_cursor *cursor) {
 	output_cursor_get_box(cursor, &box);
 	pixman_region32_union_rect(&cursor->output->damage, &cursor->output->damage,
 		box.x, box.y, box.width, box.height);
-	wlr_output_update_needs_frame(cursor->output);
+	wlr_output_update_needs_frame(cursor->output, false);
 }
 
 static void output_cursor_reset(struct wlr_output_cursor *cursor) {
