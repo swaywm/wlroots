@@ -135,7 +135,7 @@ struct wlr_client_buffer *wlr_client_buffer_create(
 	assert(wlr_resource_is_buffer(resource));
 
 	struct wlr_texture *texture = NULL;
-	bool released = false;
+	bool resource_released = false;
 
 	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
 	if (shm_buf != NULL) {
@@ -153,7 +153,7 @@ struct wlr_client_buffer *wlr_client_buffer_create(
 		// We have uploaded the data, we don't need to access the wl_buffer
 		// anymore
 		wl_buffer_send_release(resource);
-		released = true;
+		resource_released = true;
 	} else if (wlr_renderer_resource_is_wl_drm_buffer(renderer, resource)) {
 		texture = wlr_texture_from_wl_drm(renderer, resource);
 	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
@@ -189,7 +189,7 @@ struct wlr_client_buffer *wlr_client_buffer_create(
 	wlr_buffer_init(&buffer->base, &client_buffer_impl);
 	buffer->resource = resource;
 	buffer->texture = texture;
-	buffer->resource_released = released;
+	buffer->resource_released = resource_released;
 
 	wl_resource_add_destroy_listener(resource, &buffer->resource_destroy);
 	buffer->resource_destroy.notify = client_buffer_resource_handle_destroy;
@@ -202,7 +202,7 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 		pixman_region32_t *damage) {
 	assert(wlr_resource_is_buffer(resource));
 
-	if (buffer->n_refs > 1) {
+	if (buffer->base.n_refs > 1) {
 		// Someone else still has a reference to the buffer
 		return NULL;
 	}
@@ -258,6 +258,6 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 	buffer->resource_destroy.notify = client_buffer_resource_handle_destroy;
 
 	buffer->resource = resource;
-	buffer->released = true;
+	buffer->resource_released = true;
 	return buffer;
 }

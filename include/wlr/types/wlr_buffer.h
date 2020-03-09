@@ -64,8 +64,6 @@ struct wlr_client_buffer {
 	 * client destroys the buffer before it has been released.
 	 */
 	struct wlr_texture *texture;
-	bool released;
-	size_t n_refs;
 
 	struct wl_listener resource_destroy;
 };
