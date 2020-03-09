@@ -41,13 +41,6 @@ static const struct wlr_gles2_pixel_format formats[] = {
 	},
 };
 
-static const enum wl_shm_format wl_formats[] = {
-	WL_SHM_FORMAT_ARGB8888,
-	WL_SHM_FORMAT_XRGB8888,
-	WL_SHM_FORMAT_ABGR8888,
-	WL_SHM_FORMAT_XBGR8888,
-};
-
 // TODO: more pixel formats
 
 const struct wlr_gles2_pixel_format *get_gles2_format_from_wl(
@@ -73,6 +66,10 @@ const struct wlr_gles2_pixel_format *get_gles2_format_from_gl(
 }
 
 const enum wl_shm_format *get_gles2_wl_formats(size_t *len) {
-	*len = sizeof(wl_formats) / sizeof(wl_formats[0]);
+	static enum wl_shm_format wl_formats[sizeof(formats) / sizeof(formats[0])];
+	*len = sizeof(formats) / sizeof(formats[0]);
+	for (size_t i = 0; i < sizeof(formats) / sizeof(formats[0]); i++) {
+		wl_formats[i] = formats[i].wl_format;
+	}
 	return wl_formats;
 }
