@@ -1,4 +1,6 @@
 #include <assert.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/wlr_renderer.h>
@@ -12,33 +14,59 @@ static struct wlr_headless_output *headless_output_from_output(
 	return (struct wlr_headless_output *)wlr_output;
 }
 
-static EGLSurface egl_create_surface(struct wlr_egl *egl, unsigned int width,
-		unsigned int height) {
-	EGLint attribs[] = {EGL_WIDTH, width, EGL_HEIGHT, height, EGL_NONE};
-
-	EGLSurface surf = eglCreatePbufferSurface(egl->display, egl->config, attribs);
-	if (surf == EGL_NO_SURFACE) {
-		wlr_log(WLR_ERROR, "Failed to create EGL surface");
-		return EGL_NO_SURFACE;
+static bool create_fbo(struct wlr_headless_output *output,
+		unsigned int width, unsigned int height) {
+	if (!wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL)) {
+		return false;
 	}
-	return surf;
+
+	GLuint rbo;
+	glGenRenderbuffers(1, &rbo);
+	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+	glRenderbufferStorage(GL_RENDERBUFFER, output->backend->internal_format,
+		width, height);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	GLuint fbo;
+	glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+		GL_RENDERBUFFER, rbo);
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	if (status != GL_FRAMEBUFFER_COMPLETE) {
+		wlr_log(WLR_ERROR, "Failed to create FBO");
+		return false;
+	}
+
+	output->fbo = fbo;
+	output->rbo = rbo;
+	return true;
+}
+
+static void destroy_fbo(struct wlr_headless_output *output) {
+	if (!wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL)) {
+		return;
+	}
+
+	glDeleteFramebuffers(1, &output->fbo);
+	glDeleteRenderbuffers(1, &output->rbo);
+	output->fbo = 0;
+	output->rbo = 0;
 }
 
 static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
 		int32_t height, int32_t refresh) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
-	struct wlr_headless_backend *backend = output->backend;
 
 	if (refresh <= 0) {
 		refresh = HEADLESS_DEFAULT_REFRESH;
 	}
 
-	wlr_egl_destroy_surface(&backend->egl, output->egl_surface);
-
-	output->egl_surface = egl_create_surface(&backend->egl, width, height);
-	if (output->egl_surface == EGL_NO_SURFACE) {
-		wlr_log(WLR_ERROR, "Failed to recreate EGL surface");
+	destroy_fbo(output);
+	if (!create_fbo(output, width, height)) {
 		wlr_output_destroy(wlr_output);
 		return false;
 	}
@@ -53,8 +81,17 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		int *buffer_age) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
-	return wlr_egl_make_current(&output->backend->egl, output->egl_surface,
-		buffer_age);
+
+	if (!wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL)) {
+		return false;
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, output->fbo);
+
+	if (buffer_age != NULL) {
+		*buffer_age = 0; // We only have one buffer
+	}
+	return true;
 }
 
 static bool output_test(struct wlr_output *wlr_output) {
@@ -88,11 +125,12 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	}
 
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
-		// Nothing needs to be done for pbuffers
+		// Nothing needs to be done for FBOs
 		wlr_output_send_present(wlr_output, NULL);
 	}
 
 	wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	return true;
 }
@@ -101,17 +139,15 @@ static void output_rollback(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
 	wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 static void output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
-
 	wl_list_remove(&output->link);
-
 	wl_event_source_remove(output->frame_timer);
-
-	wlr_egl_destroy_surface(&output->backend->egl, output->egl_surface);
+	destroy_fbo(output);
 	free(output);
 }
 
@@ -149,9 +185,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		backend->display);
 	struct wlr_output *wlr_output = &output->wlr_output;
 
-	output->egl_surface = egl_create_surface(&backend->egl, width, height);
-	if (output->egl_surface == EGL_NO_SURFACE) {
-		wlr_log(WLR_ERROR, "Failed to create EGL surface");
+	if (!create_fbo(output, width, height)) {
 		goto error;
 	}
 
@@ -166,8 +200,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		"Headless output %zd", backend->last_output_num);
 	wlr_output_set_description(wlr_output, description);
 
-	if (!wlr_egl_make_current(&output->backend->egl, output->egl_surface,
-			NULL)) {
+	if (!output_attach_render(wlr_output, NULL)) {
 		goto error;
 	}
 

@@ -1,9 +1,10 @@
 #include <assert.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>
-#include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include "backend/headless.h"
 #include "util/signal.h"
@@ -100,9 +101,8 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
 	wl_list_init(&backend->input_devices);
 
 	static const EGLint config_attribs[] = {
-		EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+		EGL_SURFACE_TYPE, 0,
 		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-		EGL_ALPHA_SIZE, 0,
 		EGL_BLUE_SIZE, 1,
 		EGL_GREEN_SIZE, 1,
 		EGL_RED_SIZE, 1,
@@ -118,14 +118,31 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
 		(EGLint*)config_attribs, 0);
 	if (!backend->renderer) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
-		free(backend);
-		return NULL;
+		goto error_backend;
+	}
+
+	if (wlr_gles2_renderer_check_ext(backend->renderer, "GL_OES_rgb8_rgba8") ||
+			wlr_gles2_renderer_check_ext(backend->renderer,
+				"GL_OES_required_internalformat") ||
+			wlr_gles2_renderer_check_ext(backend->renderer, "GL_ARM_rgba8")) {
+		backend->internal_format = GL_RGBA8_OES;
+	} else {
+		wlr_log(WLR_INFO, "GL_RGBA8_OES not supported, "
+			"falling back to GL_RGBA4 internal format "
+			"(performance may be affected)");
+		backend->internal_format = GL_RGBA4;
 	}
 
 	backend->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &backend->display_destroy);
 
 	return &backend->backend;
+
+error_renderer:
+	wlr_renderer_destroy(backend->renderer);
+error_backend:
+	free(backend);
+	return NULL;
 }
 
 bool wlr_backend_is_headless(struct wlr_backend *backend) {
