@@ -122,6 +122,7 @@ struct wlr_xwm {
 	struct wlr_xwayland_surface *drag_focus;
 
 	const xcb_query_extension_reply_t *xfixes;
+	const xcb_query_extension_reply_t *xwayland_ext;
 #if WLR_HAS_XCB_ERRORS
 	xcb_errors_context_t *errors_context;
 #endif
@@ -154,5 +155,7 @@ void xwm_set_seat(struct wlr_xwm *xwm, struct wlr_seat *seat);
 char *xwm_get_atom_name(struct wlr_xwm *xwm, xcb_atom_t atom);
 bool xwm_atoms_contains(struct wlr_xwm *xwm, xcb_atom_t *atoms,
 	size_t num_atoms, enum atom_name needle);
+
+void xwm_scale_changed(struct wlr_xwm *xwm);
 
 #endif

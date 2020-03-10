@@ -106,6 +106,9 @@ struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 
 void wlr_xwayland_set_scale(struct wlr_xwayland *xwayland, int32_t scale) {
 	xwayland->server->scale = scale;
+	if (xwayland->xwm != NULL) {
+		xwm_scale_changed(xwayland->xwm);
+	}
 }
 
 void wlr_xwayland_set_cursor(struct wlr_xwayland *xwayland,

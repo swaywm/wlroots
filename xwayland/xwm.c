@@ -13,6 +13,7 @@
 #include <xcb/composite.h>
 #include <xcb/render.h>
 #include <xcb/xfixes.h>
+#include <xcb/xcbext.h>
 #include "util/signal.h"
 #include "xwayland/xwm.h"
 
@@ -24,6 +25,10 @@ static int32_t scale(struct wlr_xwm *xwm, int32_t val) {
 static int32_t unscale(struct wlr_xwm *xwm, int32_t val) {
 	return (val + xwm->xwayland->server->scale/2) / xwm->xwayland->server->scale;
 }
+
+static xcb_extension_t xwayland_ext_id = {
+	.name = "XWAYLAND",
+};
 
 const char *atom_map[ATOM_LAST] = {
 	[WL_SURFACE_ID] = "WL_SURFACE_ID",
@@ -1526,6 +1531,7 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 static void xwm_get_resources(struct wlr_xwm *xwm) {
 	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_xfixes_id);
 	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_composite_id);
+	xcb_prefetch_extension_data(xwm->xcb_conn, &xwayland_ext_id); // TODO what if extension is not present??
 
 	size_t i;
 	xcb_intern_atom_cookie_t cookies[ATOM_LAST];
@@ -1556,6 +1562,8 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 	if (!xwm->xfixes || !xwm->xfixes->present) {
 		wlr_log(WLR_DEBUG, "xfixes not available");
 	}
+
+	xwm->xwayland_ext = xcb_get_extension_data(xwm->xcb_conn, &xwayland_ext_id);
 
 	xcb_xfixes_query_version_cookie_t xfixes_cookie;
 	xcb_xfixes_query_version_reply_t *xfixes_reply;
@@ -1882,4 +1890,40 @@ bool wlr_xwayland_or_surface_wants_focus(
 	}
 
 	return ret;
+}
+
+
+typedef struct {
+	uint8_t      major_opcode;
+	uint8_t      minor_opcode;
+	uint16_t     length;
+	uint16_t     screen;
+	uint16_t     scale;
+} xwayland_ext_set_scale_request_t;
+
+void xwm_scale_changed(struct wlr_xwm *xwm) {
+	xcb_protocol_request_t req = {
+		.count = 1,
+		.ext = &xwayland_ext_id,
+		.opcode = 1,
+		.isvoid = false,
+	};
+
+	xwayland_ext_set_scale_request_t xcb_out = {
+		.screen = 0,
+		.scale = xwm->xwayland->server->scale,
+	};
+
+	struct iovec xcb_parts[3];
+	xcb_parts[2].iov_base = (char *) &xcb_out;
+	xcb_parts[2].iov_len = sizeof(xcb_out);
+	xcb_send_request(xwm->xcb_conn, 0, xcb_parts+2, &req);
+
+	// Reconfigure all surfaces with the new scale.
+	struct wlr_xwayland_surface *surface;
+	wl_list_for_each(surface, &xwm->surfaces, link) {
+		wlr_xwayland_surface_configure(surface, surface->x, surface->y, surface->width, surface->height);
+	}
+
+	xcb_flush(xwm->xcb_conn);
 }
