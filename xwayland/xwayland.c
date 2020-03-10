@@ -440,6 +440,9 @@ error_alloc:
 
 void wlr_xwayland_set_scale(struct wlr_xwayland *wlr_xwayland, int32_t scale) {
 	wlr_xwayland->scale = scale;
+	if (wlr_xwayland->xwm != NULL) {
+		xwm_scale_changed(wlr_xwayland->xwm);
+	}
 }
 
 void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
