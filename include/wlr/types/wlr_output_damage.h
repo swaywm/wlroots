@@ -52,6 +52,7 @@ struct wlr_output_damage {
 	struct wl_listener output_transform;
 	struct wl_listener output_scale;
 	struct wl_listener output_needs_frame;
+	struct wl_listener output_damage;
 	struct wl_listener output_frame;
 	struct wl_listener output_commit;
 };

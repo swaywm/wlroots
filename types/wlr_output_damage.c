@@ -35,9 +35,14 @@ static void output_handle_needs_frame(struct wl_listener *listener,
 		void *data) {
 	struct wlr_output_damage *output_damage =
 		wl_container_of(listener, output_damage, output_needs_frame);
-	pixman_region32_union(&output_damage->current, &output_damage->current,
-		&output_damage->output->damage);
 	wlr_output_schedule_frame(output_damage->output);
+}
+
+static void output_handle_damage(struct wl_listener *listener, void *data) {
+	struct wlr_output_damage *output_damage =
+		wl_container_of(listener, output_damage, output_damage);
+	struct wlr_output_event_damage *event = data;
+	wlr_output_damage_add(output_damage, event->damage);
 }
 
 static void output_handle_frame(struct wl_listener *listener, void *data) {
@@ -108,6 +113,8 @@ struct wlr_output_damage *wlr_output_damage_create(struct wlr_output *output) {
 	output_damage->output_scale.notify = output_handle_scale;
 	wl_signal_add(&output->events.needs_frame, &output_damage->output_needs_frame);
 	output_damage->output_needs_frame.notify = output_handle_needs_frame;
+	wl_signal_add(&output->events.damage, &output_damage->output_damage);
+	output_damage->output_damage.notify = output_handle_damage;
 	wl_signal_add(&output->events.frame, &output_damage->output_frame);
 	output_damage->output_frame.notify = output_handle_frame;
 	wl_signal_add(&output->events.commit, &output_damage->output_commit);
@@ -126,6 +133,7 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage) {
 	wl_list_remove(&output_damage->output_transform.link);
 	wl_list_remove(&output_damage->output_scale.link);
 	wl_list_remove(&output_damage->output_needs_frame.link);
+	wl_list_remove(&output_damage->output_damage.link);
 	wl_list_remove(&output_damage->output_frame.link);
 	wl_list_remove(&output_damage->output_commit.link);
 	pixman_region32_fini(&output_damage->current);

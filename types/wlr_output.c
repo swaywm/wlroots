@@ -328,6 +328,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_list_init(&output->cursors);
 	wl_list_init(&output->resources);
 	wl_signal_init(&output->events.frame);
+	wl_signal_init(&output->events.damage);
 	wl_signal_init(&output->events.needs_frame);
 	wl_signal_init(&output->events.precommit);
 	wl_signal_init(&output->events.commit);
@@ -338,7 +339,6 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.transform);
 	wl_signal_init(&output->events.description);
 	wl_signal_init(&output->events.destroy);
-	pixman_region32_init(&output->damage);
 	pixman_region32_init(&output->pending.damage);
 
 	const char *no_hardware_cursors = getenv("WLR_NO_HARDWARE_CURSORS");
@@ -382,7 +382,6 @@ void wlr_output_destroy(struct wlr_output *output) {
 	free(output->description);
 
 	pixman_region32_fini(&output->pending.damage);
-	pixman_region32_fini(&output->damage);
 
 	if (output->impl && output->impl->destroy) {
 		output->impl->destroy(output);
@@ -562,7 +561,6 @@ bool wlr_output_commit(struct wlr_output *output) {
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		output->frame_pending = true;
 		output->needs_frame = false;
-		pixman_region32_clear(&output->damage);
 	}
 
 	output_state_clear(&output->pending);
@@ -697,9 +695,16 @@ void wlr_output_damage_whole(struct wlr_output *output) {
 	int width, height;
 	wlr_output_transformed_resolution(output, &width, &height);
 
-	pixman_region32_union_rect(&output->damage, &output->damage, 0, 0,
-		width, height);
-	wlr_output_update_needs_frame(output);
+	pixman_region32_t damage;
+	pixman_region32_init_rect(&damage, 0, 0, width, height);
+
+	struct wlr_output_event_damage event = {
+		.output = output,
+		.damage = &damage,
+	};
+	wlr_signal_emit_safe(&output->events.damage, &event);
+
+	pixman_region32_fini(&damage);
 }
 
 struct wlr_output *wlr_output_from_resource(struct wl_resource *resource) {
@@ -855,9 +860,17 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 static void output_cursor_damage_whole(struct wlr_output_cursor *cursor) {
 	struct wlr_box box;
 	output_cursor_get_box(cursor, &box);
-	pixman_region32_union_rect(&cursor->output->damage, &cursor->output->damage,
-		box.x, box.y, box.width, box.height);
-	wlr_output_update_needs_frame(cursor->output);
+
+	pixman_region32_t damage;
+	pixman_region32_init_rect(&damage, box.x, box.y, box.width, box.height);
+
+	struct wlr_output_event_damage event = {
+		.output = cursor->output,
+		.damage = &damage,
+	};
+	wlr_signal_emit_safe(&cursor->output->events.damage, &event);
+
+	pixman_region32_fini(&damage);
 }
 
 static void output_cursor_reset(struct wlr_output_cursor *cursor) {

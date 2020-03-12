@@ -138,7 +138,6 @@ struct wlr_output {
 
 	bool needs_frame;
 	// damage for cursors and fullscreen surface, in output-local coordinates
-	pixman_region32_t damage;
 	bool frame_pending;
 	float transform_matrix[9];
 
@@ -150,8 +149,11 @@ struct wlr_output {
 	struct {
 		// Request to render a frame
 		struct wl_signal frame;
-		// Emitted when buffers need to be swapped (because software cursors or
-		// fullscreen damage or because of backend-specific logic)
+		// Emitted when software cursors or backend-specific logic damage the
+		// output
+		struct wl_signal damage; // wlr_output_event_damage
+		// Emitted when a new frame needs to be committed (because of
+		// backend-specific logic)
 		struct wl_signal needs_frame;
 		// Emitted right before commit
 		struct wl_signal precommit; // wlr_output_event_precommit
@@ -179,6 +181,11 @@ struct wlr_output {
 	struct wl_listener display_destroy;
 
 	void *data;
+};
+
+struct wlr_output_event_damage {
+	struct wlr_output *output;
+	pixman_region32_t *damage; // output-buffer-local coordinates
 };
 
 struct wlr_output_event_precommit {
