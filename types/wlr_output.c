@@ -621,6 +621,9 @@ static void schedule_frame_handle_idle_timer(void *data) {
 }
 
 void wlr_output_schedule_frame(struct wlr_output *output) {
+	// Make sure the compositor commits a new frame. This is necessary to make
+	// clients which ask for frame callbacks without submitting a new buffer
+	// work.
 	wlr_output_update_needs_frame(output);
 
 	if (output->frame_pending || output->idle_frame != NULL) {
