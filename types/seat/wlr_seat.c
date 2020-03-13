@@ -316,6 +316,18 @@ void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat,
 	wl_list_for_each(client, &wlr_seat->clients, link) {
 		// Make resources inert if necessary
 		if ((capabilities & WL_SEAT_CAPABILITY_POINTER) == 0) {
+			struct wlr_seat_client *focused_client =
+				wlr_seat->pointer_state.focused_client;
+			struct wlr_surface *focused_surface =
+				wlr_seat->pointer_state.focused_surface;
+
+			if (focused_client != NULL && focused_surface != NULL) {
+				seat_client_send_pointer_leave_raw(focused_client, focused_surface);
+			}
+
+			// Note: we don't set focused client/surface to NULL since we need
+			// them to send the enter event if the pointer is recreated
+
 			struct wl_resource *resource, *tmp;
 			wl_resource_for_each_safe(resource, tmp, &client->pointers) {
 				seat_client_destroy_pointer(resource);
