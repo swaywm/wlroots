@@ -322,6 +322,19 @@ void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat,
 			}
 		}
 		if ((capabilities & WL_SEAT_CAPABILITY_KEYBOARD) == 0) {
+			struct wlr_seat_client *focused_client =
+				wlr_seat->keyboard_state.focused_client;
+			struct wlr_surface *focused_surface =
+				wlr_seat->keyboard_state.focused_surface;
+
+			if (focused_client != NULL && focused_surface != NULL) {
+				seat_client_send_keyboard_leave_raw(focused_client,
+						focused_surface);
+			}
+
+			// Note: we don't set focused client/surface to NULL since we need
+			// them to send the enter event if the keyboard is recreated
+
 			struct wl_resource *resource, *tmp;
 			wl_resource_for_each_safe(resource, tmp, &client->keyboards) {
 				seat_client_destroy_keyboard(resource);

@@ -15,6 +15,8 @@ void seat_client_destroy_pointer(struct wl_resource *resource);
 void seat_client_create_keyboard(struct wlr_seat_client *seat_client,
 	uint32_t version, uint32_t id);
 void seat_client_destroy_keyboard(struct wl_resource *resource);
+void seat_client_send_keyboard_leave_raw(struct wlr_seat_client *seat_client,
+	struct wlr_surface *surface);
 
 void seat_client_create_touch(struct wlr_seat_client *seat_client,
 	uint32_t version, uint32_t id);
