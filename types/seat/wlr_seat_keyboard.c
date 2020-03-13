@@ -421,8 +421,21 @@ void seat_client_create_keyboard(struct wlr_seat_client *seat_client,
 
 	// Send an enter event if there is a focused client/surface stored
 	if (focused_client != NULL && focused_surface != NULL) {
+		uint32_t *keycodes = keyboard->keycodes;
+		size_t num_keycodes = keyboard->num_keycodes;
+
 		struct wl_array keys;
 		wl_array_init(&keys);
+		for (size_t i = 0; i < num_keycodes; ++i) {
+			uint32_t *p = wl_array_add(&keys, sizeof(uint32_t));
+			if (!p) {
+				wlr_log(WLR_ERROR, "Cannot allocate memory, skipping keycode: %d\n",
+					keycodes[i]);
+				continue;
+			}
+			*p = keycodes[i];
+		}
+
 		uint32_t serial = wlr_seat_client_next_serial(focused_client);
 		struct wl_resource *resource;
 		wl_resource_for_each(resource, &focused_client->keyboards) {
@@ -434,6 +447,7 @@ void seat_client_create_keyboard(struct wlr_seat_client *seat_client,
 						focused_surface->resource, &keys);
 			}
 		}
+
 		wl_array_release(&keys);
 	}
 }
