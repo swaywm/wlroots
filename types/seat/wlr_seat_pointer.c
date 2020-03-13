@@ -129,6 +129,20 @@ static void seat_pointer_handle_surface_destroy(struct wl_listener *listener,
 	wlr_seat_pointer_clear_focus(state->seat);
 }
 
+void seat_client_send_pointer_leave_raw(struct wlr_seat_client *seat_client,
+		struct wlr_surface *surface) {
+	uint32_t serial = wlr_seat_client_next_serial(seat_client);
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &seat_client->pointers) {
+		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
+			continue;
+		}
+
+		wl_pointer_send_leave(resource, serial, surface->resource);
+		pointer_send_frame(resource);
+	}
+}
+
 void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy) {
 	if (wlr_seat->pointer_state.focused_surface == surface) {
@@ -149,16 +163,7 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 
 	// leave the previously entered surface
 	if (focused_client != NULL && focused_surface != NULL) {
-		uint32_t serial = wlr_seat_client_next_serial(focused_client);
-		struct wl_resource *resource;
-		wl_resource_for_each(resource, &focused_client->pointers) {
-			if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
-				continue;
-			}
-
-			wl_pointer_send_leave(resource, serial, focused_surface->resource);
-			pointer_send_frame(resource);
-		}
+		seat_client_send_pointer_leave_raw(focused_client, focused_surface);
 	}
 
 	// enter the current surface
@@ -404,6 +409,31 @@ void seat_client_create_pointer(struct wlr_seat_client *seat_client,
 	wl_resource_set_implementation(resource, &pointer_impl, seat_client,
 		&pointer_handle_resource_destroy);
 	wl_list_insert(&seat_client->pointers, wl_resource_get_link(resource));
+
+	struct wlr_seat_client *focused_client =
+		seat_client->seat->pointer_state.focused_client;
+	struct wlr_surface *focused_surface =
+		seat_client->seat->pointer_state.focused_surface;
+
+	// Send an enter event if there is a focused client/surface stored
+	if (focused_client != NULL && focused_surface != NULL) {
+		double sx = seat_client->seat->pointer_state.sx;
+		double sy = seat_client->seat->pointer_state.sy;
+
+		uint32_t serial = wlr_seat_client_next_serial(focused_client);
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &focused_client->pointers) {
+			if (wl_resource_get_id(resource) == id) {
+				if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
+					continue;
+				}
+
+				wl_pointer_send_enter(resource, serial, focused_surface->resource,
+					wl_fixed_from_double(sx), wl_fixed_from_double(sy));
+				pointer_send_frame(resource);
+			}
+		}
+	}
 }
 
 void seat_client_destroy_pointer(struct wl_resource *resource) {
