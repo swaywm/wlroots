@@ -501,8 +501,9 @@ static bool drm_connector_commit(struct wlr_output *output) {
 
 static void fill_empty_gamma_table(size_t size,
 		uint16_t *r, uint16_t *g, uint16_t *b) {
+	assert(0xFFFF < UINT64_MAX / (size - 1));	
 	for (uint32_t i = 0; i < size; ++i) {
-		uint16_t val = (uint32_t)0xffff * i / (size - 1);
+		uint16_t val = (uint64_t)0xffff * i / (size - 1);
 		r[i] = g[i] = b[i] = val;
 	}
 }
