@@ -39,6 +39,8 @@ struct wlr_drm_plane {
 	bool cursor_enabled;
 	int32_t cursor_hotspot_x, cursor_hotspot_y;
 
+	int in_fence_fd;
+
 	union wlr_drm_plane_props props;
 };
 
@@ -71,6 +73,8 @@ struct wlr_drm_crtc {
 	uint32_t *overlays;
 
 	union wlr_drm_crtc_props props;
+
+	int out_fence_fd;
 };
 
 struct wlr_drm_backend {

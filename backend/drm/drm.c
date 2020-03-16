@@ -3,6 +3,7 @@
 #include <drm_fourcc.h>
 #include <drm_mode.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <gbm.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
@@ -13,6 +14,7 @@
 #include <string.h>
 #include <strings.h>
 #include <time.h>
+#include <unistd.h>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 #include <wlr/backend/interface.h>
@@ -98,6 +100,7 @@ static bool add_plane(struct wlr_drm_backend *drm,
 	p->type = type;
 	p->id = drm_plane->plane_id;
 	p->props = *props;
+	p->in_fence_fd = -1;
 
 	for (size_t j = 0; j < drm_plane->count_formats; ++j) {
 		wlr_drm_format_set_add(&p->formats, drm_plane->formats[j],
@@ -164,6 +167,15 @@ static bool add_plane(struct wlr_drm_backend *drm,
 error:
 	free(p);
 	return false;
+}
+
+static void destroy_plane(struct wlr_drm_plane *plane) {
+	if (plane == NULL) {
+		return;
+	}
+	close(plane->in_fence_fd);
+	wlr_drm_format_set_finish(&plane->formats);
+	free(plane);
 }
 
 static bool init_planes(struct wlr_drm_backend *drm) {
@@ -270,6 +282,7 @@ bool init_drm_resources(struct wlr_drm_backend *drm) {
 		struct wlr_drm_crtc *crtc = &drm->crtcs[i];
 		crtc->id = res->crtcs[i];
 		crtc->legacy_crtc = drmModeGetCrtc(drm->fd, crtc->id);
+		crtc->out_fence_fd = -1;
 		get_drm_crtc_props(drm->fd, crtc->id, &crtc->props);
 	}
 
@@ -305,15 +318,11 @@ void finish_drm_resources(struct wlr_drm_backend *drm) {
 			drmModeDestroyPropertyBlob(drm->fd, crtc->gamma_lut);
 		}
 
-		if (crtc->primary) {
-			wlr_drm_format_set_finish(&crtc->primary->formats);
-			free(crtc->primary);
-		}
-		if (crtc->cursor) {
-			wlr_drm_format_set_finish(&crtc->cursor->formats);
-			free(crtc->cursor);
-		}
+		destroy_plane(crtc->primary);
+		destroy_plane(crtc->cursor);
+
 		free(crtc->overlays);
+		close(crtc->out_fence_fd);
 	}
 
 	free(drm->crtcs);
@@ -341,6 +350,11 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn, uint32_t flags) {
 		drm_fb_move(&crtc->primary->queued_fb, &crtc->primary->pending_fb);
 		if (crtc->cursor != NULL) {
 			drm_fb_move(&crtc->cursor->queued_fb, &crtc->cursor->pending_fb);
+		}
+		if (crtc->out_fence_fd >= 0 &&
+				crtc->primary->queued_fb.type == WLR_DRM_FB_TYPE_WLR_BUFFER) {
+			wlr_buffer_add_out_fence(crtc->primary->queued_fb.wlr_buf,
+				crtc->out_fence_fd);
 		}
 	} else {
 		memcpy(&crtc->pending, &crtc->current, sizeof(struct wlr_drm_crtc_state));
@@ -481,9 +495,13 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
+	int in_fence_fd = -1;
 	assert(output->pending.committed & WLR_OUTPUT_STATE_BUFFER);
 	switch (output->pending.buffer_type) {
 	case WLR_OUTPUT_STATE_BUFFER_RENDER:
+		// TODO: multi-GPU
+		in_fence_fd = wlr_renderer_dup_out_fence(drm->renderer.wlr_rend);
+
 		if (!drm_fb_lock_surface(&plane->pending_fb, &plane->surf)) {
 			wlr_log(WLR_ERROR, "drm_fb_lock_surface failed");
 			return false;
@@ -498,8 +516,20 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 				&crtc->primary->formats)) {
 			return false;
 		}
+
+		if (buffer->in_fence_fd >= 0) {
+			in_fence_fd = fcntl(buffer->in_fence_fd, F_DUPFD_CLOEXEC);
+			if (in_fence_fd < 0) {
+				wlr_log_errno(WLR_ERROR, "dup failed");
+			}
+		}
 		break;
 	}
+
+	if (plane->in_fence_fd >= 0) {
+		close(plane->in_fence_fd);
+	}
+	plane->in_fence_fd = in_fence_fd;
 
 	if (!drm_crtc_page_flip(conn)) {
 		return false;
@@ -1009,6 +1039,14 @@ bool drm_connector_is_cursor_visible(struct wlr_drm_connector *conn) {
 		conn->cursor_y + (int)plane->surf.height >= 0;
 }
 
+static int drm_connector_get_out_fence(struct wlr_output *output) {
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+	if (conn->crtc == NULL) {
+		return -1;
+	}
+	return conn->crtc->out_fence_fd;
+}
+
 static void drm_connector_destroy(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	drm_connector_cleanup(conn);
@@ -1027,6 +1065,7 @@ static const struct wlr_output_impl output_impl = {
 	.rollback_render = drm_connector_rollback_render,
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.export_dmabuf = drm_connector_export_dmabuf,
+	.get_out_fence = drm_connector_get_out_fence,
 };
 
 bool wlr_output_is_drm(struct wlr_output *output) {

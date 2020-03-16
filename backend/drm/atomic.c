@@ -1,5 +1,6 @@
 #include <gbm.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -158,6 +159,10 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
 	atomic_add(atom, id, props->crtc_x, (uint64_t)x);
 	atomic_add(atom, id, props->crtc_y, (uint64_t)y);
 
+	if (props->in_fence_fd) {
+		atomic_add(atom, id, props->in_fence_fd, plane->in_fence_fd);
+	}
+
 	return;
 
 error:
@@ -204,6 +209,15 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 		vrr_enabled = output->pending.adaptive_sync_enabled;
 	}
 
+	int *out_fence_ptr = NULL;
+	if (!(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
+		if (crtc->out_fence_fd >= 0) {
+			close(crtc->out_fence_fd);
+		}
+		crtc->out_fence_fd = -1;
+		out_fence_ptr = &crtc->out_fence_fd;
+	}
+
 	if (crtc->pending_modeset) {
 		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
 	} else {
@@ -236,6 +250,10 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 			} else {
 				plane_disable(&atom, crtc->cursor);
 			}
+		}
+		if (crtc->props.out_fence_ptr && out_fence_ptr != NULL) {
+			atomic_add(&atom, crtc->id, crtc->props.out_fence_ptr,
+				(uintptr_t)out_fence_ptr);
 		}
 	} else {
 		plane_disable(&atom, crtc->primary);
