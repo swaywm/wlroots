@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <wayland-client.h>
 
@@ -193,7 +194,7 @@ static const struct wl_pointer_listener pointer_listener = {
 
 static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t format, int32_t fd, uint32_t size) {
-	// TODO: set keymap
+	close(fd);
 }
 
 static uint32_t get_current_time_msec(void) {
