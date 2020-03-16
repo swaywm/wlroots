@@ -179,6 +179,22 @@ bool wlr_renderer_blit_dmabuf(struct wlr_renderer *r,
 	return r->impl->blit_dmabuf(r, dst, src);
 }
 
+int wlr_renderer_dup_out_fence(struct wlr_renderer *r) {
+	assert(!r->rendering);
+	if (!r->impl->dup_out_fence) {
+		return -1;
+	}
+	return r->impl->dup_out_fence(r);
+}
+
+bool wlr_renderer_wait_in_fence(struct wlr_renderer *r, int fd) {
+	assert(r->rendering);
+	if (!r->impl->wait_in_fence) {
+		return false;
+	}
+	return r->impl->wait_in_fence(r, fd);
+}
+
 bool wlr_renderer_format_supported(struct wlr_renderer *r,
 		enum wl_shm_format fmt) {
 	return r->impl->format_supported(r, fmt);

@@ -135,4 +135,15 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
  */
 void wlr_renderer_destroy(struct wlr_renderer *renderer);
 
+/**
+ * Create a new fence that will be signalled when rendering completes.
+ *
+ * This function must be called after wlr_renderer_end.
+ */
+int wlr_renderer_dup_out_fence(struct wlr_renderer *renderer);
+/**
+ * Wait for a fence before executing the next rendering operations.
+ */
+bool wlr_renderer_wait_in_fence(struct wlr_renderer *renderer, int fd);
+
 #endif
