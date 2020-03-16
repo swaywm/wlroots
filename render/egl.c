@@ -292,15 +292,15 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 			"eglQueryWaylandBufferWL");
 	}
 
-	if (check_egl_ext(exts_str, "EGL_KHR_fence_sync") &&
-			check_egl_ext(exts_str, "EGL_ANDROID_native_fence_sync")) {
+	if (check_egl_ext(display_exts_str, "EGL_KHR_fence_sync") &&
+			check_egl_ext(display_exts_str, "EGL_ANDROID_native_fence_sync")) {
 		load_egl_proc(&egl->procs.eglCreateSyncKHR, "eglCreateSyncKHR");
 		load_egl_proc(&egl->procs.eglDestroySyncKHR, "eglDestroySyncKHR");
 		load_egl_proc(&egl->procs.eglDupNativeFenceFDANDROID,
 			"eglDupNativeFenceFDANDROID");
 	}
 
-	if (check_egl_ext(exts_str, "EGL_KHR_wait_sync")) {
+	if (check_egl_ext(display_exts_str, "EGL_KHR_wait_sync")) {
 		load_egl_proc(&egl->procs.eglWaitSyncKHR, "eglWaitSyncKHR");
 	}
 

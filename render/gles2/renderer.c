@@ -36,6 +36,9 @@ static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
 
+	wlr_egl_destroy_sync(renderer->egl, renderer->end_sync);
+	renderer->end_sync = EGL_NO_SYNC_KHR;
+
 	PUSH_GLES2_DEBUG;
 
 	glViewport(0, 0, width, height);
@@ -53,8 +56,11 @@ static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 }
 
 static void gles2_end(struct wlr_renderer *wlr_renderer) {
-	gles2_get_renderer_in_context(wlr_renderer);
-	// no-op
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
+
+	assert(renderer->end_sync == EGL_NO_SYNC_KHR);
+	renderer->end_sync = wlr_egl_create_sync(renderer->egl, -1);
 }
 
 static void gles2_clear(struct wlr_renderer *wlr_renderer,
@@ -421,6 +427,27 @@ restore_context_out:
 	return r;
 }
 
+static int gles2_dup_out_fence(struct wlr_renderer *wlr_renderer) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	if (renderer->end_sync == EGL_NO_SYNC_KHR) {
+		return -1;
+	}
+	return wlr_egl_dup_fence_fd(renderer->egl, renderer->end_sync);
+}
+
+static bool gles2_wait_in_fence(struct wlr_renderer *wlr_renderer, int fd) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+
+	EGLSyncKHR sync = wlr_egl_create_sync(renderer->egl, fd);
+	if (sync == EGL_NO_SYNC_KHR) {
+		return false;
+	}
+
+	bool ok = wlr_egl_wait_sync(renderer->egl, sync);
+	wlr_egl_destroy_sync(renderer->egl, sync);
+	return ok;
+}
+
 static struct wlr_texture *gles2_texture_from_pixels(
 		struct wlr_renderer *wlr_renderer, enum wl_shm_format wl_fmt,
 		uint32_t stride, uint32_t width, uint32_t height, const void *data) {
@@ -486,6 +513,8 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	glDeleteProgram(renderer->shaders.tex_ext.program);
 	POP_GLES2_DEBUG;
 
+	wlr_egl_destroy_sync(renderer->egl, renderer->end_sync);
+
 	if (renderer->exts.debug_khr) {
 		glDisable(GL_DEBUG_OUTPUT_KHR);
 		gles2_procs.glDebugMessageCallbackKHR(NULL, NULL);
@@ -512,6 +541,8 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.get_dmabuf_formats = gles2_get_dmabuf_formats,
 	.preferred_read_format = gles2_preferred_read_format,
 	.read_pixels = gles2_read_pixels,
+	.dup_out_fence = gles2_dup_out_fence,
+	.wait_in_fence = gles2_wait_in_fence,
 	.texture_from_pixels = gles2_texture_from_pixels,
 	.texture_from_wl_drm = gles2_texture_from_wl_drm,
 	.texture_from_dmabuf = gles2_texture_from_dmabuf,
@@ -769,6 +800,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	POP_GLES2_DEBUG;
 
 	wlr_egl_unset_current(renderer->egl);
+	renderer->end_sync = EGL_NO_SYNC_KHR;
 
 	return &renderer->wlr_renderer;
 
