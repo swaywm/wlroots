@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
@@ -12,6 +13,7 @@ void wlr_buffer_init(struct wlr_buffer *buffer,
 	buffer->impl = impl;
 	buffer->width = width;
 	buffer->height = height;
+	buffer->in_fence_fd = -1;
 	wl_signal_init(&buffer->events.destroy);
 	wl_signal_init(&buffer->events.release);
 }
@@ -22,6 +24,8 @@ static void buffer_consider_destroy(struct wlr_buffer *buffer) {
 	}
 
 	wlr_signal_emit_safe(&buffer->events.destroy, NULL);
+
+	assert(buffer->in_fence_fd < 0);
 
 	buffer->impl->destroy(buffer);
 }
@@ -50,6 +54,11 @@ void wlr_buffer_unlock(struct wlr_buffer *buffer) {
 	buffer->n_locks--;
 
 	if (buffer->n_locks == 0) {
+		if (buffer->in_fence_fd >= 0) {
+			close(buffer->in_fence_fd);
+			buffer->in_fence_fd = -1;
+		}
+
 		wl_signal_emit(&buffer->events.release, NULL);
 	}
 
@@ -62,6 +71,11 @@ bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
 		return false;
 	}
 	return buffer->impl->get_dmabuf(buffer, attribs);
+}
+
+void wlr_buffer_set_in_fence(struct wlr_buffer *buffer, int fd) {
+	assert(buffer->in_fence_fd < 0); // can only be set once
+	buffer->in_fence_fd = fd;
 }
 
 
