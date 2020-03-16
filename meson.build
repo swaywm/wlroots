@@ -87,6 +87,7 @@ conf_data.set10('WLR_HAS_XWAYLAND', false)
 conf_data.set10('WLR_HAS_XCB_ERRORS', false)
 conf_data.set10('WLR_HAS_XCB_ICCCM', false)
 conf_data.set10('WLR_HAS_EGLMESAEXT_H', false)
+conf_data.set10('WLR_HAS_LINUX_SYNC_FILE', false)
 
 # Clang complains about some zeroed initializer lists (= {0}), even though they
 # are valid
