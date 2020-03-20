@@ -905,6 +905,13 @@ void wlr_output_render_software_cursors(struct wlr_output *output,
 	pixman_region32_fini(&render_damage);
 }
 
+int wlr_output_get_out_fence(struct wlr_output *output) {
+	if (!output->impl->get_out_fence) {
+		return -1;
+	}
+	return output->impl->get_out_fence(output);
+}
+
 
 /**
  * Returns the cursor box, scaled for its output.
