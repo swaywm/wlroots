@@ -1,4 +1,6 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <wlr/render/wlr_renderer.h>
@@ -6,6 +8,7 @@
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
+#include "render/sync_file.h"
 
 void wlr_buffer_init(struct wlr_buffer *buffer,
 		const struct wlr_buffer_impl *impl, int width, int height) {
@@ -13,7 +16,7 @@ void wlr_buffer_init(struct wlr_buffer *buffer,
 	buffer->impl = impl;
 	buffer->width = width;
 	buffer->height = height;
-	buffer->in_fence_fd = -1;
+	buffer->in_fence_fd = buffer->out_fence_fd = -1;
 	wl_signal_init(&buffer->events.destroy);
 	wl_signal_init(&buffer->events.release);
 }
@@ -26,6 +29,9 @@ static void buffer_consider_destroy(struct wlr_buffer *buffer) {
 	wlr_signal_emit_safe(&buffer->events.destroy, NULL);
 
 	assert(buffer->in_fence_fd < 0);
+	if (buffer->out_fence_fd >= 0) {
+		close(buffer->out_fence_fd);
+	}
 
 	buffer->impl->destroy(buffer);
 }
@@ -76,6 +82,25 @@ bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
 void wlr_buffer_set_in_fence(struct wlr_buffer *buffer, int fd) {
 	assert(buffer->in_fence_fd < 0); // can only be set once
 	buffer->in_fence_fd = fd;
+}
+
+void wlr_buffer_add_out_fence(struct wlr_buffer *buffer, int fd) {
+	if (buffer->out_fence_fd < 0) {
+		buffer->out_fence_fd = fcntl(fd, F_DUPFD_CLOEXEC);
+		if (buffer->out_fence_fd < 0) {
+			wlr_log_errno(WLR_ERROR, "dup failed");
+		}
+		return;
+	}
+
+	int merged = sync_file_merge(buffer->out_fence_fd, fd);
+	if (merged < 0) {
+		wlr_log(WLR_ERROR, "Failed to merge out fences");
+		return;
+	}
+
+	close(buffer->out_fence_fd);
+	buffer->out_fence_fd = merged;
 }
 
 
