@@ -667,8 +667,14 @@ bool wlr_surface_set_role(struct wlr_surface *surface,
 		}
 		return false;
 	}
+	if (surface->role_data != NULL && surface->role_data != role_data) {
+		wl_resource_post_error(error_resource, error_code,
+			"Cannot reassign role %s to wl_surface@%d,"
+			"role object still exists", role->name,
+			wl_resource_get_id(surface->resource));
+		return false;
+	}
 
-	assert(surface->role_data == NULL);
 	surface->role = role;
 	surface->role_data = role_data;
 	return true;
