@@ -90,6 +90,10 @@ bool init_drm_surface(struct wlr_drm_surface *surf,
 		if (drm_format != NULL) {
 			surf->gbm = gbm_surface_create_with_modifiers(renderer->gbm,
 				width, height, format, drm_format->modifiers, drm_format->len);
+		} else {
+			uint64_t formats[] = { DRM_FORMAT_MOD_LINEAR };
+			surf->gbm = gbm_surface_create_with_modifiers(renderer->gbm,
+				width, height, format, formats, 1);
 		}
 	}
 
