@@ -351,13 +351,15 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 	return wlr_gles2_texture_from_dmabuf(renderer->egl, attribs);
 }
 
-static void gles2_init_wl_display(struct wlr_renderer *wlr_renderer,
+static bool gles2_init_wl_display(struct wlr_renderer *wlr_renderer,
 		struct wl_display *wl_display) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer(wlr_renderer);
 	if (!wlr_egl_bind_display(renderer->egl, wl_display)) {
 		wlr_log(WLR_INFO, "failed to bind wl_display to EGL");
+		return false;
 	}
+	return true;
 }
 
 struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *wlr_renderer) {
