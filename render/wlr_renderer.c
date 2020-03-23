@@ -160,18 +160,18 @@ bool wlr_renderer_format_supported(struct wlr_renderer *r,
 	return r->impl->format_supported(r, fmt);
 }
 
-void wlr_renderer_init_wl_display(struct wlr_renderer *r,
+bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 		struct wl_display *wl_display) {
 	if (wl_display_init_shm(wl_display)) {
 		wlr_log(WLR_ERROR, "Failed to initialize shm");
-		return;
+		return false;
 	}
 
 	size_t len;
 	const enum wl_shm_format *formats = wlr_renderer_get_formats(r, &len);
 	if (formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to initialize shm: cannot get formats");
-		return;
+		return false;
 	}
 
 	for (size_t i = 0; i < len; ++i) {
@@ -183,12 +183,18 @@ void wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	}
 
 	if (r->impl->texture_from_dmabuf) {
-		wlr_linux_dmabuf_v1_create(wl_display, r);
+		if (wlr_linux_dmabuf_v1_create(wl_display, r) == NULL) {
+			return false;
+		}
 	}
 
 	if (r->impl->init_wl_display) {
-		r->impl->init_wl_display(r, wl_display);
+		if (!r->impl->init_wl_display(r, wl_display)) {
+			return false;
+		}
 	}
+
+	return true;
 }
 
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
