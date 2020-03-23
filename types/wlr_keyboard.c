@@ -145,7 +145,7 @@ void wlr_keyboard_led_update(struct wlr_keyboard *kb, uint32_t leds) {
 	}
 }
 
-void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
+bool wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 		struct xkb_keymap *keymap) {
 	xkb_keymap_unref(kb->keymap);
 	kb->keymap = xkb_keymap_ref(keymap);
@@ -199,7 +199,7 @@ void wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	keyboard_modifier_update(kb);
 
 	wlr_signal_emit_safe(&kb->events.keymap, kb);
-	return;
+	return true;
 
 err:
 	xkb_state_unref(kb->xkb_state);
@@ -208,6 +208,7 @@ err:
 	kb->keymap = NULL;
 	free(kb->keymap_string);
 	kb->keymap_string = NULL;
+	return false;
 }
 
 void wlr_keyboard_set_repeat_info(struct wlr_keyboard *kb, int32_t rate,
