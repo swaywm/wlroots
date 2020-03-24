@@ -1,6 +1,6 @@
 option('libcap', type: 'feature', value: 'auto', description: 'Enable support for rootless session via capabilities (cap_sys_admin)')
 option('logind', type: 'feature', value: 'auto', description: 'Enable support for rootless session via logind')
-option('logind-provider', type: 'combo', choices: ['systemd', 'elogind'], value: 'systemd', description: 'Provider of logind support library')
+option('logind-provider', type: 'combo', choices: ['auto', 'systemd', 'elogind'], value: 'auto', description: 'Provider of logind support library')
 option('xcb-errors', type: 'feature', value: 'auto', description: 'Use xcb-errors util library')
 option('xcb-icccm', type: 'feature', value: 'auto', description: 'Use xcb-icccm util library')
 option('xwayland', type: 'feature', value: 'auto', yield: true, description: 'Enable support for X11 applications')
