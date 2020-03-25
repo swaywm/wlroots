@@ -35,6 +35,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <assert.h>
 #include <wayland-client-protocol.h>
 #include "wlr-screencopy-unstable-v1-client-protocol.h"
 
@@ -111,6 +112,9 @@ static void frame_handle_buffer(void *data,
 	buffer.width = width;
 	buffer.height = height;
 	buffer.stride = stride;
+
+	// Make sure the buffer is not allocated
+	assert(!buffer.wl_buffer);
 	buffer.wl_buffer =
 		create_shm_buffer(format, width, height, stride, &buffer.data);
 	if (buffer.wl_buffer == NULL) {
@@ -257,6 +261,7 @@ int main(int argc, char *argv[]) {
 	write_image("wayland-screenshot.png", buffer.format, buffer.width,
 		buffer.height, buffer.stride, buffer.y_invert, buffer.data);
 	wl_buffer_destroy(buffer.wl_buffer);
+	munmap(buffer.data, buffer.stride * buffer.height);
 
 	return EXIT_SUCCESS;
 }
