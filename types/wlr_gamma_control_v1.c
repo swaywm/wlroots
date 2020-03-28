@@ -161,6 +161,13 @@ static void gamma_control_manager_get_gamma_control(struct wl_client *client,
 	wl_resource_set_implementation(gamma_control->resource, &gamma_control_impl,
 		gamma_control, gamma_control_handle_resource_destroy);
 
+	if (output == NULL) {
+		wl_resource_set_user_data(gamma_control->resource, NULL);
+		zwlr_gamma_control_v1_send_failed(gamma_control->resource);
+		free(gamma_control);
+		return;
+	}
+
 	wl_signal_add(&output->events.destroy,
 		&gamma_control->output_destroy_listener);
 	gamma_control->output_destroy_listener.notify =

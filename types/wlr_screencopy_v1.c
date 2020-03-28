@@ -379,12 +379,18 @@ static void capture_output(struct wl_client *wl_client,
 		wl_client_post_no_memory(wl_client);
 		return;
 	}
+	wl_resource_set_implementation(frame->resource, &frame_impl, frame,
+		frame_handle_resource_destroy);
+
+	if (output == NULL) {
+		wl_resource_set_user_data(frame->resource, NULL);
+		zwlr_screencopy_frame_v1_send_failed(frame->resource);
+		free(frame);
+		return;
+	}
 
 	frame->client = client;
 	client->ref++;
-
-	wl_resource_set_implementation(frame->resource, &frame_impl, frame,
-		frame_handle_resource_destroy);
 
 	wl_list_insert(&client->manager->frames, &frame->link);
 
