@@ -96,6 +96,20 @@ static void output_manager_handle_get_xdg_output(struct wl_client *client,
 	struct wlr_output_layout *layout = manager->layout;
 	struct wlr_output *output = wlr_output_from_resource(output_resource);
 
+	struct wl_resource *xdg_output_resource = wl_resource_create(client,
+			&zxdg_output_v1_interface, wl_resource_get_version(resource), id);
+	if (!xdg_output_resource) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+	wl_resource_set_implementation(xdg_output_resource, &output_implementation,
+		NULL, output_handle_resource_destroy);
+
+	if (output == NULL) {
+		wl_list_init(wl_resource_get_link(xdg_output_resource));
+		return;
+	}
+
 	struct wlr_output_layout_output *layout_output =
 		wlr_output_layout_get(layout, output);
 	assert(layout_output);
@@ -109,14 +123,6 @@ static void output_manager_handle_get_xdg_output(struct wl_client *client,
 	}
 	assert(xdg_output);
 
-	struct wl_resource *xdg_output_resource = wl_resource_create(client,
-			&zxdg_output_v1_interface, wl_resource_get_version(resource), id);
-	if (!xdg_output_resource) {
-		wl_client_post_no_memory(client);
-		return;
-	}
-	wl_resource_set_implementation(xdg_output_resource, &output_implementation,
-		NULL, output_handle_resource_destroy);
 
 	wl_list_insert(&xdg_output->resources,
 		wl_resource_get_link(xdg_output_resource));
