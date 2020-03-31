@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <wayland-server-core.h>
+#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 
 enum wlr_surface_state_field {
@@ -25,6 +26,7 @@ enum wlr_surface_state_field {
 	WLR_SURFACE_STATE_TRANSFORM = 1 << 5,
 	WLR_SURFACE_STATE_SCALE = 1 << 6,
 	WLR_SURFACE_STATE_FRAME_CALLBACK_LIST = 1 << 7,
+	WLR_SURFACE_STATE_VIEWPORT = 1 << 8,
 };
 
 struct wlr_surface_state {
@@ -40,6 +42,21 @@ struct wlr_surface_state {
 
 	int width, height; // in surface-local coordinates
 	int buffer_width, buffer_height;
+
+	/**
+	 * The viewport is applied after the surface transform and scale.
+	 *
+	 * If has_src is true, the surface content is cropped to the provided
+	 * rectangle. If has_dst is true, the surface content is scaled to the
+	 * provided rectangle.
+	 */
+	struct {
+		bool has_src, has_dst;
+		// In coordinates after scale/transform are applied, but before the
+		// destination rectangle is applied
+		struct wlr_fbox src;
+		int dst_width, dst_height; // in surface-local coordinates
+	} viewport;
 
 	struct wl_listener buffer_destroy;
 };
@@ -220,7 +237,6 @@ void wlr_surface_send_leave(struct wlr_surface *surface,
 void wlr_surface_send_frame_done(struct wlr_surface *surface,
 		const struct timespec *when);
 
-struct wlr_box;
 /**
  * Get the bounding box that contains the surface and all subsurfaces in
  * surface coordinates.

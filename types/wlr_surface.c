@@ -139,6 +139,30 @@ static void surface_set_input_region(struct wl_client *client,
 	}
 }
 
+/**
+ * Computes the surface viewport source size, ie. the size after applying the
+ * surface's scale, transform and cropping (via the viewport's source
+ * rectangle) but before applying the viewport scaling (via the viewport's
+ * destination rectangle).
+ */
+static void surface_state_viewport_src_size(struct wlr_surface_state *state,
+		int *out_width, int *out_height) {
+	if (state->viewport.has_src) {
+		*out_width = state->viewport.src.width;
+		*out_height = state->viewport.src.height;
+	} else {
+		int width = state->buffer_width / state->scale;
+		int height = state->buffer_height / state->scale;
+		if ((state->transform & WL_OUTPUT_TRANSFORM_90) != 0) {
+			int tmp = width;
+			width = height;
+			height = tmp;
+		}
+		*out_width = width;
+		*out_height = height;
+	}
+}
+
 static void surface_state_finalize(struct wlr_surface *surface,
 		struct wlr_surface_state *state) {
 	if ((state->committed & WLR_SURFACE_STATE_BUFFER)) {
@@ -150,15 +174,17 @@ static void surface_state_finalize(struct wlr_surface *surface,
 		}
 	}
 
-	int width = state->buffer_width / state->scale;
-	int height = state->buffer_height / state->scale;
-	if ((state->transform & WL_OUTPUT_TRANSFORM_90) != 0) {
-		int tmp = width;
-		width = height;
-		height = tmp;
+	if (state->buffer_resource != NULL) {
+		if (state->viewport.has_dst) {
+			state->width = state->viewport.dst_width;
+			state->height = state->viewport.dst_height;
+		} else {
+			surface_state_viewport_src_size(state,
+				&state->width, &state->height);
+		}
+	} else {
+		state->width = state->height = 0;
 	}
-	state->width = width;
-	state->height = height;
 
 	pixman_region32_intersect_rect(&state->surface_damage,
 		&state->surface_damage, 0, 0, state->width, state->height);
@@ -183,6 +209,22 @@ static void surface_update_damage(pixman_region32_t *buffer_damage,
 		pixman_region32_init(&surface_damage);
 
 		pixman_region32_copy(&surface_damage, &pending->surface_damage);
+
+		if (pending->viewport.has_dst) {
+			int src_width, src_height;
+			surface_state_viewport_src_size(pending, &src_width, &src_height);
+			float scale_x = (float)pending->viewport.dst_width / src_width;
+			float scale_y = (float)pending->viewport.dst_height / src_height;
+			wlr_region_scale_xy(&surface_damage, &surface_damage,
+				1.0 / scale_x, 1.0 / scale_y);
+		}
+		if (pending->viewport.has_src) {
+			// This is lossy: do a best-effort conversion
+			pixman_region32_translate(&surface_damage,
+				floor(pending->viewport.src.x),
+				floor(pending->viewport.src.y));
+		}
+
 		wlr_region_transform(&surface_damage, &surface_damage,
 			wlr_output_transform_invert(pending->transform),
 			pending->width, pending->height);
@@ -229,6 +271,9 @@ static void surface_state_copy(struct wlr_surface_state *state,
 	}
 	if (next->committed & WLR_SURFACE_STATE_INPUT_REGION) {
 		pixman_region32_copy(&state->input, &next->input);
+	}
+	if (next->committed & WLR_SURFACE_STATE_VIEWPORT) {
+		memcpy(&state->viewport, &next->viewport, sizeof(state->viewport));
 	}
 
 	state->committed |= next->committed;
@@ -1125,6 +1170,13 @@ void wlr_surface_get_extends(struct wlr_surface *surface, struct wlr_box *box) {
 	box->height = acc.max_y - acc.min_y;
 }
 
+static void crop_region(pixman_region32_t *dst, pixman_region32_t *src,
+		const struct wlr_box *box) {
+	pixman_region32_intersect_rect(dst, src,
+		box->x, box->y, box->width, box->height);
+	pixman_region32_translate(dst, -box->x, -box->y);
+}
+
 void wlr_surface_get_effective_damage(struct wlr_surface *surface,
 		pixman_region32_t *damage) {
 	pixman_region32_clear(damage);
@@ -1134,6 +1186,24 @@ void wlr_surface_get_effective_damage(struct wlr_surface *surface,
 		surface->current.transform, surface->current.buffer_width,
 		surface->current.buffer_height);
 	wlr_region_scale(damage, damage, 1.0 / (float)surface->current.scale);
+
+	if (surface->current.viewport.has_src) {
+		struct wlr_box src_box = {
+			.x = floor(surface->current.viewport.src.x),
+			.y = floor(surface->current.viewport.src.y),
+			.width = ceil(surface->current.viewport.src.width),
+			.height = ceil(surface->current.viewport.src.height),
+		};
+		crop_region(damage, damage, &src_box);
+	}
+	if (surface->current.viewport.has_dst) {
+		int src_width, src_height;
+		surface_state_viewport_src_size(&surface->current,
+			&src_width, &src_height);
+		float scale_x = (float)surface->current.viewport.dst_width / src_width;
+		float scale_y = (float)surface->current.viewport.dst_height / src_height;
+		wlr_region_scale_xy(damage, damage, scale_x, scale_y);
+	}
 
 	// On resize, damage the previous bounds of the surface. The current bounds
 	// have already been damaged in surface_update_damage.
