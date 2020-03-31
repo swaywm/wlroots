@@ -14,6 +14,7 @@ protocols = {
 	# Stable upstream protocols
 	'xdg-shell': wl_protocol_dir / 'stable/xdg-shell/xdg-shell.xml',
 	'presentation-time': wl_protocol_dir / 'stable/presentation-time/presentation-time.xml',
+	'viewporter': wl_protocol_dir / 'stable/viewporter/viewporter.xml',
 	# Unstable upstream protocols
 	'fullscreen-shell-unstable-v1': wl_protocol_dir / 'unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml',
 	'idle-inhibit-unstable-v1': wl_protocol_dir / 'unstable/idle-inhibit/idle-inhibit-unstable-v1.xml',
