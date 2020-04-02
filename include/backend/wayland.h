@@ -72,7 +72,6 @@ struct wlr_wl_output {
 	struct zxdg_toplevel_decoration_v1 *zxdg_toplevel_decoration_v1;
 	struct wl_egl_window *egl_window;
 	EGLSurface egl_surface;
-	struct wlr_wl_buffer *pending_buffer;
 	struct wl_list presentation_feedbacks;
 
 	uint32_t enter_serial;

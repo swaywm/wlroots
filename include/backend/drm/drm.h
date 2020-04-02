@@ -128,8 +128,6 @@ struct wlr_drm_connector {
 	struct wl_event_source *retry_pageflip;
 	struct wl_list link;
 
-	// DMA-BUF to be displayed on next commit
-	struct wlr_dmabuf_attributes pending_dmabuf;
 	// Buffer submitted to the kernel but not yet displayed
 	struct wlr_buffer *pending_buffer;
 	struct gbm_bo *pending_bo;

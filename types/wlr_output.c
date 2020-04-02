@@ -474,10 +474,30 @@ static void output_state_clear(struct wlr_output_state *state) {
 }
 
 static bool output_basic_test(struct wlr_output *output) {
-	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
-			output->frame_pending) {
-		wlr_log(WLR_DEBUG, "Tried to commit a buffer while a frame is pending");
-		return false;
+	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+		if (output->frame_pending) {
+			wlr_log(WLR_DEBUG, "Tried to commit a buffer while a frame is pending");
+			return false;
+		}
+
+		if (output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
+			if (output->attach_render_locks > 0) {
+				return false;
+			}
+
+			// If the output has at least one software cursor, refuse to attach the
+			// buffer
+			struct wlr_output_cursor *cursor;
+			wl_list_for_each(cursor, &output->cursors, link) {
+				if (cursor->enabled && cursor->visible &&
+						cursor != output->hardware_cursor) {
+					return false;
+				}
+			}
+
+			// TOOD: check width/height matches the output's, since scaling
+			// isn't supported
+		}
 	}
 
 	bool enabled = output->enabled;
@@ -588,34 +608,12 @@ void wlr_output_rollback(struct wlr_output *output) {
 	output_state_clear(&output->pending);
 }
 
-bool wlr_output_attach_buffer(struct wlr_output *output,
+void wlr_output_attach_buffer(struct wlr_output *output,
 		struct wlr_buffer *buffer) {
-	if (!output->impl->attach_buffer) {
-		return false;
-	}
-	if (output->attach_render_locks > 0) {
-		return false;
-	}
-
-	// If the output has at least one software cursor, refuse to attach the
-	// buffer
-	struct wlr_output_cursor *cursor;
-	wl_list_for_each(cursor, &output->cursors, link) {
-		if (cursor->enabled && cursor->visible &&
-				cursor != output->hardware_cursor) {
-			return false;
-		}
-	}
-
-	if (!output->impl->attach_buffer(output, buffer)) {
-		return false;
-	}
-
 	output_state_clear_buffer(&output->pending);
 	output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
 	output->pending.buffer_type = WLR_OUTPUT_STATE_BUFFER_SCANOUT;
 	output->pending.buffer = wlr_buffer_lock(buffer);
-	return true;
 }
 
 void wlr_output_send_frame(struct wlr_output *output) {
