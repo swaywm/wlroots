@@ -473,16 +473,11 @@ static void output_state_clear(struct wlr_output_state *state) {
 	state->committed = 0;
 }
 
-bool wlr_output_commit(struct wlr_output *output) {
-	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
-		if (output->frame_pending) {
-			wlr_log(WLR_ERROR, "Tried to commit a buffer while a frame is pending");
-			goto error;
-		}
-		if (output->idle_frame != NULL) {
-			wl_event_source_remove(output->idle_frame);
-			output->idle_frame = NULL;
-		}
+static bool output_basic_test(struct wlr_output *output) {
+	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
+			output->frame_pending) {
+		wlr_log(WLR_DEBUG, "Tried to commit a buffer while a frame is pending");
+		return false;
 	}
 
 	bool enabled = output->enabled;
@@ -491,16 +486,38 @@ bool wlr_output_commit(struct wlr_output *output) {
 	}
 
 	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
-		wlr_log(WLR_ERROR, "Tried to commit a buffer on a disabled output");
-		goto error;
+		wlr_log(WLR_DEBUG, "Tried to commit a buffer on a disabled output");
+		return false;
 	}
 	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_MODE) {
-		wlr_log(WLR_ERROR, "Tried to modeset a disabled output");
-		goto error;
+		wlr_log(WLR_DEBUG, "Tried to modeset a disabled output");
+		return false;
 	}
 	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) {
-		wlr_log(WLR_ERROR, "Tried to enable adaptive sync on a disabled output");
-		goto error;
+		wlr_log(WLR_DEBUG, "Tried to enable adaptive sync on a disabled output");
+		return false;
+	}
+
+	return true;
+}
+
+bool wlr_output_test(struct wlr_output *output) {
+	if (!output_basic_test(output)) {
+		return false;
+	}
+	return output->impl->test(output);
+}
+
+bool wlr_output_commit(struct wlr_output *output) {
+	if (!output_basic_test(output)) {
+		wlr_log(WLR_ERROR, "Basic output test failed");
+		return false;
+	}
+
+	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
+			output->idle_frame != NULL) {
+		wl_event_source_remove(output->idle_frame);
+		output->idle_frame = NULL;
 	}
 
 	struct timespec now;
@@ -565,10 +582,6 @@ bool wlr_output_commit(struct wlr_output *output) {
 
 	output_state_clear(&output->pending);
 	return true;
-
-error:
-	output_state_clear(&output->pending);
-	return false;
 }
 
 void wlr_output_rollback(struct wlr_output *output) {

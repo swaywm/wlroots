@@ -334,6 +334,10 @@ static bool drm_connector_attach_render(struct wlr_output *output,
 	return make_drm_surface_current(&conn->crtc->primary->surf, buffer_age);
 }
 
+static bool drm_connector_test(struct wlr_output *output) {
+	return true;
+}
+
 static bool drm_connector_commit_buffer(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
@@ -455,6 +459,10 @@ static bool drm_connector_set_custom_mode(struct wlr_output *output,
 static bool drm_connector_commit(struct wlr_output *output) {
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 
+	if (!drm_connector_test(output)) {
+		return false;
+	}
+
 	if (!drm->session->active) {
 		return false;
 	}
@@ -501,7 +509,7 @@ static bool drm_connector_commit(struct wlr_output *output) {
 
 static void fill_empty_gamma_table(size_t size,
 		uint16_t *r, uint16_t *g, uint16_t *b) {
-	assert(0xFFFF < UINT64_MAX / (size - 1));	
+	assert(0xFFFF < UINT64_MAX / (size - 1));
 	for (uint32_t i = 0; i < size; ++i) {
 		uint16_t val = (uint64_t)0xffff * i / (size - 1);
 		r[i] = g[i] = b[i] = val;
@@ -1068,6 +1076,7 @@ static const struct wlr_output_impl output_impl = {
 	.move_cursor = drm_connector_move_cursor,
 	.destroy = drm_connector_destroy,
 	.attach_render = drm_connector_attach_render,
+	.test = drm_connector_test,
 	.commit = drm_connector_commit,
 	.set_gamma = set_drm_connector_gamma,
 	.get_gamma_size = drm_connector_get_gamma_size,

@@ -197,10 +197,7 @@ static bool output_attach_buffer(struct wlr_output *wlr_output,
 	return true;
 }
 
-static bool output_commit(struct wlr_output *wlr_output) {
-	struct wlr_wl_output *output =
-		get_wl_output_from_output(wlr_output);
-
+static bool output_test(struct wlr_output *wlr_output) {
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
 		wlr_log(WLR_DEBUG, "Cannot disable a Wayland output");
 		return false;
@@ -208,6 +205,20 @@ static bool output_commit(struct wlr_output *wlr_output) {
 
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_MODE) {
 		assert(wlr_output->pending.mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM);
+	}
+
+	return true;
+}
+
+static bool output_commit(struct wlr_output *wlr_output) {
+	struct wlr_wl_output *output =
+		get_wl_output_from_output(wlr_output);
+
+	if (!output_test(wlr_output)) {
+		return false;
+	}
+
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_MODE) {
 		if (!output_set_custom_mode(wlr_output,
 				wlr_output->pending.custom_mode.width,
 				wlr_output->pending.custom_mode.height,
@@ -419,6 +430,7 @@ static const struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
 	.attach_buffer  = output_attach_buffer,
+	.test = output_test,
 	.commit = output_commit,
 	.set_cursor = output_set_cursor,
 	.move_cursor = output_move_cursor,

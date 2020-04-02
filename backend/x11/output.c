@@ -99,10 +99,7 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 	return wlr_egl_make_current(&x11->egl, output->surf, buffer_age);
 }
 
-static bool output_commit(struct wlr_output *wlr_output) {
-	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
-	struct wlr_x11_backend *x11 = output->x11;
-
+static bool output_test(struct wlr_output *wlr_output) {
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
 		wlr_log(WLR_DEBUG, "Cannot disable an X11 output");
 		return false;
@@ -110,6 +107,20 @@ static bool output_commit(struct wlr_output *wlr_output) {
 
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_MODE) {
 		assert(wlr_output->pending.mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM);
+	}
+
+	return true;
+}
+
+static bool output_commit(struct wlr_output *wlr_output) {
+	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
+	struct wlr_x11_backend *x11 = output->x11;
+
+	if (!output_test(wlr_output)) {
+		return false;
+	}
+
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_MODE) {
 		if (!output_set_custom_mode(wlr_output,
 				wlr_output->pending.custom_mode.width,
 				wlr_output->pending.custom_mode.height,
@@ -152,6 +163,7 @@ static bool output_commit(struct wlr_output *wlr_output) {
 static const struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
+	.test = output_test,
 	.commit = output_commit,
 };
 
