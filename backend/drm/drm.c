@@ -334,7 +334,67 @@ static bool drm_connector_attach_render(struct wlr_output *output,
 	return make_drm_surface_current(&conn->crtc->primary->surf, buffer_age);
 }
 
+static uint32_t strip_alpha_channel(uint32_t format) {
+	switch (format) {
+	case DRM_FORMAT_ARGB8888:
+		return DRM_FORMAT_XRGB8888;
+	default:
+		return DRM_FORMAT_INVALID;
+	}
+}
+
+static bool test_buffer(struct wlr_drm_connector *conn,
+		struct wlr_buffer *wlr_buffer) {
+	struct wlr_output *output = &conn->output;
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+
+	if (!drm->session->active) {
+		return false;
+	}
+
+	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		return false;
+	}
+
+	struct wlr_dmabuf_attributes attribs;
+	if (!wlr_buffer_get_dmabuf(wlr_buffer, &attribs)) {
+		return false;
+	}
+
+	if (attribs.flags != 0) {
+		return false;
+	}
+	if (attribs.width != output->width || attribs.height != output->height) {
+		return false;
+	}
+
+	if (!wlr_drm_format_set_has(&crtc->primary->formats,
+			attribs.format, attribs.modifier)) {
+		// The format isn't supported by the plane. Try stripping the alpha
+		// channel, if any.
+		uint32_t format = strip_alpha_channel(attribs.format);
+		if (format != DRM_FORMAT_INVALID && wlr_drm_format_set_has(
+				&crtc->primary->formats, format, attribs.modifier)) {
+			attribs.format = format;
+		} else {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static bool drm_connector_test(struct wlr_output *output) {
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+
+	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
+			output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
+		if (!test_buffer(conn, output->pending.buffer)) {
+			return false;
+		}
+	}
+
 	return true;
 }
 
@@ -377,8 +437,13 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 			return false;
 		}
 		break;
-	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:
-		bo = import_gbm_bo(&drm->renderer, &conn->pending_dmabuf);
+	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:;
+		struct wlr_dmabuf_attributes attribs;
+		if (!wlr_buffer_get_dmabuf(output->pending.buffer, &attribs)) {
+			return false;
+		}
+
+		bo = import_gbm_bo(&drm->renderer, &attribs);
 		if (bo == NULL) {
 			wlr_log(WLR_ERROR, "import_gbm_bo failed");
 			return false;
@@ -1011,57 +1076,6 @@ static bool drm_connector_move_cursor(struct wlr_output *output,
 	return ok;
 }
 
-static uint32_t strip_alpha_channel(uint32_t format) {
-	switch (format) {
-	case DRM_FORMAT_ARGB8888:
-		return DRM_FORMAT_XRGB8888;
-	default:
-		return DRM_FORMAT_INVALID;
-	}
-}
-
-static bool drm_connector_attach_buffer(struct wlr_output *output,
-		struct wlr_buffer *buffer) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
-	if (!drm->session->active) {
-		return false;
-	}
-
-	struct wlr_drm_crtc *crtc = conn->crtc;
-	if (!crtc) {
-		return false;
-	}
-
-	struct wlr_dmabuf_attributes attribs;
-	if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
-		return false;
-	}
-
-	if (attribs.flags != 0) {
-		return false;
-	}
-	if (attribs.width != output->width || attribs.height != output->height) {
-		return false;
-	}
-
-	if (!wlr_drm_format_set_has(&crtc->primary->formats,
-			attribs.format, attribs.modifier)) {
-		// The format isn't supported by the plane. Try stripping the alpha
-		// channel, if any.
-		uint32_t format = strip_alpha_channel(attribs.format);
-		if (format != DRM_FORMAT_INVALID && wlr_drm_format_set_has(
-				&crtc->primary->formats, format, attribs.modifier)) {
-			attribs.format = format;
-		} else {
-			return false;
-		}
-	}
-
-	memcpy(&conn->pending_dmabuf, &attribs, sizeof(attribs));
-	return true;
-}
-
 static void drm_connector_destroy(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	drm_connector_cleanup(conn);
@@ -1081,7 +1095,6 @@ static const struct wlr_output_impl output_impl = {
 	.set_gamma = set_drm_connector_gamma,
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.export_dmabuf = drm_connector_export_dmabuf,
-	.attach_buffer = drm_connector_attach_buffer,
 };
 
 bool wlr_output_is_drm(struct wlr_output *output) {

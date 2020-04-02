@@ -314,8 +314,11 @@ bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age);
 /**
  * Attach a buffer to the output. Compositors should call `wlr_output_commit`
  * to submit the new frame. The output needs to be enabled.
+ *
+ * Not all backends support direct scan-out on all buffers. Compositors can
+ * check whether a buffer is supported by calling `wlr_output_test`.
  */
-bool wlr_output_attach_buffer(struct wlr_output *output,
+void wlr_output_attach_buffer(struct wlr_output *output,
 	struct wlr_buffer *buffer);
 /**
  * Get the preferred format for reading pixels.
