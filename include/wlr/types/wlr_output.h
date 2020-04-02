@@ -338,6 +338,14 @@ bool wlr_output_preferred_read_format(struct wlr_output *output,
 void wlr_output_set_damage(struct wlr_output *output,
 	pixman_region32_t *damage);
 /**
+ * Test whether the pending output state would be accepted by the backend. If
+ * this function returns true, `wlr_output_commit` can only fail due to a
+ * runtime error.
+ *
+ * This function doesn't mutate the pending state.
+ */
+bool wlr_output_test(struct wlr_output *output);
+/**
  * Commit the pending output state. If `wlr_output_attach_render` has been
  * called, the pending frame will be submitted for display and a `frame` event
  * will be scheduled.

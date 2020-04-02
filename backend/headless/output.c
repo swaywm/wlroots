@@ -57,7 +57,7 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		buffer_age);
 }
 
-static bool output_commit(struct wlr_output *wlr_output) {
+static bool output_test(struct wlr_output *wlr_output) {
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
 		wlr_log(WLR_DEBUG, "Cannot disable a headless output");
 		return false;
@@ -65,6 +65,17 @@ static bool output_commit(struct wlr_output *wlr_output) {
 
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_MODE) {
 		assert(wlr_output->pending.mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM);
+	}
+
+	return true;
+}
+
+static bool output_commit(struct wlr_output *wlr_output) {
+	if (!output_test(wlr_output)) {
+		return false;
+	}
+
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_MODE) {
 		if (!output_set_custom_mode(wlr_output,
 				wlr_output->pending.custom_mode.width,
 				wlr_output->pending.custom_mode.height,
