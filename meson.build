@@ -3,7 +3,7 @@ project(
 	'c',
 	version: '0.10.0',
 	license: 'MIT',
-	meson_version: '>=0.51.2',
+	meson_version: '>=0.54.0',
 	default_options: [
 		'c_std=c11',
 		'warning_level=2',
@@ -166,6 +166,8 @@ wlroots = declare_dependency(
 	dependencies: wlr_deps,
 	include_directories: wlr_inc,
 )
+
+meson.override_dependency('wlroots', wlroots)
 
 summary = [
 	'',
