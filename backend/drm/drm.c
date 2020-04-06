@@ -569,6 +569,8 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		}
 	}
 
+	wlr_egl_make_current(&drm->renderer.egl, EGL_NO_SURFACE, NULL);
+
 	return true;
 }
 

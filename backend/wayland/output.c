@@ -297,6 +297,8 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		}
 	}
 
+	wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL);
+
 	return true;
 }
 

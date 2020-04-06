@@ -71,6 +71,9 @@ static bool output_test(struct wlr_output *wlr_output) {
 }
 
 static bool output_commit(struct wlr_output *wlr_output) {
+	struct wlr_headless_output *output =
+		headless_output_from_output(wlr_output);
+
 	if (!output_test(wlr_output)) {
 		return false;
 	}
@@ -88,6 +91,8 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		// Nothing needs to be done for pbuffers
 		wlr_output_send_present(wlr_output, NULL);
 	}
+
+	wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL);
 
 	return true;
 }
