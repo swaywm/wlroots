@@ -162,11 +162,17 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	return true;
 }
 
+static void output_rollback(struct wlr_output *wlr_output) {
+	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
+	wlr_egl_make_current(&output->x11->egl, EGL_NO_SURFACE, NULL);
+}
+
 static const struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
 	.test = output_test,
 	.commit = output_commit,
+	.rollback = output_rollback,
 };
 
 struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {

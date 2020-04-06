@@ -302,6 +302,12 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	return true;
 }
 
+static void output_rollback(struct wlr_output *wlr_output) {
+	struct wlr_wl_output *output =
+		get_wl_output_from_output(wlr_output);
+	wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL);
+}
+
 static bool output_set_cursor(struct wlr_output *wlr_output,
 		struct wlr_texture *texture, int32_t scale,
 		enum wl_output_transform transform,
@@ -431,6 +437,7 @@ static const struct wlr_output_impl output_impl = {
 	.attach_render = output_attach_render,
 	.test = output_test,
 	.commit = output_commit,
+	.rollback = output_rollback,
 	.set_cursor = output_set_cursor,
 	.move_cursor = output_move_cursor,
 };
