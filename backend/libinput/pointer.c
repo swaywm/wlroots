@@ -105,8 +105,8 @@ void handle_pointer_axis(struct libinput_event *event,
 		usec_to_msec(libinput_event_pointer_get_time_usec(pevent));
 	switch (libinput_event_pointer_get_axis_source(pevent)) {
 	case LIBINPUT_POINTER_AXIS_SOURCE_WHEEL:
-		wlr_event.source = WLR_AXIS_SOURCE_WHEEL;
-		break;
+		// dropped when v120 API in use
+		return;
 	case LIBINPUT_POINTER_AXIS_SOURCE_FINGER:
 		wlr_event.source = WLR_AXIS_SOURCE_FINGER;
 		break;
@@ -135,6 +135,55 @@ void handle_pointer_axis(struct libinput_event *event,
 				libinput_event_pointer_get_axis_value(pevent, axes[i]);
 			wlr_event.delta_discrete =
 				libinput_event_pointer_get_axis_value_discrete(pevent, axes[i]);
+			wlr_signal_emit_safe(&wlr_dev->pointer->events.axis, &wlr_event);
+		}
+	}
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.frame, wlr_dev->pointer);
+}
+
+void handle_pointer_axis_wheel(struct libinput_event *event,
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
+	if (!wlr_dev) {
+		wlr_log(WLR_DEBUG, "Got a pointer event for a device with no pointers?");
+		return;
+	}
+	struct libinput_event_pointer *pevent =
+		libinput_event_get_pointer_event(event);
+	struct wlr_event_pointer_axis wlr_event = { 0 };
+	wlr_event.device = wlr_dev;
+	wlr_event.time_msec =
+		usec_to_msec(libinput_event_pointer_get_time_usec(pevent));
+
+	if (libinput_event_pointer_get_axis_source(pevent) != LIBINPUT_POINTER_AXIS_SOURCE_WHEEL) {
+		wlr_log(WLR_DEBUG, "Got a wheel axis event for a non-wheel device");
+		return;
+	}
+	wlr_event.source = WLR_AXIS_SOURCE_WHEEL;
+
+	const enum libinput_pointer_axis axes[] = {
+		LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL,
+		LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL,
+	};
+	for (size_t i = 0; i < sizeof(axes) / sizeof(axes[0]); ++i) {
+		if (libinput_event_pointer_has_axis(pevent, axes[i])) {
+			switch (axes[i]) {
+			case LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL:
+				wlr_event.orientation = WLR_AXIS_ORIENTATION_VERTICAL;
+				break;
+			case LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL:
+				wlr_event.orientation = WLR_AXIS_ORIENTATION_HORIZONTAL;
+				break;
+			}
+			double axis = libinput_event_pointer_get_axis_value(pevent, axes[i]);
+			if (axis == 0) {
+				continue;
+			}
+			double hr_delta =
+					libinput_event_pointer_get_axis_value_v120(pevent, axes[i]);
+			double angle = fabs(axis) / fabs(hr_delta);
+			wlr_event.delta = hr_delta * angle; // scale based on click angle
 			wlr_signal_emit_safe(&wlr_dev->pointer->events.axis, &wlr_event);
 		}
 	}

@@ -102,6 +102,7 @@ struct wlr_wl_pointer {
 	struct zwp_relative_pointer_v1 *relative_pointer;
 	enum wlr_axis_source axis_source;
 	int32_t axis_discrete;
+	int32_t axis_v120;
 	struct wlr_wl_output *output;
 
 	struct wl_listener output_destroy;

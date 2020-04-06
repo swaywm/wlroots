@@ -248,6 +248,9 @@ void handle_libinput_event(struct wlr_libinput_backend *backend,
 	case LIBINPUT_EVENT_POINTER_AXIS:
 		handle_pointer_axis(event, libinput_dev);
 		break;
+	case LIBINPUT_EVENT_POINTER_AXIS_WHEEL:
+		handle_pointer_axis_wheel(event, libinput_dev);
+		break;
 	case LIBINPUT_EVENT_TOUCH_DOWN:
 		handle_touch_down(event, libinput_dev);
 		break;

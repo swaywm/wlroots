@@ -104,7 +104,7 @@ static void registry_global(void *data, struct wl_registry *registry,
 			&wl_compositor_interface, 4);
 	} else if (strcmp(iface, wl_seat_interface.name) == 0) {
 		wl->seat = wl_registry_bind(registry, name,
-			&wl_seat_interface, 5);
+			&wl_seat_interface, 8);
 		wl_seat_add_listener(wl->seat, &seat_listener, wl);
 	} else if (strcmp(iface, xdg_wm_base_interface.name) == 0) {
 		wl->xdg_wm_base = wl_registry_bind(registry, name,

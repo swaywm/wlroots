@@ -181,6 +181,16 @@ static void pointer_handle_axis_discrete(void *data,
 	pointer->axis_discrete = discrete;
 }
 
+static void pointer_handle_axis_v120(void *data,
+		struct wl_pointer *wl_pointer, uint32_t time, int32_t v120) {
+	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	if (pointer == NULL) {
+		return;
+	}
+	pointer->axis_v120 = v120;
+}
+
 static const struct wl_pointer_listener pointer_listener = {
 	.enter = pointer_handle_enter,
 	.leave = pointer_handle_leave,
@@ -191,6 +201,7 @@ static const struct wl_pointer_listener pointer_listener = {
 	.axis_source = pointer_handle_axis_source,
 	.axis_stop = pointer_handle_axis_stop,
 	.axis_discrete = pointer_handle_axis_discrete,
+	.axis_v120 = pointer_handle_axis_v120,
 };
 
 static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
