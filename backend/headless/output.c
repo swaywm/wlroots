@@ -97,6 +97,12 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	return true;
 }
 
+static void output_rollback(struct wlr_output *wlr_output) {
+	struct wlr_headless_output *output =
+		headless_output_from_output(wlr_output);
+	wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL);
+}
+
 static void output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
@@ -113,6 +119,7 @@ static const struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
 	.commit = output_commit,
+	.rollback = output_rollback,
 };
 
 bool wlr_output_is_headless(struct wlr_output *wlr_output) {

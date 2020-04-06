@@ -574,6 +574,11 @@ static bool drm_connector_commit(struct wlr_output *output) {
 	return true;
 }
 
+static void drm_connector_rollback(struct wlr_output *output) {
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	wlr_egl_make_current(&drm->renderer.egl, EGL_NO_SURFACE, NULL);
+}
+
 static void fill_empty_gamma_table(size_t size,
 		uint16_t *r, uint16_t *g, uint16_t *b) {
 	assert(0xFFFF < UINT64_MAX / (size - 1));
@@ -1094,6 +1099,7 @@ static const struct wlr_output_impl output_impl = {
 	.attach_render = drm_connector_attach_render,
 	.test = drm_connector_test,
 	.commit = drm_connector_commit,
+	.rollback = drm_connector_rollback,
 	.set_gamma = set_drm_connector_gamma,
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.export_dmabuf = drm_connector_export_dmabuf,

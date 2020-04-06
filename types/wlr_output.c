@@ -606,6 +606,10 @@ bool wlr_output_commit(struct wlr_output *output) {
 
 void wlr_output_rollback(struct wlr_output *output) {
 	output_state_clear(&output->pending);
+
+	if (output->impl->rollback) {
+		output->impl->rollback(output);
+	}
 }
 
 void wlr_output_attach_buffer(struct wlr_output *output,
