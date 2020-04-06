@@ -16,7 +16,7 @@ static struct wlr_headless_output *headless_output_from_output(
 
 static bool create_fbo(struct wlr_headless_output *output,
 		unsigned int width, unsigned int height) {
-	if (!wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL)) {
+	if (!wlr_egl_make_current(output->backend->egl, EGL_NO_SURFACE, NULL)) {
 		return false;
 	}
 
@@ -46,7 +46,7 @@ static bool create_fbo(struct wlr_headless_output *output,
 }
 
 static void destroy_fbo(struct wlr_headless_output *output) {
-	if (!wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL)) {
+	if (!wlr_egl_make_current(output->backend->egl, EGL_NO_SURFACE, NULL)) {
 		return;
 	}
 
@@ -82,7 +82,7 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
 
-	if (!wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL)) {
+	if (!wlr_egl_make_current(output->backend->egl, EGL_NO_SURFACE, NULL)) {
 		return false;
 	}
 
@@ -129,7 +129,7 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		wlr_output_send_present(wlr_output, NULL);
 	}
 
-	wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_make_current(output->backend->egl, EGL_NO_SURFACE, NULL);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	return true;
@@ -138,7 +138,7 @@ static bool output_commit(struct wlr_output *wlr_output) {
 static void output_rollback(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
-	wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_make_current(output->backend->egl, EGL_NO_SURFACE, NULL);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
