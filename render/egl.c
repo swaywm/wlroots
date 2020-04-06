@@ -6,8 +6,8 @@
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 
-static bool egl_get_config(EGLDisplay disp, EGLint *attribs, EGLConfig *out,
-		EGLint visual_id) {
+static bool egl_get_config(EGLDisplay disp, const EGLint *attribs,
+		EGLConfig *out, EGLint visual_id) {
 	EGLint count = 0, matched = 0, ret;
 
 	ret = eglGetConfigs(disp, NULL, 0, &count);
@@ -132,7 +132,7 @@ out:
 }
 
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
-		EGLint *config_attribs, EGLint visual_id) {
+		const EGLint *config_attribs, EGLint visual_id) {
 	// Check for EGL_EXT_platform_base before creating a display, because we
 	// actually use this extension to create displays. Check for EGL_KHR_debug
 	// before creating display to get EGL logs as soon as possible.
