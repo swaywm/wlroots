@@ -185,6 +185,11 @@ clients = {
 			'input-method-unstable-v2',
 		],
 	},
+	'wlr-workspace': {
+		'src': 'wlr-workspace.c',
+		'dep': [wlroots],
+		'proto': ['wlr-workspace-unstable-v1'],
+	},
 }
 
 foreach name, info : compositors
