@@ -355,9 +355,14 @@ static bool gles2_init_wl_display(struct wlr_renderer *wlr_renderer,
 		struct wl_display *wl_display) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer(wlr_renderer);
-	if (!wlr_egl_bind_display(renderer->egl, wl_display)) {
-		wlr_log(WLR_INFO, "failed to bind wl_display to EGL");
-		return false;
+
+	if (renderer->egl->exts.bind_wayland_display_wl) {
+		if (!wlr_egl_bind_display(renderer->egl, wl_display)) {
+			wlr_log(WLR_ERROR, "Failed to bind wl_display to EGL");
+			return false;
+		}
+	} else {
+		wlr_log(WLR_INFO, "EGL_WL_bind_wayland_display is not supported");
 	}
 	return true;
 }
