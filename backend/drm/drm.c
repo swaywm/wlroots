@@ -891,7 +891,8 @@ struct wlr_output_mode *wlr_drm_connector_add_mode(struct wlr_output *output,
 static bool drm_connector_set_cursor(struct wlr_output *output,
 		struct wlr_texture *texture, float scale,
 		enum wl_output_transform transform,
-		int32_t hotspot_x, int32_t hotspot_y, bool update_texture) {
+		int32_t hotspot_x, int32_t hotspot_y, bool update_texture,
+		struct wlr_buffer *buffer) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 	struct wlr_drm_crtc *crtc = conn->crtc;
@@ -962,6 +963,10 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 
 		struct wlr_renderer *rend = plane->surf.renderer->wlr_rend;
 
+		if (buffer != NULL && buffer->in_fence_fd >= 0) {
+			wlr_renderer_wait_in_fence(rend, buffer->in_fence_fd);
+		}
+
 		struct wlr_box cursor_box = { .width = width, .height = height };
 
 		float matrix[9];
@@ -971,6 +976,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 		wlr_render_texture_with_matrix(rend, texture, matrix, 1.0);
 		wlr_renderer_end(rend);
+		// TODO: get out fence
 
 		if (!drm_fb_lock_surface(&plane->pending_fb, &plane->surf)) {
 			return false;
