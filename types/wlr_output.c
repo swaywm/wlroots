@@ -473,6 +473,25 @@ static void output_state_clear(struct wlr_output_state *state) {
 	state->committed = 0;
 }
 
+static void output_pending_resolution(struct wlr_output *output, int *width,
+		int *height) {
+	if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
+		switch (output->pending.mode_type) {
+		case WLR_OUTPUT_STATE_MODE_FIXED:
+			*width = output->pending.mode->width;
+			*height = output->pending.mode->height;
+			break;
+		case WLR_OUTPUT_STATE_MODE_CUSTOM:
+			*width = output->pending.custom_mode.width;
+			*height = output->pending.custom_mode.height;
+			break;
+		}
+	} else {
+		*width = output->width;
+		*height = output->height;
+	}
+}
+
 static bool output_basic_test(struct wlr_output *output) {
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		if (output->frame_pending) {
@@ -495,8 +514,14 @@ static bool output_basic_test(struct wlr_output *output) {
 				}
 			}
 
-			// TOOD: check width/height matches the output's, since scaling
-			// isn't supported
+			// If the size doesn't match, reject buffer (scaling is not
+			// supported)
+			int pending_width, pending_height;
+			output_pending_resolution(output, &pending_width, &pending_height);
+			if (output->pending.buffer->width != pending_width ||
+					output->pending.buffer->height != pending_height) {
+				return false;
+			}
 		}
 	}
 

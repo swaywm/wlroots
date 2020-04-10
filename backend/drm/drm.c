@@ -365,9 +365,6 @@ static bool test_buffer(struct wlr_drm_connector *conn,
 	if (attribs.flags != 0) {
 		return false;
 	}
-	if (attribs.width != output->width || attribs.height != output->height) {
-		return false;
-	}
 
 	if (!wlr_drm_format_set_has(&crtc->primary->formats,
 			attribs.format, attribs.modifier)) {
