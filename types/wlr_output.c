@@ -480,12 +480,13 @@ static void output_pending_resolution(struct wlr_output *output, int *width,
 		case WLR_OUTPUT_STATE_MODE_FIXED:
 			*width = output->pending.mode->width;
 			*height = output->pending.mode->height;
-			break;
+			return;
 		case WLR_OUTPUT_STATE_MODE_CUSTOM:
 			*width = output->pending.custom_mode.width;
 			*height = output->pending.custom_mode.height;
-			break;
+			return;
 		}
+		abort();
 	} else {
 		*width = output->width;
 		*height = output->height;
