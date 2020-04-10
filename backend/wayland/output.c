@@ -128,14 +128,9 @@ static const struct wl_buffer_listener buffer_listener = {
 };
 
 static bool test_buffer(struct wlr_wl_backend *wl,
-		struct wlr_buffer *wlr_buffer,
-		int required_width, int required_height) {
+		struct wlr_buffer *wlr_buffer) {
 	struct wlr_dmabuf_attributes attribs;
 	if (!wlr_buffer_get_dmabuf(wlr_buffer, &attribs)) {
-		return false;
-	}
-
-	if (attribs.width != required_width || attribs.height != required_height) {
 		return false;
 	}
 
@@ -148,9 +143,8 @@ static bool test_buffer(struct wlr_wl_backend *wl,
 }
 
 static struct wlr_wl_buffer *create_wl_buffer(struct wlr_wl_backend *wl,
-		struct wlr_buffer *wlr_buffer,
-		int required_width, int required_height) {
-	if (!test_buffer(wl, wlr_buffer, required_width, required_height)) {
+		struct wlr_buffer *wlr_buffer) {
+	if (!test_buffer(wl, wlr_buffer)) {
 		return NULL;
 	}
 
@@ -253,8 +247,8 @@ static bool output_commit(struct wlr_output *wlr_output) {
 			}
 			break;
 		case WLR_OUTPUT_STATE_BUFFER_SCANOUT:;
-			struct wlr_wl_buffer *buffer = create_wl_buffer(output->backend,
-				wlr_output->pending.buffer, wlr_output->width, wlr_output->height);
+			struct wlr_wl_buffer *buffer =
+				create_wl_buffer(output->backend, wlr_output->pending.buffer);
 			if (buffer == NULL) {
 				return false;
 			}
