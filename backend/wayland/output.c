@@ -190,6 +190,9 @@ static struct wlr_wl_buffer *create_wl_buffer(struct wlr_wl_backend *wl,
 }
 
 static bool output_test(struct wlr_output *wlr_output) {
+	struct wlr_wl_output *output =
+		get_wl_output_from_output(wlr_output);
+
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
 		wlr_log(WLR_DEBUG, "Cannot disable a Wayland output");
 		return false;
@@ -197,6 +200,12 @@ static bool output_test(struct wlr_output *wlr_output) {
 
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_MODE) {
 		assert(wlr_output->pending.mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM);
+	}
+
+	if ((wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
+			wlr_output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT &&
+			!test_buffer(output->backend, wlr_output->pending.buffer)) {
+		return false;
 	}
 
 	return true;
