@@ -928,7 +928,7 @@ static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
 }
 
 static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
-	int32_t scale = cursor->output->scale;
+	float scale = cursor->output->scale;
 	enum wl_output_transform transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	struct wlr_texture *texture = cursor->texture;
 	if (cursor->surface != NULL) {

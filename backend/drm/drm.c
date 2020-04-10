@@ -906,7 +906,7 @@ struct wlr_output_mode *wlr_drm_connector_add_mode(struct wlr_output *output,
 }
 
 static bool drm_connector_set_cursor(struct wlr_output *output,
-		struct wlr_texture *texture, int32_t scale,
+		struct wlr_texture *texture, float scale,
 		enum wl_output_transform transform,
 		int32_t hotspot_x, int32_t hotspot_y, bool update_texture) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);

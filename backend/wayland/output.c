@@ -309,7 +309,7 @@ static void output_rollback(struct wlr_output *wlr_output) {
 }
 
 static bool output_set_cursor(struct wlr_output *wlr_output,
-		struct wlr_texture *texture, int32_t scale,
+		struct wlr_texture *texture, float scale,
 		enum wl_output_transform transform,
 		int32_t hotspot_x, int32_t hotspot_y, bool update_texture) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);

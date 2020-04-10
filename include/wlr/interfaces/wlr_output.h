@@ -16,7 +16,7 @@
 
 struct wlr_output_impl {
 	bool (*set_cursor)(struct wlr_output *output, struct wlr_texture *texture,
-		int32_t scale, enum wl_output_transform transform,
+		float scale, enum wl_output_transform transform,
 		int32_t hotspot_x, int32_t hotspot_y, bool update_texture);
 	bool (*move_cursor)(struct wlr_output *output, int x, int y);
 	void (*destroy)(struct wlr_output *output);
