@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <drm_fourcc.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -57,6 +58,7 @@ bool wlr_drm_format_set_has(const struct wlr_drm_format_set *set,
 
 bool wlr_drm_format_set_add(struct wlr_drm_format_set *set, uint32_t format,
 		uint64_t modifier) {
+	assert(format != DRM_FORMAT_INVALID);
 	struct wlr_drm_format **ptr = format_set_get_ref(set, format);
 
 	if (ptr) {
