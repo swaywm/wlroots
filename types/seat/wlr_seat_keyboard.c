@@ -411,6 +411,9 @@ void seat_client_create_keyboard(struct wlr_seat_client *seat_client,
 	wl_list_insert(&seat_client->keyboards, wl_resource_get_link(resource));
 
 	struct wlr_keyboard *keyboard = seat_client->seat->keyboard_state.keyboard;
+	if (keyboard == NULL) {
+		return;
+	}
 	seat_client_send_keymap(seat_client, keyboard);
 	seat_client_send_repeat_info(seat_client, keyboard);
 
