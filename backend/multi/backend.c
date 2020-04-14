@@ -183,7 +183,7 @@ bool wlr_multi_backend_add(struct wlr_backend *_multi,
 		wlr_log(WLR_ERROR, "Could not add backend: allocation failed");
 		return false;
 	}
-	wl_list_insert(&multi->backends, &sub->link);
+	wl_list_insert(multi->backends.prev, &sub->link);
 
 	sub->backend = backend;
 	sub->container = &multi->backend;
