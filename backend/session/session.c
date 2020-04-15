@@ -98,6 +98,7 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 	}
 
 	session->active = true;
+	session->shutdown = false;
 	wl_signal_init(&session->session_signal);
 	wl_signal_init(&session->events.destroy);
 	wl_list_init(&session->devices);
@@ -156,7 +157,15 @@ void wlr_session_destroy(struct wlr_session *session) {
 	session->impl->destroy(session);
 }
 
+void wlr_session_shutdown(struct wlr_session *session) {
+	if (!session) {
+		return;
+	}
+	session->shutdown = true;
+}
+
 int wlr_session_open_file(struct wlr_session *session, const char *path) {
+	assert(!session->shutdown);
 	int fd = session->impl->open(session, path);
 	if (fd < 0) {
 		return fd;

@@ -23,7 +23,7 @@ struct wlr_session {
 	 * It's called when we swap virtual terminal.
 	 */
 	struct wl_signal session_signal;
-	bool active;
+	bool active, shutdown;
 
 	/*
 	 * 0 if virtual terminals are not supported
@@ -63,6 +63,13 @@ struct wlr_session *wlr_session_create(struct wl_display *disp);
  * with wlr_session_open_file before you call this.
  */
 void wlr_session_destroy(struct wlr_session *session);
+
+/*
+ * Informs the session that it is being shut down, and that it will be
+ * destroyed after all files have been closed. This information is used by some
+ * backends to speed up the teardown process.
+ */
+void wlr_session_shutdown(struct wlr_session *session);
 
 /*
  * Opens the file at path.

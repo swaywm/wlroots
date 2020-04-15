@@ -101,6 +101,13 @@ out:
 }
 
 static void logind_release_device(struct wlr_session *base, int fd) {
+	if (base->shutdown) {
+		// All our devices will be released by ReleaseControl later, so let's
+		// not waste time chatting with logind here. We do need to close the
+		// fd, as not doing so causes short hangs on exit.
+		close(fd);
+		return;
+	}
 	struct logind_session *session = logind_session_from_session(base);
 
 	struct stat st;
