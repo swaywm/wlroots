@@ -16,6 +16,14 @@
 
 struct wlr_output_layout_state;
 
+/**
+ * Helper to arrange outputs in a 2D coordinate space. The output effective
+ * resolution is used, see wlr_output_effective_resolution.
+ *
+ * Outputs added to the output layout are automatically exposed to clients (see
+ * wlr_output_create_global). They are no longer exposed when removed from the
+ * layout.
+ */
 struct wlr_output_layout {
 	struct wl_list outputs;
 	struct wlr_output_layout_state *state;
@@ -42,11 +50,6 @@ struct wlr_output_layout_output {
 	} events;
 };
 
-/**
- * Creates a wlr_output_layout, which can be used to describing outputs in
- * physical space relative to one another, and perform various useful operations
- * on that state.
- */
 struct wlr_output_layout *wlr_output_layout_create(void);
 
 void wlr_output_layout_destroy(struct wlr_output_layout *layout);
@@ -54,9 +57,17 @@ void wlr_output_layout_destroy(struct wlr_output_layout *layout);
 struct wlr_output_layout_output *wlr_output_layout_get(
 		struct wlr_output_layout *layout, struct wlr_output *reference);
 
+/**
+ * Get the output at the specified layout coordinates. Returns NULL if no
+ * output matches the coordinates.
+ */
 struct wlr_output *wlr_output_layout_output_at(struct wlr_output_layout *layout,
 		double lx, double ly);
 
+/**
+ * Add the output to the layout at the specified coordinates. If the output is
+ * already part of the output layout, this moves the output.
+ */
 void wlr_output_layout_add(struct wlr_output_layout *layout,
 		struct wlr_output *output, int lx, int ly);
 
