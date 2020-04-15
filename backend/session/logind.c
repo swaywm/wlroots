@@ -107,8 +107,10 @@ static void logind_release_device(struct wlr_session *base, int fd) {
 	if (fstat(fd, &st) < 0) {
 		wlr_log(WLR_ERROR, "Failed to stat device '%d': %s", fd,
 			strerror(errno));
+		close(fd);
 		return;
 	}
+	close(fd);
 
 	sd_bus_message *msg = NULL;
 	sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -122,7 +124,6 @@ static void logind_release_device(struct wlr_session *base, int fd) {
 
 	sd_bus_error_free(&error);
 	sd_bus_message_unref(msg);
-	close(fd);
 }
 
 static bool logind_change_vt(struct wlr_session *base, unsigned vt) {
