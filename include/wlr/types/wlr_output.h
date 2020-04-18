@@ -35,6 +35,7 @@ struct wlr_output_cursor {
 
 	// only when using a software cursor without a surface
 	struct wlr_texture *texture;
+	struct wl_listener renderer_destroy;
 
 	// only when using a cursor surface
 	struct wlr_surface *surface;

@@ -813,6 +813,14 @@ static void output_scissor(struct wlr_output *output, pixman_box32_t *rect) {
 	wlr_renderer_scissor(renderer, &box);
 }
 
+static void output_cursor_renderer_handle_destroy(struct wl_listener *listener,
+		void * data) {
+	// The renderer destroys the texture, set texture to NULL to prevent use-after-free
+	struct wlr_output_cursor *cursor;
+	cursor = wl_container_of(listener, cursor, renderer_destroy);
+	cursor->texture = NULL;
+}
+
 static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 	struct wlr_box *box);
 
@@ -1002,6 +1010,8 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	cursor->hotspot_y = hotspot_y;
 	output_cursor_update_visible(cursor);
 
+	wl_list_remove(&cursor->renderer_destroy.link);
+	wl_list_init(&cursor->renderer_destroy.link);
 	wlr_texture_destroy(cursor->texture);
 	cursor->texture = NULL;
 
@@ -1012,6 +1022,8 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		if (cursor->texture == NULL) {
 			return false;
 		}
+		wl_signal_add(&renderer->events.destroy, &cursor->renderer_destroy);
+		cursor->renderer_destroy.notify = output_cursor_renderer_handle_destroy;
 		cursor->enabled = true;
 	}
 
@@ -1158,6 +1170,7 @@ struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output) {
 	wl_list_init(&cursor->surface_destroy.link);
 	cursor->surface_destroy.notify = output_cursor_handle_destroy;
 	wl_list_insert(&output->cursors, &cursor->link);
+	wl_list_init(&cursor->renderer_destroy.link);
 	cursor->visible = true; // default position is at (0, 0)
 	return cursor;
 }
@@ -1178,6 +1191,7 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	}
 	wlr_texture_destroy(cursor->texture);
 	wl_list_remove(&cursor->link);
+	wl_list_remove(&cursor->renderer_destroy.link);
 	free(cursor);
 }
 
