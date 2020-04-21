@@ -575,6 +575,8 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 		return NULL;
 	}
 
+	renderer->exts_str = exts_str;
+
 	wlr_log(WLR_INFO, "Using %s", glGetString(GL_VERSION));
 	wlr_log(WLR_INFO, "GL vendor: %s", glGetString(GL_VENDOR));
 	wlr_log(WLR_INFO, "GL renderer: %s", glGetString(GL_RENDERER));
@@ -686,4 +688,10 @@ error:
 
 	free(renderer);
 	return NULL;
+}
+
+bool wlr_gles2_renderer_check_ext(struct wlr_renderer *wlr_renderer,
+		const char *ext) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	return check_gl_ext(renderer->exts_str, ext);
 }

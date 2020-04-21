@@ -18,6 +18,8 @@ struct wlr_egl;
 struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl);
 
 struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *renderer);
+bool wlr_gles2_renderer_check_ext(struct wlr_renderer *renderer,
+	const char *ext);
 
 struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 	enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width, uint32_t height,
