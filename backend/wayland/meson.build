@@ -16,5 +16,5 @@ client_protos = [
 ]
 
 foreach proto : client_protos
-	wlr_files += get_variable(proto.underscorify() + '_client_h')
+	wlr_files += protocols_client_header[proto]
 endforeach

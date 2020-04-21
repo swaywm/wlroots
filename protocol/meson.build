@@ -46,6 +46,9 @@ protocols = {
 	'wlr-virtual-pointer-unstable-v1': 'wlr-virtual-pointer-unstable-v1.xml',
 }
 
+protocols_code = {}
+protocols_server_header = {}
+protocols_client_header = {}
 foreach name, path : protocols
 	code = custom_target(
 		name.underscorify() + '_c',
@@ -71,7 +74,7 @@ foreach name, path : protocols
 		build_by_default: false,
 	)
 
-	set_variable(name.underscorify() + '_c', code)
-	set_variable(name.underscorify() + '_server_h', server_header)
-	set_variable(name.underscorify() + '_client_h', client_header)
+	protocols_code += { name: code }
+	protocols_server_header += { name: server_header }
+	protocols_client_header += { name: client_header }
 endforeach
