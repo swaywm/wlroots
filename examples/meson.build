@@ -167,7 +167,7 @@ clients = {
 foreach name, info : compositors
 	extra_src = []
 	foreach p : info.get('proto', [])
-		extra_src += get_variable(p.underscorify() + '_server_h')
+		extra_src += protocols_server_header[p]
 	endforeach
 
 	executable(
@@ -182,8 +182,8 @@ endforeach
 foreach name, info : clients
 	extra_src = []
 	foreach p : info.get('proto')
-		extra_src += get_variable(p.underscorify() + '_c')
-		extra_src += get_variable(p.underscorify() + '_client_h')
+		extra_src += protocols_code[p]
+		extra_src += protocols_client_header[p]
 	endforeach
 
 	executable(
