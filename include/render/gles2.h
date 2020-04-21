@@ -44,6 +44,7 @@ struct wlr_gles2_renderer {
 
 	struct wlr_egl *egl;
 
+	const char *exts_str;
 	struct {
 		bool read_format_bgra_ext;
 		bool debug_khr;
