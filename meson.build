@@ -169,22 +169,15 @@ wlroots = declare_dependency(
 
 meson.override_dependency('wlroots', wlroots)
 
-summary = [
-	'',
-	'----------------',
-	'wlroots @0@'.format(meson.project_version()),
-	'',
-	'      libcap: @0@'.format(conf_data.get('WLR_HAS_LIBCAP', false)),
-	'     systemd: @0@'.format(conf_data.get('WLR_HAS_SYSTEMD', false)),
-	'     elogind: @0@'.format(conf_data.get('WLR_HAS_ELOGIND', false)),
-	'    xwayland: @0@'.format(conf_data.get('WLR_HAS_XWAYLAND', false)),
-	' x11_backend: @0@'.format(conf_data.get('WLR_HAS_X11_BACKEND', false)),
-	'   xcb-icccm: @0@'.format(conf_data.get('WLR_HAS_XCB_ICCCM', false)),
-	'  xcb-errors: @0@'.format(conf_data.get('WLR_HAS_XCB_ERRORS', false)),
-	'----------------',
-	''
-]
-message('\n'.join(summary))
+summary({
+	'libcap': conf_data.get('WLR_HAS_LIBCAP', 0),
+	'systemd': conf_data.get('WLR_HAS_SYSTEMD', 0),
+	'elogind': conf_data.get('WLR_HAS_ELOGIND', 0),
+	'xwayland': conf_data.get('WLR_HAS_XWAYLAND', 0),
+	'x11_backend': conf_data.get('WLR_HAS_X11_BACKEND', 0),
+	'xcb-icccm': conf_data.get('WLR_HAS_XCB_ICCCM', 0),
+	'xcb-errors': conf_data.get('WLR_HAS_XCB_ERRORS', 0),
+})
 
 if get_option('examples')
 	subdir('examples')
