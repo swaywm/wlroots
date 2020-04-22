@@ -127,6 +127,14 @@ clients = {
 		'dep': [libpng, rt],
 		'proto': ['wlr-screencopy-unstable-v1'],
 	},
+	'screencopy-dmabuf': {
+		'src': 'screencopy-dmabuf.c',
+		'dep': [libpng, rt, gbm, drm],
+		'proto': [
+			'wlr-screencopy-unstable-v1',
+			'linux-dmabuf-unstable-v1',
+		],
+	},
 	'toplevel-decoration': {
 		'src': 'toplevel-decoration.c',
 		'dep': wlroots,
