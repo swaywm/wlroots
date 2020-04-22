@@ -331,6 +331,84 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 	return glGetError() == GL_NO_ERROR;
 }
 
+static bool gles2_blit_dmabuf(struct wlr_renderer *wlr_renderer,
+		struct wlr_dmabuf_attributes *dst_attr,
+		struct wlr_dmabuf_attributes *src_attr) {
+	if (!gles2_procs.glEGLImageTargetRenderbufferStorageOES) {
+		return false;
+	}
+
+	struct wlr_egl_context old_context;
+	wlr_egl_save_context(&old_context);
+
+	bool r = false;
+	struct wlr_texture *src_tex =
+		wlr_texture_from_dmabuf(wlr_renderer, src_attr);
+	if (!src_tex) {
+		goto restore_context_out;
+	}
+
+	// This is to take into account y-inversion on both buffers rather than
+	// just the source buffer.
+	bool src_inverted_y =
+		!!(src_attr->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT);
+	bool dst_inverted_y =
+		!!(dst_attr->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT);
+	struct wlr_gles2_texture *gles2_src_tex = gles2_get_texture(src_tex);
+	gles2_src_tex->inverted_y = src_inverted_y ^ dst_inverted_y;
+
+	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(wlr_renderer);
+	if (!wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL)) {
+		goto texture_destroy_out;
+	}
+
+	// TODO: The imported buffer should be checked with
+	// eglQueryDmaBufModifiersEXT to see if it may be modified.
+	EGLImageKHR image = wlr_egl_create_image_from_dmabuf(egl, dst_attr);
+	if (image == EGL_NO_IMAGE_KHR) {
+		goto texture_destroy_out;
+	}
+
+	GLuint rbo = 0;
+	glGenRenderbuffers(1, &rbo);
+	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+	gles2_procs.glEGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER,
+			image);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	GLuint fbo = 0;
+	glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+			GL_RENDERBUFFER, rbo);
+
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (status != GL_FRAMEBUFFER_COMPLETE) {
+		goto out;
+	}
+
+	// TODO: use ANGLE_framebuffer_blit if available
+	float mat[9];
+	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_NORMAL);
+
+	wlr_renderer_begin(wlr_renderer, dst_attr->width, dst_attr->height);
+	wlr_renderer_clear(wlr_renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
+	wlr_render_texture_with_matrix(wlr_renderer, src_tex, mat, 1.0f);
+	wlr_renderer_end(wlr_renderer);
+
+	r = true;
+out:
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glDeleteFramebuffers(1, &fbo);
+	glDeleteRenderbuffers(1, &rbo);
+	wlr_egl_destroy_image(egl, image);
+texture_destroy_out:
+	wlr_texture_destroy(src_tex);
+restore_context_out:
+	wlr_egl_restore_context(&old_context);
+	return r;
+}
+
 static struct wlr_texture *gles2_texture_from_pixels(
 		struct wlr_renderer *wlr_renderer, enum wl_shm_format wl_fmt,
 		uint32_t stride, uint32_t width, uint32_t height, const void *data) {
@@ -426,6 +504,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.texture_from_wl_drm = gles2_texture_from_wl_drm,
 	.texture_from_dmabuf = gles2_texture_from_dmabuf,
 	.init_wl_display = gles2_init_wl_display,
+	.blit_dmabuf = gles2_blit_dmabuf,
 };
 
 void push_gles2_marker(const char *file, const char *func) {
@@ -604,6 +683,12 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 		renderer->exts.egl_image_external_oes = true;
 		load_gl_proc(&gles2_procs.glEGLImageTargetTexture2DOES,
 			"glEGLImageTargetTexture2DOES");
+	}
+
+	if (check_gl_ext(exts_str, "GL_OES_EGL_image")) {
+		renderer->exts.egl_image_oes = true;
+		load_gl_proc(&gles2_procs.glEGLImageTargetRenderbufferStorageOES,
+			"glEGLImageTargetRenderbufferStorageOES");
 	}
 
 	if (renderer->exts.debug_khr) {

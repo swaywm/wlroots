@@ -64,6 +64,9 @@ struct wlr_renderer_impl {
 	void (*destroy)(struct wlr_renderer *renderer);
 	bool (*init_wl_display)(struct wlr_renderer *renderer,
 		struct wl_display *wl_display);
+	bool (*blit_dmabuf)(struct wlr_renderer *renderer,
+		struct wlr_dmabuf_attributes *dst,
+		struct wlr_dmabuf_attributes *src);
 };
 
 void wlr_renderer_init(struct wlr_renderer *renderer,

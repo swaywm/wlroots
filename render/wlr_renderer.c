@@ -154,6 +154,16 @@ bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
 		src_x, src_y, dst_x, dst_y, data);
 }
 
+bool wlr_renderer_blit_dmabuf(struct wlr_renderer *r,
+		struct wlr_dmabuf_attributes *dst,
+		struct wlr_dmabuf_attributes *src) {
+	assert(!r->rendering);
+	if (!r->impl->blit_dmabuf) {
+		return false;
+	}
+	return r->impl->blit_dmabuf(r, dst, src);
+}
+
 bool wlr_renderer_format_supported(struct wlr_renderer *r,
 		enum wl_shm_format fmt) {
 	return r->impl->format_supported(r, fmt);

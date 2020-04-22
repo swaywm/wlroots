@@ -104,6 +104,12 @@ const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_formats(
 bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
 	uint32_t *flags, uint32_t stride, uint32_t width, uint32_t height,
 	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y, void *data);
+
+/**
+ * Blits the dmabuf in src onto the one in dst.
+ */
+bool wlr_renderer_blit_dmabuf(struct wlr_renderer *r,
+	struct wlr_dmabuf_attributes *dst, struct wlr_dmabuf_attributes *src);
 /**
  * Checks if a format is supported.
  */

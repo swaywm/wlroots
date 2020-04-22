@@ -20,6 +20,7 @@ struct wlr_gles2_procs {
 	PFNGLDEBUGMESSAGECONTROLKHRPROC glDebugMessageControlKHR;
 	PFNGLPOPDEBUGGROUPKHRPROC glPopDebugGroupKHR;
 	PFNGLPUSHDEBUGGROUPKHRPROC glPushDebugGroupKHR;
+	PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC glEGLImageTargetRenderbufferStorageOES;
 };
 
 extern struct wlr_gles2_procs gles2_procs;
@@ -49,6 +50,7 @@ struct wlr_gles2_renderer {
 		bool read_format_bgra_ext;
 		bool debug_khr;
 		bool egl_image_external_oes;
+		bool egl_image_oes;
 	} exts;
 
 	struct {
