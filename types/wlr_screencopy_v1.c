@@ -1,14 +1,16 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <drm_fourcc.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/backend.h>
 #include <wlr/util/log.h>
 #include "wlr-screencopy-unstable-v1-protocol.h"
 #include "util/signal.h"
 
-#define SCREENCOPY_MANAGER_VERSION 2
+#define SCREENCOPY_MANAGER_VERSION 3
 
 struct screencopy_damage {
 	struct wl_list link;
@@ -132,7 +134,8 @@ static void frame_destroy(struct wlr_screencopy_frame_v1 *frame) {
 	if (frame == NULL) {
 		return;
 	}
-	if (frame->output != NULL && frame->buffer != NULL) {
+	if (frame->output != NULL &&
+			(frame->shm_buffer != NULL || frame->dma_buffer != NULL)) {
 		wlr_output_lock_attach_render(frame->output, false);
 		if (frame->cursor_locked) {
 			wlr_output_lock_software_cursors(frame->output, false);
@@ -179,20 +182,34 @@ static void frame_handle_output_precommit(struct wl_listener *listener,
 	int x = frame->box.x;
 	int y = frame->box.y;
 
-	struct wl_shm_buffer *buffer = frame->buffer;
-	assert(buffer != NULL);
-
-	enum wl_shm_format fmt = wl_shm_buffer_get_format(buffer);
-	int32_t width = wl_shm_buffer_get_width(buffer);
-	int32_t height = wl_shm_buffer_get_height(buffer);
-	int32_t stride = wl_shm_buffer_get_stride(buffer);
-
-	wl_shm_buffer_begin_access(buffer);
-	void *data = wl_shm_buffer_get_data(buffer);
+	bool ok = false;
 	uint32_t flags = 0;
-	bool ok = wlr_renderer_read_pixels(renderer, fmt, &flags, stride,
-		width, height, x, y, 0, 0, data);
-	wl_shm_buffer_end_access(buffer);
+
+	struct wl_shm_buffer *shm_buffer = frame->shm_buffer;
+	struct wlr_dmabuf_v1_buffer *dma_buffer = frame->dma_buffer;
+	assert(shm_buffer || dma_buffer);
+
+	if (shm_buffer) {
+		enum wl_shm_format fmt = wl_shm_buffer_get_format(shm_buffer);
+		int32_t width = wl_shm_buffer_get_width(shm_buffer);
+		int32_t height = wl_shm_buffer_get_height(shm_buffer);
+		int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
+
+		wl_shm_buffer_begin_access(shm_buffer);
+		void *data = wl_shm_buffer_get_data(shm_buffer);
+		flags = 0;
+		ok = wlr_renderer_read_pixels(renderer, fmt, &flags, stride,
+				width, height, x, y, 0, 0, data);
+		wl_shm_buffer_end_access(shm_buffer);
+	} else if (dma_buffer) {
+		struct wlr_dmabuf_attributes attr = { 0 };
+		ok = wlr_output_export_dmabuf(frame->output, &attr);
+		ok = ok && wlr_renderer_blit_dmabuf(renderer,
+				&dma_buffer->attributes, &attr);
+		flags |= attr.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT ?
+				ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT : 0;
+		wlr_dmabuf_attributes_finish(&attr);
+	}
 
 	if (!ok) {
 		zwlr_screencopy_frame_v1_send_failed(frame->resource);
@@ -269,35 +286,78 @@ static void frame_handle_copy(struct wl_client *wl_client,
 		return;
 	}
 
-	struct wl_shm_buffer *buffer = wl_shm_buffer_get(buffer_resource);
-	if (buffer == NULL) {
+	struct wlr_dmabuf_v1_buffer *dma_buffer = NULL;
+	struct wl_shm_buffer *shm_buffer = wl_shm_buffer_get(buffer_resource);
+	if (shm_buffer == NULL &&
+			wlr_dmabuf_v1_resource_is_buffer(buffer_resource)) {
+		dma_buffer =
+			wlr_dmabuf_v1_buffer_from_buffer_resource(buffer_resource);
+	}
+
+	if (shm_buffer == NULL && dma_buffer == NULL) {
 		wl_resource_post_error(frame->resource,
 			ZWLR_SCREENCOPY_FRAME_V1_ERROR_INVALID_BUFFER,
 			"unsupported buffer type");
 		return;
 	}
 
-	enum wl_shm_format fmt = wl_shm_buffer_get_format(buffer);
-	int32_t width = wl_shm_buffer_get_width(buffer);
-	int32_t height = wl_shm_buffer_get_height(buffer);
-	int32_t stride = wl_shm_buffer_get_stride(buffer);
-	if (fmt != frame->format || width != frame->box.width ||
-			height != frame->box.height || stride != frame->stride) {
+	int32_t width = 0;
+	int32_t height = 0;
+
+	if (shm_buffer) {
+		enum wl_shm_format fmt = wl_shm_buffer_get_format(shm_buffer);
+		if (fmt != frame->format) {
+			wl_resource_post_error(frame->resource,
+				ZWLR_SCREENCOPY_FRAME_V1_ERROR_INVALID_BUFFER,
+				"invalid buffer format");
+			return;
+
+		}
+
+		int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
+		if (stride != frame->stride) {
+			wl_resource_post_error(frame->resource,
+				ZWLR_SCREENCOPY_FRAME_V1_ERROR_INVALID_BUFFER,
+				"invalid buffer stride");
+			return;
+
+		}
+
+		width = wl_shm_buffer_get_width(shm_buffer);
+		height = wl_shm_buffer_get_height(shm_buffer);
+	} else if (dma_buffer) {
+		uint32_t fourcc = dma_buffer->attributes.format;
+		if (fourcc != frame->fourcc) {
+			wl_resource_post_error(frame->resource,
+				ZWLR_SCREENCOPY_FRAME_V1_ERROR_INVALID_BUFFER,
+				"invalid buffer format");
+			return;
+
+		}
+
+		width = dma_buffer->attributes.width;
+		height = dma_buffer->attributes.height;
+	} else {
+		abort();
+	}
+
+	if (width != frame->box.width || height != frame->box.height) {
 		wl_resource_post_error(frame->resource,
 			ZWLR_SCREENCOPY_FRAME_V1_ERROR_INVALID_BUFFER,
-			"invalid buffer attributes");
+			"invalid buffer dimensions");
 		return;
 	}
 
 	if (!wl_list_empty(&frame->output_precommit.link) ||
-			frame->buffer != NULL) {
+			frame->shm_buffer != NULL || frame->dma_buffer != NULL) {
 		wl_resource_post_error(frame->resource,
 			ZWLR_SCREENCOPY_FRAME_V1_ERROR_ALREADY_USED,
 			"frame already used");
 		return;
 	}
 
-	frame->buffer = buffer;
+	frame->shm_buffer = shm_buffer;
+	frame->dma_buffer = dma_buffer;
 
 	wl_signal_add(&output->events.precommit, &frame->output_precommit);
 	frame->output_precommit.notify = frame_handle_output_precommit;
@@ -359,6 +419,16 @@ static struct wlr_screencopy_v1_client *client_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
+static uint32_t get_output_fourcc(struct wlr_output *output) {
+	struct wlr_dmabuf_attributes attr = { 0 };
+	if (!wlr_output_export_dmabuf(output, &attr)) {
+		return DRM_FORMAT_INVALID;
+	}
+	uint32_t format = attr.format;
+	wlr_dmabuf_attributes_finish(&attr);
+	return format;
+}
+
 static void capture_output(struct wl_client *wl_client,
 		struct wlr_screencopy_v1_client *client, uint32_t version,
 		uint32_t id, int32_t overlay_cursor, struct wlr_output *output,
@@ -412,6 +482,8 @@ static void capture_output(struct wl_client *wl_client,
 		goto error;
 	}
 
+	frame->fourcc = get_output_fourcc(output);
+
 	struct wlr_box buffer_box = {0};
 	if (box == NULL) {
 		buffer_box.width = output->width;
@@ -434,6 +506,17 @@ static void capture_output(struct wl_client *wl_client,
 
 	zwlr_screencopy_frame_v1_send_buffer(frame->resource, frame->format,
 		buffer_box.width, buffer_box.height, frame->stride);
+
+	if (version >= 3) {
+		if (frame->fourcc != DRM_FORMAT_INVALID) {
+			zwlr_screencopy_frame_v1_send_linux_dmabuf(
+					frame->resource, frame->fourcc,
+					buffer_box.width, buffer_box.height);
+		}
+
+		zwlr_screencopy_frame_v1_send_buffer_done(frame->resource);
+	}
+
 	return;
 
 error:
