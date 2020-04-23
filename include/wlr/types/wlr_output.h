@@ -138,6 +138,7 @@ struct wlr_output {
 	bool enabled;
 	float scale;
 	enum wl_output_subpixel subpixel;
+	enum wl_shm_format format;
 	enum wl_output_transform transform;
 	enum wlr_output_adaptive_sync_status adaptive_sync_status;
 
@@ -286,6 +287,12 @@ void wlr_output_set_scale(struct wlr_output *output, float scale);
 void wlr_output_set_subpixel(struct wlr_output *output,
 	enum wl_output_subpixel subpixel);
 void wlr_output_set_description(struct wlr_output *output, const char *desc);
+/**
+ * Set the color format mode for the output.
+ *
+ */
+void wlr_output_set_format(struct wlr_output *output,
+	enum wl_shm_format format);
 /**
  * Schedule a done event.
  *
