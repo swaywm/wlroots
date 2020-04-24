@@ -38,7 +38,7 @@
     interface version number is reset.
   </description>
 
-  <interface name="zwlr_screencopy_manager_v1" version="2">
+  <interface name="zwlr_screencopy_manager_v1" version="3">
     <description summary="manager to inform clients and begin capturing">
       This object is a manager which offers requests to start capturing from a
       source.
@@ -80,13 +80,18 @@
     </request>
   </interface>
 
-  <interface name="zwlr_screencopy_frame_v1" version="2">
+  <interface name="zwlr_screencopy_frame_v1" version="3">
     <description summary="a frame ready for copy">
       This object represents a single frame.
 
-      When created, a "buffer" event will be sent. The client will then be able
-      to send a "copy" request. If the capture is successful, the compositor
-      will send a "flags" followed by a "ready" event.
+      When created, a series of buffer events will be sent, each representing a
+      supported buffer type. The "buffer_done" event is sent afterwards to
+      indicate that all supported buffer types have been enumerated. The client
+      will then be able to send a "copy" request. If the capture is successful,
+      the compositor will send a "flags" followed by a "ready" event.
+
+      For objects version 2 or lower, wl_shm buffers are always supported, ie.
+      the "buffer" event is guaranteed to be sent.
 
       If the capture failed, the "failed" event is sent. This can happen anytime
       before the "ready" event.
@@ -96,14 +101,12 @@
     </description>
 
     <event name="buffer">
-      <description summary="buffer information">
-        Provides information about the frame's buffer. This event is sent once
-        as soon as the frame is created.
-
-        The client should then create a buffer with the provided attributes, and
-        send a "copy" request.
+      <description summary="wl_shm buffer information">
+        Provides information about wl_shm buffer parameters that need to be
+        used for this frame. This event is sent once after the frame is created
+        if wl_shm buffers are supported.
       </description>
-      <arg name="format" type="uint" summary="buffer format"/>
+      <arg name="format" type="uint" enum="wl_shm.format" summary="buffer format"/>
       <arg name="width" type="uint" summary="buffer width"/>
       <arg name="height" type="uint" summary="buffer height"/>
       <arg name="stride" type="uint" summary="buffer stride"/>
@@ -112,8 +115,9 @@
     <request name="copy">
       <description summary="copy the frame">
         Copy the frame to the supplied buffer. The buffer must have a the
-        correct size, see zwlr_screencopy_frame_v1.buffer. The buffer needs to
-        have a supported format.
+        correct size, see zwlr_screencopy_frame_v1.buffer and
+        zwlr_screencopy_frame_v1.linux_dmabuf. The buffer needs to have a
+        supported format.
 
         If the frame is successfully copied, a "flags" and a "ready" events are
         sent. Otherwise, a "failed" event is sent.
@@ -202,6 +206,27 @@
       <arg name="y" type="uint" summary="damaged y coordinates"/>
       <arg name="width" type="uint" summary="current width"/>
       <arg name="height" type="uint" summary="current height"/>
+    </event>
+
+    <!-- Version 3 additions -->
+    <event name="linux_dmabuf" since="3">
+      <description summary="linux-dmabuf buffer information">
+        Provides information about linux-dmabuf buffer parameters that need to
+        be used for this frame. This event is sent once after the frame is
+        created if linux-dmabuf buffers are supported.
+      </description>
+      <arg name="format" type="uint" summary="fourcc pixel format"/>
+      <arg name="width" type="uint" summary="buffer width"/>
+      <arg name="height" type="uint" summary="buffer height"/>
+    </event>
+
+    <event name="buffer_done" since="3">
+      <description summary="all buffer types reported">
+        This event is sent once after all buffer events have been sent.
+
+        The client should proceed to create a buffer of one of the supported
+        types, and send a "copy" request.
+      </description>
     </event>
   </interface>
 </protocol>
