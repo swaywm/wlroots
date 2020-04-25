@@ -20,6 +20,14 @@ struct wlr_headless_backend {
 	struct wl_listener renderer_destroy;
 	bool started;
 	GLenum internal_format;
+	int gbm_fd;
+	struct gbm_device *gbm;
+};
+
+struct wlr_headless_bo {
+	struct gbm_bo *bo;
+	GLuint fbo, rbo;
+	EGLImageKHR image;
 };
 
 struct wlr_headless_output {
@@ -28,7 +36,8 @@ struct wlr_headless_output {
 	struct wlr_headless_backend *backend;
 	struct wl_list link;
 
-	GLuint fbo, rbo;
+	struct wlr_headless_bo bo[2];
+	struct wlr_headless_bo *front, *back;
 
 	struct wl_event_source *frame_timer;
 	int frame_delay; // ms

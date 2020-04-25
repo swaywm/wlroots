@@ -6,6 +6,12 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>
 #include <wlr/util/log.h>
+#include <xf86drm.h>
+#include <gbm.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "backend/headless.h"
 #include "util/signal.h"
 
@@ -66,6 +72,10 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 		wlr_renderer_destroy(backend->renderer);
 		wlr_egl_finish(&backend->priv_egl);
 	}
+
+	gbm_device_destroy(backend->gbm);
+	close(backend->gbm_fd);
+
 	free(backend);
 }
 
@@ -94,6 +104,27 @@ static void handle_renderer_destroy(struct wl_listener *listener, void *data) {
 	backend_destroy(&backend->backend);
 }
 
+static int find_render_node(char *node, size_t maxlen) {
+	int r = -1;
+	drmDevice *devices[64];
+
+	int n = drmGetDevices2(0, devices, sizeof(devices) / sizeof(devices[0]));
+	for (int i = 0; i < n; ++i) {
+		drmDevice *dev = devices[i];
+		if (!(dev->available_nodes & (1 << DRM_NODE_RENDER))) {
+			continue;
+		}
+
+		strncpy(node, dev->nodes[DRM_NODE_RENDER], maxlen);
+		node[maxlen - 1] = '\0';
+		r = 0;
+		break;
+	}
+
+	drmFreeDevices(devices, n);
+	return r;
+}
+
 static bool backend_init(struct wlr_headless_backend *backend,
 		struct wl_display *display, struct wlr_renderer *renderer) {
 	wlr_backend_init(&backend->backend, &backend_impl);
@@ -103,6 +134,22 @@ static bool backend_init(struct wlr_headless_backend *backend,
 
 	backend->renderer = renderer;
 	backend->egl = wlr_gles2_renderer_get_egl(renderer);
+
+	char render_node[256];
+	if (find_render_node(render_node, sizeof(render_node)) < 0) {
+		return false;
+	}
+
+	backend->gbm_fd = open(render_node, O_RDWR);
+	if (backend->gbm_fd < 0) {
+		return false;
+	}
+
+	backend->gbm = gbm_create_device(backend->gbm_fd);
+	if (!backend->gbm) {
+		close(backend->gbm_fd);
+		return false;
+	}
 
 	if (wlr_gles2_renderer_check_ext(backend->renderer, "GL_OES_rgb8_rgba8") ||
 			wlr_gles2_renderer_check_ext(backend->renderer,

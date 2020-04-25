@@ -1,7 +1,11 @@
 #include <assert.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <stdlib.h>
+#include <gbm.h>
+#include <drm_fourcc.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
@@ -14,18 +18,51 @@ static struct wlr_headless_output *headless_output_from_output(
 	return (struct wlr_headless_output *)wlr_output;
 }
 
-static bool create_fbo(struct wlr_headless_output *output,
+static void dmabuf_attr_from_gbm_bo(struct wlr_dmabuf_attributes *attr,
+		struct gbm_bo *bo) {
+	assert(gbm_bo_get_plane_count(bo) == 1);
+
+	memset(attr, 0, sizeof(*attr));
+
+	attr->width = gbm_bo_get_width(bo);
+	attr->height = gbm_bo_get_height(bo);
+	attr->format = gbm_bo_get_format(bo);
+	attr->n_planes = 1;
+	attr->flags |= WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT;
+
+	attr->fd[0] = gbm_bo_get_fd(bo);
+	attr->stride[0] = gbm_bo_get_stride(bo);
+	attr->offset[0] = gbm_bo_get_offset(bo, 0);
+	attr->modifier = gbm_bo_get_modifier(bo);
+}
+
+static bool create_bo(struct wlr_headless_output *output,
+		struct wlr_headless_bo *bo,
 		unsigned int width, unsigned int height) {
 	if (!wlr_egl_make_current(output->backend->egl, EGL_NO_SURFACE, NULL)) {
 		return false;
 	}
 
-	GLuint rbo;
-	glGenRenderbuffers(1, &rbo);
-	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-	glRenderbufferStorage(GL_RENDERBUFFER, output->backend->internal_format,
-		width, height);
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+	bo->bo = gbm_bo_create(output->backend->gbm, width, height,
+		DRM_FORMAT_XRGB8888, GBM_BO_USE_RENDERING);
+	if (!bo->bo) {
+		return false;
+	}
+
+	struct wlr_dmabuf_attributes attr;
+	dmabuf_attr_from_gbm_bo(&attr, bo->bo);
+
+	bool external_only = false;
+	bo->image = wlr_egl_create_image_from_dmabuf(output->backend->egl, &attr,
+			&external_only);
+	wlr_dmabuf_attributes_finish(&attr);
+	if (!bo->image) {
+		gbm_bo_destroy(bo->bo);
+		return false;
+	}
+
+	GLuint rbo = wlr_renderer_renderbuffer_from_image(
+		output->backend->renderer, bo->image);
 
 	GLuint fbo;
 	glGenFramebuffers(1, &fbo);
@@ -38,27 +75,30 @@ static bool create_fbo(struct wlr_headless_output *output,
 	wlr_egl_unset_current(output->backend->egl);
 
 	if (status != GL_FRAMEBUFFER_COMPLETE) {
+		gbm_bo_destroy(bo->bo);
 		wlr_log(WLR_ERROR, "Failed to create FBO");
 		return false;
 	}
 
-	output->fbo = fbo;
-	output->rbo = rbo;
+	bo->fbo = fbo;
+	bo->rbo = rbo;
 	return true;
 }
 
-static void destroy_fbo(struct wlr_headless_output *output) {
+static void destroy_bo(struct wlr_headless_output *output, struct wlr_headless_bo *bo) {
 	if (!wlr_egl_make_current(output->backend->egl, EGL_NO_SURFACE, NULL)) {
 		return;
 	}
 
-	glDeleteFramebuffers(1, &output->fbo);
-	glDeleteRenderbuffers(1, &output->rbo);
-
+	glDeleteFramebuffers(1, &bo->fbo);
+	glDeleteRenderbuffers(1, &bo->rbo);
+	eglDestroyImage(output->backend->egl, bo->image);
+	gbm_bo_destroy(bo->bo);
 	wlr_egl_unset_current(output->backend->egl);
-
-	output->fbo = 0;
-	output->rbo = 0;
+	bo->fbo = 0;
+	bo->rbo = 0;
+	bo->image = 0;
+	bo->bo = NULL;
 }
 
 static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
@@ -70,11 +110,19 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
 		refresh = HEADLESS_DEFAULT_REFRESH;
 	}
 
-	destroy_fbo(output);
-	if (!create_fbo(output, width, height)) {
+	destroy_bo(output, &output->bo[1]);
+	destroy_bo(output, &output->bo[0]);
+	if (!create_bo(output, &output->bo[0], width, height)) {
 		wlr_output_destroy(wlr_output);
 		return false;
 	}
+	if (!create_bo(output, &output->bo[1], width, height)) {
+		wlr_output_destroy(wlr_output);
+		return false;
+	}
+
+	output->front = &output->bo[0];
+	output->back = &output->bo[1];
 
 	output->frame_delay = 1000000 / refresh;
 
@@ -91,7 +139,11 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		return false;
 	}
 
-	glBindFramebuffer(GL_FRAMEBUFFER, output->fbo);
+	struct wlr_headless_bo *tmp = output->front;
+	output->front = output->back;
+	output->back = tmp;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, output->back->fbo);
 
 	if (buffer_age != NULL) {
 		*buffer_age = 0; // We only have one buffer
@@ -140,6 +192,22 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	return true;
 }
 
+static bool output_export_dmabuf(struct wlr_output *wlr_output,
+		struct wlr_dmabuf_attributes *attributes) {
+	struct wlr_headless_output *output =
+		headless_output_from_output(wlr_output);
+
+	struct wlr_egl_context saved_context;
+	wlr_egl_save_context(&saved_context);
+	wlr_egl_make_current(output->backend->egl, EGL_NO_SURFACE, NULL);
+	glFinish();
+	wlr_egl_restore_context(&saved_context);
+
+	// Note: drm exports the back-buffer, so let's just do the same here.
+	dmabuf_attr_from_gbm_bo(attributes, output->back->bo);
+	return true;
+}
+
 static void output_rollback_render(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
@@ -153,7 +221,8 @@ static void output_destroy(struct wlr_output *wlr_output) {
 		headless_output_from_output(wlr_output);
 	wl_list_remove(&output->link);
 	wl_event_source_remove(output->frame_timer);
-	destroy_fbo(output);
+	destroy_bo(output, &output->bo[1]);
+	destroy_bo(output, &output->bo[0]);
 	free(output);
 }
 
@@ -162,6 +231,7 @@ static const struct wlr_output_impl output_impl = {
 	.attach_render = output_attach_render,
 	.commit = output_commit,
 	.rollback_render = output_rollback_render,
+	.export_dmabuf = output_export_dmabuf,
 };
 
 bool wlr_output_is_headless(struct wlr_output *wlr_output) {
@@ -191,9 +261,15 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		backend->display);
 	struct wlr_output *wlr_output = &output->wlr_output;
 
-	if (!create_fbo(output, width, height)) {
+	if (!create_bo(output, &output->bo[0], width, height)) {
 		goto error;
 	}
+	if (!create_bo(output, &output->bo[1], width, height)) {
+		goto error;
+	}
+
+	output->front = &output->bo[0];
+	output->back = &output->bo[1];
 
 	output_set_custom_mode(wlr_output, width, height, 0);
 	strncpy(wlr_output->make, "headless", sizeof(wlr_output->make));
