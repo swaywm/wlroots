@@ -18,6 +18,8 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <stdbool.h>
 #include <wayland-server-protocol.h>
 #include <wlr/render/wlr_renderer.h>
@@ -67,6 +69,7 @@ struct wlr_renderer_impl {
 	bool (*blit_dmabuf)(struct wlr_renderer *renderer,
 		struct wlr_dmabuf_attributes *dst,
 		struct wlr_dmabuf_attributes *src);
+	GLuint (*renderbuffer_from_image)(EGLImageKHR image);
 };
 
 void wlr_renderer_init(struct wlr_renderer *renderer,

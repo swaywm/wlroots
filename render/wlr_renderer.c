@@ -179,6 +179,14 @@ bool wlr_renderer_blit_dmabuf(struct wlr_renderer *r,
 	return r->impl->blit_dmabuf(r, dst, src);
 }
 
+GLuint wlr_renderer_renderbuffer_from_image(struct wlr_renderer *r,
+		EGLImageKHR image) {
+	if (!r->impl->renderbuffer_from_image) {
+		return false;
+	}
+	return r->impl->renderbuffer_from_image(image);
+}
+
 bool wlr_renderer_format_supported(struct wlr_renderer *r,
 		enum wl_shm_format fmt) {
 	return r->impl->format_supported(r, fmt);

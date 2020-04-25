@@ -10,6 +10,8 @@
 #define WLR_RENDER_WLR_RENDERER_H
 
 #include <stdint.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <wayland-server-protocol.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/wlr_texture.h>
@@ -129,6 +131,9 @@ bool wlr_renderer_format_supported(struct wlr_renderer *r,
  */
 bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	struct wl_display *wl_display);
+
+GLuint wlr_renderer_renderbuffer_from_image(struct wlr_renderer *r,
+	EGLImageKHR image);
 
 /**
  * Destroys this wlr_renderer. Textures must be destroyed separately.
