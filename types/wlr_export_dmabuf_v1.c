@@ -150,6 +150,8 @@ static void manager_handle_capture_output(struct wl_client *client,
 			attribs->fd[i], size, attribs->offset[i], attribs->stride[i], i);
 	}
 
+	wlr_output_schedule_frame(output);
+
 	wl_list_remove(&frame->output_precommit.link);
 	wl_signal_add(&output->events.precommit, &frame->output_precommit);
 	frame->output_precommit.notify = frame_output_handle_precommit;
