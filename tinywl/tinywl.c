@@ -55,8 +55,7 @@ struct tinywl_server {
 	enum tinywl_cursor_mode cursor_mode;
 	struct tinywl_view *grabbed_view;
 	double grab_x, grab_y;
-	struct wlr_box grab_geo_box;
-	int grab_width, grab_height;
+	struct wlr_box grab_geobox;
 	uint32_t resize_edges;
 
 	struct wlr_output_layout *output_layout;
@@ -370,33 +369,44 @@ static void process_cursor_resize(struct tinywl_server *server, uint32_t time) {
 	 * commit any movement that was prepared.
 	 */
 	struct tinywl_view *view = server->grabbed_view;
-	double dx = server->cursor->x - server->grab_x;
-	double dy = server->cursor->y - server->grab_y;
-	double x = view->x;
-	double y = view->y;
-	int width = server->grab_width;
-	int height = server->grab_height;
+	double border_x = server->cursor->x - server->grab_x;
+	double border_y = server->cursor->y - server->grab_y;
+	int new_left = server->grab_geobox.x;
+	int new_right = server->grab_geobox.x + server->grab_geobox.width;
+	int new_top = server->grab_geobox.y;
+	int new_bottom = server->grab_geobox.y + server->grab_geobox.height; 
+
 	if (server->resize_edges & WLR_EDGE_TOP) {
-		y = server->grab_y + dy - server->grab_geo_box.y;
-		height -= dy + server->grab_geo_box.y;
-		if (height < 1) {
-			y += height;
+		new_top = border_y;
+		if (new_top >= new_bottom) {
+			new_top = new_bottom - 1;
 		}
 	} else if (server->resize_edges & WLR_EDGE_BOTTOM) {
-		height += dy + server->grab_geo_box.y;
+		new_bottom = border_y;
+		if (new_bottom <= new_top) {
+			new_bottom = new_top + 1;
+		}
 	}
 	if (server->resize_edges & WLR_EDGE_LEFT) {
-		x = server->grab_x + dx - server->grab_geo_box.x;
-		width -= dx + server->grab_geo_box.x;
-		if (width < 1) {
-			x += width;
+		new_left = border_x;
+		if (new_left >= new_right) {
+			new_left = new_right - 1;
 		}
 	} else if (server->resize_edges & WLR_EDGE_RIGHT) {
-		width += dx + server->grab_geo_box.x;
+		new_right = border_x;
+		if (new_right <= new_left) {
+			new_right = new_left + 1;
+		}
 	}
-	view->x = x;
-	view->y = y;
-	wlr_xdg_toplevel_set_size(view->xdg_surface, width, height);
+
+	struct wlr_box geo_box;
+	wlr_xdg_surface_get_geometry(view->xdg_surface, &geo_box);
+	view->x = new_left - geo_box.x;
+	view->y = new_top - geo_box.y;
+
+	int new_width = new_right - new_left;
+	int new_height = new_bottom - new_top;
+	wlr_xdg_toplevel_set_size(view->xdg_surface, new_width, new_height);
 }
 
 static void process_cursor_motion(struct tinywl_server *server, uint32_t time) {
@@ -725,17 +735,25 @@ static void begin_interactive(struct tinywl_view *view,
 	}
 	server->grabbed_view = view;
 	server->cursor_mode = mode;
-	wlr_xdg_surface_get_geometry(view->xdg_surface, &server->grab_geo_box);
+
 	if (mode == TINYWL_CURSOR_MOVE) {
 		server->grab_x = server->cursor->x - view->x;
 		server->grab_y = server->cursor->y - view->y;
 	} else {
-		server->grab_x = server->cursor->x + server->grab_geo_box.x;
-		server->grab_y = server->cursor->y + server->grab_geo_box.y;
+		struct wlr_box geo_box;
+		wlr_xdg_surface_get_geometry(view->xdg_surface, &geo_box);
+
+		double border_x = (view->x + geo_box.x) + ((edges & WLR_EDGE_RIGHT) ? geo_box.width : 0);
+		double border_y = (view->y + geo_box.y) + ((edges & WLR_EDGE_BOTTOM) ? geo_box.height : 0);
+		server->grab_x = server->cursor->x - border_x;
+		server->grab_y = server->cursor->y - border_y;
+
+		server->grab_geobox = geo_box;
+		server->grab_geobox.x += view->x;
+		server->grab_geobox.y += view->y;
+
+		server->resize_edges = edges;
 	}
-	server->grab_width = server->grab_geo_box.width;
-	server->grab_height = server->grab_geo_box.height;
-	server->resize_edges = edges;
 }
 
 static void xdg_toplevel_request_move(
