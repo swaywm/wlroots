@@ -6,7 +6,6 @@
 
 void wlr_texture_init(struct wlr_texture *texture,
 		const struct wlr_texture_impl *impl, uint32_t width, uint32_t height) {
-	assert(impl->write_pixels);
 	texture->impl = impl;
 	texture->width = width;
 	texture->height = height;
@@ -60,6 +59,9 @@ bool wlr_texture_write_pixels(struct wlr_texture *texture,
 		uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
 		const void *data) {
+	if (!texture->impl->write_pixels) {
+		return false;
+	}
 	return texture->impl->write_pixels(texture, stride, width, height,
 		src_x, src_y, dst_x, dst_y, data);
 }
