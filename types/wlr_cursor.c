@@ -539,11 +539,33 @@ static void handle_tablet_tool_axis(struct wl_listener *listener, void *data) {
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, tablet_tool_axis);
 
-	struct wlr_output *output =
-		get_mapped_output(device);
+	struct wlr_output *output = get_mapped_output(device);
 	if (output) {
-		apply_output_transform(&event->x, &event->y, output->transform);
+		// In the case that only one axis received an event, rotating the input can
+		// cause the change to actually happen on the other axis, as far as clients
+		// are concerned.
+		//
+		// Here, we feed apply_output_transform NAN on the axis that didn't change,
+		// and remap the axes flags based on whether it returns NAN itself.
+		double x = event->updated_axes & WLR_TABLET_TOOL_AXIS_X ? event->x : NAN;
+		double y = event->updated_axes & WLR_TABLET_TOOL_AXIS_Y ? event->y : NAN;
+
+		apply_output_transform(&x, &y, output->transform);
+
+		event->updated_axes &= ~(WLR_TABLET_TOOL_AXIS_X | WLR_TABLET_TOOL_AXIS_Y);
+		event->x = event->y = 0;
+
+		if (!isnan(x)) {
+			event->updated_axes |= WLR_TABLET_TOOL_AXIS_X;
+			event->x = x;
+		}
+
+		if (!isnan(y)) {
+			event->updated_axes |= WLR_TABLET_TOOL_AXIS_Y;
+			event->y = y;
+		}
 	}
+
 	wlr_signal_emit_safe(&device->cursor->events.tablet_tool_axis, event);
 }
 
