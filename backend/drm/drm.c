@@ -373,6 +373,13 @@ static bool test_buffer(struct wlr_drm_connector *conn,
 		return false;
 	}
 
+	/* Legacy never gets to have nice things. But I doubt this would ever work,
+	 * and there is no reliable way to try, without risking messing up the
+	 * modesetting state. */
+	if (drm->iface == &legacy_iface) {
+		return false;
+	}
+
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
 		return false;
