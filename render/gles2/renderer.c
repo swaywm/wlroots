@@ -86,7 +86,8 @@ static void gles2_scissor(struct wlr_renderer *wlr_renderer,
 	POP_GLES2_DEBUG;
 }
 
-static void draw_quad(void) {
+static void draw_quad_with_texcoord(GLfloat x1, GLfloat y1,
+		GLfloat x2, GLfloat y2) {
 	GLfloat verts[] = {
 		1, 0, // top right
 		0, 0, // top left
@@ -94,10 +95,10 @@ static void draw_quad(void) {
 		0, 1, // bottom left
 	};
 	GLfloat texcoord[] = {
-		1, 0, // top right
-		0, 0, // top left
-		1, 1, // bottom right
-		0, 1, // bottom left
+		x2, y1, // top right
+		x1, y1, // top left
+		x2, y2, // bottom right
+		x1, y2, // bottom left
 	};
 
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts);
@@ -112,8 +113,13 @@ static void draw_quad(void) {
 	glDisableVertexAttribArray(1);
 }
 
-static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
-		struct wlr_texture *wlr_texture, const float matrix[static 9],
+static void draw_quad(void) {
+	draw_quad_with_texcoord(0, 0, 1, 1);
+}
+
+static bool gles2_render_subtexture_with_matrix(
+		struct wlr_renderer *wlr_renderer, struct wlr_texture *wlr_texture,
+		const struct wlr_fbox *box, const float matrix[static 9],
 		float alpha) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
@@ -162,7 +168,11 @@ static bool gles2_render_texture_with_matrix(struct wlr_renderer *wlr_renderer,
 	glUniform1i(shader->tex, 0);
 	glUniform1f(shader->alpha, alpha);
 
-	draw_quad();
+	GLfloat x1 = box->x / wlr_texture->width;
+	GLfloat y1 = box->y / wlr_texture->height;
+	GLfloat x2 = (box->x + box->width) / wlr_texture->width;
+	GLfloat y2 = (box->y + box->height) / wlr_texture->height;
+	draw_quad_with_texcoord(x1, y1, x2, y2);
 
 	glBindTexture(texture->target, 0);
 
@@ -492,7 +502,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.end = gles2_end,
 	.clear = gles2_clear,
 	.scissor = gles2_scissor,
-	.render_texture_with_matrix = gles2_render_texture_with_matrix,
+	.render_subtexture_with_matrix = gles2_render_subtexture_with_matrix,
 	.render_quad_with_matrix = gles2_render_quad_with_matrix,
 	.render_ellipse_with_matrix = gles2_render_ellipse_with_matrix,
 	.formats = gles2_renderer_formats,

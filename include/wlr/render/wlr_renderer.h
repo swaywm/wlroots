@@ -55,6 +55,13 @@ bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
 bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
 	struct wlr_texture *texture, const float matrix[static 9], float alpha);
 /**
+ * Renders the requested texture using the provided matrix, after cropping it
+ * to the provided rectangle.
+ */
+bool wlr_render_subtexture_with_matrix(struct wlr_renderer *r,
+	struct wlr_texture *texture, const struct wlr_fbox *box,
+	const float matrix[static 9], float alpha);
+/**
  * Renders a solid rectangle in the specified color.
  */
 void wlr_render_rect(struct wlr_renderer *r, const struct wlr_box *box,
