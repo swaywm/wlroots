@@ -35,13 +35,6 @@ static struct wlr_gles2_texture *get_gles2_texture_in_context(
 	return texture;
 }
 
-static void gles2_texture_get_size(struct wlr_texture *wlr_texture, int *width,
-		int *height) {
-	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
-	*width = texture->width;
-	*height = texture->height;
-}
-
 static bool gles2_texture_is_opaque(struct wlr_texture *wlr_texture) {
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
 	return !texture->has_alpha;
@@ -110,7 +103,7 @@ static bool gles2_texture_to_dmabuf(struct wlr_texture *wlr_texture,
 	}
 
 	return wlr_egl_export_image_to_dmabuf(texture->egl, texture->image,
-		texture->width, texture->height, flags, attribs);
+		wlr_texture->width, wlr_texture->height, flags, attribs);
 }
 
 static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
@@ -135,7 +128,6 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 }
 
 static const struct wlr_texture_impl texture_impl = {
-	.get_size = gles2_texture_get_size,
 	.is_opaque = gles2_texture_is_opaque,
 	.write_pixels = gles2_texture_write_pixels,
 	.to_dmabuf = gles2_texture_to_dmabuf,
@@ -161,10 +153,8 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 		wlr_log(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
-	wlr_texture_init(&texture->wlr_texture, &texture_impl);
+	wlr_texture_init(&texture->wlr_texture, &texture_impl, width, height);
 	texture->egl = egl;
-	texture->width = width;
-	texture->height = height;
 	texture->target = GL_TEXTURE_2D;
 	texture->has_alpha = fmt->has_alpha;
 	texture->wl_format = fmt->wl_format;
@@ -186,7 +176,7 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 }
 
 struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
-		struct wl_resource *data) {
+		struct wl_resource *resource) {
 	if (!wlr_egl_is_current(egl)) {
 		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 	}
@@ -195,23 +185,29 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 		return NULL;
 	}
 
+	EGLint fmt;
+	int width, height;
+	bool inverted_y;
+	EGLImageKHR image = wlr_egl_create_image_from_wl_drm(egl, resource,
+		&fmt, &width, &height, &inverted_y);
+	if (image == EGL_NO_IMAGE_KHR) {
+		wlr_log(WLR_ERROR, "Failed to create EGL image from wl_drm resource");
+		return NULL;
+	}
+
 	struct wlr_gles2_texture *texture =
 		calloc(1, sizeof(struct wlr_gles2_texture));
 	if (texture == NULL) {
 		wlr_log(WLR_ERROR, "Allocation failed");
+		wlr_egl_destroy_image(egl, image);
 		return NULL;
 	}
-	wlr_texture_init(&texture->wlr_texture, &texture_impl);
+	wlr_texture_init(&texture->wlr_texture, &texture_impl, width, height);
 	texture->egl = egl;
 
-	EGLint fmt;
 	texture->wl_format = 0xFFFFFFFF; // texture can't be written anyways
-	texture->image = wlr_egl_create_image_from_wl_drm(egl, data, &fmt,
-		&texture->width, &texture->height, &texture->inverted_y);
-	if (texture->image == NULL) {
-		free(texture);
-		return NULL;
-	}
+	texture->image = image;
+	texture->inverted_y = inverted_y;
 
 	switch (fmt) {
 	case EGL_TEXTURE_RGB:
@@ -223,6 +219,7 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 		break;
 	default:
 		wlr_log(WLR_ERROR, "Invalid or unsupported EGL buffer format");
+		wlr_egl_destroy_image(egl, image);
 		free(texture);
 		return NULL;
 	}
@@ -275,10 +272,9 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		wlr_log(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
-	wlr_texture_init(&texture->wlr_texture, &texture_impl);
+	wlr_texture_init(&texture->wlr_texture, &texture_impl,
+		attribs->width, attribs->height);
 	texture->egl = egl;
-	texture->width = attribs->width;
-	texture->height = attribs->height;
 	texture->target = GL_TEXTURE_EXTERNAL_OES;
 	texture->has_alpha = true;
 	texture->wl_format = 0xFFFFFFFF; // texture can't be written anyways
@@ -286,7 +282,8 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		(attribs->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) != 0;
 
 	texture->image = wlr_egl_create_image_from_dmabuf(egl, attribs);
-	if (texture->image == NULL) {
+	if (texture->image == EGL_NO_IMAGE_KHR) {
+		wlr_log(WLR_ERROR, "Failed to create EGL image from DMA-BUF");
 		free(texture);
 		return NULL;
 	}

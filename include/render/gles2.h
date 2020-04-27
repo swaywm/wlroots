@@ -82,7 +82,6 @@ struct wlr_gles2_texture {
 
 	EGLImageKHR image;
 
-	int width, height;
 	bool inverted_y;
 	bool has_alpha;
 

@@ -70,7 +70,6 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	const struct wlr_renderer_impl *impl);
 
 struct wlr_texture_impl {
-	void (*get_size)(struct wlr_texture *texture, int *width, int *height);
 	bool (*is_opaque)(struct wlr_texture *texture);
 	bool (*write_pixels)(struct wlr_texture *texture,
 		uint32_t stride, uint32_t width, uint32_t height,
@@ -82,6 +81,6 @@ struct wlr_texture_impl {
 };
 
 void wlr_texture_init(struct wlr_texture *texture,
-	const struct wlr_texture_impl *impl);
+	const struct wlr_texture_impl *impl, uint32_t width, uint32_t height);
 
 #endif
