@@ -18,6 +18,7 @@ struct wlr_texture_impl;
 
 struct wlr_texture {
 	const struct wlr_texture_impl *impl;
+	uint32_t width, height;
 };
 
 /**
@@ -43,6 +44,9 @@ struct wlr_texture *wlr_texture_from_dmabuf(struct wlr_renderer *renderer,
 
 /**
  * Get the texture width and height.
+ *
+ * This function is deprecated. Access wlr_texture's width and height fields
+ * directly instead.
  */
 void wlr_texture_get_size(struct wlr_texture *texture, int *width, int *height);
 

@@ -5,10 +5,11 @@
 #include <wlr/render/wlr_texture.h>
 
 void wlr_texture_init(struct wlr_texture *texture,
-		const struct wlr_texture_impl *impl) {
-	assert(impl->get_size);
+		const struct wlr_texture_impl *impl, uint32_t width, uint32_t height) {
 	assert(impl->write_pixels);
 	texture->impl = impl;
+	texture->width = width;
+	texture->height = height;
 }
 
 void wlr_texture_destroy(struct wlr_texture *texture) {
@@ -44,7 +45,8 @@ struct wlr_texture *wlr_texture_from_dmabuf(struct wlr_renderer *renderer,
 
 void wlr_texture_get_size(struct wlr_texture *texture, int *width,
 		int *height) {
-	texture->impl->get_size(texture, width, height);
+	*width = texture->width;
+	*height = texture->height;
 }
 
 bool wlr_texture_is_opaque(struct wlr_texture *texture) {
