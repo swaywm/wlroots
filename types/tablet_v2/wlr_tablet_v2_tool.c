@@ -192,6 +192,7 @@ static void handle_wlr_tablet_tool_destroy(struct wl_listener *listener, void *d
 	wl_list_remove(&tool->link);
 	wl_list_remove(&tool->tool_destroy.link);
 	wl_list_remove(&tool->events.set_cursor.listener_list);
+	wl_list_remove(&tool->surface_destroy.link);
 	free(tool);
 }
 
@@ -226,10 +227,10 @@ struct wlr_tablet_v2_tablet_tool *wlr_tablet_tool_create(
 
 	tool->wlr_tool = wlr_tool;
 	wl_list_init(&tool->clients);
+	wl_list_init(&tool->surface_destroy.link);
 	tool->default_grab.tool = tool;
 	tool->default_grab.interface = &default_tool_grab_interface;
 	tool->grab = &tool->default_grab;
-
 
 	tool->tool_destroy.notify = handle_wlr_tablet_tool_destroy;
 	wl_signal_add(&wlr_tool->events.destroy, &tool->tool_destroy);
@@ -322,6 +323,13 @@ static void queue_tool_frame(struct wlr_tablet_tool_client_v2 *tool) {
 	}
 }
 
+static void handle_tablet_tool_surface_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_tablet_v2_tablet_tool *tool =
+		wl_container_of(listener, tool, surface_destroy);
+	wlr_send_tablet_v2_tablet_tool_proximity_out(tool);
+}
+
 void wlr_send_tablet_v2_tablet_tool_proximity_in(
 		struct wlr_tablet_v2_tablet_tool *tool,
 		struct wlr_tablet_v2_tablet *tablet,
@@ -365,6 +373,11 @@ void wlr_send_tablet_v2_tablet_tool_proximity_in(
 	if (!tool_client) {
 		return;
 	}
+
+	// Reinitialize the focus destroy events
+	wl_list_remove(&tool->surface_destroy.link);
+	wl_signal_add(&surface->events.destroy, &tool->surface_destroy);
+	tool->surface_destroy.notify = handle_tablet_tool_surface_destroy;
 
 	tool->current_client = tool_client;
 
@@ -418,6 +431,8 @@ void wlr_send_tablet_v2_tablet_tool_proximity_out(
 		zwp_tablet_tool_v2_send_proximity_out(tool->current_client->resource);
 		send_tool_frame(tool->current_client);
 
+		wl_list_remove(&tool->surface_destroy.link);
+		wl_list_init(&tool->surface_destroy.link);
 		tool->current_client = NULL;
 		tool->focused_surface = NULL;
 	}
