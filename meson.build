@@ -80,7 +80,6 @@ else
 endif
 
 conf_data = configuration_data()
-conf_data.set10('WLR_HAS_LIBCAP', false)
 conf_data.set10('WLR_HAS_SYSTEMD', false)
 conf_data.set10('WLR_HAS_ELOGIND', false)
 conf_data.set10('WLR_HAS_X11_BACKEND', false)
@@ -170,7 +169,6 @@ wlroots = declare_dependency(
 meson.override_dependency('wlroots', wlroots)
 
 summary({
-	'libcap': conf_data.get('WLR_HAS_LIBCAP', 0),
 	'systemd': conf_data.get('WLR_HAS_SYSTEMD', 0),
 	'elogind': conf_data.get('WLR_HAS_ELOGIND', 0),
 	'xwayland': conf_data.get('WLR_HAS_XWAYLAND', 0),

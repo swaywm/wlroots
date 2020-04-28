@@ -62,23 +62,3 @@ if logind_found
 	wlr_files += files('logind.c')
 	wlr_deps += logind
 endif
-
-# libcap
-
-msg = []
-if get_option('libcap').enabled()
-	msg += 'Install "libcap" or pass "-Dlibcap=disabled".'
-endif
-if not get_option('libcap').disabled()
-	msg += 'Required for POSIX capability support (Not needed if using logind).'
-endif
-
-libcap = dependency('libcap',
-	required: get_option('libcap'),
-	not_found_message: '\n'.join(msg),
-)
-if libcap.found()
-	conf_data.set10('WLR_HAS_LIBCAP', true)
-	wlr_deps += libcap
-endif
-
