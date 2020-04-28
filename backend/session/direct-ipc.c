@@ -24,23 +24,6 @@
 
 enum { DRM_MAJOR = 226 };
 
-#if WLR_HAS_LIBCAP
-#include <sys/capability.h>
-
-static bool have_permissions(void) {
-	cap_t cap = cap_get_proc();
-	cap_flag_value_t val;
-
-	if (!cap || cap_get_flag(cap, CAP_SYS_ADMIN, CAP_PERMITTED, &val) || val != CAP_SET) {
-		wlr_log(WLR_ERROR, "Do not have CAP_SYS_ADMIN; cannot become DRM master");
-		cap_free(cap);
-		return false;
-	}
-
-	cap_free(cap);
-	return true;
-}
-#else
 static bool have_permissions(void) {
 #ifdef __linux__
 	if (geteuid() != 0) {
@@ -50,7 +33,6 @@ static bool have_permissions(void) {
 #endif
 	return true;
 }
-#endif
 
 static void send_msg(int sock, int fd, void *buf, size_t buf_len) {
 	char control[CMSG_SPACE(sizeof(fd))] = {0};
