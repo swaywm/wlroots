@@ -196,9 +196,27 @@ void drm_plane_finish_surface(struct wlr_drm_plane *plane) {
 	finish_drm_surface(&plane->mgpu_surf);
 }
 
+static uint32_t strip_alpha_channel(uint32_t format) {
+	switch (format) {
+	case DRM_FORMAT_ARGB8888:
+		return DRM_FORMAT_XRGB8888;
+	default:
+		return DRM_FORMAT_INVALID;
+	}
+}
+
 bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
 		uint32_t format, uint32_t flags, bool with_modifiers) {
+	if (!wlr_drm_format_set_has(&plane->formats, format, DRM_FORMAT_MOD_INVALID)) {
+		format = strip_alpha_channel(format);
+	}
+	if (!wlr_drm_format_set_has(&plane->formats, format, DRM_FORMAT_MOD_INVALID)) {
+		wlr_log(WLR_ERROR, "Plane %"PRIu32" doesn't support format 0x%"PRIX32,
+			plane->id, format);
+		return false;
+	}
+
 	struct wlr_drm_format_set *format_set =
 		with_modifiers ? &plane->formats : NULL;
 
@@ -268,15 +286,6 @@ bool drm_fb_lock_surface(struct wlr_drm_fb *fb, struct wlr_drm_surface *surf) {
 	fb->type = WLR_DRM_FB_TYPE_SURFACE;
 	fb->surf = surf;
 	return true;
-}
-
-static uint32_t strip_alpha_channel(uint32_t format) {
-	switch (format) {
-	case DRM_FORMAT_ARGB8888:
-		return DRM_FORMAT_XRGB8888;
-	default:
-		return DRM_FORMAT_INVALID;
-	}
 }
 
 bool drm_fb_import_wlr(struct wlr_drm_fb *fb, struct wlr_drm_renderer *renderer,
