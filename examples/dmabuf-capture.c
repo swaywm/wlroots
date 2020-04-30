@@ -205,10 +205,11 @@ static void remove_output(struct wayland_output *out) {
 }
 
 static struct wayland_output *find_output(struct capture_context *ctx,
-		struct wl_output *out, uint32_t id) {
+		struct wl_output *out, int id) {
 	struct wayland_output *output, *tmp;
 	wl_list_for_each_safe(output, tmp, &ctx->output_list, link) {
-		if ((output->output == out) || (output->id == id)) {
+		if (output->output == out || (id >= 0 && output->id == (uint32_t)id)
+				|| id == -1) {
 			return output;
 		}
 	}
@@ -766,16 +767,77 @@ static int init(struct capture_context *ctx) {
 
 static void uninit(struct capture_context *ctx);
 
+static const char usage[] = "usage: dmabuf-capture [options...] <destination file path>\n"
+	"  -o <output ID>\n"
+	"  -t <hardware device type>\n"
+	"  -d <device path>\n"
+	"  -e <encoder>\n"
+	"  -f <pixel format>\n"
+	"  -r <bitrate in Mbps>\n"
+	"\n"
+	"Example:\n"
+	"  dmabuf-capture -o 32 -t vaapi -d /dev/dri/renderD129 \\\n"
+	"    -e libx264 -f nv12 -r 12 recording.mkv\n";
+
 int main(int argc, char *argv[]) {
-	int err;
-	struct capture_context ctx = { 0 };
-	ctx.class = &((AVClass) {
+	struct capture_context ctx = {
+		.hardware_device = "/dev/dri/renderD128",
+		.encoder_name = "libx264",
+		.out_bitrate = 12,
+	};
+	int output_id = -1;
+	const char *hw_device_type = "vaapi";
+	const char *software_format = "nv12";
+	int opt;
+	while ((opt = getopt(argc, argv, "ho:t:d:e:f:r:")) != -1) {
+		char *end;
+		switch (opt) {
+		case 'o':
+			output_id = strtol(optarg, &end, 10);
+			if (optarg[0] == '\0' || end[0] != '\0') {
+				fprintf(stderr, "Output ID is not an integer\n");
+				return 1;
+			}
+			break;
+		case 't':
+			hw_device_type = optarg;
+			break;
+		case 'd':
+			ctx.hardware_device = optarg;
+			break;
+		case 'e':
+			ctx.encoder_name = optarg;
+			break;
+		case 'f':
+			software_format = optarg;
+			break;
+		case 'r':
+			ctx.out_bitrate = strtof(optarg, &end);
+			if (optarg[0] == '\0' || end[0] != '\0') {
+				fprintf(stderr, "Bitrate is not a floating-pointer number\n");
+				return 1;
+			}
+			break;
+		default:
+			fprintf(stderr, "%s", usage);
+			return 1;
+		}
+	}
+
+	if (optind >= argc) {
+		fprintf(stderr, "Missing destination file argument\n");
+		fprintf(stderr, "%s", usage);
+		return 1;
+	}
+	ctx.out_filename = argv[optind];
+
+	ctx.class = &((AVClass){
 		.class_name = "dmabuf-capture",
 		.item_name  = av_default_item_name,
 		.version    = LIBAVUTIL_VERSION_INT,
 	});
 
-	err = init(&ctx);
+	int err = init(&ctx);
 	if (err) {
 		goto end;
 	}
@@ -786,31 +848,16 @@ int main(int argc, char *argv[]) {
 				o->make, o->model, o->id);
 	}
 
-	if (argc != 8) {
-		printf("Invalid number of arguments! Usage and example:\n"
-				"./dmabuf-capture <source id> <hardware device type> <device> "
-				"<encoder name> <pixel format> <bitrate in Mbps> <file path>\n"
-				"./dmabuf-capture 0 vaapi /dev/dri/renderD129 libx264 nv12 12 "
-				"dmabuf_recording_01.mkv\n");
-		return 1;
-	}
-
-	const int o_id = strtol(argv[1], NULL, 10);
-	o = find_output(&ctx, NULL, o_id);
+	o = find_output(&ctx, NULL, output_id);
 	if (!o) {
-		printf("Unable to find output with ID %i!\n", o_id);
+		printf("Unable to find output with ID %d\n", output_id);
 		return 1;
 	}
 
 	ctx.target_output = o->output;
 	ctx.with_cursor = true;
-	ctx.hw_device_type = av_hwdevice_find_type_by_name(argv[2]);
-	ctx.hardware_device = argv[3];
-
-	ctx.encoder_name = argv[4];
-	ctx.software_format = av_get_pix_fmt(argv[5]);
-	ctx.out_bitrate = strtof(argv[6], NULL);
-	ctx.out_filename = argv[7];
+	ctx.hw_device_type = av_hwdevice_find_type_by_name(hw_device_type);
+	ctx.software_format = av_get_pix_fmt(software_format);
 
 	av_dict_set(&ctx.encoder_opts, "preset", "veryfast", 0);
 
