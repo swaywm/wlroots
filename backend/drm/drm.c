@@ -341,7 +341,8 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn,
 	drmModeModeInfo *drm_mode = mode ? &mode->drm_mode : NULL;
 
 	if (conn->pageflip_pending) {
-		wlr_log(WLR_ERROR, "Skipping pageflip on output '%s'", conn->output.name);
+		wlr_log(WLR_ERROR, "Failed to page-flip output '%s': "
+			"a page-flip is already pending", conn->output.name);
 		return false;
 	}
 
