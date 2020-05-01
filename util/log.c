@@ -15,9 +15,16 @@ static struct timespec start_time = {-1};
 
 static const char *verbosity_colors[] = {
 	[WLR_SILENT] = "",
-	[WLR_ERROR ] = "\x1B[1;31m",
-	[WLR_INFO  ] = "\x1B[1;34m",
-	[WLR_DEBUG ] = "\x1B[1;30m",
+	[WLR_ERROR] = "\x1B[1;31m",
+	[WLR_INFO] = "\x1B[1;34m",
+	[WLR_DEBUG] = "\x1B[1;30m",
+};
+
+static const char *verbosity_headers[] = {
+	[WLR_SILENT] = "",
+	[WLR_ERROR] = "[ERROR]",
+	[WLR_INFO] = "[INFO]",
+	[WLR_DEBUG] = "[DEBUG]",
 };
 
 static void timespec_sub(struct timespec *r, const struct timespec *a,
@@ -58,6 +65,8 @@ static void log_stderr(enum wlr_log_importance verbosity, const char *fmt,
 
 	if (colored && isatty(STDERR_FILENO)) {
 		fprintf(stderr, "%s", verbosity_colors[c]);
+	} else {
+		fprintf(stderr, "%s ", verbosity_headers[c]);
 	}
 
 	vfprintf(stderr, fmt, args);
