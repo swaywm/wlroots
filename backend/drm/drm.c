@@ -1677,6 +1677,7 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		dealloc_crtc(conn);
 		conn->possible_crtc = 0;
 		conn->desired_mode = NULL;
+		conn->pageflip_pending = false;
 		wlr_signal_emit_safe(&conn->output.events.destroy, &conn->output);
 		break;
 	case WLR_DRM_CONN_DISCONNECTED:
