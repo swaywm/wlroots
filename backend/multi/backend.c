@@ -49,8 +49,11 @@ static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
 
 	wl_list_remove(&backend->display_destroy.link);
 
-	struct subbackend_state *sub, *next;
-	wl_list_for_each_safe(sub, next, &backend->backends, link) {
+	// Some backends may depend on other backends, ie. destroying a backend may
+	// also destroy other backends
+	while (!wl_list_empty(&backend->backends)) {
+		struct subbackend_state *sub =
+			wl_container_of(backend->backends.next, sub, link);
 		wlr_backend_destroy(sub->backend);
 	}
 
