@@ -291,7 +291,9 @@ void wlr_layer_surface_v1_close(struct wlr_layer_surface_v1 *surface) {
 		return;
 	}
 	surface->closed = true;
-	layer_surface_unmap(surface);
+	if (surface->mapped) {
+		layer_surface_unmap(surface);
+	}
 	zwlr_layer_surface_v1_send_closed(surface->resource);
 }
 
