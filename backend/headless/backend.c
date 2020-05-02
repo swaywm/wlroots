@@ -47,6 +47,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 	}
 
 	wl_list_remove(&backend->display_destroy.link);
+	wl_list_remove(&backend->renderer_destroy.link);
 
 	struct wlr_headless_output *output, *output_tmp;
 	wl_list_for_each_safe(output, output_tmp, &backend->outputs, link) {
@@ -61,8 +62,8 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 
 	wlr_signal_emit_safe(&wlr_backend->events.destroy, backend);
 
-	wlr_renderer_destroy(backend->renderer);
 	if (backend->egl == &backend->priv_egl) {
+		wlr_renderer_destroy(backend->renderer);
 		wlr_egl_finish(&backend->priv_egl);
 	}
 	free(backend);
@@ -84,6 +85,12 @@ static const struct wlr_backend_impl backend_impl = {
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_headless_backend *backend =
 		wl_container_of(listener, backend, display_destroy);
+	backend_destroy(&backend->backend);
+}
+
+static void handle_renderer_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_headless_backend *backend =
+		wl_container_of(listener, backend, renderer_destroy);
 	backend_destroy(&backend->backend);
 }
 
@@ -111,6 +118,8 @@ static bool backend_init(struct wlr_headless_backend *backend,
 
 	backend->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &backend->display_destroy);
+
+	wl_list_init(&backend->renderer_destroy.link);
 
 	return true;
 }
@@ -172,6 +181,9 @@ struct wlr_backend *wlr_headless_backend_create_with_renderer(
 		free(backend);
 		return NULL;
 	}
+
+	backend->renderer_destroy.notify = handle_renderer_destroy;
+	wl_signal_add(&renderer->events.destroy, &backend->renderer_destroy);
 
 	return &backend->backend;
 }
