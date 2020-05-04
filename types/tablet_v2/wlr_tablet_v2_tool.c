@@ -822,13 +822,14 @@ static const struct wlr_tablet_tool_v2_grab_interface
 	.cancel = implicit_tool_cancel,
 };
 
-static bool tool_has_implicit_grab(struct wlr_tablet_v2_tablet_tool *tool) {
+bool wlr_tablet_tool_v2_has_implicit_grab(
+		struct wlr_tablet_v2_tablet_tool *tool) {
 	return tool->grab->interface == &implicit_tool_grab_interface;
 }
 
 void wlr_tablet_tool_v2_start_implicit_grab(
 		struct wlr_tablet_v2_tablet_tool *tool) {
-	if (tool_has_implicit_grab(tool) || !tool->focused_surface) {
+	if (wlr_tablet_tool_v2_has_implicit_grab(tool) || !tool->focused_surface) {
 		return;
 	}
 
