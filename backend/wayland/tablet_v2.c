@@ -230,7 +230,7 @@ static void handle_tablet_pad_group_ring(void *data,
 	}
 	tablet_ring->index = group->pad->ring_count++;
 	tablet_ring->group = group;
-	zwp_tablet_pad_ring_v2_add_listener(ring, &tablet_pad_ring_listener, 
+	zwp_tablet_pad_ring_v2_add_listener(ring, &tablet_pad_ring_listener,
 		tablet_ring);
 
 	group->group.rings = realloc(group->group.rings,
@@ -251,7 +251,7 @@ static void handle_tablet_pad_group_strip(void *data,
 	}
 	tablet_strip->index = group->pad->strip_count++;
 	tablet_strip->group = group;
-	zwp_tablet_pad_strip_v2_add_listener(strip, &tablet_pad_strip_listener, 
+	zwp_tablet_pad_strip_v2_add_listener(strip, &tablet_pad_strip_listener,
 		tablet_strip);
 
 	group->group.strips = realloc(group->group.strips,
@@ -521,7 +521,7 @@ static void handle_tablet_tool_capability(void *data,
 	struct wlr_wl_tablet_tool *tool = data;
 
 	enum zwp_tablet_tool_v2_capability cap = capability;
-	
+
 	switch (cap) {
 	case ZWP_TABLET_TOOL_V2_CAPABILITY_TILT:
 		tool->wlr_tool.tilt = true;
@@ -674,7 +674,7 @@ static void handle_tablet_tool_frame(void *data,
 			.y = tool->y,
 			.state = WLR_TABLET_TOOL_PROXIMITY_IN,
 		};
-	
+
 		wlr_signal_emit_safe(&tablet->events.proximity, &evt);
 	}
 
@@ -732,7 +732,7 @@ static void handle_tablet_tool_frame(void *data,
 		}
 
 		if (evt.updated_axes) {
-			wlr_signal_emit_safe(&tablet->events.proximity, &evt);
+			wlr_signal_emit_safe(&tablet->events.axis, &evt);
 		}
 	}
 
@@ -750,7 +750,7 @@ static void handle_tablet_tool_frame(void *data,
 			.y = tool->y,
 			.state = WLR_TABLET_TOOL_TIP_DOWN,
 		};
-	
+
 		wlr_signal_emit_safe(&tablet->events.tip, &evt);
 	}
 
@@ -763,7 +763,7 @@ static void handle_tablet_tool_frame(void *data,
 			.y = tool->y,
 			.state = WLR_TABLET_TOOL_TIP_UP,
 		};
-	
+
 		wlr_signal_emit_safe(&tablet->events.tip, &evt);
 	}
 
@@ -776,7 +776,7 @@ static void handle_tablet_tool_frame(void *data,
 			.y = tool->y,
 			.state = WLR_TABLET_TOOL_PROXIMITY_OUT,
 		};
-	
+
 		wlr_signal_emit_safe(&tablet->events.proximity, &evt);
 	}
 
