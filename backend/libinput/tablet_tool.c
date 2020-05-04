@@ -188,6 +188,15 @@ static void ensure_tool_reference(struct wlr_libinput_tablet_tool *tool,
 	++tool->pad_refs;
 }
 
+static void clamp_tool_event_axes(double *x, double *y) {
+	// libinput can return events that are out of the range [0, 1] on some
+	// tablets where the actual sensor area is larger than the kernel-advertised
+	// area. To prevent confusing consumers of tablet events with out-of-range
+	// coordinates, clamp them to [0, 1] here.
+	*x = fmin(fmax(*x, 0), 1);
+	*y = fmin(fmax(*y, 0), 1);
+}
+
 void handle_tablet_tool_axis(struct libinput_event *event,
 		struct libinput_device *libinput_dev) {
 	struct wlr_input_device *wlr_dev =
@@ -246,6 +255,8 @@ void handle_tablet_tool_axis(struct libinput_event *event,
 		wlr_event.updated_axes |= WLR_TABLET_TOOL_AXIS_WHEEL;
 		wlr_event.wheel_delta = libinput_event_tablet_tool_get_wheel_delta(tevent);
 	}
+
+	clamp_tool_event_axes(&wlr_event.x, &wlr_event.y);
 	wlr_signal_emit_safe(&wlr_dev->tablet->events.axis, &wlr_event);
 }
 
@@ -271,6 +282,7 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 		usec_to_msec(libinput_event_tablet_tool_get_time_usec(tevent));
 	wlr_event.x = libinput_event_tablet_tool_get_x_transformed(tevent, 1);
 	wlr_event.y = libinput_event_tablet_tool_get_y_transformed(tevent, 1);
+	clamp_tool_event_axes(&wlr_event.x, &wlr_event.y);
 
 	switch (libinput_event_tablet_tool_get_proximity_state(tevent)) {
 	case LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT:
@@ -335,6 +347,7 @@ void handle_tablet_tool_tip(struct libinput_event *event,
 		usec_to_msec(libinput_event_tablet_tool_get_time_usec(tevent));
 	wlr_event.x = libinput_event_tablet_tool_get_x_transformed(tevent, 1);
 	wlr_event.y = libinput_event_tablet_tool_get_y_transformed(tevent, 1);
+	clamp_tool_event_axes(&wlr_event.x, &wlr_event.y);
 
 	switch (libinput_event_tablet_tool_get_tip_state(tevent)) {
 	case LIBINPUT_TABLET_TOOL_TIP_UP:
