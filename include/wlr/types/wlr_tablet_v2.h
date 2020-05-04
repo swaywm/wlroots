@@ -253,6 +253,8 @@ void wlr_tablet_tool_v2_end_grab(struct wlr_tablet_v2_tablet_tool *tool);
 
 void wlr_tablet_tool_v2_start_implicit_grab(struct wlr_tablet_v2_tablet_tool *tool);
 
+bool wlr_tablet_tool_v2_has_implicit_grab(
+	struct wlr_tablet_v2_tablet_tool *tool);
 
 uint32_t wlr_send_tablet_v2_tablet_pad_enter(
 	struct wlr_tablet_v2_tablet_pad *pad,
