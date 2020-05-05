@@ -985,7 +985,7 @@ static void xwm_handle_surface_id_message(struct wlr_xwm *xwm,
 	/* Check if we got notified after wayland surface create event */
 	uint32_t id = ev->data.data32[0];
 	struct wl_resource *resource =
-		wl_client_get_object(xwm->xwayland->client, id);
+		wl_client_get_object(xwm->xwayland->server->client, id);
 	if (resource) {
 		struct wlr_surface *surface = wlr_surface_from_resource(resource);
 		xsurface->surface_id = 0;
@@ -1381,7 +1381,9 @@ static void handle_compositor_new_surface(struct wl_listener *listener,
 	struct wlr_xwm *xwm =
 		wl_container_of(listener, xwm, compositor_new_surface);
 	struct wlr_surface *surface = data;
-	if (wl_resource_get_client(surface->resource) != xwm->xwayland->client) {
+
+	struct wl_client *client = wl_resource_get_client(surface->resource);
+	if (client != xwm->xwayland->server->client) {
 		return;
 	}
 
@@ -1695,23 +1697,22 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 	xcb_flush(xwm->xcb_conn);
 }
 
-struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
+struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 	struct wlr_xwm *xwm = calloc(1, sizeof(struct wlr_xwm));
 	if (xwm == NULL) {
 		return NULL;
 	}
 
-	xwm->xwayland = wlr_xwayland;
+	xwm->xwayland = xwayland;
 	wl_list_init(&xwm->surfaces);
 	wl_list_init(&xwm->unpaired_surfaces);
 	xwm->ping_timeout = 10000;
 
-	xwm->xcb_conn = xcb_connect_to_fd(wlr_xwayland->wm_fd[0], NULL);
+	xwm->xcb_conn = xcb_connect_to_fd(wm_fd, NULL);
 
 	int rc = xcb_connection_has_error(xwm->xcb_conn);
 	if (rc) {
 		wlr_log(WLR_ERROR, "xcb connect failed: %d", rc);
-		close(wlr_xwayland->wm_fd[0]);
 		free(xwm);
 		return NULL;
 	}
@@ -1723,18 +1724,15 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 		return NULL;
 	}
 #endif
+
 	xcb_screen_iterator_t screen_iterator =
 		xcb_setup_roots_iterator(xcb_get_setup(xwm->xcb_conn));
 	xwm->screen = screen_iterator.data;
 
-	struct wl_event_loop *event_loop = wl_display_get_event_loop(
-		wlr_xwayland->wl_display);
-	xwm->event_source =
-		wl_event_loop_add_fd(event_loop,
-			wlr_xwayland->wm_fd[0],
-			WL_EVENT_READABLE,
-			x11_event_handler,
-			xwm);
+	struct wl_event_loop *event_loop =
+		wl_display_get_event_loop(xwayland->wl_display);
+	xwm->event_source = wl_event_loop_add_fd(event_loop, wm_fd,
+		WL_EVENT_READABLE, x11_event_handler, xwm);
 	wl_event_source_check(xwm->event_source);
 
 	xwm_get_resources(xwm);
@@ -1781,10 +1779,10 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland) {
 	xwm_selection_init(xwm);
 
 	xwm->compositor_new_surface.notify = handle_compositor_new_surface;
-	wl_signal_add(&wlr_xwayland->compositor->events.new_surface,
+	wl_signal_add(&xwayland->compositor->events.new_surface,
 		&xwm->compositor_new_surface);
 	xwm->compositor_destroy.notify = handle_compositor_destroy;
-	wl_signal_add(&wlr_xwayland->compositor->events.destroy,
+	wl_signal_add(&xwayland->compositor->events.destroy,
 		&xwm->compositor_destroy);
 
 	xwm_create_wm_window(xwm);

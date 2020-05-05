@@ -18,14 +18,11 @@
 
 struct wlr_xwm;
 struct wlr_xwayland_cursor;
-struct wlr_gtk_primary_selection_device_manager;
 
-struct wlr_xwayland {
+struct wlr_xwayland_server {
 	pid_t pid;
 	struct wl_client *client;
 	struct wl_event_source *sigusr1_source;
-	struct wlr_xwm *xwm;
-	struct wlr_xwayland_cursor *cursor;
 	int wm_fd[2], wl_fd[2];
 
 	time_t server_start;
@@ -37,6 +34,31 @@ struct wlr_xwayland {
 	int x_fd[2];
 	struct wl_event_source *x_fd_read_event[2];
 	bool lazy;
+
+	struct wl_display *wl_display;
+
+	struct {
+		struct wl_signal ready;
+		struct wl_signal destroy;
+	} events;
+
+	struct wl_listener client_destroy;
+	struct wl_listener display_destroy;
+
+	void *data;
+};
+
+struct wlr_xwayland_server_ready_event {
+	struct wlr_xwayland_server *server;
+	int wm_fd;
+};
+
+struct wlr_xwayland {
+	struct wlr_xwayland_server *server;
+	struct wlr_xwm *xwm;
+	struct wlr_xwayland_cursor *cursor;
+
+	const char *display_name;
 
 	struct wl_display *wl_display;
 	struct wlr_compositor *compositor;
@@ -54,8 +76,9 @@ struct wlr_xwayland {
 	 */
 	int (*user_event_handler)(struct wlr_xwm *xwm, xcb_generic_event_t *event);
 
+	struct wl_listener server_ready;
+	struct wl_listener server_destroy;
 	struct wl_listener client_destroy;
-	struct wl_listener display_destroy;
 	struct wl_listener seat_destroy;
 
 	void *data;
@@ -192,7 +215,11 @@ struct wlr_xwayland_resize_event {
 	uint32_t edges;
 };
 
-/** Create an Xwayland server.
+struct wlr_xwayland_server *wlr_xwayland_server_create(
+	struct wl_display *display, bool lazy);
+void wlr_xwayland_server_destroy(struct wlr_xwayland_server *server);
+
+/** Create an Xwayland server and XWM.
  *
  * The server supports a lazy mode in which Xwayland is only started when a
  * client tries to connect.
