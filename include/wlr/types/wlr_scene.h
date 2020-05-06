@@ -35,6 +35,7 @@ struct wlr_scene_node_state {
 
 	struct wl_list children; // wlr_scene_node_state.link
 
+	bool enabled;
 	int x, y; // relative to parent
 };
 
@@ -68,6 +69,11 @@ struct wlr_scene_surface {
  * Immediately destroy the scene-graph node.
  */
 void wlr_scene_node_destroy(struct wlr_scene_node *node);
+/**
+ * Enable or disable this node. If a node is disabled, all of its children are
+ * implicitly disabled as well.
+ */
+void wlr_scene_node_set_enabled(struct wlr_scene_node *node, bool enabled);
 /**
  * Set the position of the node relative to its parent.
  */
