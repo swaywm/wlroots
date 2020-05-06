@@ -18,7 +18,7 @@ static void xdg_popup_grab_end(struct wlr_xdg_popup_grab *popup_grab) {
 static void xdg_pointer_grab_enter(struct wlr_seat_pointer_grab *grab,
 		struct wlr_surface *surface, double sx, double sy) {
 	struct wlr_xdg_popup_grab *popup_grab = grab->data;
-	if (wl_resource_get_client(surface->resource) == popup_grab->client) {
+	if (surface != NULL && wl_resource_get_client(surface->resource) == popup_grab->client) {
 		wlr_seat_pointer_enter(grab->seat, surface, sx, sy);
 	} else {
 		wlr_seat_pointer_clear_focus(grab->seat);
