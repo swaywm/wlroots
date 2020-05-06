@@ -308,3 +308,24 @@ void wlr_scene_render(struct wlr_scene *scene, struct wlr_output *output,
 
 	pixman_region32_fini(&full_region);
 }
+
+bool wlr_scene_commit_output(struct wlr_scene *scene, struct wlr_output *output,
+		int lx, int ly) {
+	if (!wlr_output_attach_render(output, NULL)) {
+		return false;
+	}
+
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	assert(renderer != NULL);
+
+	int width, height;
+	wlr_output_effective_resolution(output, &width, &height);
+	wlr_renderer_begin(renderer, width, height);
+	wlr_renderer_clear(renderer, (float[4]){ 0.3, 0.3, 0.3, 1.0 });
+
+	wlr_scene_render(scene, output, lx, ly, NULL);
+
+	wlr_renderer_end(renderer);
+
+	return wlr_output_commit(output);
+}

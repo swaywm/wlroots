@@ -103,6 +103,11 @@ struct wlr_scene *wlr_scene_create(void);
  */
 void wlr_scene_render(struct wlr_scene *scene, struct wlr_output *output,
 	int lx, int ly, pixman_region32_t *damage);
+/**
+ * Perform an output commit.
+ */
+bool wlr_scene_commit_output(struct wlr_scene *scene, struct wlr_output *output,
+	int lx, int ly);
 
 /**
  * Add a node displaying a surface (and its sub-surfaces) to the scene-graph.
