@@ -56,6 +56,8 @@ struct wlr_scene_surface {
 	struct wlr_scene_node node;
 	struct wlr_surface *surface;
 
+	struct wl_list surface_outputs; // wlr_scene_surface_output.link
+
 	struct wl_listener surface_destroy;
 };
 

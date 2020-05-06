@@ -3,9 +3,18 @@
 #include <wlr/backend.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
+#include <wlr/types/wlr_output_layer.h>
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_surface.h>
 #include "util/signal.h"
+
+struct wlr_scene_surface_output {
+	struct wlr_output *output;
+	struct wl_list link; // wlr_scene_surface.surface_outputs
+	struct wlr_output_layer *layer;
+
+	struct wl_listener output_destroy;
+};
 
 static struct wlr_scene *scene_node_get_root(struct wlr_scene_node *node) {
 	assert(node->type == WLR_SCENE_NODE_ROOT);
@@ -61,6 +70,8 @@ static void scene_node_finish(struct wlr_scene_node *node) {
 	scene_node_state_finish(&node->pending);
 }
 
+static void surface_output_destroy(struct wlr_scene_surface_output *so);
+
 void wlr_scene_node_destroy(struct wlr_scene_node *node) {
 	if (node == NULL) {
 		return;
@@ -77,6 +88,10 @@ void wlr_scene_node_destroy(struct wlr_scene_node *node) {
 		break;
 	case WLR_SCENE_NODE_SURFACE:;
 		struct wlr_scene_surface *scene_surface = scene_node_get_surface(node);
+		struct wlr_scene_surface_output *so, *so_tmp;
+		wl_list_for_each_safe(so, so_tmp, &scene_surface->surface_outputs, link) {
+			surface_output_destroy(so);
+		}
 		wl_list_remove(&scene_surface->surface_destroy.link);
 		free(scene_surface);
 		break;
@@ -110,6 +125,7 @@ struct wlr_scene_surface *wlr_scene_surface_create(struct wlr_scene_node *parent
 	scene_node_init(&scene_surface->node, WLR_SCENE_NODE_SURFACE, parent);
 
 	scene_surface->surface = surface;
+	wl_list_init(&scene_surface->surface_outputs);
 
 	scene_surface->surface_destroy.notify = scene_surface_handle_surface_destroy;
 	wl_signal_add(&surface->events.destroy, &scene_surface->surface_destroy);
@@ -261,25 +277,16 @@ static void render_texture(struct wlr_output *output,
 	pixman_region32_fini(&damage);
 }
 
-struct render_data {
-	struct wlr_output *output;
-	pixman_region32_t *damage;
-};
-
-static void render_surface_iterator(struct wlr_surface *surface,
-		int x, int y, void *_data) {
-	struct render_data *data = _data;
-	struct wlr_output *output = data->output;
-	pixman_region32_t *output_damage = data->damage;
-
+static void render_surface(struct wlr_surface *surface,
+		struct wlr_output *output, int ox, int oy, pixman_region32_t *output_damage) {
 	struct wlr_texture *texture = wlr_surface_get_texture(surface);
 	if (texture == NULL) {
 		return;
 	}
 
 	struct wlr_box box = {
-		.x = x,
-		.y = y,
+		.x = ox,
+		.y = oy,
 		.width = surface->current.width,
 		.height = surface->current.height,
 	};
@@ -294,6 +301,39 @@ static void render_surface_iterator(struct wlr_surface *surface,
 	render_texture(output, output_damage, texture, &box, matrix);
 }
 
+static struct wlr_scene_surface_output *get_or_create_surface_output(
+	struct wlr_scene_surface *scene_surface, struct wlr_output *output);
+
+static void node_render(struct wlr_scene_node *node,
+		struct wlr_output *output, int ox, int oy,
+		pixman_region32_t *output_damage) {
+	if (!node->current.enabled) {
+		return;
+	}
+
+	ox += node->current.x;
+	oy += node->current.y;
+
+	if (node->type == WLR_SCENE_NODE_SURFACE) {
+		struct wlr_scene_surface *scene_surface = scene_node_get_surface(node);
+		struct wlr_scene_surface_output *so =
+			get_or_create_surface_output(scene_surface, output);
+		if (so == NULL) {
+			return;
+		}
+
+		if (!so->layer->accepted) {
+			render_surface(scene_surface->surface, output, ox, oy, output_damage);
+		}
+	}
+
+	struct wlr_scene_node *child;
+	wl_list_for_each(child, &node->current.children, current.link) {
+		node_render(child, output, ox, oy, output_damage);
+	}
+}
+
+
 void wlr_scene_render(struct wlr_scene *scene, struct wlr_output *output,
 		int lx, int ly, pixman_region32_t *damage) {
 	pixman_region32_t full_region;
@@ -307,20 +347,93 @@ void wlr_scene_render(struct wlr_scene *scene, struct wlr_output *output,
 	assert(renderer);
 
 	if (output->enabled && pixman_region32_not_empty(damage)) {
-		struct render_data data = {
-			.output = output,
-			.damage = damage,
-		};
-		scene_node_for_each_surface(&scene->node, -lx, -ly,
-			render_surface_iterator, &data);
+		node_render(&scene->node, output, -lx, -ly, damage);
 		wlr_renderer_scissor(renderer, NULL);
 	}
 
 	pixman_region32_fini(&full_region);
 }
 
+static void surface_output_destroy(struct wlr_scene_surface_output *so) {
+	wl_list_remove(&so->link);
+	wl_list_remove(&so->output_destroy.link);
+	free(so);
+}
+
+static void surface_output_handle_output_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_scene_surface_output *so =
+		wl_container_of(listener, so, output_destroy);
+	surface_output_destroy(so);
+}
+
+static struct wlr_scene_surface_output *get_or_create_surface_output(
+		struct wlr_scene_surface *scene_surface, struct wlr_output *output) {
+	struct wlr_scene_surface_output *so;
+	wl_list_for_each(so, &scene_surface->surface_outputs, link) {
+		if (so->output == output) {
+			return so;
+		}
+	}
+
+	so = calloc(1, sizeof(struct wlr_scene_surface_output));
+	if (so == NULL) {
+		return NULL;
+	}
+	so->output = output;
+	so->layer = wlr_output_layer_create(output);
+	if (so->layer == NULL) {
+		free(so);
+		return NULL;
+	}
+	so->output_destroy.notify = surface_output_handle_output_destroy;
+	wl_signal_add(&output->events.destroy, &so->output_destroy);
+	wl_list_insert(&scene_surface->surface_outputs, &so->link);
+	return so;
+}
+
+static void node_setup_output_layers(struct wlr_scene_node *node,
+		struct wlr_output *output, int ox, int oy,
+		struct wlr_output_layer **prev_layer) {
+	ox += node->current.x;
+	oy += node->current.y;
+
+	if (node->type == WLR_SCENE_NODE_SURFACE) {
+		struct wlr_scene_surface *scene_surface = scene_node_get_surface(node);
+		struct wlr_scene_surface_output *so =
+			get_or_create_surface_output(scene_surface, output);
+		if (so == NULL) {
+			return;
+		}
+
+		struct wlr_buffer *buffer = NULL;
+		if (node->current.enabled && scene_surface->surface->buffer != NULL) {
+			buffer = &scene_surface->surface->buffer->base;
+		}
+
+		if (*prev_layer != NULL) {
+			wlr_output_layer_place_above(so->layer, *prev_layer);
+		}
+		*prev_layer = so->layer;
+		wlr_output_layer_move(so->layer, ox, oy);
+		wlr_output_layer_attach_buffer(so->layer, buffer);
+	}
+
+	struct wlr_scene_node *child;
+	wl_list_for_each(child, &node->current.children, current.link) {
+		node_setup_output_layers(child, output, ox, oy, prev_layer);
+	}
+}
+
 bool wlr_scene_commit_output(struct wlr_scene *scene, struct wlr_output *output,
 		int lx, int ly) {
+	struct wlr_output_layer *prev_layer = NULL;
+	node_setup_output_layers(&scene->node, output, -lx, -ly, &prev_layer);
+
+	if (!wlr_output_test(output)) {
+		return false;
+	}
+
 	if (!wlr_output_attach_render(output, NULL)) {
 		return false;
 	}
