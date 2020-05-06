@@ -51,6 +51,10 @@ compositors = {
 	'quads': {
 		'src': 'quads.c',
 	},
+	'scene-graph': {
+		'src': 'scene-graph.c',
+		'proto': ['xdg-shell'],
+	},
 }
 
 clients = {
