@@ -86,6 +86,7 @@ conf_data.set10('WLR_HAS_X11_BACKEND', false)
 conf_data.set10('WLR_HAS_XWAYLAND', false)
 conf_data.set10('WLR_HAS_XCB_ERRORS', false)
 conf_data.set10('WLR_HAS_XCB_ICCCM', false)
+conf_data.set10('WLR_HAS_EGLMESAEXT_H', false)
 
 # Clang complains about some zeroed initializer lists (= {0}), even though they
 # are valid
@@ -108,6 +109,10 @@ udev = dependency('libudev')
 pixman = dependency('pixman-1')
 math = cc.find_library('m')
 rt = cc.find_library('rt')
+
+if cc.has_header('EGL/eglmesaext.h', dependencies: egl)
+	conf_data.set10('WLR_HAS_EGLMESAEXT_H', true)
+endif
 
 wlr_files = []
 wlr_deps = [
