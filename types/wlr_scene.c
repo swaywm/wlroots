@@ -21,6 +21,7 @@ static struct wlr_scene_surface *scene_node_get_surface(
 static void scene_node_state_init(struct wlr_scene_node_state *state) {
 	wl_list_init(&state->children);
 	wl_list_init(&state->link);
+	state->enabled = true;
 }
 
 static void scene_node_state_finish(struct wlr_scene_node_state *state) {
@@ -118,6 +119,7 @@ struct wlr_scene_surface *wlr_scene_surface_create(struct wlr_scene_node *parent
 
 static void scene_node_state_move(struct wlr_scene_node_state *dst,
 		const struct wlr_scene_node_state *src) {
+	dst->enabled = src->enabled;
 	dst->x = src->x;
 	dst->y = src->y;
 }
@@ -134,6 +136,10 @@ void wlr_scene_node_commit(struct wlr_scene_node *node) {
 	wl_list_for_each(child, &node->current.children, current.link) {
 		wlr_scene_node_commit(child);
 	}
+}
+
+void wlr_scene_node_toggle(struct wlr_scene_node *node, bool enabled) {
+	node->pending.enabled = enabled;
 }
 
 void wlr_scene_node_move(struct wlr_scene_node *node, int x, int y) {
@@ -172,6 +178,10 @@ static void surface_iterator(struct wlr_surface *surface,
 static void scene_node_for_each_surface(struct wlr_scene_node *node,
 		int lx, int ly, wlr_surface_iterator_func_t user_iterator,
 		void *user_data) {
+	if (!node->current.enabled) {
+		return;
+	}
+
 	lx += node->current.x;
 	ly += node->current.y;
 

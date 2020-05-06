@@ -32,6 +32,7 @@ struct wlr_scene_node_state {
 
 	struct wl_list children; // wlr_scene_node_state.link
 
+	bool enabled;
 	int x, y;
 };
 
@@ -66,6 +67,12 @@ void wlr_scene_node_destroy(struct wlr_scene_node *node);
  * Atomically apply pending changes for this node and all of its children.
  */
 void wlr_scene_node_commit(struct wlr_scene_node *node);
+/**
+ * Enable or disable this node. If a node is disabled, all of its children are
+ * implicitly disabled as well. This state is double-buffered, see
+ * wlr_scene_node_commit.
+ */
+void wlr_scene_node_toggle(struct wlr_scene_node *node, bool enabled);
 /**
  * Set the position of the node relative to its parent. This state is
  * double-buffered, see wlr_scene_node_commit.
