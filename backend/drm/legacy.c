@@ -11,21 +11,41 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *cursor = crtc->cursor;
 
-	struct wlr_drm_fb *fb = plane_get_next_fb(crtc->primary);
-	struct gbm_bo *bo = drm_fb_acquire(fb, drm, &crtc->primary->mgpu_surf);
-	if (!bo) {
-		return false;
-	}
+	uint32_t fb_id = 0;
+	if (crtc->active) {
+		struct wlr_drm_fb *fb = plane_get_next_fb(crtc->primary);
+		struct gbm_bo *bo = drm_fb_acquire(fb, drm, &crtc->primary->mgpu_surf);
+		if (!bo) {
+			return false;
+		}
 
-	uint32_t fb_id = get_fb_for_bo(bo, drm->addfb2_modifiers);
-	if (!fb_id) {
-		return false;
+		fb_id = get_fb_for_bo(bo, drm->addfb2_modifiers);
+		if (!fb_id) {
+			return false;
+		}
 	}
 
 	if (crtc->pending & WLR_DRM_CRTC_MODE) {
+		uint32_t *conns = NULL;
+		size_t conns_len = 0;
+		drmModeModeInfo *mode = NULL;
+		if (crtc->active) {
+			conns = &conn->id;
+			conns_len = 1;
+			mode = &crtc->mode;
+		}
+
+		if (drmModeConnectorSetProperty(drm->fd, conn->id, conn->props.dpms,
+				crtc->active ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF) != 0) {
+			wlr_log_errno(WLR_ERROR, "%s: failed to set DPMS property",
+				conn->output.name);
+			return false;
+		}
+
 		if (drmModeSetCrtc(drm->fd, crtc->id, fb_id, 0, 0,
-				&conn->id, 1, &crtc->mode)) {
-			wlr_log_errno(WLR_ERROR, "%s: Failed to set CRTC", conn->output.name);
+				conns, conns_len, mode)) {
+			wlr_log_errno(WLR_ERROR, "%s: failed to set CRTC",
+				conn->output.name);
 			return false;
 		}
 	}
@@ -51,19 +71,6 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 	}
 
 	return true;
-}
-
-static bool legacy_conn_enable(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, bool enable) {
-	int ret = drmModeConnectorSetProperty(drm->fd, conn->id, conn->props.dpms,
-		enable ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF);
-
-	if (!enable) {
-		drmModeSetCrtc(drm->fd, conn->crtc->id, 0, 0, 0, NULL, 0,
-					   NULL);
-	}
-
-	return ret >= 0;
 }
 
 bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
@@ -116,7 +123,6 @@ static size_t legacy_crtc_get_gamma_size(struct wlr_drm_backend *drm,
 }
 
 const struct wlr_drm_interface legacy_iface = {
-	.conn_enable = legacy_conn_enable,
 	.crtc_commit = legacy_crtc_commit,
 	.crtc_set_cursor = legacy_crtc_set_cursor,
 	.crtc_get_gamma_size = legacy_crtc_get_gamma_size,

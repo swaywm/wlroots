@@ -51,6 +51,7 @@ struct wlr_drm_crtc {
 	uint32_t id;
 	uint32_t pending; // bitfield of enum wlr_drm_crtc_field
 
+	bool active;
 	drmModeModeInfo mode;
 
 	// Atomic modesetting only
