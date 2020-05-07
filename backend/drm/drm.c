@@ -537,9 +537,7 @@ static bool drm_connector_commit(struct wlr_output *output) {
 			}
 			break;
 		}
-	}
-
-	if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
+	} else if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
 		if (!enable_drm_connector(output, output->pending.enabled)) {
 			return false;
 		}
