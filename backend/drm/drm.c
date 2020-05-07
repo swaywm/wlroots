@@ -953,11 +953,6 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		plane->cursor_hotspot_x = hotspot.x;
 		plane->cursor_hotspot_y = hotspot.y;
 
-		if (!drm->iface->crtc_move_cursor(drm, conn->crtc, conn->cursor_x,
-				conn->cursor_y)) {
-			return false;
-		}
-
 		wlr_output_update_needs_frame(output);
 	}
 
@@ -1033,7 +1028,6 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 static bool drm_connector_move_cursor(struct wlr_output *output,
 		int x, int y) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 	if (!conn->crtc) {
 		return false;
 	}
@@ -1056,15 +1050,8 @@ static bool drm_connector_move_cursor(struct wlr_output *output,
 	conn->cursor_x = box.x;
 	conn->cursor_y = box.y;
 
-	if (!drm->session->active) {
-		return true; // will be committed when session is resumed
-	}
-
-	bool ok = drm->iface->crtc_move_cursor(drm, conn->crtc, box.x, box.y);
-	if (ok) {
-		wlr_output_update_needs_frame(output);
-	}
-	return ok;
+	wlr_output_update_needs_frame(output);
+	return true;
 }
 
 static void drm_connector_destroy(struct wlr_output *output) {

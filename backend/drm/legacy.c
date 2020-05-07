@@ -9,6 +9,8 @@
 static bool legacy_crtc_pageflip(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, drmModeModeInfo *mode) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
+	struct wlr_drm_plane *cursor = crtc->cursor;
+
 	struct wlr_drm_fb *fb = plane_get_next_fb(crtc->primary);
 	struct gbm_bo *bo = drm_fb_acquire(fb, drm, &crtc->primary->mgpu_surf);
 	if (!bo) {
@@ -26,6 +28,12 @@ static bool legacy_crtc_pageflip(struct wlr_drm_backend *drm,
 			wlr_log_errno(WLR_ERROR, "%s: Failed to set CRTC", conn->output.name);
 			return false;
 		}
+	}
+
+	if (cursor != NULL && cursor->cursor_enabled && drmModeMoveCursor(drm->fd,
+			crtc->id, conn->cursor_x, conn->cursor_y) != 0) {
+		wlr_log_errno(WLR_ERROR, "%s: failed to move cursor", conn->output.name);
+		return false;
 	}
 
 	if (drmModePageFlip(drm->fd, crtc->id, fb_id, DRM_MODE_PAGE_FLIP_EVENT, drm)) {
@@ -75,11 +83,6 @@ bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
 	return true;
 }
 
-bool legacy_crtc_move_cursor(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, int x, int y) {
-	return !drmModeMoveCursor(drm->fd, crtc->id, x, y);
-}
-
 static bool legacy_crtc_set_gamma(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, size_t size,
 		uint16_t *r, uint16_t *g, uint16_t *b) {
@@ -95,7 +98,6 @@ const struct wlr_drm_interface legacy_iface = {
 	.conn_enable = legacy_conn_enable,
 	.crtc_pageflip = legacy_crtc_pageflip,
 	.crtc_set_cursor = legacy_crtc_set_cursor,
-	.crtc_move_cursor = legacy_crtc_move_cursor,
 	.crtc_set_gamma = legacy_crtc_set_gamma,
 	.crtc_get_gamma_size = legacy_crtc_get_gamma_size,
 };

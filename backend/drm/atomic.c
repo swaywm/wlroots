@@ -193,12 +193,6 @@ static bool atomic_crtc_set_cursor(struct wlr_drm_backend *drm,
 	return true;
 }
 
-static bool atomic_crtc_move_cursor(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, int x, int y) {
-	/* Cursor updates happen when we pageflip */
-	return true;
-}
-
 static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, size_t size,
 		uint16_t *r, uint16_t *g, uint16_t *b) {
@@ -258,7 +252,6 @@ const struct wlr_drm_interface atomic_iface = {
 	.conn_enable = atomic_conn_enable,
 	.crtc_pageflip = atomic_crtc_pageflip,
 	.crtc_set_cursor = atomic_crtc_set_cursor,
-	.crtc_move_cursor = atomic_crtc_move_cursor,
 	.crtc_set_gamma = atomic_crtc_set_gamma,
 	.crtc_get_gamma_size = atomic_crtc_get_gamma_size,
 };

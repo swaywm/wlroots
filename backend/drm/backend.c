@@ -112,8 +112,6 @@ static void session_signal(struct wl_listener *listener, void *data) {
 			}
 
 			drm->iface->crtc_set_cursor(drm, conn->crtc, bo);
-			drm->iface->crtc_move_cursor(drm, conn->crtc, conn->cursor_x,
-				conn->cursor_y);
 
 			if (conn->crtc->gamma_table != NULL) {
 				size_t size = conn->crtc->gamma_table_size;

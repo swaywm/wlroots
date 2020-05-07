@@ -22,9 +22,6 @@ struct wlr_drm_interface {
 	// Enable the cursor buffer on crtc. Set bo to NULL to disable
 	bool (*crtc_set_cursor)(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, struct gbm_bo *bo);
-	// Move the cursor on crtc
-	bool (*crtc_move_cursor)(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, int x, int y);
 	// Set the gamma lut on crtc
 	bool (*crtc_set_gamma)(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, size_t size,
