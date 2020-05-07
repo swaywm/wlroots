@@ -65,8 +65,6 @@ struct wlr_drm_crtc {
 
 	union wlr_drm_crtc_props props;
 
-	struct wl_list connectors;
-
 	uint16_t *gamma_table;
 	size_t gamma_table_size;
 };
@@ -125,7 +123,6 @@ struct wlr_drm_connector {
 
 	union wlr_drm_connector_props props;
 
-	uint32_t width, height;
 	int32_t cursor_x, cursor_y;
 
 	drmModeCrtc *old_crtc;
