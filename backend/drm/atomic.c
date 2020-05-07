@@ -142,6 +142,7 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
 	return;
 
 error:
+	wlr_log(WLR_ERROR, "Failed to set plane %"PRIu32" properties", plane->id);
 	atom->failed = true;
 }
 
