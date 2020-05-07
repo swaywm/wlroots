@@ -42,8 +42,15 @@ struct wlr_drm_plane {
 	union wlr_drm_plane_props props;
 };
 
+enum wlr_drm_crtc_field {
+	WLR_DRM_CRTC_MODE = 1 << 0,
+};
+
 struct wlr_drm_crtc {
 	uint32_t id;
+	uint32_t pending; // bitfield of enum wlr_drm_crtc_field
+
+	drmModeModeInfo mode;
 
 	// Atomic modesetting only
 	uint32_t mode_id;

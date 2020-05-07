@@ -110,23 +110,24 @@ error:
 }
 
 static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, drmModeModeInfo *mode) {
+		struct wlr_drm_connector *conn) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
-	if (mode != NULL) {
+	bool modeset = crtc->pending & WLR_DRM_CRTC_MODE;
+	if (modeset) {
 		if (crtc->mode_id != 0) {
 			drmModeDestroyPropertyBlob(drm->fd, crtc->mode_id);
 		}
 
-		if (drmModeCreatePropertyBlob(drm->fd, mode, sizeof(*mode),
-				&crtc->mode_id)) {
-			wlr_log_errno(WLR_ERROR, "Unable to create property blob");
+		if (drmModeCreatePropertyBlob(drm->fd, &crtc->mode,
+				sizeof(drmModeModeInfo), &crtc->mode_id)) {
+			wlr_log_errno(WLR_ERROR, "Unable to create mode property blob");
 			return false;
 		}
 	}
 
 	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT;
-	if (mode != NULL) {
+	if (modeset) {
 		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
 	} else {
 		flags |= DRM_MODE_ATOMIC_NONBLOCK;
@@ -135,7 +136,7 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 	struct atomic atom;
 	atomic_begin(crtc, &atom);
 	atomic_add(&atom, conn->id, conn->props.crtc_id, crtc->id);
-	if (mode != NULL && conn->props.link_status != 0) {
+	if (modeset && conn->props.link_status != 0) {
 		atomic_add(&atom, conn->id, conn->props.link_status,
 			DRM_MODE_LINK_STATUS_GOOD);
 	}
@@ -151,12 +152,13 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 		}
 	}
 
-	if (!atomic_end(drm->fd, mode ? DRM_MODE_ATOMIC_ALLOW_MODESET : 0, &atom)) {
+	if (!atomic_end(drm->fd, modeset ? DRM_MODE_ATOMIC_ALLOW_MODESET : 0,
+			&atom)) {
 		drmModeAtomicSetCursor(atom.req, 0);
 		return false;
 	}
 
-	if (!atomic_commit(drm->fd, &atom, conn, flags, mode)) {
+	if (!atomic_commit(drm->fd, &atom, conn, flags, modeset)) {
 		return false;
 	}
 

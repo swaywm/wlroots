@@ -7,7 +7,7 @@
 #include "backend/drm/util.h"
 
 static bool legacy_crtc_pageflip(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, drmModeModeInfo *mode) {
+		struct wlr_drm_connector *conn) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *cursor = crtc->cursor;
 
@@ -22,9 +22,9 @@ static bool legacy_crtc_pageflip(struct wlr_drm_backend *drm,
 		return false;
 	}
 
-	if (mode) {
+	if (crtc->pending & WLR_DRM_CRTC_MODE) {
 		if (drmModeSetCrtc(drm->fd, crtc->id, fb_id, 0, 0,
-				&conn->id, 1, mode)) {
+				&conn->id, 1, &crtc->mode)) {
 			wlr_log_errno(WLR_ERROR, "%s: Failed to set CRTC", conn->output.name);
 			return false;
 		}
