@@ -144,8 +144,8 @@ error:
 	atom->failed = true;
 }
 
-static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn) {
+static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
+		struct wlr_drm_connector *conn, uint32_t flags) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
 	bool modeset = crtc->pending & WLR_DRM_CRTC_MODE;
@@ -179,7 +179,6 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 		}
 	}
 
-	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT;
 	if (modeset) {
 		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
 	} else {
@@ -267,7 +266,7 @@ static size_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
 
 const struct wlr_drm_interface atomic_iface = {
 	.conn_enable = atomic_conn_enable,
-	.crtc_pageflip = atomic_crtc_pageflip,
+	.crtc_commit = atomic_crtc_commit,
 	.crtc_set_cursor = atomic_crtc_set_cursor,
 	.crtc_get_gamma_size = atomic_crtc_get_gamma_size,
 };

@@ -16,9 +16,9 @@ struct wlr_drm_interface {
 	// Enable or disable DPMS for connector
 	bool (*conn_enable)(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, bool enable);
-	// Pageflip on crtc.
-	bool (*crtc_pageflip)(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn);
+	// Commit al pending changes on a CRTC.
+	bool (*crtc_commit)(struct wlr_drm_backend *drm,
+		struct wlr_drm_connector *conn, uint32_t flags);
 	// Enable the cursor buffer on crtc. Set bo to NULL to disable
 	bool (*crtc_set_cursor)(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, struct gbm_bo *bo);
