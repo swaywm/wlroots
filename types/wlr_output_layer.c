@@ -85,6 +85,15 @@ void wlr_output_layer_place_above(struct wlr_output_layer *layer,
 
 	wl_list_remove(&layer->pending.link);
 	wl_list_insert(&sibling->pending.link, &layer->pending.link);
+
+	if (layer->current.link.prev != &layer->output->layers) {
+		struct wlr_output_layer *prev =
+			wl_container_of(layer->current.link.prev, prev, current.link);
+		if (prev == sibling) {
+			return;
+		}
+	}
+
 	layer->pending.committed |= WLR_OUTPUT_LAYER_STATE_LINK;
 	layer->output->pending.committed |= WLR_OUTPUT_STATE_LAYERS;
 }
@@ -95,6 +104,15 @@ void wlr_output_layer_place_below(struct wlr_output_layer *layer,
 
 	wl_list_remove(&layer->pending.link);
 	wl_list_insert(sibling->pending.link.prev, &layer->pending.link);
+
+	if (layer->current.link.next != &layer->output->layers) {
+		struct wlr_output_layer *next =
+			wl_container_of(layer->current.link.next, next, current.link);
+		if (next == sibling) {
+			return;
+		}
+	}
+
 	layer->pending.committed |= WLR_OUTPUT_LAYER_STATE_LINK;
 	layer->output->pending.committed |= WLR_OUTPUT_STATE_LAYERS;
 }
