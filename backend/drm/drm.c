@@ -360,6 +360,7 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 
 	conn->pageflip_pending = true;
 	drm_fb_move(&crtc->primary->queued_fb, &crtc->primary->pending_fb);
+	drm_fb_move(&crtc->cursor->queued_fb, &crtc->cursor->pending_fb);
 	wlr_output_update_enabled(&conn->output, true);
 	return true;
 }
@@ -1013,17 +1014,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		plane->cursor_enabled = true;
 	}
 
-	if (!drm->session->active) {
-		return true; // will be committed when session is resumed
-	}
-
-	struct gbm_bo *bo = NULL;
-
 	if (plane->cursor_enabled) {
-		bo = drm_fb_acquire(&plane->pending_fb, drm, &plane->mgpu_surf);
-
-		wlr_log(WLR_DEBUG, "SET_CURSOR %p %p", plane->pending_fb.bo, bo);
-
 		/* Workaround for nouveau buffers created with GBM_BO_USER_LINEAR are
 		 * placed in NOUVEAU_GEM_DOMAIN_GART. When the bo is attached to the
 		 * cursor plane it is moved to NOUVEAU_GEM_DOMAIN_VRAM. However, this
@@ -1033,10 +1024,6 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		 * The render operations can be waited for using:
 		 */
 		glFinish();
-	}
-
-	if (!drm->iface->crtc_set_cursor(drm, crtc, bo)) {
-		return false;
 	}
 
 	wlr_output_update_needs_frame(output);

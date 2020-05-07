@@ -100,19 +100,6 @@ static void session_signal(struct wl_listener *listener, void *data) {
 			} else {
 				enable_drm_connector(&conn->output, false);
 			}
-
-			if (!conn->crtc) {
-				continue;
-			}
-
-			struct wlr_drm_plane *plane = conn->crtc->cursor;
-			struct gbm_bo *bo = NULL;
-			if (plane->cursor_enabled) {
-				bo = drm_fb_acquire(&plane->current_fb, drm,
-					&plane->mgpu_surf);
-			}
-
-			drm->iface->crtc_set_cursor(drm, conn->crtc, bo);
 		}
 	} else {
 		wlr_log(WLR_INFO, "DRM fd paused");
