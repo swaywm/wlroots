@@ -93,6 +93,7 @@ static void session_signal(struct wl_listener *listener, void *data) {
 
 		struct wlr_drm_connector *conn;
 		wl_list_for_each(conn, &drm->outputs, link){
+			conn->crtc->pending |= WLR_DRM_CRTC_GAMMA_LUT;
 			if (conn->output.enabled && conn->output.current_mode != NULL) {
 				drm_connector_set_mode(&conn->output,
 						conn->output.current_mode);
@@ -112,16 +113,6 @@ static void session_signal(struct wl_listener *listener, void *data) {
 			}
 
 			drm->iface->crtc_set_cursor(drm, conn->crtc, bo);
-
-			if (conn->crtc->gamma_table != NULL) {
-				size_t size = conn->crtc->gamma_table_size;
-				uint16_t *r = conn->crtc->gamma_table;
-				uint16_t *g = conn->crtc->gamma_table + size;
-				uint16_t *b = conn->crtc->gamma_table + 2 * size;
-				drm->iface->crtc_set_gamma(drm, conn->crtc, size, r, g, b);
-			} else {
-				set_drm_connector_gamma(&conn->output, 0, NULL, NULL, NULL);
-			}
 		}
 	} else {
 		wlr_log(WLR_INFO, "DRM fd paused");

@@ -22,10 +22,6 @@ struct wlr_drm_interface {
 	// Enable the cursor buffer on crtc. Set bo to NULL to disable
 	bool (*crtc_set_cursor)(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc, struct gbm_bo *bo);
-	// Set the gamma lut on crtc
-	bool (*crtc_set_gamma)(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, size_t size,
-		uint16_t *r, uint16_t *g, uint16_t *b);
 	// Get the gamma lut size of a crtc
 	size_t (*crtc_get_gamma_size)(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc);
@@ -33,5 +29,8 @@ struct wlr_drm_interface {
 
 extern const struct wlr_drm_interface atomic_iface;
 extern const struct wlr_drm_interface legacy_iface;
+
+bool drm_legacy_crtc_set_gamma(struct wlr_drm_backend *drm,
+	struct wlr_drm_crtc *crtc);
 
 #endif

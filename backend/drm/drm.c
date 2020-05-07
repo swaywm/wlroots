@@ -586,7 +586,6 @@ static size_t drm_connector_get_gamma_size(struct wlr_output *output) {
 bool set_drm_connector_gamma(struct wlr_output *output, size_t size,
 		const uint16_t *r, const uint16_t *g, const uint16_t *b) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 
 	if (!conn->crtc) {
 		return false;
@@ -618,17 +617,13 @@ bool set_drm_connector_gamma(struct wlr_output *output, size_t size,
 		memcpy(_b, b, size * sizeof(uint16_t));
 	}
 
-	bool ok = drm->iface->crtc_set_gamma(drm, conn->crtc, size, _r, _g, _b);
-	if (ok) {
-		wlr_output_update_needs_frame(output);
+	conn->crtc->pending |= WLR_DRM_CRTC_GAMMA_LUT;
+	free(conn->crtc->gamma_table);
+	conn->crtc->gamma_table = gamma_table;
+	conn->crtc->gamma_table_size = size;
 
-		free(conn->crtc->gamma_table);
-		conn->crtc->gamma_table = gamma_table;
-		conn->crtc->gamma_table_size = size;
-	} else {
-		free(gamma_table);
-	}
-	return ok;
+	wlr_output_update_needs_frame(output);
+	return true; // will be applied on next page-flip
 }
 
 static bool drm_connector_export_dmabuf(struct wlr_output *output,

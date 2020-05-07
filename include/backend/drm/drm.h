@@ -44,6 +44,7 @@ struct wlr_drm_plane {
 
 enum wlr_drm_crtc_field {
 	WLR_DRM_CRTC_MODE = 1 << 0,
+	WLR_DRM_CRTC_GAMMA_LUT = 1 << 1,
 };
 
 struct wlr_drm_crtc {
