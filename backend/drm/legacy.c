@@ -6,8 +6,8 @@
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
 
-static bool legacy_crtc_pageflip(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn) {
+static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
+		struct wlr_drm_connector *conn, uint32_t flags) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *cursor = crtc->cursor;
 
@@ -42,9 +42,12 @@ static bool legacy_crtc_pageflip(struct wlr_drm_backend *drm,
 		return false;
 	}
 
-	if (drmModePageFlip(drm->fd, crtc->id, fb_id, DRM_MODE_PAGE_FLIP_EVENT, drm)) {
-		wlr_log_errno(WLR_ERROR, "%s: Failed to page flip", conn->output.name);
-		return false;
+	if (flags & DRM_MODE_PAGE_FLIP_EVENT) {
+		if (drmModePageFlip(drm->fd, crtc->id, fb_id,
+				DRM_MODE_PAGE_FLIP_EVENT, drm)) {
+			wlr_log_errno(WLR_ERROR, "%s: Failed to page flip", conn->output.name);
+			return false;
+		}
 	}
 
 	return true;
@@ -114,7 +117,7 @@ static size_t legacy_crtc_get_gamma_size(struct wlr_drm_backend *drm,
 
 const struct wlr_drm_interface legacy_iface = {
 	.conn_enable = legacy_conn_enable,
-	.crtc_pageflip = legacy_crtc_pageflip,
+	.crtc_commit = legacy_crtc_commit,
 	.crtc_set_cursor = legacy_crtc_set_cursor,
 	.crtc_get_gamma_size = legacy_crtc_get_gamma_size,
 };

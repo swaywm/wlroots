@@ -345,7 +345,7 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 		return false;
 	}
 
-	bool ok = drm->iface->crtc_pageflip(drm, conn);
+	bool ok = drm->iface->crtc_commit(drm, conn, DRM_MODE_PAGE_FLIP_EVENT);
 
 	crtc->pending = 0;
 
