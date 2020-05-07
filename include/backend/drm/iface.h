@@ -13,9 +13,6 @@ struct wlr_drm_crtc;
 
 // Used to provide atomic or legacy DRM functions
 struct wlr_drm_interface {
-	// Enable or disable DPMS for connector
-	bool (*conn_enable)(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, bool enable);
 	// Commit al pending changes on a CRTC.
 	bool (*crtc_commit)(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, uint32_t flags);

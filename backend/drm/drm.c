@@ -334,9 +334,16 @@ static bool drm_connector_attach_render(struct wlr_output *output,
 	return drm_surface_make_current(&conn->crtc->primary->surf, buffer_age);
 }
 
-static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
+static bool drm_crtc_commit(struct wlr_drm_connector *conn, uint32_t flags) {
 	struct wlr_drm_backend *drm =
 		get_drm_backend_from_backend(conn->output.backend);
+	struct wlr_drm_crtc *crtc = conn->crtc;
+	bool ok = drm->iface->crtc_commit(drm, conn, flags);
+	crtc->pending = 0;
+	return ok;
+}
+
+static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
 	if (conn->pageflip_pending) {
@@ -345,11 +352,9 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 		return false;
 	}
 
-	bool ok = drm->iface->crtc_commit(drm, conn, DRM_MODE_PAGE_FLIP_EVENT);
-
-	crtc->pending = 0;
-
-	if (!ok) {
+	assert(crtc->active);
+	assert(plane_get_next_fb(crtc->primary)->type != WLR_DRM_FB_TYPE_NONE);
+	if (!drm_crtc_commit(conn, DRM_MODE_PAGE_FLIP_EVENT)) {
 		return false;
 	}
 
@@ -690,6 +695,7 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 
 	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)conn->output.current_mode;
 	memcpy(&crtc->mode, &mode->drm_mode, sizeof(drmModeModeInfo));
+	crtc->active = true;
 	crtc->pending |= WLR_DRM_CRTC_MODE;
 
 	if (!drm_connector_pageflip_renderer(conn)) {
@@ -721,6 +727,7 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 
 	crtc->pending |= WLR_DRM_CRTC_MODE;
 	memcpy(&crtc->mode, &mode->drm_mode, sizeof(drmModeModeInfo));
+	crtc->active = true;
 
 	int width = mode->wlr_mode.width;
 	int height = mode->wlr_mode.height;
@@ -796,8 +803,14 @@ bool enable_drm_connector(struct wlr_output *output, bool enable) {
 		realloc_crtcs(drm);
 	}
 
-	bool ok = drm->iface->conn_enable(drm, conn, enable);
-	if (!ok) {
+	if (conn->crtc == NULL) {
+		wlr_output_update_enabled(&conn->output, false);
+		return !enable;
+	}
+
+	conn->crtc->active = enable;
+	conn->crtc->pending |= WLR_DRM_CRTC_MODE;
+	if (!drm_crtc_commit(conn, 0)) {
 		return false;
 	}
 
@@ -1112,10 +1125,9 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 		conn->crtc - drm->crtcs, conn->output.name);
 
 	set_drm_connector_gamma(&conn->output, 0, NULL, NULL, NULL);
+	enable_drm_connector(&conn->output, false);
 	drm_plane_finish_surface(conn->crtc->primary);
 	drm_plane_finish_surface(conn->crtc->cursor);
-
-	drm->iface->conn_enable(drm, conn, false);
 
 	conn->crtc = NULL;
 }
