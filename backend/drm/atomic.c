@@ -69,6 +69,41 @@ static void atomic_add(struct atomic *atom, uint32_t id, uint32_t prop, uint64_t
 	}
 }
 
+static bool create_gamma_lut_blob(struct wlr_drm_backend *drm,
+		struct wlr_drm_crtc *crtc, uint32_t *blob_id) {
+	if (crtc->gamma_table_size == 0) {
+		*blob_id = 0;
+		return true;
+	}
+
+	uint32_t size = crtc->gamma_table_size;
+	uint16_t *r = crtc->gamma_table;
+	uint16_t *g = crtc->gamma_table + size;
+	uint16_t *b = crtc->gamma_table + 2 * size;
+
+	struct drm_color_lut *gamma = malloc(size * sizeof(struct drm_color_lut));
+	if (gamma == NULL) {
+		wlr_log(WLR_ERROR, "Failed to allocate gamma table");
+		return false;
+	}
+
+	for (size_t i = 0; i < size; i++) {
+		gamma[i].red = r[i];
+		gamma[i].green = g[i];
+		gamma[i].blue = b[i];
+	}
+
+	if (drmModeCreatePropertyBlob(drm->fd, gamma,
+			size * sizeof(struct drm_color_lut), blob_id) != 0) {
+		wlr_log_errno(WLR_ERROR, "Unable to create property blob");
+		free(gamma);
+		return false;
+	}
+	free(gamma);
+
+	return true;
+}
+
 static void plane_disable(struct atomic *atom, struct wlr_drm_plane *plane) {
 	uint32_t id = plane->id;
 	const union wlr_drm_plane_props *props = &plane->props;
@@ -126,6 +161,24 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 		}
 	}
 
+	if (crtc->pending & WLR_DRM_CRTC_GAMMA_LUT) {
+		// Fallback to legacy gamma interface when gamma properties are not available
+		// (can happen on older Intel GPUs that support gamma but not degamma).
+		if (crtc->props.gamma_lut == 0) {
+			if (!drm_legacy_crtc_set_gamma(drm, crtc)) {
+				return false;
+			}
+		} else {
+			if (crtc->gamma_lut != 0) {
+				drmModeDestroyPropertyBlob(drm->fd, crtc->gamma_lut);
+			}
+
+			if (!create_gamma_lut_blob(drm, crtc, &crtc->gamma_lut)) {
+				return false;
+			}
+		}
+	}
+
 	uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT;
 	if (modeset) {
 		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
@@ -142,6 +195,7 @@ static bool atomic_crtc_pageflip(struct wlr_drm_backend *drm,
 	}
 	atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
 	atomic_add(&atom, crtc->id, crtc->props.active, 1);
+	atomic_add(&atom, crtc->id, crtc->props.gamma_lut, crtc->gamma_lut);
 	set_plane_props(&atom, drm, crtc->primary, crtc->id, 0, 0);
 	if (crtc->cursor) {
 		if (crtc->cursor->cursor_enabled) {
@@ -195,45 +249,6 @@ static bool atomic_crtc_set_cursor(struct wlr_drm_backend *drm,
 	return true;
 }
 
-static bool atomic_crtc_set_gamma(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, size_t size,
-		uint16_t *r, uint16_t *g, uint16_t *b) {
-	// Fallback to legacy gamma interface when gamma properties are not available
-	// (can happen on older Intel GPUs that support gamma but not degamma).
-	if (crtc->props.gamma_lut == 0) {
-		return legacy_iface.crtc_set_gamma(drm, crtc, size, r, g, b);
-	}
-
-	struct drm_color_lut *gamma = malloc(size * sizeof(struct drm_color_lut));
-	if (gamma == NULL) {
-		wlr_log(WLR_ERROR, "Failed to allocate gamma table");
-		return false;
-	}
-
-	for (size_t i = 0; i < size; i++) {
-		gamma[i].red = r[i];
-		gamma[i].green = g[i];
-		gamma[i].blue = b[i];
-	}
-
-	if (crtc->gamma_lut != 0) {
-		drmModeDestroyPropertyBlob(drm->fd, crtc->gamma_lut);
-	}
-
-	if (drmModeCreatePropertyBlob(drm->fd, gamma,
-			size * sizeof(struct drm_color_lut), &crtc->gamma_lut)) {
-		free(gamma);
-		wlr_log_errno(WLR_ERROR, "Unable to create property blob");
-		return false;
-	}
-	free(gamma);
-
-	struct atomic atom;
-	atomic_begin(crtc, &atom);
-	atomic_add(&atom, crtc->id, crtc->props.gamma_lut, crtc->gamma_lut);
-	return atomic_end(drm->fd, 0, &atom);
-}
-
 static size_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc) {
 	if (crtc->props.gamma_lut_size == 0) {
@@ -254,6 +269,5 @@ const struct wlr_drm_interface atomic_iface = {
 	.conn_enable = atomic_conn_enable,
 	.crtc_pageflip = atomic_crtc_pageflip,
 	.crtc_set_cursor = atomic_crtc_set_cursor,
-	.crtc_set_gamma = atomic_crtc_set_gamma,
 	.crtc_get_gamma_size = atomic_crtc_get_gamma_size,
 };

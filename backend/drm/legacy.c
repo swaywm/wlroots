@@ -30,6 +30,12 @@ static bool legacy_crtc_pageflip(struct wlr_drm_backend *drm,
 		}
 	}
 
+	if (crtc->pending & WLR_DRM_CRTC_GAMMA_LUT) {
+		if (!drm_legacy_crtc_set_gamma(drm, crtc)) {
+			return false;
+		}
+	}
+
 	if (cursor != NULL && cursor->cursor_enabled && drmModeMoveCursor(drm->fd,
 			crtc->id, conn->cursor_x, conn->cursor_y) != 0) {
 		wlr_log_errno(WLR_ERROR, "%s: failed to move cursor", conn->output.name);
@@ -83,10 +89,22 @@ bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
 	return true;
 }
 
-static bool legacy_crtc_set_gamma(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, size_t size,
-		uint16_t *r, uint16_t *g, uint16_t *b) {
-	return !drmModeCrtcSetGamma(drm->fd, crtc->id, (uint32_t)size, r, g, b);
+bool drm_legacy_crtc_set_gamma(struct wlr_drm_backend *drm,
+		struct wlr_drm_crtc *crtc) {
+	uint32_t size = crtc->gamma_table_size;
+	uint16_t *r = NULL, *g = NULL, *b = NULL;
+	if (size > 0) {
+		r = crtc->gamma_table;
+		g = crtc->gamma_table + crtc->gamma_table_size;
+		b = crtc->gamma_table + 2 * crtc->gamma_table_size;
+	}
+
+	if (drmModeCrtcSetGamma(drm->fd, crtc->id, size, r, g, b) != 0) {
+		wlr_log_errno(WLR_ERROR, "Failed to set gamma LUT on CRTC %"PRIu32,
+			crtc->id);
+		return false;
+	}
+	return true;
 }
 
 static size_t legacy_crtc_get_gamma_size(struct wlr_drm_backend *drm,
@@ -98,6 +116,5 @@ const struct wlr_drm_interface legacy_iface = {
 	.conn_enable = legacy_conn_enable,
 	.crtc_pageflip = legacy_crtc_pageflip,
 	.crtc_set_cursor = legacy_crtc_set_cursor,
-	.crtc_set_gamma = legacy_crtc_set_gamma,
 	.crtc_get_gamma_size = legacy_crtc_get_gamma_size,
 };
