@@ -1119,6 +1119,9 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 	enable_drm_connector(&conn->output, false);
 	drm_plane_finish_surface(conn->crtc->primary);
 	drm_plane_finish_surface(conn->crtc->cursor);
+	if (conn->crtc->cursor != NULL) {
+		conn->crtc->cursor->cursor_enabled = false;
+	}
 
 	conn->crtc = NULL;
 }
