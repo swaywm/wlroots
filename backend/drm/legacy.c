@@ -56,10 +56,36 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 		}
 	}
 
-	if (cursor != NULL && cursor->cursor_enabled && drmModeMoveCursor(drm->fd,
+	if (cursor != NULL && cursor->cursor_enabled) {
+		struct wlr_drm_fb *cursor_fb = plane_get_next_fb(cursor);
+		struct gbm_bo *cursor_bo =
+			drm_fb_acquire(cursor_fb, drm, &cursor->mgpu_surf);
+		if (!cursor_bo) {
+			wlr_log_errno(WLR_DEBUG, "%s: failed to acquire cursor FB",
+				conn->output.name);
+			return false;
+		}
+
+		if (drmModeSetCursor(drm->fd, crtc->id,
+				gbm_bo_get_handle(cursor_bo).u32,
+				cursor->surf.width, cursor->surf.height)) {
+			wlr_log_errno(WLR_DEBUG, "%s: failed to set hardware cursor",
+				conn->output.name);
+			return false;
+		}
+
+		if (drmModeMoveCursor(drm->fd,
 			crtc->id, conn->cursor_x, conn->cursor_y) != 0) {
-		wlr_log_errno(WLR_ERROR, "%s: failed to move cursor", conn->output.name);
-		return false;
+			wlr_log_errno(WLR_ERROR, "%s: failed to move cursor",
+				conn->output.name);
+			return false;
+		}
+	} else {
+		if (drmModeSetCursor(drm->fd, crtc->id, 0, 0, 0)) {
+			wlr_log_errno(WLR_DEBUG, "%s: failed to unset hardware cursor",
+				conn->output.name);
+			return false;
+		}
 	}
 
 	if (flags & DRM_MODE_PAGE_FLIP_EVENT) {
@@ -70,32 +96,6 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 		}
 	}
 
-	return true;
-}
-
-bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, struct gbm_bo *bo) {
-	if (!crtc || !crtc->cursor) {
-		return true;
-	}
-
-	if (!bo) {
-		if (drmModeSetCursor(drm->fd, crtc->id, 0, 0, 0)) {
-			wlr_log_errno(WLR_DEBUG, "Failed to clear hardware cursor");
-			return false;
-		}
-		return true;
-	}
-
-	struct wlr_drm_plane *plane = crtc->cursor;
-
-	if (drmModeSetCursor(drm->fd, crtc->id, gbm_bo_get_handle(bo).u32,
-			plane->surf.width, plane->surf.height)) {
-		wlr_log_errno(WLR_DEBUG, "Failed to set hardware cursor");
-		return false;
-	}
-
-	drm_fb_move(&crtc->cursor->queued_fb, &crtc->cursor->pending_fb);
 	return true;
 }
 
@@ -124,6 +124,5 @@ static size_t legacy_crtc_get_gamma_size(struct wlr_drm_backend *drm,
 
 const struct wlr_drm_interface legacy_iface = {
 	.crtc_commit = legacy_crtc_commit,
-	.crtc_set_cursor = legacy_crtc_set_cursor,
 	.crtc_get_gamma_size = legacy_crtc_get_gamma_size,
 };

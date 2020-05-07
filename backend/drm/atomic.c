@@ -237,15 +237,6 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 		return false;
 	}
 
-	if (crtc->active && crtc->cursor) {
-		drm_fb_move(&crtc->cursor->queued_fb, &crtc->cursor->pending_fb);
-	}
-	return true;
-}
-
-static bool atomic_crtc_set_cursor(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, struct gbm_bo *bo) {
-	/* Cursor updates happen when we pageflip */
 	return true;
 }
 
@@ -267,6 +258,5 @@ static size_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
 
 const struct wlr_drm_interface atomic_iface = {
 	.crtc_commit = atomic_crtc_commit,
-	.crtc_set_cursor = atomic_crtc_set_cursor,
 	.crtc_get_gamma_size = atomic_crtc_get_gamma_size,
 };

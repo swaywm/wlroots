@@ -16,9 +16,6 @@ struct wlr_drm_interface {
 	// Commit al pending changes on a CRTC.
 	bool (*crtc_commit)(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, uint32_t flags);
-	// Enable the cursor buffer on crtc. Set bo to NULL to disable
-	bool (*crtc_set_cursor)(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, struct gbm_bo *bo);
 	// Get the gamma lut size of a crtc
 	size_t (*crtc_get_gamma_size)(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc);
