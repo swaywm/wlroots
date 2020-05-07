@@ -334,11 +334,10 @@ static bool drm_connector_attach_render(struct wlr_output *output,
 	return drm_surface_make_current(&conn->crtc->primary->surf, buffer_age);
 }
 
-static bool drm_crtc_page_flip(struct wlr_drm_connector *conn,
-		struct wlr_drm_mode *mode) {
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(conn->output.backend);
+static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
+	struct wlr_drm_backend *drm =
+		get_drm_backend_from_backend(conn->output.backend);
 	struct wlr_drm_crtc *crtc = conn->crtc;
-	drmModeModeInfo *drm_mode = mode ? &mode->drm_mode : NULL;
 
 	if (conn->pageflip_pending) {
 		wlr_log(WLR_ERROR, "Failed to page-flip output '%s': "
@@ -346,7 +345,11 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn,
 		return false;
 	}
 
-	if (!drm->iface->crtc_pageflip(drm, conn, drm_mode)) {
+	bool ok = drm->iface->crtc_pageflip(drm, conn);
+
+	crtc->pending = 0;
+
+	if (!ok) {
 		return false;
 	}
 
@@ -454,7 +457,7 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 		break;
 	}
 
-	if (!drm_crtc_page_flip(conn, NULL)) {
+	if (!drm_crtc_page_flip(conn)) {
 		drm_fb_clear(&plane->pending_fb);
 		return false;
 	}
@@ -661,8 +664,7 @@ struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
 	return &plane->current_fb;
 }
 
-static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn,
-		struct wlr_drm_mode *mode) {
+static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
 		wlr_log(WLR_ERROR, "Page-flip failed on connector '%s': no CRTC",
@@ -679,10 +681,12 @@ static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn,
 		}
 	}
 
-	return drm_crtc_page_flip(conn, mode);
+	return drm_crtc_page_flip(conn);
 }
 
 static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
+	struct wlr_drm_crtc *crtc = conn->crtc;
+
 	if (conn->state != WLR_DRM_CONN_CONNECTED) {
 		return;
 	}
@@ -690,7 +694,10 @@ static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
 	wlr_log(WLR_DEBUG, "Starting renderer on output '%s'", conn->output.name);
 
 	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)conn->output.current_mode;
-	if (!drm_connector_pageflip_renderer(conn, mode)) {
+	memcpy(&crtc->mode, &mode->drm_mode, sizeof(drmModeModeInfo));
+	crtc->pending |= WLR_DRM_CRTC_MODE;
+
+	if (!drm_connector_pageflip_renderer(conn)) {
 		wl_event_source_timer_update(conn->retry_pageflip,
 			1000000.0f / conn->output.current_mode->refresh);
 	}
@@ -717,6 +724,9 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
+	crtc->pending |= WLR_DRM_CRTC_MODE;
+	memcpy(&crtc->mode, &mode->drm_mode, sizeof(drmModeModeInfo));
+
 	int width = mode->wlr_mode.width;
 	int height = mode->wlr_mode.height;
 	uint32_t format = drm->renderer.gbm_format;
@@ -730,7 +740,7 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	}
 
 	if (!drm_plane_init_surface(plane, drm, width, height, format, 0, modifiers) ||
-			!drm_connector_pageflip_renderer(conn, mode)) {
+			!drm_connector_pageflip_renderer(conn)) {
 		if (!modifiers) {
 			wlr_log(WLR_ERROR, "Failed to initialize renderer "
 				"on connector '%s': initial page-flip failed",
@@ -748,7 +758,7 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 				0, modifiers)) {
 			return false;
 		}
-		if (!drm_connector_pageflip_renderer(conn, mode)) {
+		if (!drm_connector_pageflip_renderer(conn)) {
 			wlr_log(WLR_ERROR, "Failed to initialize renderer "
 				"on connector '%s': initial page-flip failed",
 				conn->output.name);
