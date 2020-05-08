@@ -232,3 +232,19 @@ uint32_t wlr_keyboard_get_modifiers(struct wlr_keyboard *kb) {
 	}
 	return modifiers;
 }
+
+bool wlr_keyboard_keymaps_match(struct xkb_keymap *km1,
+		struct xkb_keymap *km2) {
+	if (!km1 && !km2) {
+		return true;
+	}
+	if (!km1 || !km2) {
+		return false;
+	}
+	char *km1_str = xkb_keymap_get_as_string(km1, XKB_KEYMAP_FORMAT_TEXT_V1);
+	char *km2_str = xkb_keymap_get_as_string(km2, XKB_KEYMAP_FORMAT_TEXT_V1);
+	bool result = strcmp(km1_str, km2_str) == 0;
+	free(km1_str);
+	free(km2_str);
+	return result;
+}

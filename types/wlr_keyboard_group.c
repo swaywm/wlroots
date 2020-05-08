@@ -81,21 +81,6 @@ struct wlr_keyboard_group *wlr_keyboard_group_from_wlr_keyboard(
 	return (struct wlr_keyboard_group *)keyboard;
 }
 
-static bool keymaps_match(struct xkb_keymap *km1, struct xkb_keymap *km2) {
-	if (!km1 && !km2) {
-		return true;
-	}
-	if (!km1 || !km2) {
-		return false;
-	}
-	char *km1_str = xkb_keymap_get_as_string(km1, XKB_KEYMAP_FORMAT_TEXT_V1);
-	char *km2_str = xkb_keymap_get_as_string(km2, XKB_KEYMAP_FORMAT_TEXT_V1);
-	bool result = strcmp(km1_str, km2_str) == 0;
-	free(km1_str);
-	free(km2_str);
-	return result;
-}
-
 static void handle_keyboard_key(struct wl_listener *listener, void *data) {
 	struct keyboard_group_device *group_device =
 		wl_container_of(listener, group_device, key);
@@ -166,10 +151,12 @@ static void handle_keyboard_keymap(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, group_device, keymap);
 	struct wlr_keyboard *keyboard = group_device->keyboard;
 
-	if (!keymaps_match(keyboard->group->keyboard.keymap, keyboard->keymap)) {
+	if (!wlr_keyboard_keymaps_match(keyboard->group->keyboard.keymap,
+				keyboard->keymap)) {
 		struct keyboard_group_device *device;
 		wl_list_for_each(device, &keyboard->group->devices, link) {
-			if (!keymaps_match(keyboard->keymap, device->keyboard->keymap)) {
+			if (!wlr_keyboard_keymaps_match(keyboard->keymap,
+						device->keyboard->keymap)) {
 				wlr_keyboard_set_keymap(device->keyboard, keyboard->keymap);
 				return;
 			}
@@ -245,7 +232,7 @@ bool wlr_keyboard_group_add_keyboard(struct wlr_keyboard_group *group,
 		return false;
 	}
 
-	if (!keymaps_match(group->keyboard.keymap, keyboard->keymap)) {
+	if (!wlr_keyboard_keymaps_match(group->keyboard.keymap, keyboard->keymap)) {
 		wlr_log(WLR_ERROR, "Device keymap does not match keyboard group's");
 		return false;
 	}
