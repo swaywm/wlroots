@@ -105,6 +105,9 @@ struct wlr_event_keyboard_key {
 
 bool wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	struct xkb_keymap *keymap);
+
+bool wlr_keyboard_keymaps_match(struct xkb_keymap *km1, struct xkb_keymap *km2);
+
 /**
  * Sets the keyboard repeat info. `rate` is in key repeats/second and delay is
  * in milliseconds.
