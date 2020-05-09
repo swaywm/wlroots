@@ -296,7 +296,6 @@ void finish_drm_resources(struct wlr_drm_backend *drm) {
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
 		struct wlr_drm_crtc *crtc = &drm->crtcs[i];
 
-		drmModeAtomicFree(crtc->atomic);
 		drmModeFreeCrtc(crtc->legacy_crtc);
 
 		if (crtc->mode_id) {

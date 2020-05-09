@@ -9,57 +9,42 @@
 
 struct atomic {
 	drmModeAtomicReq *req;
-	int cursor;
 	bool failed;
 };
 
-static void atomic_begin(struct wlr_drm_crtc *crtc, struct atomic *atom) {
-	if (!crtc->atomic) {
-		crtc->atomic = drmModeAtomicAlloc();
-		if (!crtc->atomic) {
-			wlr_log_errno(WLR_ERROR, "Allocation failed");
-			atom->failed = true;
-			return;
-		}
-	}
+static void atomic_begin(struct atomic *atom) {
+	memset(atom, 0, sizeof(*atom));
 
-	atom->req = crtc->atomic;
-	atom->cursor = drmModeAtomicGetCursor(atom->req);
-	atom->failed = false;
+	atom->req = drmModeAtomicAlloc();
+	if (!atom->req) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		atom->failed = true;
+		return;
+	}
 }
 
-static bool atomic_end(int drm_fd, uint32_t flags, struct atomic *atom) {
-	if (atom->failed) {
-		return false;
-	}
-
-	flags |= DRM_MODE_ATOMIC_TEST_ONLY;
-	if (drmModeAtomicCommit(drm_fd, atom->req, flags, NULL)) {
-		wlr_log_errno(WLR_DEBUG, "Atomic test failed");
-		drmModeAtomicSetCursor(atom->req, atom->cursor);
-		return false;
-	}
-
-	return true;
-}
-
-static bool atomic_commit(int drm_fd, struct atomic *atom,
-		struct wlr_drm_connector *conn, uint32_t flags, bool modeset) {
+static bool atomic_commit(struct atomic *atom,
+		struct wlr_drm_connector *conn, uint32_t flags) {
 	struct wlr_drm_backend *drm =
 		get_drm_backend_from_backend(conn->output.backend);
 	if (atom->failed) {
 		return false;
 	}
 
-	int ret = drmModeAtomicCommit(drm_fd, atom->req, flags, drm);
+	int ret = drmModeAtomicCommit(drm->fd, atom->req, flags, drm);
 	if (ret) {
-		wlr_log_errno(WLR_ERROR, "%s: Atomic commit failed (%s)",
-			conn->output.name, modeset ? "modeset" : "pageflip");
+		wlr_log_errno(WLR_ERROR, "%s: Atomic %s failed (%s)",
+			conn->output.name,
+			(flags & DRM_MODE_ATOMIC_TEST_ONLY) ? "test" : "commit",
+			(flags & DRM_MODE_ATOMIC_ALLOW_MODESET) ? "modeset" : "pageflip");
+		return false;
 	}
 
-	drmModeAtomicSetCursor(atom->req, 0);
+	return true;
+}
 
-	return !ret;
+static void atomic_finish(struct atomic *atom) {
+	drmModeAtomicFree(atom->req);
 }
 
 static void atomic_add(struct atomic *atom, uint32_t id, uint32_t prop, uint64_t val) {
@@ -200,7 +185,7 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	}
 
 	struct atomic atom;
-	atomic_begin(crtc, &atom);
+	atomic_begin(&atom);
 	atomic_add(&atom, conn->id, conn->props.crtc_id,
 		crtc->active ? crtc->id : 0);
 	if (modeset && crtc->active && conn->props.link_status != 0) {
@@ -227,17 +212,9 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 		}
 	}
 
-	if (!atomic_end(drm->fd, modeset ? DRM_MODE_ATOMIC_ALLOW_MODESET : 0,
-			&atom)) {
-		drmModeAtomicSetCursor(atom.req, 0);
-		return false;
-	}
-
-	if (!atomic_commit(drm->fd, &atom, conn, flags, modeset)) {
-		return false;
-	}
-
-	return true;
+	bool ok = atomic_commit(&atom, conn, flags);
+	atomic_finish(&atom);
+	return ok;
 }
 
 const struct wlr_drm_interface atomic_iface = {

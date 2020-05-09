@@ -57,7 +57,6 @@ struct wlr_drm_crtc {
 	// Atomic modesetting only
 	uint32_t mode_id;
 	uint32_t gamma_lut;
-	drmModeAtomicReq *atomic;
 
 	// Legacy only
 	drmModeCrtc *legacy_crtc;
