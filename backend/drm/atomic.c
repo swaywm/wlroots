@@ -240,23 +240,6 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	return true;
 }
 
-static size_t atomic_crtc_get_gamma_size(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc) {
-	if (crtc->props.gamma_lut_size == 0) {
-		return legacy_iface.crtc_get_gamma_size(drm, crtc);
-	}
-
-	uint64_t gamma_lut_size;
-	if (!get_drm_prop(drm->fd, crtc->id, crtc->props.gamma_lut_size,
-			&gamma_lut_size)) {
-		wlr_log(WLR_ERROR, "Unable to get gamma lut size");
-		return 0;
-	}
-
-	return (size_t)gamma_lut_size;
-}
-
 const struct wlr_drm_interface atomic_iface = {
 	.crtc_commit = atomic_crtc_commit,
-	.crtc_get_gamma_size = atomic_crtc_get_gamma_size,
 };

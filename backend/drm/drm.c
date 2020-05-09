@@ -581,12 +581,24 @@ static void fill_empty_gamma_table(size_t size,
 static size_t drm_connector_get_gamma_size(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	struct wlr_drm_crtc *crtc = conn->crtc;
 
-	if (conn->crtc) {
-		return drm->iface->crtc_get_gamma_size(drm, conn->crtc);
+	if (crtc == NULL) {
+		return 0;
 	}
 
-	return 0;
+	if (crtc->props.gamma_lut_size == 0) {
+		return (size_t)crtc->legacy_crtc->gamma_size;
+	}
+
+	uint64_t gamma_lut_size;
+	if (!get_drm_prop(drm->fd, crtc->id, crtc->props.gamma_lut_size,
+			&gamma_lut_size)) {
+		wlr_log(WLR_ERROR, "Unable to get gamma lut size");
+		return 0;
+	}
+
+	return gamma_lut_size;
 }
 
 bool set_drm_connector_gamma(struct wlr_output *output, size_t size,
