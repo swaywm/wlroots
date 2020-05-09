@@ -16,9 +16,6 @@ struct wlr_drm_interface {
 	// Commit al pending changes on a CRTC.
 	bool (*crtc_commit)(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, uint32_t flags);
-	// Get the gamma lut size of a crtc
-	size_t (*crtc_get_gamma_size)(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc);
 };
 
 extern const struct wlr_drm_interface atomic_iface;

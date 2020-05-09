@@ -31,13 +31,13 @@ union wlr_drm_crtc_props {
 		uint32_t rotation;
 		uint32_t scaling_mode;
 		uint32_t vrr_enabled;
+		uint32_t gamma_lut;
+		uint32_t gamma_lut_size;
 
 		// atomic-modesetting only
 
 		uint32_t active;
 		uint32_t mode_id;
-		uint32_t gamma_lut;
-		uint32_t gamma_lut_size;
 	};
 	uint32_t props[6];
 };

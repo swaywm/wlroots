@@ -117,12 +117,6 @@ bool drm_legacy_crtc_set_gamma(struct wlr_drm_backend *drm,
 	return true;
 }
 
-static size_t legacy_crtc_get_gamma_size(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc) {
-	return (size_t)crtc->legacy_crtc->gamma_size;
-}
-
 const struct wlr_drm_interface legacy_iface = {
 	.crtc_commit = legacy_crtc_commit,
-	.crtc_get_gamma_size = legacy_crtc_get_gamma_size,
 };
