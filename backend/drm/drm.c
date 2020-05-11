@@ -359,7 +359,9 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 
 	conn->pageflip_pending = true;
 	drm_fb_move(&crtc->primary->queued_fb, &crtc->primary->pending_fb);
-	drm_fb_move(&crtc->cursor->queued_fb, &crtc->cursor->pending_fb);
+	if (crtc->cursor != NULL) {
+		drm_fb_move(&crtc->cursor->queued_fb, &crtc->cursor->pending_fb);
+	}
 	wlr_output_update_enabled(&conn->output, true);
 	return true;
 }
