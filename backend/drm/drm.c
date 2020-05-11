@@ -941,14 +941,8 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 	}
 
 	struct wlr_drm_plane *plane = crtc->cursor;
-	if (!plane) {
-		// We don't have a real cursor plane, so we make a fake one
-		plane = calloc(1, sizeof(*plane));
-		if (!plane) {
-			wlr_log_errno(WLR_ERROR, "Allocation failed");
-			return false;
-		}
-		crtc->cursor = plane;
+	if (plane == NULL) {
+		return false;
 	}
 
 	if (!plane->surf.gbm) {
