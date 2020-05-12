@@ -57,6 +57,11 @@ struct wlr_pointer_constraint_v1 {
 	struct wl_list link; // wlr_pointer_constraints_v1::constraints
 
 	struct {
+		/**
+		 * Called when a pointer constraint's region is updated,
+		 * post-surface-commit.
+		 */
+		struct wl_signal set_region;
 		struct wl_signal destroy;
 	} events;
 

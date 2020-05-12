@@ -116,6 +116,7 @@ static void pointer_constraint_commit(
 	}
 	constraint->current.committed |= constraint->pending.committed;
 
+	bool updated_region = !!constraint->pending.committed;
 	constraint->pending.committed = 0;
 
 	pixman_region32_clear(&constraint->region);
@@ -125,6 +126,10 @@ static void pointer_constraint_commit(
 	} else {
 		pixman_region32_copy(&constraint->region,
 			&constraint->surface->input_region);
+	}
+
+	if (updated_region) {
+		wlr_signal_emit_safe(&constraint->events.set_region, NULL);
 	}
 }
 
@@ -209,6 +214,7 @@ static void pointer_constraint_create(struct wl_client *client,
 	constraint->type = type;
 	constraint->pointer_constraints = pointer_constraints;
 
+	wl_signal_init(&constraint->events.set_region);
 	wl_signal_init(&constraint->events.destroy);
 
 	pixman_region32_init(&constraint->region);
