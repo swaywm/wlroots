@@ -29,6 +29,8 @@ struct wlr_output_impl {
 	size_t (*get_gamma_size)(struct wlr_output *output);
 	bool (*export_dmabuf)(struct wlr_output *output,
 		struct wlr_dmabuf_attributes *attribs);
+	struct wlr_output_layer *(*create_layer)(struct wlr_output *output);
+	void (*destroy_layer)(struct wlr_output_layer *layer);
 };
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
@@ -43,5 +45,8 @@ void wlr_output_damage_whole(struct wlr_output *output);
 void wlr_output_send_frame(struct wlr_output *output);
 void wlr_output_send_present(struct wlr_output *output,
 	struct wlr_output_event_present *event);
+
+void wlr_output_layer_init(struct wlr_output_layer *layer,
+	struct wlr_output *output);
 
 #endif

@@ -145,11 +145,15 @@ static bool test_buffer(struct wlr_wl_backend *wl,
 static struct wlr_wl_buffer *create_wl_buffer(struct wlr_wl_backend *wl,
 		struct wlr_buffer *wlr_buffer) {
 	if (!test_buffer(wl, wlr_buffer)) {
+		wlr_log(WLR_ERROR, "Failed to create remote wl_buffer: "
+			"buffer test failed");
 		return NULL;
 	}
 
 	struct wlr_dmabuf_attributes attribs;
 	if (!wlr_buffer_get_dmabuf(wlr_buffer, &attribs)) {
+		wlr_log(WLR_ERROR, "Failed to create remote wl_buffer: "
+			"cannot get DMA-BUF attributes");
 		return NULL;
 	}
 
@@ -189,6 +193,62 @@ static struct wlr_wl_buffer *create_wl_buffer(struct wlr_wl_backend *wl,
 	return buffer;
 }
 
+static void output_layer_pending_box(struct wlr_wl_output_layer *layer,
+		struct wlr_box *out) {
+	out->x = layer->base.current.x;
+	out->y = layer->base.current.y;
+	if (layer->base.pending.committed & WLR_OUTPUT_LAYER_STATE_POSITION) {
+		out->x = layer->base.pending.x;
+		out->y = layer->base.pending.y;
+	}
+
+	struct wlr_buffer *wlr_buffer = layer->base.current.buffer;
+	if (layer->base.pending.committed & WLR_OUTPUT_LAYER_STATE_BUFFER) {
+		wlr_buffer = layer->base.pending.buffer;
+	}
+
+	out->width = out->height = 0;
+	if (wlr_buffer != NULL) {
+		out->width = wlr_buffer->width;
+		out->height = wlr_buffer->height;
+	}
+}
+
+/* Update the output layers' "accepted" flag */
+static void output_test_layers(struct wlr_wl_output *output) {
+	struct wlr_output *wlr_output = &output->wlr_output;
+
+	// Iterate over layers from top to bottom. Reject layers that are under a
+	// rejected layer.
+	pixman_region32_t rejected_region;
+	pixman_region32_init(&rejected_region);
+	pixman_region32_t intersect;
+	pixman_region32_init(&intersect);
+	struct wlr_wl_output_layer *layer;
+	wl_list_for_each_reverse(layer, &wlr_output->pending.layers,
+			base.pending.link) {
+		struct wlr_box box = {0};
+		output_layer_pending_box(layer, &box);
+
+		pixman_region32_intersect_rect(&intersect, &rejected_region,
+			box.x, box.y, box.width, box.height);
+		bool accepted = !pixman_region32_not_empty(&intersect);
+
+		if ((layer->base.pending.committed & WLR_OUTPUT_LAYER_STATE_BUFFER) &&
+				accepted) {
+			accepted = test_buffer(output->backend, layer->base.pending.buffer);
+		}
+
+		if (!accepted) {
+			pixman_region32_union_rect(&rejected_region, &rejected_region,
+				box.x, box.y, box.width, box.height);
+		}
+		layer->base.accepted = accepted;
+	}
+	pixman_region32_fini(&intersect);
+	pixman_region32_fini(&rejected_region);
+}
+
 static bool output_test(struct wlr_output *wlr_output) {
 	struct wlr_wl_output *output =
 		get_wl_output_from_output(wlr_output);
@@ -208,6 +268,28 @@ static bool output_test(struct wlr_output *wlr_output) {
 		return false;
 	}
 
+	output_test_layers(output);
+
+	return true;
+}
+
+static bool output_layer_attach(struct wlr_wl_output_layer *layer,
+		struct wlr_buffer *wlr_buffer) {
+	struct wlr_wl_output *output =
+		get_wl_output_from_output(layer->base.output);
+
+	if (wlr_buffer == NULL) {
+		wl_surface_attach(layer->surface, NULL, 0, 0);
+		return true;
+	}
+
+	struct wlr_wl_buffer *buffer =
+		create_wl_buffer(output->backend, wlr_buffer);
+	if (buffer == NULL) {
+		return false;
+	}
+
+	wl_surface_attach(layer->surface, buffer->wl_buffer, 0, 0);
 	return true;
 }
 
@@ -226,6 +308,47 @@ static bool output_commit(struct wlr_output *wlr_output) {
 				wlr_output->pending.custom_mode.refresh)) {
 			return false;
 		}
+	}
+
+	// Update layer ordering
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_LAYERS) {
+		struct wlr_wl_output_layer *layer, *prev = NULL;
+		wl_list_for_each(layer, &wlr_output->pending.layers, base.pending.link) {
+			if (prev != NULL) {
+				wl_subsurface_place_above(layer->subsurface, prev->surface);
+			}
+
+			prev = layer;
+		}
+	}
+
+	output_test_layers(output);
+
+	struct wlr_wl_output_layer *layer;
+	wl_list_for_each(layer, &wlr_output->pending.layers, base.pending.link) {
+		if (!layer->base.accepted && layer->prev_accepted) {
+			wl_surface_attach(layer->surface, NULL, 0, 0);
+		}
+
+		if ((layer->base.pending.committed & WLR_OUTPUT_LAYER_STATE_BUFFER) &&
+				layer->base.accepted) {
+			if (!output_layer_attach(layer, layer->base.pending.buffer)) {
+				return false;
+			}
+		}
+
+		if (layer->base.pending.committed & WLR_OUTPUT_LAYER_STATE_POSITION) {
+			wl_subsurface_set_position(layer->subsurface,
+				layer->base.pending.x, layer->base.pending.y);
+		}
+
+		if (layer->base.pending.committed != 0 ||
+				layer->base.accepted != layer->prev_accepted) {
+			// TODO: make sure to commit the parent surface too
+			wl_surface_commit(layer->surface);
+		}
+
+		layer->prev_accepted = layer->base.accepted;
 	}
 
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
@@ -435,6 +558,36 @@ static bool output_move_cursor(struct wlr_output *_output, int x, int y) {
 	return true;
 }
 
+static struct wlr_output_layer *output_create_layer(
+		struct wlr_output *wlr_output) {
+	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
+	struct wlr_wl_backend *backend = output->backend;
+
+	struct wlr_wl_output_layer *layer = calloc(1, sizeof(*layer));
+	if (layer == NULL) {
+		return NULL;
+	}
+	wlr_output_layer_init(&layer->base, wlr_output);
+	layer->surface = wl_compositor_create_surface(backend->compositor);
+	layer->subsurface = wl_subcompositor_get_subsurface(backend->subcompositor,
+		layer->surface, output->surface);
+
+	struct wl_region *empty_region =
+		wl_compositor_create_region(backend->compositor);
+	wl_surface_set_input_region(layer->surface, empty_region);
+	wl_region_destroy(empty_region);
+
+	return &layer->base;
+}
+
+static void output_destroy_layer(struct wlr_output_layer *wlr_layer) {
+	struct wlr_wl_output_layer *layer =
+		(struct wlr_wl_output_layer *)wlr_layer;
+	wl_subsurface_destroy(layer->subsurface);
+	wl_surface_destroy(layer->surface);
+	free(layer);
+}
+
 static const struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
@@ -443,6 +596,8 @@ static const struct wlr_output_impl output_impl = {
 	.rollback = output_rollback,
 	.set_cursor = output_set_cursor,
 	.move_cursor = output_move_cursor,
+	.create_layer = output_create_layer,
+	.destroy_layer = output_destroy_layer,
 };
 
 bool wlr_output_is_wl(struct wlr_output *wlr_output) {

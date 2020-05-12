@@ -17,6 +17,7 @@
 #include <wlr/util/region.h>
 #include "util/global.h"
 #include "util/signal.h"
+#include "types/wlr_output_layer.h"
 
 #define OUTPUT_VERSION 3
 
@@ -340,6 +341,8 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.description);
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->pending.damage);
+	wl_list_init(&output->layers);
+	wl_list_init(&output->pending.layers);
 
 	const char *no_hardware_cursors = getenv("WLR_NO_HARDWARE_CURSORS");
 	if (no_hardware_cursors != NULL && strcmp(no_hardware_cursors, "1") == 0) {
@@ -493,6 +496,42 @@ static void output_pending_resolution(struct wlr_output *output, int *width,
 	}
 }
 
+static void output_commit_layers(struct wlr_output *output) {
+	if (output->pending.committed & WLR_OUTPUT_STATE_LAYERS) {
+		// Update the layer ordering in the current output state
+		struct wlr_output_layer *layer;
+		wl_list_for_each(layer, &output->pending.layers, pending.link) {
+			wl_list_remove(&layer->current.link);
+			wl_list_insert(output->layers.prev, &layer->current.link);
+		}
+	}
+
+	struct wlr_output_layer *layer, *tmp;
+	wl_list_for_each_safe(layer, tmp, &output->layers, current.link) {
+		if (wl_list_empty(&layer->pending.link)) {
+			output_layer_destroy(layer);
+		} else {
+			output_layer_state_move(&layer->current, &layer->pending);
+		}
+	}
+}
+
+static void output_rollback_layers(struct wlr_output *output) {
+	if (output->pending.committed & WLR_OUTPUT_STATE_LAYERS) {
+		// Rollback the layer ordering in the pending output state
+		struct wlr_output_layer *layer;
+		wl_list_for_each(layer, &output->layers, current.link) {
+			wl_list_remove(&layer->pending.link);
+			wl_list_insert(output->pending.layers.prev, &layer->pending.link);
+		}
+	}
+
+	struct wlr_output_layer *layer, *tmp;
+	wl_list_for_each_safe(layer, tmp, &output->pending.layers, pending.link) {
+		output_layer_state_clear(&layer->pending);
+	}
+}
+
 static bool output_basic_test(struct wlr_output *output) {
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		if (output->frame_pending) {
@@ -576,7 +615,7 @@ bool wlr_output_commit(struct wlr_output *output) {
 	wlr_signal_emit_safe(&output->events.precommit, &event);
 
 	if (!output->impl->commit(output)) {
-		output_state_clear(&output->pending);
+		wlr_output_rollback(output);
 		return false;
 	}
 
@@ -626,11 +665,13 @@ bool wlr_output_commit(struct wlr_output *output) {
 		output->needs_frame = false;
 	}
 
+	output_commit_layers(output);
 	output_state_clear(&output->pending);
 	return true;
 }
 
 void wlr_output_rollback(struct wlr_output *output) {
+	output_rollback_layers(output);
 	output_state_clear(&output->pending);
 
 	if (output->impl->rollback) {

@@ -44,6 +44,14 @@ compositors = {
 		'src': 'fullscreen-shell.c',
 		'proto': ['fullscreen-shell-unstable-v1'],
 	},
+	'output-layers': {
+		'src': 'output-layers.c',
+		'proto': ['xdg-shell'],
+	},
+	'scene-graph': {
+		'src': 'scene-graph.c',
+		'proto': ['xdg-shell'],
+	},
 }
 
 clients = {
