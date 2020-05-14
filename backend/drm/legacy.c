@@ -1,4 +1,6 @@
+#include <assert.h>
 #include <gbm.h>
+#include <stdlib.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -8,6 +10,7 @@
 
 static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, uint32_t flags) {
+	struct wlr_output *output = &conn->output;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *cursor = crtc->cursor;
 
@@ -50,8 +53,9 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 		}
 	}
 
-	if (crtc->pending & WLR_DRM_CRTC_GAMMA_LUT) {
-		if (!drm_legacy_crtc_set_gamma(drm, crtc)) {
+	if (output->pending.committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
+		if (!drm_legacy_crtc_set_gamma(drm, crtc,
+				output->pending.gamma_lut_size, output->pending.gamma_lut)) {
 			return false;
 		}
 	}
@@ -99,21 +103,44 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 	return true;
 }
 
+static void fill_empty_gamma_table(size_t size,
+		uint16_t *r, uint16_t *g, uint16_t *b) {
+	assert(0xFFFF < UINT64_MAX / (size - 1));
+	for (uint32_t i = 0; i < size; ++i) {
+		uint16_t val = (uint64_t)0xFFFF * i / (size - 1);
+		r[i] = g[i] = b[i] = val;
+	}
+}
+
 bool drm_legacy_crtc_set_gamma(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc) {
-	uint32_t size = crtc->gamma_table_size;
-	uint16_t *r = NULL, *g = NULL, *b = NULL;
-	if (size > 0) {
-		r = crtc->gamma_table;
-		g = crtc->gamma_table + crtc->gamma_table_size;
-		b = crtc->gamma_table + 2 * crtc->gamma_table_size;
+		struct wlr_drm_crtc *crtc, size_t size, uint16_t *lut) {
+	uint16_t *linear_lut = NULL;
+	if (size == 0) {
+		// The legacy interface doesn't offer a way to reset the gamma LUT
+		size = drm_crtc_get_gamma_lut_size(drm, crtc);
+		if (size == 0) {
+			return false;
+		}
+
+		linear_lut = malloc(3 * size * sizeof(uint16_t));
+		if (linear_lut == NULL) {
+			wlr_log_errno(WLR_ERROR, "Allocation failed");
+			return false;
+		}
+		fill_empty_gamma_table(size, linear_lut, linear_lut + size,
+			linear_lut + 2 * size);
+
+		lut = linear_lut;
 	}
 
+	uint16_t *r = lut, *g = lut + size, *b = lut + 2 * size;
 	if (drmModeCrtcSetGamma(drm->fd, crtc->id, size, r, g, b) != 0) {
 		wlr_log_errno(WLR_ERROR, "Failed to set gamma LUT on CRTC %"PRIu32,
 			crtc->id);
 		return false;
 	}
+
+	free(linear_lut);
 	return true;
 }
 

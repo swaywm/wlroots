@@ -305,8 +305,6 @@ void finish_drm_resources(struct wlr_drm_backend *drm) {
 			drmModeDestroyPropertyBlob(drm->fd, crtc->gamma_lut);
 		}
 
-		free(crtc->gamma_table);
-
 		if (crtc->primary) {
 			wlr_drm_format_set_finish(&crtc->primary->formats);
 			free(crtc->primary);
@@ -568,24 +566,8 @@ static void drm_connector_rollback(struct wlr_output *output) {
 	wlr_egl_make_current(&drm->renderer.egl, EGL_NO_SURFACE, NULL);
 }
 
-static void fill_empty_gamma_table(size_t size,
-		uint16_t *r, uint16_t *g, uint16_t *b) {
-	assert(0xFFFF < UINT64_MAX / (size - 1));
-	for (uint32_t i = 0; i < size; ++i) {
-		uint16_t val = (uint64_t)0xffff * i / (size - 1);
-		r[i] = g[i] = b[i] = val;
-	}
-}
-
-static size_t drm_connector_get_gamma_size(struct wlr_output *output) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
-	struct wlr_drm_crtc *crtc = conn->crtc;
-
-	if (crtc == NULL) {
-		return 0;
-	}
-
+size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
+		struct wlr_drm_crtc *crtc) {
 	if (crtc->props.gamma_lut_size == 0) {
 		return (size_t)crtc->legacy_crtc->gamma_size;
 	}
@@ -600,47 +582,16 @@ static size_t drm_connector_get_gamma_size(struct wlr_output *output) {
 	return gamma_lut_size;
 }
 
-bool set_drm_connector_gamma(struct wlr_output *output, size_t size,
-		const uint16_t *r, const uint16_t *g, const uint16_t *b) {
+static size_t drm_connector_get_gamma_size(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	struct wlr_drm_crtc *crtc = conn->crtc;
 
-	if (!conn->crtc) {
-		return false;
+	if (crtc == NULL) {
+		return 0;
 	}
 
-	bool reset = false;
-	if (size == 0) {
-		reset = true;
-		size = drm_connector_get_gamma_size(output);
-		if (size == 0) {
-			return false;
-		}
-	}
-
-	uint16_t *gamma_table = malloc(3 * size * sizeof(uint16_t));
-	if (gamma_table == NULL) {
-		wlr_log(WLR_ERROR, "Failed to allocate gamma table");
-		return false;
-	}
-	uint16_t *_r = gamma_table;
-	uint16_t *_g = gamma_table + size;
-	uint16_t *_b = gamma_table + 2 * size;
-
-	if (reset) {
-		fill_empty_gamma_table(size, _r, _g, _b);
-	} else {
-		memcpy(_r, r, size * sizeof(uint16_t));
-		memcpy(_g, g, size * sizeof(uint16_t));
-		memcpy(_b, b, size * sizeof(uint16_t));
-	}
-
-	conn->crtc->pending |= WLR_DRM_CRTC_GAMMA_LUT;
-	free(conn->crtc->gamma_table);
-	conn->crtc->gamma_table = gamma_table;
-	conn->crtc->gamma_table_size = size;
-
-	wlr_output_update_needs_frame(output);
-	return true; // will be applied on next page-flip
+	return drm_crtc_get_gamma_lut_size(drm, crtc);
 }
 
 static bool drm_connector_export_dmabuf(struct wlr_output *output,
@@ -1082,7 +1033,6 @@ static const struct wlr_output_impl output_impl = {
 	.test = drm_connector_test,
 	.commit = drm_connector_commit,
 	.rollback = drm_connector_rollback,
-	.set_gamma = set_drm_connector_gamma,
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.export_dmabuf = drm_connector_export_dmabuf,
 };
@@ -1117,7 +1067,6 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 	wlr_log(WLR_DEBUG, "De-allocating CRTC %zu for output '%s'",
 		conn->crtc - drm->crtcs, conn->output.name);
 
-	set_drm_connector_gamma(&conn->output, 0, NULL, NULL, NULL);
 	enable_drm_connector(&conn->output, false);
 	drm_plane_finish_surface(conn->crtc->primary);
 	drm_plane_finish_surface(conn->crtc->cursor);

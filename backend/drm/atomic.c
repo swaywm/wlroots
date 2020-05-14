@@ -71,16 +71,11 @@ static bool create_mode_blob(struct wlr_drm_backend *drm,
 }
 
 static bool create_gamma_lut_blob(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, uint32_t *blob_id) {
-	if (crtc->gamma_table_size == 0) {
+		size_t size, const uint16_t *lut, uint32_t *blob_id) {
+	if (size == 0) {
 		*blob_id = 0;
 		return true;
 	}
-
-	uint32_t size = crtc->gamma_table_size;
-	uint16_t *r = crtc->gamma_table;
-	uint16_t *g = crtc->gamma_table + size;
-	uint16_t *b = crtc->gamma_table + 2 * size;
 
 	struct drm_color_lut *gamma = malloc(size * sizeof(struct drm_color_lut));
 	if (gamma == NULL) {
@@ -88,6 +83,9 @@ static bool create_gamma_lut_blob(struct wlr_drm_backend *drm,
 		return false;
 	}
 
+	const uint16_t *r = lut;
+	const uint16_t *g = lut + size;
+	const uint16_t *b = lut + 2 * size;
 	for (size_t i = 0; i < size; i++) {
 		gamma[i].red = r[i];
 		gamma[i].green = g[i];
@@ -96,7 +94,7 @@ static bool create_gamma_lut_blob(struct wlr_drm_backend *drm,
 
 	if (drmModeCreatePropertyBlob(drm->fd, gamma,
 			size * sizeof(struct drm_color_lut), blob_id) != 0) {
-		wlr_log_errno(WLR_ERROR, "Unable to create property blob");
+		wlr_log_errno(WLR_ERROR, "Unable to create gamma LUT property blob");
 		free(gamma);
 		return false;
 	}
@@ -148,6 +146,7 @@ error:
 
 static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, uint32_t flags) {
+	struct wlr_output *output = &conn->output;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
 	if (crtc->pending & WLR_DRM_CRTC_MODE) {
@@ -160,11 +159,14 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 		}
 	}
 
-	if (crtc->pending & WLR_DRM_CRTC_GAMMA_LUT) {
-		// Fallback to legacy gamma interface when gamma properties are not available
-		// (can happen on older Intel GPUs that support gamma but not degamma).
+	if (output->pending.committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
+		// Fallback to legacy gamma interface when gamma properties are not
+		// available (can happen on older Intel GPUs that support gamma but not
+		// degamma).
 		if (crtc->props.gamma_lut == 0) {
-			if (!drm_legacy_crtc_set_gamma(drm, crtc)) {
+			if (!drm_legacy_crtc_set_gamma(drm, crtc,
+					output->pending.gamma_lut_size,
+					output->pending.gamma_lut)) {
 				return false;
 			}
 		} else {
@@ -172,7 +174,9 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 				drmModeDestroyPropertyBlob(drm->fd, crtc->gamma_lut);
 			}
 
-			if (!create_gamma_lut_blob(drm, crtc, &crtc->gamma_lut)) {
+			wlr_log(WLR_ERROR, "setting gamma LUT %zu", output->pending.gamma_lut_size);
+			if (!create_gamma_lut_blob(drm, output->pending.gamma_lut_size,
+					output->pending.gamma_lut, &crtc->gamma_lut)) {
 				return false;
 			}
 		}
