@@ -200,7 +200,9 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
 	atomic_add(&atom, crtc->id, crtc->props.active, crtc->active);
 	if (crtc->active) {
-		atomic_add(&atom, crtc->id, crtc->props.gamma_lut, crtc->gamma_lut);
+		if (crtc->props.gamma_lut != 0) {
+			atomic_add(&atom, crtc->id, crtc->props.gamma_lut, crtc->gamma_lut);
+		}
 		set_plane_props(&atom, drm, crtc->primary, crtc->id, 0, 0);
 		if (crtc->cursor) {
 			if (crtc->cursor->cursor_enabled) {
