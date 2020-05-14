@@ -46,7 +46,7 @@ void wlr_xcursor_manager_destroy(struct wlr_xcursor_manager *manager);
 /**
  * Ensures an xcursor theme at the given scale factor is loaded in the manager.
  */
-int wlr_xcursor_manager_load(struct wlr_xcursor_manager *manager,
+bool wlr_xcursor_manager_load(struct wlr_xcursor_manager *manager,
 	float scale);
 
 /**

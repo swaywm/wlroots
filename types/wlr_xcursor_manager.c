@@ -32,27 +32,27 @@ void wlr_xcursor_manager_destroy(struct wlr_xcursor_manager *manager) {
 	free(manager);
 }
 
-int wlr_xcursor_manager_load(struct wlr_xcursor_manager *manager,
+bool wlr_xcursor_manager_load(struct wlr_xcursor_manager *manager,
 		float scale) {
 	struct wlr_xcursor_manager_theme *theme;
 	wl_list_for_each(theme, &manager->scaled_themes, link) {
 		if (theme->scale == scale) {
-			return 0;
+			return true;
 		}
 	}
 
 	theme = calloc(1, sizeof(struct wlr_xcursor_manager_theme));
 	if (theme == NULL) {
-		return 1;
+		return false;
 	}
 	theme->scale = scale;
 	theme->theme = wlr_xcursor_theme_load(manager->name, manager->size * scale);
 	if (theme->theme == NULL) {
 		free(theme);
-		return 1;
+		return false;
 	}
 	wl_list_insert(&manager->scaled_themes, &theme->link);
-	return 0;
+	return true;
 }
 
 struct wlr_xcursor *wlr_xcursor_manager_get_xcursor(
