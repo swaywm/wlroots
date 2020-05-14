@@ -60,6 +60,7 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_SCALE = 1 << 4,
 	WLR_OUTPUT_STATE_TRANSFORM = 1 << 5,
 	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED = 1 << 6,
+	WLR_OUTPUT_STATE_GAMMA_LUT = 1 << 7,
 };
 
 enum wlr_output_state_buffer_type {
@@ -94,6 +95,10 @@ struct wlr_output_state {
 		int32_t width, height;
 		int32_t refresh; // mHz, may be zero
 	} custom_mode;
+
+	// only valid if WLR_OUTPUT_STATE_GAMMA_LUT
+	uint16_t *gamma_lut;
+	size_t gamma_lut_size;
 };
 
 struct wlr_output_impl;
@@ -375,8 +380,10 @@ size_t wlr_output_get_gamma_size(struct wlr_output *output);
  * the value returned by `wlr_output_get_gamma_size`.
  *
  * Providing zero-sized ramps resets the gamma table.
+ *
+ * The gamma table is double-buffered state, see `wlr_output_commit`.
  */
-bool wlr_output_set_gamma(struct wlr_output *output, size_t size,
+void wlr_output_set_gamma(struct wlr_output *output, size_t size,
 	const uint16_t *r, const uint16_t *g, const uint16_t *b);
 bool wlr_output_export_dmabuf(struct wlr_output *output,
 	struct wlr_dmabuf_attributes *attribs);

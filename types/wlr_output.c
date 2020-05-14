@@ -467,8 +467,15 @@ void wlr_output_set_damage(struct wlr_output *output,
 	output->pending.committed |= WLR_OUTPUT_STATE_DAMAGE;
 }
 
+static void output_state_clear_gamma_lut(struct wlr_output_state *state) {
+	free(state->gamma_lut);
+	state->gamma_lut = NULL;
+	state->committed &= ~WLR_OUTPUT_STATE_GAMMA_LUT;
+}
+
 static void output_state_clear(struct wlr_output_state *state) {
 	output_state_clear_buffer(state);
+	output_state_clear_gamma_lut(state);
 	pixman_region32_clear(&state->damage);
 	state->committed = 0;
 }
@@ -701,12 +708,21 @@ void wlr_output_send_present(struct wlr_output *output,
 	wlr_signal_emit_safe(&output->events.present, event);
 }
 
-bool wlr_output_set_gamma(struct wlr_output *output, size_t size,
+void wlr_output_set_gamma(struct wlr_output *output, size_t size,
 		const uint16_t *r, const uint16_t *g, const uint16_t *b) {
-	if (!output->impl->set_gamma) {
-		return false;
+	output_state_clear_gamma_lut(&output->pending);
+
+	output->pending.gamma_lut_size = size;
+	output->pending.gamma_lut = malloc(3 * size * sizeof(uint16_t));
+	if (output->pending.gamma_lut == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return;
 	}
-	return output->impl->set_gamma(output, size, r, g, b);
+	memcpy(output->pending.gamma_lut, r, size * sizeof(uint16_t));
+	memcpy(output->pending.gamma_lut + size, g, size * sizeof(uint16_t));
+	memcpy(output->pending.gamma_lut + 2 * size, b, size * sizeof(uint16_t));
+
+	output->pending.committed |= WLR_OUTPUT_STATE_GAMMA_LUT;
 }
 
 size_t wlr_output_get_gamma_size(struct wlr_output *output) {

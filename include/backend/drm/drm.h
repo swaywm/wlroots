@@ -44,7 +44,6 @@ struct wlr_drm_plane {
 
 enum wlr_drm_crtc_field {
 	WLR_DRM_CRTC_MODE = 1 << 0,
-	WLR_DRM_CRTC_GAMMA_LUT = 1 << 1,
 };
 
 struct wlr_drm_crtc {
@@ -72,9 +71,6 @@ struct wlr_drm_crtc {
 	uint32_t *overlays;
 
 	union wlr_drm_crtc_props props;
-
-	uint16_t *gamma_table;
-	size_t gamma_table_size;
 };
 
 struct wlr_drm_backend {
@@ -156,16 +152,11 @@ void restore_drm_outputs(struct wlr_drm_backend *drm);
 void scan_drm_connectors(struct wlr_drm_backend *state);
 int handle_drm_event(int fd, uint32_t mask, void *data);
 bool enable_drm_connector(struct wlr_output *output, bool enable);
-bool set_drm_connector_gamma(struct wlr_output *output, size_t size,
-	const uint16_t *r, const uint16_t *g, const uint16_t *b);
 bool drm_connector_set_mode(struct wlr_output *output,
 	struct wlr_output_mode *mode);
+size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
+	struct wlr_drm_crtc *crtc);
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane);
-
-bool legacy_crtc_set_cursor(struct wlr_drm_backend *drm,
-	struct wlr_drm_crtc *crtc, struct gbm_bo *bo);
-bool legacy_crtc_move_cursor(struct wlr_drm_backend *drm,
-	struct wlr_drm_crtc *crtc, int x, int y);
 
 #endif

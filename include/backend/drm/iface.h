@@ -22,6 +22,6 @@ extern const struct wlr_drm_interface atomic_iface;
 extern const struct wlr_drm_interface legacy_iface;
 
 bool drm_legacy_crtc_set_gamma(struct wlr_drm_backend *drm,
-	struct wlr_drm_crtc *crtc);
+	struct wlr_drm_crtc *crtc, size_t size, uint16_t *lut);
 
 #endif
