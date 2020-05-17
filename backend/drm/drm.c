@@ -422,6 +422,15 @@ static bool test_buffer(struct wlr_drm_connector *conn,
 static bool drm_connector_test(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 
+	if ((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) &&
+			output->pending.enabled) {
+		if (output->current_mode == NULL &&
+				!(output->pending.committed & WLR_OUTPUT_STATE_MODE)) {
+			wlr_log(WLR_DEBUG, "Can't enable an output without a mode");
+			return false;
+		}
+	}
+
 	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
 			output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
 		if (!test_buffer(conn, output->pending.buffer)) {
