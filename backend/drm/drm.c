@@ -441,6 +441,24 @@ static bool drm_connector_test(struct wlr_output *output) {
 	return true;
 }
 
+static struct wlr_output_mode *drm_connector_get_pending_mode(
+		struct wlr_drm_connector *conn) {
+	struct wlr_output *output = &conn->output;
+
+	switch (output->pending.mode_type) {
+	case WLR_OUTPUT_STATE_MODE_FIXED:
+		return output->pending.mode;
+	case WLR_OUTPUT_STATE_MODE_CUSTOM:;
+		drmModeModeInfo mode = {0};
+		generate_cvt_mode(&mode, output->pending.custom_mode.width,
+			output->pending.custom_mode.height,
+			(float)output->pending.custom_mode.refresh / 1000, false, false);
+		mode.type = DRM_MODE_TYPE_USERDEF;
+		return wlr_drm_connector_add_mode(output, &mode);
+	}
+	abort();
+}
+
 static bool drm_connector_commit_buffer(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
@@ -516,10 +534,8 @@ static void drm_connector_enable_adaptive_sync(struct wlr_output *output,
 		enabled ? "enabled" : "disabled", output->name);
 }
 
-static bool drm_connector_set_custom_mode(struct wlr_output *output,
-	int32_t width, int32_t height, int32_t refresh);
-
 static bool drm_connector_commit(struct wlr_output *output) {
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 
 	if (!drm_connector_test(output)) {
@@ -531,20 +547,12 @@ static bool drm_connector_commit(struct wlr_output *output) {
 	}
 
 	if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
-		switch (output->pending.mode_type) {
-		case WLR_OUTPUT_STATE_MODE_FIXED:
-			if (!drm_connector_set_mode(output, output->pending.mode)) {
-				return false;
-			}
-			break;
-		case WLR_OUTPUT_STATE_MODE_CUSTOM:
-			if (!drm_connector_set_custom_mode(output,
-					output->pending.custom_mode.width,
-					output->pending.custom_mode.height,
-					output->pending.custom_mode.refresh)) {
-				return false;
-			}
-			break;
+		struct wlr_output_mode *wlr_mode = drm_connector_get_pending_mode(conn);
+		if (wlr_mode == NULL) {
+			return false;
+		}
+		if (!drm_connector_set_mode(output, wlr_mode)) {
+			return false;
 		}
 	} else if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
 		if (!enable_drm_connector(output, output->pending.enabled)) {
@@ -835,20 +843,6 @@ bool drm_connector_set_mode(struct wlr_output *output,
 	wlr_output_damage_whole(&conn->output);
 
 	return true;
-}
-
-static bool drm_connector_set_custom_mode(struct wlr_output *output,
-		int32_t width, int32_t height, int32_t refresh) {
-	drmModeModeInfo mode = {0};
-	generate_cvt_mode(&mode, width, height, (float)refresh / 1000, false, false);
-	mode.type = DRM_MODE_TYPE_USERDEF;
-
-	struct wlr_output_mode *wlr_mode = wlr_drm_connector_add_mode(output, &mode);
-	if (wlr_mode == NULL) {
-		return false;
-	}
-
-	return drm_connector_set_mode(output, wlr_mode);
 }
 
 struct wlr_output_mode *wlr_drm_connector_add_mode(struct wlr_output *output,
