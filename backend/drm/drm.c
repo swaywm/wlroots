@@ -336,7 +336,12 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn, uint32_t flags) {
 		get_drm_backend_from_backend(conn->output.backend);
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	bool ok = drm->iface->crtc_commit(drm, conn, flags);
-	crtc->pending = 0;
+	if (ok) {
+		memcpy(&crtc->current, &crtc->pending, sizeof(struct wlr_drm_crtc_state));
+	} else {
+		memcpy(&crtc->pending, &crtc->current, sizeof(struct wlr_drm_crtc_state));
+	}
+	crtc->pending_modeset = false;
 	return ok;
 }
 
@@ -349,7 +354,7 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 		return false;
 	}
 
-	assert(crtc->active);
+	assert(crtc->pending.active);
 	assert(plane_get_next_fb(crtc->primary)->type != WLR_DRM_FB_TYPE_NONE);
 	if (!drm_crtc_commit(conn, DRM_MODE_PAGE_FLIP_EVENT)) {
 		return false;
@@ -692,9 +697,9 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	crtc->pending |= WLR_DRM_CRTC_MODE;
-	memcpy(&crtc->mode, &mode->drm_mode, sizeof(drmModeModeInfo));
-	crtc->active = true;
+	crtc->pending_modeset = true;
+	crtc->pending.active = true;
+	crtc->pending.mode = mode;
 
 	int width = mode->wlr_mode.width;
 	int height = mode->wlr_mode.height;
@@ -722,6 +727,10 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 		wlr_log(WLR_INFO, "Page-flip failed with primary FB modifiers enabled, "
 			"retrying without modifiers");
 		modifiers = false;
+
+		crtc->pending_modeset = true;
+		crtc->pending.active = true;
+		crtc->pending.mode = mode;
 
 		if (!drm_plane_init_surface(plane, drm, width, height, format,
 				0, modifiers)) {
@@ -767,8 +776,8 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 
 	if (wlr_mode == NULL) {
 		if (conn->crtc != NULL) {
-			conn->crtc->active = false;
-			conn->crtc->pending |= WLR_DRM_CRTC_MODE;
+			conn->crtc->pending_modeset = true;
+			conn->crtc->pending.active = false;
 			if (!drm_crtc_commit(conn, 0)) {
 				return false;
 			}
