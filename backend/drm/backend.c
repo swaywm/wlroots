@@ -97,7 +97,7 @@ static void session_signal(struct wl_listener *listener, void *data) {
 				drm_connector_set_mode(&conn->output,
 						conn->output.current_mode);
 			} else {
-				enable_drm_connector(&conn->output, false);
+				drm_connector_set_mode(&conn->output, NULL);
 			}
 		}
 	} else {

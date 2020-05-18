@@ -151,7 +151,6 @@ void finish_drm_resources(struct wlr_drm_backend *drm);
 void restore_drm_outputs(struct wlr_drm_backend *drm);
 void scan_drm_connectors(struct wlr_drm_backend *state);
 int handle_drm_event(int fd, uint32_t mask, void *data);
-bool enable_drm_connector(struct wlr_output *output, bool enable);
 bool drm_connector_set_mode(struct wlr_output *output,
 	struct wlr_output_mode *mode);
 size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
