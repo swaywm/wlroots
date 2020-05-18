@@ -671,26 +671,6 @@ static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn) {
 	return drm_crtc_page_flip(conn);
 }
 
-static void drm_connector_start_renderer(struct wlr_drm_connector *conn) {
-	struct wlr_drm_crtc *crtc = conn->crtc;
-
-	if (conn->state != WLR_DRM_CONN_CONNECTED) {
-		return;
-	}
-
-	wlr_log(WLR_DEBUG, "Starting renderer on output '%s'", conn->output.name);
-
-	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)conn->output.current_mode;
-	memcpy(&crtc->mode, &mode->drm_mode, sizeof(drmModeModeInfo));
-	crtc->active = true;
-	crtc->pending |= WLR_DRM_CRTC_MODE;
-
-	if (!drm_connector_pageflip_renderer(conn)) {
-		wl_event_source_timer_update(conn->retry_pageflip,
-			1000000.0f / conn->output.current_mode->refresh);
-	}
-}
-
 static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 		struct wlr_drm_mode *mode) {
 	struct wlr_drm_backend *drm =
@@ -1014,7 +994,6 @@ static void drm_connector_destroy(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	drm_connector_cleanup(conn);
 	drmModeFreeCrtc(conn->old_crtc);
-	wl_event_source_remove(conn->retry_pageflip);
 	wl_list_remove(&conn->link);
 	free(conn);
 }
@@ -1033,13 +1012,6 @@ static const struct wlr_output_impl output_impl = {
 
 bool wlr_output_is_drm(struct wlr_output *output) {
 	return output->impl == &output_impl;
-}
-
-static int retry_pageflip(void *data) {
-	struct wlr_drm_connector *conn = data;
-	wlr_log(WLR_INFO, "%s: Retrying pageflip", conn->output.name);
-	drm_connector_start_renderer(conn);
-	return 0;
 }
 
 static const int32_t subpixel_map[] = {
@@ -1293,10 +1265,6 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			}
 			wlr_output_init(&wlr_conn->output, &drm->backend, &output_impl,
 				drm->display);
-
-			struct wl_event_loop *ev = wl_display_get_event_loop(drm->display);
-			wlr_conn->retry_pageflip = wl_event_loop_add_timer(ev, retry_pageflip,
-				wlr_conn);
 
 			wlr_conn->state = WLR_DRM_CONN_DISCONNECTED;
 			wlr_conn->id = drm_conn->connector_id;
