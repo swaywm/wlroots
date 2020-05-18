@@ -564,7 +564,7 @@ static bool drm_connector_commit(struct wlr_output *output) {
 			}
 		}
 
-		if (!drm_connector_set_mode(output, wlr_mode)) {
+		if (!drm_connector_set_mode(conn, wlr_mode)) {
 			return false;
 		}
 	}
@@ -770,17 +770,17 @@ static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
 				conn->desired_enabled) {
 			wlr_log(WLR_DEBUG, "Output %s has a desired mode and a CRTC, "
 				"attempting a modeset", conn->output.name);
-			drm_connector_set_mode(&conn->output, conn->desired_mode);
+			drm_connector_set_mode(conn, conn->desired_mode);
 		}
 	}
 }
 
 static void drm_connector_cleanup(struct wlr_drm_connector *conn);
 
-bool drm_connector_set_mode(struct wlr_output *output,
+bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 		struct wlr_output_mode *wlr_mode) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	struct wlr_drm_backend *drm =
+		get_drm_backend_from_backend(conn->output.backend);
 
 	conn->desired_enabled = wlr_mode != NULL;
 	conn->desired_mode = wlr_mode;
@@ -1061,7 +1061,7 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 	wlr_log(WLR_DEBUG, "De-allocating CRTC %zu for output '%s'",
 		conn->crtc - drm->crtcs, conn->output.name);
 
-	drm_connector_set_mode(&conn->output, NULL);
+	drm_connector_set_mode(conn, NULL);
 	drm_plane_finish_surface(conn->crtc->primary);
 	drm_plane_finish_surface(conn->crtc->cursor);
 	if (conn->crtc->cursor != NULL) {
