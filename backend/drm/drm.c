@@ -546,16 +546,25 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		return false;
 	}
 
-	if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
-		struct wlr_output_mode *wlr_mode = drm_connector_get_pending_mode(conn);
-		if (wlr_mode == NULL) {
-			return false;
+	if (output->pending.committed &
+			(WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_ENABLED)) {
+		struct wlr_output_mode *wlr_mode = output->current_mode;
+
+		bool enable = (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) ?
+			output->pending.enabled : output->enabled;
+		if (!enable) {
+			wlr_mode = NULL;
 		}
+
+		if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
+			assert(enable);
+			wlr_mode = drm_connector_get_pending_mode(conn);
+			if (wlr_mode == NULL) {
+				return false;
+			}
+		}
+
 		if (!drm_connector_set_mode(output, wlr_mode)) {
-			return false;
-		}
-	} else if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
-		if (!enable_drm_connector(output, output->pending.enabled)) {
 			return false;
 		}
 	}
@@ -766,50 +775,36 @@ static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
 	}
 }
 
-bool enable_drm_connector(struct wlr_output *output, bool enable) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
-	if (conn->state != WLR_DRM_CONN_CONNECTED
-			&& conn->state != WLR_DRM_CONN_NEEDS_MODESET) {
-		return false;
-	}
-
-	conn->desired_enabled = enable;
-
-	if (enable && conn->crtc == NULL) {
-		// Maybe we can steal a CRTC from a disabled output
-		realloc_crtcs(drm);
-	}
-
-	if (conn->crtc == NULL) {
-		wlr_output_update_enabled(&conn->output, false);
-		return !enable;
-	}
-
-	conn->crtc->active = enable;
-	conn->crtc->pending |= WLR_DRM_CRTC_MODE;
-	if (!drm_crtc_commit(conn, 0)) {
-		return false;
-	}
-
-	if (enable) {
-		drm_connector_start_renderer(conn);
-	} else {
-		realloc_crtcs(drm);
-
-		attempt_enable_needs_modeset(drm);
-	}
-
-	wlr_output_update_enabled(&conn->output, enable);
-	return true;
-}
-
 static void drm_connector_cleanup(struct wlr_drm_connector *conn);
 
 bool drm_connector_set_mode(struct wlr_output *output,
 		struct wlr_output_mode *wlr_mode) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+
+	conn->desired_enabled = wlr_mode != NULL;
+	conn->desired_mode = wlr_mode;
+
+	if (wlr_mode == NULL) {
+		if (conn->crtc != NULL) {
+			conn->crtc->active = false;
+			conn->crtc->pending |= WLR_DRM_CRTC_MODE;
+			if (!drm_crtc_commit(conn, 0)) {
+				return false;
+			}
+			realloc_crtcs(drm);
+			attempt_enable_needs_modeset(drm);
+		}
+		wlr_output_update_enabled(&conn->output, false);
+		return true;
+	}
+
+	if (conn->state != WLR_DRM_CONN_CONNECTED
+			&& conn->state != WLR_DRM_CONN_NEEDS_MODESET) {
+		wlr_log(WLR_ERROR, "Cannot modeset a disconnected output");
+		return false;
+	}
+
 	if (conn->crtc == NULL) {
 		// Maybe we can steal a CRTC from a disabled output
 		realloc_crtcs(drm);
@@ -817,8 +812,6 @@ bool drm_connector_set_mode(struct wlr_output *output,
 	if (conn->crtc == NULL) {
 		wlr_log(WLR_ERROR, "Cannot modeset '%s': no CRTC for this connector",
 			conn->output.name);
-		// Save the desired mode for later, when we'll get a proper CRTC
-		conn->desired_mode = wlr_mode;
 		return false;
 	}
 
@@ -1068,7 +1061,7 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 	wlr_log(WLR_DEBUG, "De-allocating CRTC %zu for output '%s'",
 		conn->crtc - drm->crtcs, conn->output.name);
 
-	enable_drm_connector(&conn->output, false);
+	drm_connector_set_mode(&conn->output, NULL);
 	drm_plane_finish_surface(conn->crtc->primary);
 	drm_plane_finish_surface(conn->crtc->cursor);
 	if (conn->crtc->cursor != NULL) {
