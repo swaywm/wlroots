@@ -103,6 +103,27 @@ static bool create_gamma_lut_blob(struct wlr_drm_backend *drm,
 	return true;
 }
 
+static void commit_blob(struct wlr_drm_backend *drm,
+		uint32_t *current, uint32_t next) {
+	if (*current == next) {
+		return;
+	}
+	if (*current != 0) {
+		drmModeDestroyPropertyBlob(drm->fd, *current);
+	}
+	*current = next;
+}
+
+static void rollback_blob(struct wlr_drm_backend *drm,
+		uint32_t *current, uint32_t next) {
+	if (*current == next) {
+		return;
+	}
+	if (next != 0) {
+		drmModeDestroyPropertyBlob(drm->fd, next);
+	}
+}
+
 static void plane_disable(struct atomic *atom, struct wlr_drm_plane *plane) {
 	uint32_t id = plane->id;
 	const union wlr_drm_plane_props *props = &plane->props;
@@ -149,16 +170,14 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	struct wlr_output *output = &conn->output;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
+	uint32_t mode_id = crtc->mode_id;
 	if (crtc->pending & WLR_DRM_CRTC_MODE) {
-		if (crtc->mode_id != 0) {
-			drmModeDestroyPropertyBlob(drm->fd, crtc->mode_id);
-		}
-
-		if (!create_mode_blob(drm, crtc, &crtc->mode_id)) {
+		if (!create_mode_blob(drm, crtc, &mode_id)) {
 			return false;
 		}
 	}
 
+	uint32_t gamma_lut = crtc->gamma_lut;
 	if (output->pending.committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
 		// Fallback to legacy gamma interface when gamma properties are not
 		// available (can happen on older Intel GPUs that support gamma but not
@@ -170,13 +189,8 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 				return false;
 			}
 		} else {
-			if (crtc->gamma_lut != 0) {
-				drmModeDestroyPropertyBlob(drm->fd, crtc->gamma_lut);
-			}
-
-			wlr_log(WLR_ERROR, "setting gamma LUT %zu", output->pending.gamma_lut_size);
 			if (!create_gamma_lut_blob(drm, output->pending.gamma_lut_size,
-					output->pending.gamma_lut, &crtc->gamma_lut)) {
+					output->pending.gamma_lut, &gamma_lut)) {
 				return false;
 			}
 		}
@@ -197,11 +211,11 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 		atomic_add(&atom, conn->id, conn->props.link_status,
 			DRM_MODE_LINK_STATUS_GOOD);
 	}
-	atomic_add(&atom, crtc->id, crtc->props.mode_id, crtc->mode_id);
+	atomic_add(&atom, crtc->id, crtc->props.mode_id, mode_id);
 	atomic_add(&atom, crtc->id, crtc->props.active, crtc->active);
 	if (crtc->active) {
 		if (crtc->props.gamma_lut != 0) {
-			atomic_add(&atom, crtc->id, crtc->props.gamma_lut, crtc->gamma_lut);
+			atomic_add(&atom, crtc->id, crtc->props.gamma_lut, gamma_lut);
 		}
 		set_plane_props(&atom, drm, crtc->primary, crtc->id, 0, 0);
 		if (crtc->cursor) {
@@ -221,6 +235,15 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 
 	bool ok = atomic_commit(&atom, conn, flags);
 	atomic_finish(&atom);
+
+	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
+		commit_blob(drm, &crtc->mode_id, mode_id);
+		commit_blob(drm, &crtc->gamma_lut, gamma_lut);
+	} else {
+		rollback_blob(drm, &crtc->mode_id, mode_id);
+		rollback_blob(drm, &crtc->gamma_lut, gamma_lut);
+	}
+
 	return ok;
 }
 
