@@ -94,10 +94,9 @@ static void session_signal(struct wl_listener *listener, void *data) {
 		struct wlr_drm_connector *conn;
 		wl_list_for_each(conn, &drm->outputs, link){
 			if (conn->output.enabled && conn->output.current_mode != NULL) {
-				drm_connector_set_mode(&conn->output,
-						conn->output.current_mode);
+				drm_connector_set_mode(conn, conn->output.current_mode);
 			} else {
-				drm_connector_set_mode(&conn->output, NULL);
+				drm_connector_set_mode(conn, NULL);
 			}
 		}
 	} else {
