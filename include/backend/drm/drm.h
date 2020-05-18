@@ -43,7 +43,6 @@ struct wlr_drm_plane {
 };
 
 struct wlr_drm_crtc_state {
-	bool active;
 	struct wlr_drm_mode *mode;
 };
 
