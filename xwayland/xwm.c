@@ -13,8 +13,22 @@
 #include <xcb/composite.h>
 #include <xcb/render.h>
 #include <xcb/xfixes.h>
+#include <xcb/xcbext.h>
 #include "util/signal.h"
 #include "xwayland/xwm.h"
+
+
+static int32_t scale(struct wlr_xwm *xwm, int32_t val) {
+	return val * xwm->xwayland->scale;
+}
+
+static int32_t unscale(struct wlr_xwm *xwm, int32_t val) {
+	return (val + xwm->xwayland->scale/2) / xwm->xwayland->scale;
+}
+
+static xcb_extension_t xwayland_ext_id = {
+	.name = "XWAYLAND",
+};
 
 const char *atom_map[ATOM_LAST] = {
 	[WL_SURFACE_ID] = "WL_SURFACE_ID",
@@ -834,8 +848,13 @@ static void xwm_handle_create_notify(struct wlr_xwm *xwm,
 		return;
 	}
 
-	xwayland_surface_create(xwm, ev->window, ev->x, ev->y,
-		ev->width, ev->height, ev->override_redirect);
+	xwayland_surface_create(xwm, ev->window,
+		unscale(xwm, ev->x),
+		unscale(xwm, ev->y),
+		unscale(xwm, ev->width),
+		unscale(xwm, ev->height),
+		ev->override_redirect
+	);
 }
 
 static void xwm_handle_destroy_notify(struct wlr_xwm *xwm,
@@ -866,10 +885,10 @@ static void xwm_handle_configure_request(struct wlr_xwm *xwm,
 
 	struct wlr_xwayland_surface_configure_event wlr_event = {
 		.surface = surface,
-		.x = mask & XCB_CONFIG_WINDOW_X ? ev->x : surface->x,
-		.y = mask & XCB_CONFIG_WINDOW_Y ? ev->y : surface->y,
-		.width = mask & XCB_CONFIG_WINDOW_WIDTH ? ev->width : surface->width,
-		.height = mask & XCB_CONFIG_WINDOW_HEIGHT ? ev->height : surface->height,
+		.x = unscale(xwm, mask & XCB_CONFIG_WINDOW_X ? ev->x : surface->x),
+		.y = unscale(xwm, mask & XCB_CONFIG_WINDOW_Y ? ev->y : surface->y),
+		.width = unscale(xwm, mask & XCB_CONFIG_WINDOW_WIDTH ? ev->width : surface->width),
+		.height = unscale(xwm, mask & XCB_CONFIG_WINDOW_HEIGHT ? ev->height : surface->height),
 		.mask = mask,
 	};
 	wlr_log(WLR_DEBUG, "XCB_CONFIGURE_REQUEST (%u) [%ux%u+%d,%d]", ev->window,
@@ -885,10 +904,10 @@ static void xwm_handle_configure_notify(struct wlr_xwm *xwm,
 		return;
 	}
 
-	xsurface->x = ev->x;
-	xsurface->y = ev->y;
-	xsurface->width = ev->width;
-	xsurface->height = ev->height;
+	xsurface->x = unscale(xwm, ev->x);
+	xsurface->y = unscale(xwm, ev->y);
+	xsurface->width = unscale(xwm, ev->width);
+	xsurface->height = unscale(xwm, ev->height);
 
 	if (xsurface->override_redirect != ev->override_redirect) {
 		xsurface->override_redirect = ev->override_redirect;
@@ -1431,7 +1450,13 @@ void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *xsurface,
 	uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
 		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
 		XCB_CONFIG_WINDOW_BORDER_WIDTH;
-	uint32_t values[] = {x, y, width, height, 0};
+	uint32_t values[] = {
+		scale(xsurface->xwm, x),
+		scale(xsurface->xwm, y),
+		scale(xsurface->xwm, width),
+		scale(xsurface->xwm, height),
+		0,
+	};
 	xcb_configure_window(xwm->xcb_conn, xsurface->window_id, mask, values);
 	xcb_flush(xwm->xcb_conn);
 }
@@ -1497,6 +1522,7 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 static void xwm_get_resources(struct wlr_xwm *xwm) {
 	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_xfixes_id);
 	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_composite_id);
+	xcb_prefetch_extension_data(xwm->xcb_conn, &xwayland_ext_id); // TODO what if extension is not present??
 
 	size_t i;
 	xcb_intern_atom_cookie_t cookies[ATOM_LAST];
@@ -1527,6 +1553,8 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 	if (!xwm->xfixes || !xwm->xfixes->present) {
 		wlr_log(WLR_DEBUG, "xfixes not available");
 	}
+
+	xwm->xwayland_ext = xcb_get_extension_data(xwm->xcb_conn, &xwayland_ext_id);
 
 	xcb_xfixes_query_version_cookie_t xfixes_cookie;
 	xcb_xfixes_query_version_reply_t *xfixes_reply;
@@ -1857,4 +1885,40 @@ bool wlr_xwayland_or_surface_wants_focus(
 	}
 
 	return ret;
+}
+
+
+typedef struct {
+	uint8_t      major_opcode;
+	uint8_t      minor_opcode;
+	uint16_t     length;
+	uint16_t     screen;
+	uint16_t     scale;
+} xwayland_ext_set_scale_request_t;
+
+void xwm_scale_changed(struct wlr_xwm *xwm) {
+	xcb_protocol_request_t req = {
+		.count = 1,
+		.ext = &xwayland_ext_id,
+		.opcode = 1,
+		.isvoid = false,
+	};
+
+	xwayland_ext_set_scale_request_t xcb_out = {
+		.screen = 0,
+		.scale = xwm->xwayland->scale,
+	};
+
+	struct iovec xcb_parts[3];
+	xcb_parts[2].iov_base = (char *) &xcb_out;
+	xcb_parts[2].iov_len = sizeof(xcb_out);
+	xcb_send_request(xwm->xcb_conn, 0, xcb_parts+2, &req);
+
+	// Reconfigure all surfaces with the new scale.
+	struct wlr_xwayland_surface *surface;
+	wl_list_for_each(surface, &xwm->surfaces, link) {
+		wlr_xwayland_surface_configure(surface, surface->x, surface->y, surface->width, surface->height);
+	}
+
+	xcb_flush(xwm->xcb_conn);
 }

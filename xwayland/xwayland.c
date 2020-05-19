@@ -409,6 +409,8 @@ struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 	wlr_xwayland->wl_fd[0] = wlr_xwayland->wl_fd[1] = -1;
 	wlr_xwayland->wm_fd[0] = wlr_xwayland->wm_fd[1] = -1;
 
+	wlr_xwayland->scale = 1;
+
 	wl_signal_init(&wlr_xwayland->events.new_surface);
 	wl_signal_init(&wlr_xwayland->events.ready);
 
@@ -434,6 +436,13 @@ error_display:
 error_alloc:
 	free(wlr_xwayland);
 	return NULL;
+}
+
+void wlr_xwayland_set_scale(struct wlr_xwayland *wlr_xwayland, int32_t scale) {
+	wlr_xwayland->scale = scale;
+	if (wlr_xwayland->xwm != NULL) {
+		xwm_scale_changed(wlr_xwayland->xwm);
+	}
 }
 
 void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
