@@ -967,6 +967,8 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
+		wlr_egl_unset_current(&plane->surf.renderer->egl);
+
 		plane->cursor_enabled = true;
 	}
 
