@@ -157,14 +157,14 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		wlr_output_send_present(wlr_output, NULL);
 	}
 
-	wlr_egl_make_current(&x11->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_unset_current(&x11->egl);
 
 	return true;
 }
 
 static void output_rollback(struct wlr_output *wlr_output) {
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
-	wlr_egl_make_current(&output->x11->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_unset_current(&output->x11->egl);
 }
 
 static const struct wlr_output_impl output_impl = {

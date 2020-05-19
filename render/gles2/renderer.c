@@ -401,6 +401,8 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 		gles2_procs.glDebugMessageCallbackKHR(NULL, NULL);
 	}
 
+	wlr_egl_unset_current(renderer->egl);
+
 	free(renderer);
 }
 
@@ -670,6 +672,8 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 
 	POP_GLES2_DEBUG;
 
+	wlr_egl_unset_current(renderer->egl);
+
 	return &renderer->wlr_renderer;
 
 error:
@@ -685,6 +689,8 @@ error:
 		glDisable(GL_DEBUG_OUTPUT_KHR);
 		gles2_procs.glDebugMessageCallbackKHR(NULL, NULL);
 	}
+
+	wlr_egl_unset_current(renderer->egl);
 
 	free(renderer);
 	return NULL;

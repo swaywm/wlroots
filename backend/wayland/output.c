@@ -300,7 +300,7 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		}
 	}
 
-	wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_unset_current(&output->backend->egl);
 
 	return true;
 }
@@ -308,7 +308,7 @@ static bool output_commit(struct wlr_output *wlr_output) {
 static void output_rollback(struct wlr_output *wlr_output) {
 	struct wlr_wl_output *output =
 		get_wl_output_from_output(wlr_output);
-	wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_unset_current(&output->backend->egl);
 }
 
 static bool output_set_cursor(struct wlr_output *wlr_output,
@@ -377,6 +377,7 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 
 		wlr_egl_swap_buffers(&backend->egl, egl_surface, NULL);
 		wlr_egl_destroy_surface(&backend->egl, egl_surface);
+		wlr_egl_unset_current(&backend->egl);
 	} else {
 		wl_surface_attach(surface, NULL, 0, 0);
 		wl_surface_commit(surface);
@@ -583,6 +584,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 			NULL)) {
 		goto error;
 	}
+	wlr_egl_unset_current(&output->backend->egl);
 
 	wl_list_insert(&backend->outputs, &output->link);
 	wlr_output_update_enabled(wlr_output, true);

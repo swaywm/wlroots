@@ -556,14 +556,14 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		}
 	}
 
-	wlr_egl_make_current(&drm->renderer.egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_unset_current(&drm->renderer.egl);
 
 	return true;
 }
 
 static void drm_connector_rollback(struct wlr_output *output) {
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
-	wlr_egl_make_current(&drm->renderer.egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_unset_current(&drm->renderer.egl);
 }
 
 size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
