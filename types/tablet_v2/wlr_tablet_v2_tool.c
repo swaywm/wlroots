@@ -75,10 +75,8 @@ static enum zwp_tablet_tool_v2_type tablet_type_from_wlr_type(
 		return ZWP_TABLET_TOOL_V2_TYPE_LENS;
 	default:
 		/* We skip these devices earlier on */
-		assert(false && "Unreachable");
+		abort(); // unreachable
 	}
-
-	assert(false && "Unreachable");
 }
 
 void destroy_tablet_tool_v2(struct wl_resource *resource) {

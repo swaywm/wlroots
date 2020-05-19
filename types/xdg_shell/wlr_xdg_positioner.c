@@ -176,7 +176,7 @@ static bool positioner_anchor_has_edge(enum xdg_positioner_anchor anchor,
 			anchor == XDG_POSITIONER_ANCHOR_TOP_RIGHT ||
 			anchor == XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT;
 	default:
-		assert(false); // not reached
+		abort(); // unreachable
 	}
 }
 
