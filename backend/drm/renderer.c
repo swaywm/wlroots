@@ -390,20 +390,19 @@ struct gbm_bo *drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm
 
 	/* Perform copy across GPUs */
 
-	struct wlr_renderer *renderer = mgpu->renderer->wlr_rend;
-
-	if (!drm_surface_make_current(mgpu, NULL)) {
+	struct wlr_texture *tex = get_tex_for_bo(mgpu->renderer, fb->bo);
+	if (!tex) {
 		return NULL;
 	}
 
-	struct wlr_texture *tex = get_tex_for_bo(mgpu->renderer, fb->bo);
-	if (!tex) {
+	if (!drm_surface_make_current(mgpu, NULL)) {
 		return NULL;
 	}
 
 	float mat[9];
 	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_NORMAL);
 
+	struct wlr_renderer *renderer = mgpu->renderer->wlr_rend;
 	wlr_renderer_begin(renderer, mgpu->width, mgpu->height);
 	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 	wlr_render_texture_with_matrix(renderer, tex, mat, 1.0f);
