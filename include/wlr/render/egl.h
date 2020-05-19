@@ -122,8 +122,17 @@ bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
  */
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImageKHR image);
 
+/**
+ * Make the EGL context current. The provided surface will be made current
+ * unless EGL_NO_SURFACE.
+ *
+ * Callers are expected to clear the current context when they are done by
+ * calling wlr_egl_unset_current.
+ */
 bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
 	int *buffer_age);
+
+bool wlr_egl_unset_current(struct wlr_egl *egl);
 
 bool wlr_egl_is_current(struct wlr_egl *egl);
 

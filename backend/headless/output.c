@@ -35,6 +35,8 @@ static bool create_fbo(struct wlr_headless_output *output,
 	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	wlr_egl_unset_current(output->backend->egl);
+
 	if (status != GL_FRAMEBUFFER_COMPLETE) {
 		wlr_log(WLR_ERROR, "Failed to create FBO");
 		return false;
@@ -52,6 +54,9 @@ static void destroy_fbo(struct wlr_headless_output *output) {
 
 	glDeleteFramebuffers(1, &output->fbo);
 	glDeleteRenderbuffers(1, &output->rbo);
+
+	wlr_egl_unset_current(output->backend->egl);
+
 	output->fbo = 0;
 	output->rbo = 0;
 }
@@ -125,12 +130,12 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	}
 
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		wlr_egl_unset_current(output->backend->egl);
+
 		// Nothing needs to be done for FBOs
 		wlr_output_send_present(wlr_output, NULL);
 	}
-
-	wlr_egl_make_current(output->backend->egl, EGL_NO_SURFACE, NULL);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	return true;
 }
@@ -138,8 +143,10 @@ static bool output_commit(struct wlr_output *wlr_output) {
 static void output_rollback(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
-	wlr_egl_make_current(output->backend->egl, EGL_NO_SURFACE, NULL);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		wlr_egl_unset_current(output->backend->egl);
+	}
 }
 
 static void output_destroy(struct wlr_output *wlr_output) {

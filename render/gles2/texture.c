@@ -29,9 +29,7 @@ struct wlr_gles2_texture *gles2_get_texture(
 static struct wlr_gles2_texture *get_gles2_texture_in_context(
 		struct wlr_texture *wlr_texture) {
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
-	if (!wlr_egl_is_current(texture->egl)) {
-		wlr_egl_make_current(texture->egl, EGL_NO_SURFACE, NULL);
-	}
+	wlr_egl_make_current(texture->egl, EGL_NO_SURFACE, NULL);
 	return texture;
 }
 
@@ -49,6 +47,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 
 	if (texture->target != GL_TEXTURE_2D) {
 		wlr_log(WLR_ERROR, "Cannot write pixels to immutable texture");
+		wlr_egl_unset_current(texture->egl);
 		return false;
 	}
 
@@ -75,6 +74,8 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	POP_GLES2_DEBUG;
+
+	wlr_egl_unset_current(texture->egl);
 	return true;
 }
 
@@ -111,11 +112,8 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 		return;
 	}
 
-	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
-
-	if (!wlr_egl_is_current(texture->egl)) {
-		wlr_egl_make_current(texture->egl, EGL_NO_SURFACE, NULL);
-	}
+	struct wlr_gles2_texture *texture =
+		get_gles2_texture_in_context(wlr_texture);
 
 	PUSH_GLES2_DEBUG;
 
@@ -123,6 +121,8 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 	wlr_egl_destroy_image(texture->egl, texture->image);
 
 	POP_GLES2_DEBUG;
+
+	wlr_egl_unset_current(texture->egl);
 
 	free(texture);
 }
@@ -137,9 +137,7 @@ static const struct wlr_texture_impl texture_impl = {
 struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data) {
-	if (!wlr_egl_is_current(egl)) {
-		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
-	}
+	wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 
 	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
@@ -172,14 +170,14 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	POP_GLES2_DEBUG;
+
+	wlr_egl_unset_current(egl);
 	return &texture->wlr_texture;
 }
 
 struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 		struct wl_resource *resource) {
-	if (!wlr_egl_is_current(egl)) {
-		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
-	}
+	wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 
 	if (!gles2_procs.glEGLImageTargetTexture2DOES) {
 		return NULL;
@@ -235,14 +233,14 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
 
 	POP_GLES2_DEBUG;
+
+	wlr_egl_unset_current(egl);
 	return &texture->wlr_texture;
 }
 
 struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_attributes *attribs) {
-	if (!wlr_egl_is_current(egl)) {
-		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
-	}
+	wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 
 	if (!gles2_procs.glEGLImageTargetTexture2DOES) {
 		return NULL;
@@ -297,6 +295,8 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
 
 	POP_GLES2_DEBUG;
+
+	wlr_egl_unset_current(egl);
 	return &texture->wlr_texture;
 }
 
