@@ -34,6 +34,7 @@ struct wlr_xwayland_server {
 	int x_fd[2];
 	struct wl_event_source *x_fd_read_event[2];
 	bool lazy;
+	bool enable_wm;
 
 	struct wl_display *wl_display;
 
@@ -46,6 +47,11 @@ struct wlr_xwayland_server {
 	struct wl_listener display_destroy;
 
 	void *data;
+};
+
+struct wlr_xwayland_server_options {
+	bool lazy;
+	bool enable_wm;
 };
 
 struct wlr_xwayland_server_ready_event {
@@ -216,7 +222,7 @@ struct wlr_xwayland_resize_event {
 };
 
 struct wlr_xwayland_server *wlr_xwayland_server_create(
-	struct wl_display *display, bool lazy);
+	struct wl_display *display, struct wlr_xwayland_server_options *options);
 void wlr_xwayland_server_destroy(struct wlr_xwayland_server *server);
 
 /** Create an Xwayland server and XWM.
