@@ -85,7 +85,11 @@ struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 	wl_signal_init(&xwayland->events.new_surface);
 	wl_signal_init(&xwayland->events.ready);
 
-	xwayland->server = wlr_xwayland_server_create(wl_display, lazy);
+	struct wlr_xwayland_server_options options = {
+		.lazy = lazy,
+		.enable_wm = true,
+	};
+	xwayland->server = wlr_xwayland_server_create(wl_display, &options);
 	if (xwayland->server == NULL) {
 		free(xwayland->server);
 		return NULL;

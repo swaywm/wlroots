@@ -47,8 +47,12 @@ static int fill_arg(char ***argv, const char *fmt, ...) {
 noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 	if (!set_cloexec(server->x_fd[0], false) ||
 			!set_cloexec(server->x_fd[1], false) ||
-			!set_cloexec(server->wm_fd[1], false) ||
 			!set_cloexec(server->wl_fd[1], false)) {
+		wlr_log(WLR_ERROR, "Failed to unset CLOEXEC on FD");
+		_exit(EXIT_FAILURE);
+	}
+	if (server->enable_wm && !set_cloexec(server->wm_fd[1], false)) {
+		wlr_log(WLR_ERROR, "Failed to unset CLOEXEC on FD");
 		_exit(EXIT_FAILURE);
 	}
 
@@ -67,10 +71,18 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 
 	if (fill_arg(&cur_arg, ":%d", server->display) < 0 ||
 			fill_arg(&cur_arg, "%d", server->x_fd[0]) < 0 ||
-			fill_arg(&cur_arg, "%d", server->x_fd[1]) < 0 ||
-			fill_arg(&cur_arg, "%d", server->wm_fd[1]) < 0) {
+			fill_arg(&cur_arg, "%d", server->x_fd[1]) < 0) {
 		wlr_log_errno(WLR_ERROR, "alloc/print failure");
 		_exit(EXIT_FAILURE);
+	}
+	if (server->enable_wm) {
+		if (fill_arg(&cur_arg, "%d", server->wm_fd[1]) < 0) {
+			wlr_log_errno(WLR_ERROR, "alloc/print failure");
+			_exit(EXIT_FAILURE);
+		}
+	} else {
+		cur_arg++;
+		*cur_arg = NULL;
 	}
 
 	char wayland_socket_str[16];
@@ -249,18 +261,29 @@ static bool server_start_display(struct wlr_xwayland_server *server,
 }
 
 static bool server_start(struct wlr_xwayland_server *server) {
-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, server->wl_fd) != 0 ||
-			socketpair(AF_UNIX, SOCK_STREAM, 0, server->wm_fd) != 0) {
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, server->wl_fd) != 0) {
 		wlr_log_errno(WLR_ERROR, "socketpair failed");
 		server_finish_process(server);
 		return false;
 	}
 	if (!set_cloexec(server->wl_fd[0], true) ||
-			!set_cloexec(server->wl_fd[1], true) ||
-			!set_cloexec(server->wm_fd[0], true) ||
-			!set_cloexec(server->wm_fd[1], true)) {
+			!set_cloexec(server->wl_fd[1], true)) {
+		wlr_log(WLR_ERROR, "Failed to set O_CLOEXEC on socket");
 		server_finish_process(server);
 		return false;
+	}
+	if (server->enable_wm) {
+		if (socketpair(AF_UNIX, SOCK_STREAM, 0, server->wm_fd) != 0) {
+			wlr_log_errno(WLR_ERROR, "socketpair failed");
+			server_finish_process(server);
+			return false;
+		}
+		if (!set_cloexec(server->wm_fd[0], true) ||
+				!set_cloexec(server->wm_fd[1], true)) {
+			wlr_log(WLR_ERROR, "Failed to set O_CLOEXEC on socket");
+			server_finish_process(server);
+			return false;
+		}
 	}
 
 	server->server_start = time(NULL);
@@ -319,7 +342,7 @@ static bool server_start(struct wlr_xwayland_server *server) {
 	/* close child fds */
 	/* remain managing x sockets for lazy start */
 	close(server->wl_fd[1]);
-	close(server->wm_fd[1]);
+	safe_close(server->wm_fd[1]);
 	server->wl_fd[1] = server->wm_fd[1] = -1;
 
 	return true;
@@ -359,7 +382,8 @@ void wlr_xwayland_server_destroy(struct wlr_xwayland_server *server) {
 }
 
 struct wlr_xwayland_server *wlr_xwayland_server_create(
-		struct wl_display *wl_display, bool lazy) {
+		struct wl_display *wl_display,
+		struct wlr_xwayland_server_options *options) {
 	struct wlr_xwayland_server *server =
 		calloc(1, sizeof(struct wlr_xwayland_server));
 	if (!server) {
@@ -367,7 +391,8 @@ struct wlr_xwayland_server *wlr_xwayland_server_create(
 	}
 
 	server->wl_display = wl_display;
-	server->lazy = lazy;
+	server->lazy = options->lazy;
+	server->enable_wm = options->enable_wm;
 
 	server->x_fd[0] = server->x_fd[1] = -1;
 	server->wl_fd[0] = server->wl_fd[1] = -1;
