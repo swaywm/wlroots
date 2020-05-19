@@ -118,8 +118,7 @@ static enum wlr_tablet_tool_type wlr_type_from_libinput_type(
 		return WLR_TABLET_TOOL_TYPE_TOTEM;
 #endif
 	}
-
-	assert(false && "UNREACHABLE");
+	abort(); // unreachable
 }
 
 static struct wlr_libinput_tablet_tool *get_wlr_tablet_tool(

@@ -466,7 +466,6 @@ static void handle_tablet_tool_done(void *data,
 }
 
 static enum wlr_tablet_tool_type tablet_type_to_wlr_type(enum zwp_tablet_tool_v2_type type) {
-
 	switch (type) {
 	case ZWP_TABLET_TOOL_V2_TYPE_PEN:
 		return WLR_TABLET_TOOL_TYPE_PEN;
@@ -485,8 +484,7 @@ static enum wlr_tablet_tool_type tablet_type_to_wlr_type(enum zwp_tablet_tool_v2
 	default:
 		break;
 	}
-
-	assert(false && "Unreachable");
+	abort(); // unreachable
 }
 
 static void handle_tablet_tool_type(void *data,
