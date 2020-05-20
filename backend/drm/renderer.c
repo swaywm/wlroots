@@ -277,6 +277,8 @@ bool drm_fb_lock_surface(struct wlr_drm_fb *fb, struct wlr_drm_surface *surf) {
 		return false;
 	}
 
+	wlr_egl_unset_current(&surf->renderer->egl);
+
 	fb->bo = gbm_surface_lock_front_buffer(surf->gbm);
 	if (!fb->bo) {
 		wlr_log(WLR_ERROR, "Failed to lock front buffer");
@@ -369,8 +371,6 @@ bool drm_surface_render_black_frame(struct wlr_drm_surface *surf) {
 	wlr_renderer_begin(renderer, surf->width, surf->height);
 	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 1.0 });
 	wlr_renderer_end(renderer);
-
-	wlr_egl_unset_current(&surf->renderer->egl);
 
 	return true;
 }
