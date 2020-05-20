@@ -556,8 +556,6 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		}
 	}
 
-	wlr_egl_unset_current(&drm->renderer.egl);
-
 	return true;
 }
 
@@ -966,8 +964,6 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		if (!drm_fb_lock_surface(&plane->pending_fb, &plane->surf)) {
 			return false;
 		}
-
-		wlr_egl_unset_current(&plane->surf.renderer->egl);
 
 		plane->cursor_enabled = true;
 	}

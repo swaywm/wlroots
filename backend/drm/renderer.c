@@ -370,8 +370,6 @@ bool drm_surface_render_black_frame(struct wlr_drm_surface *surf) {
 	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 1.0 });
 	wlr_renderer_end(renderer);
 
-	wlr_egl_unset_current(&surf->renderer->egl);
-
 	return true;
 }
 
@@ -414,8 +412,6 @@ struct gbm_bo *drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm
 		wlr_log(WLR_ERROR, "Failed to swap buffers");
 		return NULL;
 	}
-
-	wlr_egl_unset_current(&mgpu->renderer->egl);
 
 	fb->mgpu_bo = gbm_surface_lock_front_buffer(mgpu->gbm);
 	if (!fb->mgpu_bo) {
