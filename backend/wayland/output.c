@@ -300,8 +300,6 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		}
 	}
 
-	wlr_egl_unset_current(&output->backend->egl);
-
 	return true;
 }
 
@@ -377,7 +375,6 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 
 		wlr_egl_swap_buffers(&backend->egl, egl_surface, NULL);
 		wlr_egl_destroy_surface(&backend->egl, egl_surface);
-		wlr_egl_unset_current(&backend->egl);
 	} else {
 		wl_surface_attach(surface, NULL, 0, 0);
 		wl_surface_commit(surface);
@@ -584,7 +581,6 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 			NULL)) {
 		goto error;
 	}
-	wlr_egl_unset_current(&output->backend->egl);
 
 	wl_list_insert(&backend->outputs, &output->link);
 	wlr_output_update_enabled(wlr_output, true);

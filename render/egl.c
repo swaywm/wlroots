@@ -449,6 +449,8 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 		wlr_log(WLR_ERROR, "eglSwapBuffers failed");
 		return false;
 	}
+
+	wlr_egl_unset_current(egl);
 	return true;
 }
 
