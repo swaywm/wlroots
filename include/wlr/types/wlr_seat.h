@@ -78,6 +78,7 @@ struct wlr_seat_pointer_grab;
 struct wlr_pointer_grab_interface {
 	void (*enter)(struct wlr_seat_pointer_grab *grab,
 			struct wlr_surface *surface, double sx, double sy);
+	void (*clear_focus)(struct wlr_seat_pointer_grab *grab);
 	void (*motion)(struct wlr_seat_pointer_grab *grab, uint32_t time_msec,
 			double sx, double sy);
 	uint32_t (*button)(struct wlr_seat_pointer_grab *grab, uint32_t time_msec,
@@ -95,6 +96,7 @@ struct wlr_keyboard_grab_interface {
 	void (*enter)(struct wlr_seat_keyboard_grab *grab,
 			struct wlr_surface *surface, uint32_t keycodes[],
 			size_t num_keycodes, struct wlr_keyboard_modifiers *modifiers);
+	void (*clear_focus)(struct wlr_seat_keyboard_grab *grab);
 	void (*key)(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec,
 			uint32_t key, uint32_t state);
 	void (*modifiers)(struct wlr_seat_keyboard_grab *grab,
@@ -353,6 +355,8 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 
 /**
  * Clear the focused surface for the pointer and leave all entered surfaces.
+ * This function does not respect pointer grabs: you probably want
+ * `wlr_seat_pointer_notify_clear_focus()` instead.
  */
 void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat);
 
@@ -397,6 +401,12 @@ void wlr_seat_pointer_send_frame(struct wlr_seat *wlr_seat);
  */
 void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy);
+
+/**
+ * Notify the seat of a pointer leave event to the currently-focused surface.
+ * Defers to any grab of the pointer.
+ */
+void wlr_seat_pointer_notify_clear_focus(struct wlr_seat *wlr_seat);
 
 /**
  * Notify the seat of motion over the given surface. Pass surface-local
@@ -484,6 +494,8 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 
 /**
  * Clear the focused surface for the keyboard and leave all entered surfaces.
+ * This function does not respect keyboard grabs: you probably want
+ * `wlr_seat_keyboard_notify_clear_focus()` instead.
  */
 void wlr_seat_keyboard_clear_focus(struct wlr_seat *wlr_seat);
 
@@ -509,6 +521,12 @@ void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat,
 void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
 		struct wlr_keyboard_modifiers *modifiers);
+
+/**
+ * Notify the seat of a keyboard leave event to the currently-focused surface.
+ * Defers to any keyboard grabs.
+ */
+void wlr_seat_keyboard_notify_clear_focus(struct wlr_seat *wlr_seat);
 
 /**
  * Start a grab of the keyboard of this seat. The grabber is responsible for

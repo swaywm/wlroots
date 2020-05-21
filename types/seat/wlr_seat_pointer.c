@@ -15,6 +15,10 @@ static void default_pointer_enter(struct wlr_seat_pointer_grab *grab,
 	wlr_seat_pointer_enter(grab->seat, surface, sx, sy);
 }
 
+static void default_pointer_clear_focus(struct wlr_seat_pointer_grab *grab) {
+	wlr_seat_pointer_clear_focus(grab->seat);
+}
+
 static void default_pointer_motion(struct wlr_seat_pointer_grab *grab,
 		uint32_t time, double sx, double sy) {
 	wlr_seat_pointer_send_motion(grab->seat, time, sx, sy);
@@ -42,6 +46,7 @@ static void default_pointer_cancel(struct wlr_seat_pointer_grab *grab) {
 
 const struct wlr_pointer_grab_interface default_pointer_grab_impl = {
 	.enter = default_pointer_enter,
+	.clear_focus = default_pointer_clear_focus,
 	.motion = default_pointer_motion,
 	.button = default_pointer_button,
 	.axis = default_pointer_axis,
@@ -331,8 +336,16 @@ void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat) {
 
 void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy) {
+	// NULL surfaces are prohibited in the grab-compatible API. Use
+	// wlr_seat_pointer_notify_clear_focus() instead.
+	assert(surface);
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
 	grab->interface->enter(grab, surface, sx, sy);
+}
+
+void wlr_seat_pointer_notify_clear_focus(struct wlr_seat *wlr_seat) {
+	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
+	grab->interface->clear_focus(grab);
 }
 
 void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat, uint32_t time,
