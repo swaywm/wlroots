@@ -159,6 +159,11 @@ static void drag_handle_pointer_enter(struct wlr_seat_pointer_grab *grab,
 	drag_set_focus(drag, surface, sx, sy);
 }
 
+static void drag_handle_pointer_clear_focus(struct wlr_seat_pointer_grab *grab) {
+	struct wlr_drag *drag = grab->data;
+	drag_set_focus(drag, NULL, 0, 0);
+}
+
 static void drag_handle_pointer_motion(struct wlr_seat_pointer_grab *grab,
 		uint32_t time, double sx, double sy) {
 	struct wlr_drag *drag = grab->data;
@@ -238,6 +243,7 @@ static void drag_handle_pointer_cancel(struct wlr_seat_pointer_grab *grab) {
 static const struct wlr_pointer_grab_interface
 		data_device_pointer_drag_interface = {
 	.enter = drag_handle_pointer_enter,
+	.clear_focus = drag_handle_pointer_clear_focus,
 	.motion = drag_handle_pointer_motion,
 	.button = drag_handle_pointer_button,
 	.axis = drag_handle_pointer_axis,
@@ -303,6 +309,10 @@ static void drag_handle_keyboard_enter(struct wlr_seat_keyboard_grab *grab,
 	// nothing has keyboard focus during drags
 }
 
+static void drag_handle_keyboard_clear_focus(struct wlr_seat_keyboard_grab *grab) {
+	// nothing has keyboard focus during drags
+}
+
 static void drag_handle_keyboard_key(struct wlr_seat_keyboard_grab *grab,
 		uint32_t time, uint32_t key, uint32_t state) {
 	// no keyboard input during drags
@@ -323,6 +333,7 @@ static void drag_handle_keyboard_cancel(struct wlr_seat_keyboard_grab *grab) {
 static const struct wlr_keyboard_grab_interface
 		data_device_keyboard_drag_interface = {
 	.enter = drag_handle_keyboard_enter,
+	.clear_focus = drag_handle_keyboard_clear_focus,
 	.key = drag_handle_keyboard_key,
 	.modifiers = drag_handle_keyboard_modifiers,
 	.cancel = drag_handle_keyboard_cancel,
