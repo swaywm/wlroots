@@ -346,8 +346,8 @@ bool wlr_seat_pointer_surface_has_focus(struct wlr_seat *wlr_seat,
  * Send a pointer enter event to the given surface and consider it to be the
  * focused surface for the pointer. This will send a leave event to the last
  * surface that was entered. Coordinates for the enter event are surface-local.
- * Compositor should use `wlr_seat_pointer_notify_enter()` to change pointer
- * focus to respect pointer grabs.
+ * This function does not respect pointer grabs: you probably want
+ * `wlr_seat_pointer_notify_enter()` instead.
  */
 void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy);
@@ -359,62 +359,64 @@ void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat);
 
 /**
  * Send a motion event to the surface with pointer focus. Coordinates for the
- * motion event are surface-local. Compositors should use
- * `wlr_seat_pointer_notify_motion()` to send motion events to respect pointer
- * grabs.
+ * motion event are surface-local. This function does not respect pointer grabs:
+ * you probably want `wlr_seat_pointer_notify_motion()` instead.
  */
 void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time_msec,
 		double sx, double sy);
 
 /**
  * Send a button event to the surface with pointer focus. Coordinates for the
- * button event are surface-local. Returns the serial. Compositors should use
- * `wlr_seat_pointer_notify_button()` to send button events to respect pointer
- * grabs.
+ * button event are surface-local. Returns the serial. This function does not
+ * respect pointer grabs: you probably want `wlr_seat_pointer_notify_button()`
+ * instead.
  */
 uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat,
 		uint32_t time_msec, uint32_t button, enum wlr_button_state state);
 
 /**
- * Send an axis event to the surface with pointer focus. Compositors should use
- * `wlr_seat_pointer_notify_axis()` to send axis events to respect pointer
- * grabs.
- **/
+ * Send an axis event to the surface with pointer focus. This function does not
+ * respect pointer grabs: you probably want `wlr_seat_pointer_notify_axis()`
+ * instead.
+ */
 void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time_msec,
 		enum wlr_axis_orientation orientation, double value,
 		int32_t value_discrete, enum wlr_axis_source source);
 
 /**
- * Send a frame event to the surface with pointer focus. Compositors should use
- * `wlr_seat_pointer_notify_frame()` to send axis events to respect pointer
- * grabs.
+ * Send a frame event to the surface with pointer focus. This function does not
+ * respect pointer grabs: you probably want `wlr_seat_pointer_notify_frame()`
+ * instead.
  */
 void wlr_seat_pointer_send_frame(struct wlr_seat *wlr_seat);
 
 /**
  * Notify the seat of a pointer enter event to the given surface and request it
  * to be the focused surface for the pointer. Pass surface-local coordinates
- * where the enter occurred.
+ * where the enter occurred. This will send a leave event to the currently-
+ * focused surface. Defers to any grab of the pointer.
  */
 void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy);
 
 /**
  * Notify the seat of motion over the given surface. Pass surface-local
- * coordinates where the pointer motion occurred.
+ * coordinates where the pointer motion occurred. Defers to any grab of the
+ * pointer.
  */
 void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat,
 		uint32_t time_msec, double sx, double sy);
 
 /**
  * Notify the seat that a button has been pressed. Returns the serial of the
- * button press or zero if no button press was sent.
+ * button press or zero if no button press was sent. Defers to any grab of the
+ * pointer.
  */
 uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
 		uint32_t time_msec, uint32_t button, enum wlr_button_state state);
 
 /**
- * Notify the seat of an axis event.
+ * Notify the seat of an axis event. Defers to any grab of the pointer.
  */
 void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time_msec,
 		enum wlr_axis_orientation orientation, double value,
@@ -423,7 +425,7 @@ void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time_msec,
 /**
  * Notify the seat of a frame event. Frame events are sent to end a group of
  * events that logically belong together. Motion, button and axis events should
- * all be followed by a frame event.
+ * all be followed by a frame event. Defers to any grab of the pointer.
  */
 void wlr_seat_pointer_notify_frame(struct wlr_seat *wlr_seat);
 
@@ -456,15 +458,17 @@ void wlr_seat_set_keyboard(struct wlr_seat *seat, struct wlr_input_device *dev);
 struct wlr_keyboard *wlr_seat_get_keyboard(struct wlr_seat *seat);
 
 /**
- * Send the keyboard key to focused keyboard resources. Compositors should use
- * `wlr_seat_notify_key()` to respect keyboard grabs.
+ * Send the keyboard key to focused keyboard resources. This function does not
+ * respect keyboard grabs: you probably want `wlr_seat_keyboard_notify_key()`
+ * instead.
  */
 void wlr_seat_keyboard_send_key(struct wlr_seat *seat, uint32_t time_msec,
 		uint32_t key, uint32_t state);
 
 /**
- * Send the modifier state to focused keyboard resources. Compositors should use
- * `wlr_seat_keyboard_notify_modifiers()` to respect any keyboard grabs.
+ * Send the modifier state to focused keyboard resources. This function does
+ * not respect keyboard grabs: you probably want
+ * `wlr_seat_keyboard_notify_modifiers()` instead.
  */
 void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
 		struct wlr_keyboard_modifiers *modifiers);
@@ -472,9 +476,8 @@ void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
 /**
  * Send a keyboard enter event to the given surface and consider it to be the
  * focused surface for the keyboard. This will send a leave event to the last
- * surface that was entered. Compositors should use
- * `wlr_seat_keyboard_notify_enter()` to change keyboard focus to respect
- * keyboard grabs.
+ * surface that was entered. This function does not respect keyboard grabs: you
+ * probably want `wlr_seat_keyboard_notify_enter()` instead.
  */
 void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
@@ -553,8 +556,8 @@ void wlr_seat_touch_point_clear_focus(struct wlr_seat *seat, uint32_t time_msec,
  * events for this point will go to this surface. If the touch down is valid,
  * this will add a new touch point with the given `touch_id`. The touch down may
  * not be valid if the surface seat client does not accept touch input.
- * Coordinates are surface-local. Compositors should use
- * `wlr_seat_touch_notify_down()` to respect any grabs of the touch device.
+ * Coordinates are surface-local. This function does not respect touch grabs:
+ * you probably want `wlr_seat_touch_notify_down()` instead.
  */
 uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t time_msec,
@@ -563,8 +566,8 @@ uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
 /**
  * Send a touch up event for the touch point given by the `touch_id`. The event
  * will go to the client for the surface given in the corresponding touch down
- * event. This will remove the touch point. Compositors should use
- * `wlr_seat_touch_notify_up()` to respect any grabs of the touch device.
+ * event. This will remove the touch point. This function does not respect touch
+ * grabs: you probably want `wlr_seat_touch_notify_up()` instead.
  */
 void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time_msec,
 		int32_t touch_id);
@@ -572,8 +575,8 @@ void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time_msec,
 /**
  * Send a touch motion event for the touch point given by the `touch_id`. The
  * event will go to the client for the surface given in the corresponding touch
- * down event. Compositors should use `wlr_seat_touch_notify_motion()` to
- * respect any grabs of the touch device.
+ * down event. This function does not respect touch grabs: you probably want
+ * `wlr_seat_touch_notify_motion()` instead.
  */
 void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time_msec,
 		int32_t touch_id, double sx, double sy);
