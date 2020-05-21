@@ -392,19 +392,6 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time_msec,
 void wlr_seat_pointer_send_frame(struct wlr_seat *wlr_seat);
 
 /**
- * Start a grab of the pointer of this seat. The grabber is responsible for
- * handling all pointer events until the grab ends.
- */
-void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
-		struct wlr_seat_pointer_grab *grab);
-
-/**
- * End the grab of the pointer of this seat. This reverts the grab back to the
- * default grab for the pointer.
- */
-void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat);
-
-/**
  * Notify the seat of a pointer enter event to the given surface and request it
  * to be the focused surface for the pointer. Pass surface-local coordinates
  * where the enter occurred.
@@ -441,6 +428,19 @@ void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time_msec,
 void wlr_seat_pointer_notify_frame(struct wlr_seat *wlr_seat);
 
 /**
+ * Start a grab of the pointer of this seat. The grabber is responsible for
+ * handling all pointer events until the grab ends.
+ */
+void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
+		struct wlr_seat_pointer_grab *grab);
+
+/**
+ * End the grab of the pointer of this seat. This reverts the grab back to the
+ * default grab for the pointer.
+ */
+void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat);
+
+/**
  * Whether or not the pointer has a grab other than the default grab.
  */
 bool wlr_seat_pointer_has_grab(struct wlr_seat *seat);
@@ -456,19 +456,6 @@ void wlr_seat_set_keyboard(struct wlr_seat *seat, struct wlr_input_device *dev);
 struct wlr_keyboard *wlr_seat_get_keyboard(struct wlr_seat *seat);
 
 /**
- * Start a grab of the keyboard of this seat. The grabber is responsible for
- * handling all keyboard events until the grab ends.
- */
-void wlr_seat_keyboard_start_grab(struct wlr_seat *wlr_seat,
-		struct wlr_seat_keyboard_grab *grab);
-
-/**
- * End the grab of the keyboard of this seat. This reverts the grab back to the
- * default grab for the keyboard.
- */
-void wlr_seat_keyboard_end_grab(struct wlr_seat *wlr_seat);
-
-/**
  * Send the keyboard key to focused keyboard resources. Compositors should use
  * `wlr_seat_notify_key()` to respect keyboard grabs.
  */
@@ -476,33 +463,10 @@ void wlr_seat_keyboard_send_key(struct wlr_seat *seat, uint32_t time_msec,
 		uint32_t key, uint32_t state);
 
 /**
- * Notify the seat that a key has been pressed on the keyboard. Defers to any
- * keyboard grabs.
- */
-void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time_msec,
-		uint32_t key, uint32_t state);
-
-/**
  * Send the modifier state to focused keyboard resources. Compositors should use
  * `wlr_seat_keyboard_notify_modifiers()` to respect any keyboard grabs.
  */
 void wlr_seat_keyboard_send_modifiers(struct wlr_seat *seat,
-		struct wlr_keyboard_modifiers *modifiers);
-
-/**
- * Notify the seat that the modifiers for the keyboard have changed. Defers to
- * any keyboard grabs.
- */
-void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat,
-		struct wlr_keyboard_modifiers *modifiers);
-
-/**
- * Notify the seat that the keyboard focus has changed and request it to be the
- * focused surface for this keyboard. Defers to any current grab of the seat's
- * keyboard.
- */
-void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
 		struct wlr_keyboard_modifiers *modifiers);
 
 /**
@@ -522,22 +486,45 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 void wlr_seat_keyboard_clear_focus(struct wlr_seat *wlr_seat);
 
 /**
+ * Notify the seat that a key has been pressed on the keyboard. Defers to any
+ * keyboard grabs.
+ */
+void wlr_seat_keyboard_notify_key(struct wlr_seat *seat, uint32_t time_msec,
+		uint32_t key, uint32_t state);
+
+/**
+ * Notify the seat that the modifiers for the keyboard have changed. Defers to
+ * any keyboard grabs.
+ */
+void wlr_seat_keyboard_notify_modifiers(struct wlr_seat *seat,
+		struct wlr_keyboard_modifiers *modifiers);
+
+/**
+ * Notify the seat that the keyboard focus has changed and request it to be the
+ * focused surface for this keyboard. Defers to any current grab of the seat's
+ * keyboard.
+ */
+void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat,
+		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
+		struct wlr_keyboard_modifiers *modifiers);
+
+/**
+ * Start a grab of the keyboard of this seat. The grabber is responsible for
+ * handling all keyboard events until the grab ends.
+ */
+void wlr_seat_keyboard_start_grab(struct wlr_seat *wlr_seat,
+		struct wlr_seat_keyboard_grab *grab);
+
+/**
+ * End the grab of the keyboard of this seat. This reverts the grab back to the
+ * default grab for the keyboard.
+ */
+void wlr_seat_keyboard_end_grab(struct wlr_seat *wlr_seat);
+
+/**
  * Whether or not the keyboard has a grab other than the default grab
  */
 bool wlr_seat_keyboard_has_grab(struct wlr_seat *seat);
-
-/**
- * Start a grab of the touch device of this seat. The grabber is responsible for
- * handling all touch events until the grab ends.
- */
-void wlr_seat_touch_start_grab(struct wlr_seat *wlr_seat,
-		struct wlr_seat_touch_grab *grab);
-
-/**
- * End the grab of the touch device of this seat. This reverts the grab back to
- * the default grab for the touch device.
- */
-void wlr_seat_touch_end_grab(struct wlr_seat *wlr_seat);
 
 /**
  * Get the active touch point with the given `touch_id`. If the touch point does
@@ -545,30 +532,6 @@ void wlr_seat_touch_end_grab(struct wlr_seat *wlr_seat);
  */
 struct wlr_touch_point *wlr_seat_touch_get_point(struct wlr_seat *seat,
 		int32_t touch_id);
-
-/**
- * Notify the seat of a touch down on the given surface. Defers to any grab of
- * the touch device.
- */
-uint32_t wlr_seat_touch_notify_down(struct wlr_seat *seat,
-		struct wlr_surface *surface, uint32_t time_msec,
-		int32_t touch_id, double sx, double sy);
-
-/**
- * Notify the seat that the touch point given by `touch_id` is up. Defers to any
- * grab of the touch device.
- */
-void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time_msec,
-		int32_t touch_id);
-
-/**
- * Notify the seat that the touch point given by `touch_id` has moved. Defers to
- * any grab of the touch device. The seat should be notified of touch motion
- * even if the surface is not the owner of the touch point for processing by
- * grabs.
- */
-void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time_msec,
-		int32_t touch_id, double sx, double sy);
 
 /**
  * Notify the seat that the touch point given by `touch_id` has entered a new
@@ -616,9 +579,46 @@ void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time_msec,
 		int32_t touch_id, double sx, double sy);
 
 /**
+ * Notify the seat of a touch down on the given surface. Defers to any grab of
+ * the touch device.
+ */
+uint32_t wlr_seat_touch_notify_down(struct wlr_seat *seat,
+		struct wlr_surface *surface, uint32_t time_msec,
+		int32_t touch_id, double sx, double sy);
+
+/**
+ * Notify the seat that the touch point given by `touch_id` is up. Defers to any
+ * grab of the touch device.
+ */
+void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time_msec,
+		int32_t touch_id);
+
+/**
+ * Notify the seat that the touch point given by `touch_id` has moved. Defers to
+ * any grab of the touch device. The seat should be notified of touch motion
+ * even if the surface is not the owner of the touch point for processing by
+ * grabs.
+ */
+void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time_msec,
+		int32_t touch_id, double sx, double sy);
+
+/**
  * How many touch points are currently down for the seat.
  */
 int wlr_seat_touch_num_points(struct wlr_seat *seat);
+
+/**
+ * Start a grab of the touch device of this seat. The grabber is responsible for
+ * handling all touch events until the grab ends.
+ */
+void wlr_seat_touch_start_grab(struct wlr_seat *wlr_seat,
+		struct wlr_seat_touch_grab *grab);
+
+/**
+ * End the grab of the touch device of this seat. This reverts the grab back to
+ * the default grab for the touch device.
+ */
+void wlr_seat_touch_end_grab(struct wlr_seat *wlr_seat);
 
 /**
  * Whether or not the seat has a touch grab other than the default grab.
