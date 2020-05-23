@@ -17,7 +17,7 @@ static const char *verbosity_colors[] = {
 	[WLR_SILENT] = "",
 	[WLR_ERROR] = "\x1B[1;31m",
 	[WLR_INFO] = "\x1B[1;34m",
-	[WLR_DEBUG] = "\x1B[1;30m",
+	[WLR_DEBUG] = "\x1B[1;90m",
 };
 
 static const char *verbosity_headers[] = {
