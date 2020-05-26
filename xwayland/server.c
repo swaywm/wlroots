@@ -351,8 +351,12 @@ static bool server_start(struct wlr_xwayland_server *server) {
 static int xwayland_socket_connected(int fd, uint32_t mask, void *data) {
 	struct wlr_xwayland_server *server = data;
 
-	wl_event_source_remove(server->x_fd_read_event[0]);
-	wl_event_source_remove(server->x_fd_read_event[1]);
+	if (server->x_fd_read_event[0]) {
+		wl_event_source_remove(server->x_fd_read_event[0]);
+	}
+	if (server->x_fd_read_event[1]) {
+		wl_event_source_remove(server->x_fd_read_event[1]);
+	}
 	server->x_fd_read_event[0] = server->x_fd_read_event[1] = NULL;
 
 	server_start(server);
