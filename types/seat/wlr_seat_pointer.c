@@ -410,6 +410,11 @@ void seat_client_create_pointer(struct wlr_seat_client *seat_client,
 		&pointer_handle_resource_destroy);
 	wl_list_insert(&seat_client->pointers, wl_resource_get_link(resource));
 
+	if ((seat_client->seat->capabilities & WL_SEAT_CAPABILITY_POINTER) == 0) {
+		wl_resource_set_user_data(resource, NULL);
+		return;
+	}
+
 	struct wlr_seat_client *focused_client =
 		seat_client->seat->pointer_state.focused_client;
 	struct wlr_surface *focused_surface =
