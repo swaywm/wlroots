@@ -564,12 +564,17 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		if (!drm_connector_set_mode(conn, wlr_mode)) {
 			return false;
 		}
-	}
-
-	// TODO: support modesetting with a buffer
-	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER &&
-			!(output->pending.committed & WLR_OUTPUT_STATE_MODE)) {
+	} else if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+		// TODO: support modesetting with a buffer
 		if (!drm_connector_commit_buffer(output)) {
+			return false;
+		}
+	} else if (output->pending.committed &
+			(WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED |
+			WLR_OUTPUT_STATE_GAMMA_LUT)) {
+		assert(conn->crtc != NULL);
+		// TODO: maybe request a page-flip event here?
+		if (!drm_crtc_commit(conn, 0)) {
 			return false;
 		}
 	}
