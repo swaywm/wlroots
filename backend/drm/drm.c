@@ -369,7 +369,6 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 	}
 
 	conn->pageflip_pending = true;
-	wlr_output_update_enabled(&conn->output, true);
 	return true;
 }
 
