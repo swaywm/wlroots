@@ -338,8 +338,16 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn, uint32_t flags) {
 	bool ok = drm->iface->crtc_commit(drm, conn, flags);
 	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
 		memcpy(&crtc->current, &crtc->pending, sizeof(struct wlr_drm_crtc_state));
+		drm_fb_move(&crtc->primary->queued_fb, &crtc->primary->pending_fb);
+		if (crtc->cursor != NULL) {
+			drm_fb_move(&crtc->cursor->queued_fb, &crtc->cursor->pending_fb);
+		}
 	} else {
 		memcpy(&crtc->pending, &crtc->current, sizeof(struct wlr_drm_crtc_state));
+		drm_fb_clear(&crtc->primary->pending_fb);
+		if (crtc->cursor != NULL) {
+			drm_fb_clear(&crtc->cursor->pending_fb);
+		}
 	}
 	crtc->pending_modeset = false;
 	return ok;
@@ -361,10 +369,6 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 	}
 
 	conn->pageflip_pending = true;
-	drm_fb_move(&crtc->primary->queued_fb, &crtc->primary->pending_fb);
-	if (crtc->cursor != NULL) {
-		drm_fb_move(&crtc->cursor->queued_fb, &crtc->cursor->pending_fb);
-	}
 	wlr_output_update_enabled(&conn->output, true);
 	return true;
 }
@@ -495,7 +499,6 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 	}
 
 	if (!drm_crtc_page_flip(conn)) {
-		drm_fb_clear(&plane->pending_fb);
 		return false;
 	}
 
