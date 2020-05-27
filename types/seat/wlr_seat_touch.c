@@ -366,6 +366,10 @@ void seat_client_create_touch(struct wlr_seat_client *seat_client,
 	wl_resource_set_implementation(resource, &touch_impl, seat_client,
 		&touch_handle_resource_destroy);
 	wl_list_insert(&seat_client->touches, wl_resource_get_link(resource));
+
+	if ((seat_client->seat->capabilities & WL_SEAT_CAPABILITY_TOUCH) == 0) {
+		wl_resource_set_user_data(resource, NULL);
+	}
 }
 
 void seat_client_destroy_touch(struct wl_resource *resource) {

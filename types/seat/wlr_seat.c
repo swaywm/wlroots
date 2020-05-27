@@ -19,9 +19,9 @@ static void seat_handle_get_pointer(struct wl_client *client,
 		struct wl_resource *seat_resource, uint32_t id) {
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
-	if (!(seat_client->seat->capabilities & WL_SEAT_CAPABILITY_POINTER)) {
-		wlr_log(WLR_ERROR, "Client sent get_pointer on seat without the "
-			"pointer capability");
+	if (!(seat_client->seat->accumulated_capabilities & WL_SEAT_CAPABILITY_POINTER)) {
+		wl_resource_post_error(seat_resource, 0,
+				"wl_seat.get_pointer called when no pointer capability has existed");
 		return;
 	}
 
@@ -33,9 +33,9 @@ static void seat_handle_get_keyboard(struct wl_client *client,
 		struct wl_resource *seat_resource, uint32_t id) {
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
-	if (!(seat_client->seat->capabilities & WL_SEAT_CAPABILITY_KEYBOARD)) {
-		wlr_log(WLR_ERROR, "Client sent get_keyboard on seat without the "
-			"keyboard capability");
+	if (!(seat_client->seat->accumulated_capabilities & WL_SEAT_CAPABILITY_KEYBOARD)) {
+		wl_resource_post_error(seat_resource, 0,
+				"wl_seat.get_keyboard called when no keyboard capability has existed");
 		return;
 	}
 
@@ -47,9 +47,9 @@ static void seat_handle_get_touch(struct wl_client *client,
 		struct wl_resource *seat_resource, uint32_t id) {
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
-	if (!(seat_client->seat->capabilities & WL_SEAT_CAPABILITY_TOUCH)) {
-		wlr_log(WLR_ERROR, "Client sent get_touch on seat without the "
-			"touch capability");
+	if (!(seat_client->seat->accumulated_capabilities & WL_SEAT_CAPABILITY_TOUCH)) {
+		wl_resource_post_error(seat_resource, 0,
+				"wl_seat.get_touch called when no touch capability has existed");
 		return;
 	}
 
@@ -311,6 +311,7 @@ struct wlr_seat_client *wlr_seat_client_for_wl_client(struct wlr_seat *wlr_seat,
 void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat,
 		uint32_t capabilities) {
 	wlr_seat->capabilities = capabilities;
+	wlr_seat->accumulated_capabilities |= capabilities;
 
 	struct wlr_seat_client *client;
 	wl_list_for_each(client, &wlr_seat->clients, link) {

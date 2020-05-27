@@ -410,6 +410,11 @@ void seat_client_create_keyboard(struct wlr_seat_client *seat_client,
 		keyboard_handle_resource_destroy);
 	wl_list_insert(&seat_client->keyboards, wl_resource_get_link(resource));
 
+	if ((seat_client->seat->capabilities & WL_SEAT_CAPABILITY_KEYBOARD) == 0) {
+		wl_resource_set_user_data(resource, NULL);
+		return;
+	}
+
 	struct wlr_keyboard *keyboard = seat_client->seat->keyboard_state.keyboard;
 	if (keyboard == NULL) {
 		return;
