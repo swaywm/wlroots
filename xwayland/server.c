@@ -362,10 +362,18 @@ static int xwayland_socket_connected(int fd, uint32_t mask, void *data) {
 
 static bool server_start_lazy(struct wlr_xwayland_server *server) {
 	struct wl_event_loop *loop = wl_display_get_event_loop(server->wl_display);
-	server->x_fd_read_event[0] = wl_event_loop_add_fd(loop, server->x_fd[0],
-		WL_EVENT_READABLE, xwayland_socket_connected, server);
-	server->x_fd_read_event[1] = wl_event_loop_add_fd(loop, server->x_fd[1],
-		WL_EVENT_READABLE, xwayland_socket_connected, server);
+
+	if (!(server->x_fd_read_event[0] = wl_event_loop_add_fd(loop, server->x_fd[0],
+				WL_EVENT_READABLE, xwayland_socket_connected, server))) {
+		return false;
+	}
+
+	if (!(server->x_fd_read_event[1] = wl_event_loop_add_fd(loop, server->x_fd[1],
+				WL_EVENT_READABLE, xwayland_socket_connected, server))) {
+		wl_event_source_remove(server->x_fd_read_event[0]);
+		server->x_fd_read_event[0] = NULL;
+		return false;
+	}
 
 	return true;
 }
