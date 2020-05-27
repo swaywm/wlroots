@@ -62,7 +62,7 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 		}
 	}
 
-	if (cursor != NULL && cursor->cursor_enabled) {
+	if (cursor != NULL && drm_connector_is_cursor_visible(conn)) {
 		struct wlr_drm_fb *cursor_fb = plane_get_next_fb(cursor);
 		struct gbm_bo *cursor_bo =
 			drm_fb_acquire(cursor_fb, drm, &cursor->mgpu_surf);
