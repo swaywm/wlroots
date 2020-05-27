@@ -153,6 +153,7 @@ int handle_drm_event(int fd, uint32_t mask, void *data);
 bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 	struct wlr_output_mode *mode);
 bool drm_connector_is_cursor_visible(struct wlr_drm_connector *conn);
+bool drm_connector_supports_vrr(struct wlr_drm_connector *conn);
 size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc);
 
