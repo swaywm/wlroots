@@ -999,6 +999,17 @@ static bool drm_connector_move_cursor(struct wlr_output *output,
 	return true;
 }
 
+bool drm_connector_is_cursor_visible(struct wlr_drm_connector *conn) {
+	assert(conn->crtc != NULL && conn->crtc->cursor != NULL);
+	struct wlr_drm_plane *plane = conn->crtc->cursor;
+
+	return plane->cursor_enabled &&
+		conn->cursor_x < conn->output.width &&
+		conn->cursor_y < conn->output.height &&
+		conn->cursor_x + (int)plane->surf.width >= 0 &&
+		conn->cursor_y + (int)plane->surf.height >= 0;
+}
+
 static void drm_connector_destroy(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	drm_connector_cleanup(conn);
