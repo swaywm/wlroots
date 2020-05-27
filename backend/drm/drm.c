@@ -336,7 +336,7 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn, uint32_t flags) {
 		get_drm_backend_from_backend(conn->output.backend);
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	bool ok = drm->iface->crtc_commit(drm, conn, flags);
-	if (ok) {
+	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
 		memcpy(&crtc->current, &crtc->pending, sizeof(struct wlr_drm_crtc_state));
 	} else {
 		memcpy(&crtc->pending, &crtc->current, sizeof(struct wlr_drm_crtc_state));
