@@ -196,6 +196,14 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 		}
 	}
 
+	bool prev_vrr_enabled =
+		output->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED;
+	bool vrr_enabled = prev_vrr_enabled;
+	if ((output->pending.committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) &&
+			drm_connector_supports_vrr(conn)) {
+		vrr_enabled = output->pending.adaptive_sync_enabled;
+	}
+
 	if (crtc->pending_modeset) {
 		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
 	} else {
@@ -216,6 +224,9 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	if (crtc->pending.active) {
 		if (crtc->props.gamma_lut != 0) {
 			atomic_add(&atom, crtc->id, crtc->props.gamma_lut, gamma_lut);
+		}
+		if (crtc->props.vrr_enabled != 0) {
+			atomic_add(&atom, crtc->id, crtc->props.vrr_enabled, vrr_enabled);
 		}
 		set_plane_props(&atom, drm, crtc->primary, crtc->id, 0, 0);
 		if (crtc->cursor) {
@@ -239,6 +250,14 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
 		commit_blob(drm, &crtc->mode_id, mode_id);
 		commit_blob(drm, &crtc->gamma_lut, gamma_lut);
+
+		if (vrr_enabled != prev_vrr_enabled) {
+			output->adaptive_sync_status = vrr_enabled ?
+				WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED :
+				WLR_OUTPUT_ADAPTIVE_SYNC_DISABLED;
+			wlr_log(WLR_DEBUG, "VRR %s on connector '%s'",
+				vrr_enabled ? "enabled" : "disabled", output->name);
+		}
 	} else {
 		rollback_blob(drm, &crtc->mode_id, mode_id);
 		rollback_blob(drm, &crtc->gamma_lut, gamma_lut);

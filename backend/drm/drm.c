@@ -502,14 +502,13 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 	return true;
 }
 
-static void drm_connector_enable_adaptive_sync(struct wlr_output *output,
-		bool enabled) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+bool drm_connector_supports_vrr(struct wlr_drm_connector *conn) {
+	struct wlr_drm_backend *drm =
+		get_drm_backend_from_backend(conn->output.backend);
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
-		return;
+		return false;
 	}
 
 	uint64_t vrr_capable;
@@ -517,26 +516,17 @@ static void drm_connector_enable_adaptive_sync(struct wlr_output *output,
 			!get_drm_prop(drm->fd, conn->id, conn->props.vrr_capable,
 			&vrr_capable) || !vrr_capable) {
 		wlr_log(WLR_DEBUG, "Failed to enable adaptive sync: "
-			"connector '%s' doesn't support VRR", output->name);
-		return;
+			"connector '%s' doesn't support VRR", conn->output.name);
+		return false;
 	}
 
 	if (crtc->props.vrr_enabled == 0) {
 		wlr_log(WLR_DEBUG, "Failed to enable adaptive sync: "
 			"CRTC %"PRIu32" doesn't support VRR", crtc->id);
-		return;
+		return false;
 	}
 
-	if (drmModeObjectSetProperty(drm->fd, crtc->id, DRM_MODE_OBJECT_CRTC,
-			crtc->props.vrr_enabled, enabled) != 0) {
-		wlr_log_errno(WLR_ERROR, "drmModeObjectSetProperty(VRR_ENABLED) failed");
-		return;
-	}
-
-	output->adaptive_sync_status = enabled ? WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED :
-		WLR_OUTPUT_ADAPTIVE_SYNC_DISABLED;
-	wlr_log(WLR_DEBUG, "VRR %s on connector '%s'",
-		enabled ? "enabled" : "disabled", output->name);
+	return true;
 }
 
 static bool drm_connector_commit(struct wlr_output *output) {
@@ -572,11 +562,6 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		if (!drm_connector_set_mode(conn, wlr_mode)) {
 			return false;
 		}
-	}
-
-	if (output->pending.committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) {
-		drm_connector_enable_adaptive_sync(output,
-			output->pending.adaptive_sync_enabled);
 	}
 
 	// TODO: support modesetting with a buffer
