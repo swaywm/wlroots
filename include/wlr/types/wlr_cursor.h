@@ -151,6 +151,14 @@ void wlr_cursor_set_surface(struct wlr_cursor *cur, struct wlr_surface *surface,
 	int32_t hotspot_x, int32_t hotspot_y);
 
 /**
+ * Emits a frame event for the surface. This is not normally needed as the
+ * input backends emit this signal themselves. However, this can be used by
+ * compositors for cursor event simulation. For example, in combination with
+ * wlr_cursor_move to simulate cursor movement.
+ */
+void wlr_cursor_frame(struct wlr_cursor *cur);
+
+/**
  * Attaches this input device to this cursor. The input device must be one of:
  *
  * - WLR_INPUT_DEVICE_POINTER

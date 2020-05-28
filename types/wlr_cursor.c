@@ -348,6 +348,10 @@ void wlr_cursor_set_surface(struct wlr_cursor *cur, struct wlr_surface *surface,
 	}
 }
 
+void wlr_cursor_frame(struct wlr_cursor *cur) {
+	wlr_signal_emit_safe(&cur->events.frame, cur);
+}
+
 static void handle_pointer_motion(struct wl_listener *listener, void *data) {
 	struct wlr_event_pointer_motion *event = data;
 	struct wlr_cursor_device *device =
