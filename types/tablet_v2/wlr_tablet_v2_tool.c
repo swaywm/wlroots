@@ -73,10 +73,12 @@ static enum zwp_tablet_tool_v2_type tablet_type_from_wlr_type(
 		return ZWP_TABLET_TOOL_V2_TYPE_MOUSE;
 	case WLR_TABLET_TOOL_TYPE_LENS:
 		return ZWP_TABLET_TOOL_V2_TYPE_LENS;
-	default:
-		/* We skip these devices earlier on */
-		abort(); // unreachable
+	case WLR_TABLET_TOOL_TYPE_TOTEM:
+		// missing, see:
+		// https://gitlab.freedesktop.org/wayland/wayland-protocols/-/issues/19
+		abort();
 	}
+	abort(); // unreachable
 }
 
 void destroy_tablet_tool_v2(struct wl_resource *resource) {

@@ -481,8 +481,10 @@ static enum wlr_tablet_tool_type tablet_type_to_wlr_type(enum zwp_tablet_tool_v2
 		return WLR_TABLET_TOOL_TYPE_MOUSE;
 	case ZWP_TABLET_TOOL_V2_TYPE_LENS:
 		return WLR_TABLET_TOOL_TYPE_LENS;
-	default:
-		break;
+	case ZWP_TABLET_TOOL_V2_TYPE_FINGER:
+		// unused, see:
+		// https://gitlab.freedesktop.org/wayland/wayland-protocols/-/issues/18
+		abort();
 	}
 	abort(); // unreachable
 }
