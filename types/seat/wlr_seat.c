@@ -310,6 +310,11 @@ struct wlr_seat_client *wlr_seat_client_for_wl_client(struct wlr_seat *wlr_seat,
 
 void wlr_seat_set_capabilities(struct wlr_seat *wlr_seat,
 		uint32_t capabilities) {
+	// if the capabilities haven't changed (i.e a redundant mouse was removed),
+	// we don't actually have to do anything
+	if (capabilities == wlr_seat->capabilities) {
+		return;
+	}
 	wlr_seat->capabilities = capabilities;
 	wlr_seat->accumulated_capabilities |= capabilities;
 
