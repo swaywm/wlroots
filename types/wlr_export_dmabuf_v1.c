@@ -98,7 +98,6 @@ static void manager_handle_capture_output(struct wl_client *client,
 		return;
 	}
 	frame->manager = manager;
-	frame->output = output;
 	wl_list_init(&frame->output_precommit.link);
 
 	uint32_t version = wl_resource_get_version(manager_resource);
@@ -128,6 +127,8 @@ static void manager_handle_capture_output(struct wl_client *client,
 		frame_destroy(frame);
 		return;
 	}
+
+	frame->output = output;
 
 	wlr_output_lock_attach_render(frame->output, true);
 	if (overlay_cursor) {
