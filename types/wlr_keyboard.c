@@ -6,9 +6,10 @@
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/util/log.h>
+#include "types/wlr_keyboard.h"
 #include "util/signal.h"
 
-static void keyboard_led_update(struct wlr_keyboard *keyboard) {
+void keyboard_led_update(struct wlr_keyboard *keyboard) {
 	if (keyboard->xkb_state == NULL) {
 		return;
 	}
@@ -27,7 +28,7 @@ static void keyboard_led_update(struct wlr_keyboard *keyboard) {
  * Update the modifier state of the wlr-keyboard. Returns true if the modifier
  * state changed.
  */
-static bool keyboard_modifier_update(struct wlr_keyboard *keyboard) {
+bool keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 	if (keyboard->xkb_state == NULL) {
 		return false;
 	}
@@ -55,7 +56,7 @@ static bool keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 	return true;
 }
 
-static void keyboard_key_update(struct wlr_keyboard *keyboard,
+void keyboard_key_update(struct wlr_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
 	if (event->state == WLR_KEY_PRESSED) {
 		set_add(keyboard->keycodes, &keyboard->num_keycodes,
