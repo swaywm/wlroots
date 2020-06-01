@@ -28,6 +28,7 @@ struct wlr_wl_tablet_tool {
 	struct wlr_tablet_tool wlr_tool;
 
 	/* semi-static */
+	struct wlr_wl_output *output;
 	struct wlr_wl_input_device *tablet;
 	double pre_x, pre_y;
 
@@ -551,12 +552,14 @@ static void handle_tablet_tool_proximity_in(void *data,
 	struct wlr_wl_tablet_tool *tool = data;
 	tool->is_in = true;
 	tool->tablet = zwp_tablet_v2_get_user_data(tablet_id);
+	tool->output = wl_surface_get_user_data(surface);
 }
 
 static void handle_tablet_tool_proximity_out(void *data,
 		struct zwp_tablet_tool_v2 *id) {
 	struct wlr_wl_tablet_tool *tool = data;
 	tool->is_out = true;
+	tool->output = NULL;
 }
 
 static void handle_tablet_tool_down(void *data,
@@ -576,8 +579,11 @@ static void handle_tablet_tool_motion(void *data,
 		struct zwp_tablet_tool_v2 *id,
 		wl_fixed_t x, wl_fixed_t y) {
 	struct wlr_wl_tablet_tool *tool = data;
-	tool->x = wl_fixed_to_double(x);
-	tool->y = wl_fixed_to_double(y);
+	struct wlr_wl_output *output = tool->output;
+	assert(output);
+
+	tool->x = wl_fixed_to_double(x) / output->wlr_output.width;
+	tool->y = wl_fixed_to_double(y) / output->wlr_output.height;
 }
 
 static void handle_tablet_tool_pressure(void *data,
