@@ -20,6 +20,7 @@ struct wlr_drm_renderer {
 	uint32_t gbm_format;
 
 	struct wlr_renderer *wlr_rend;
+	struct wlr_gbm_allocator *allocator;
 };
 
 struct wlr_drm_surface {
@@ -28,8 +29,8 @@ struct wlr_drm_surface {
 	uint32_t width;
 	uint32_t height;
 
-	struct gbm_surface *gbm;
-	EGLSurface egl;
+	struct wlr_swapchain *swapchain;
+	struct wlr_buffer *back_buffer;
 };
 
 enum wlr_drm_fb_type {
@@ -45,10 +46,7 @@ struct wlr_drm_fb {
 	struct wlr_drm_surface *mgpu_surf;
 	struct gbm_bo *mgpu_bo;
 
-	union {
-		struct wlr_drm_surface *surf;
-		struct wlr_buffer *wlr_buf;
-	};
+	struct wlr_buffer *wlr_buf;
 };
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
@@ -56,6 +54,7 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 void finish_drm_renderer(struct wlr_drm_renderer *renderer);
 
 bool drm_surface_make_current(struct wlr_drm_surface *surf, int *buffer_age);
+void drm_surface_unset_current(struct wlr_drm_surface *surf);
 bool export_drm_bo(struct gbm_bo *bo, struct wlr_dmabuf_attributes *attribs);
 
 void drm_fb_clear(struct wlr_drm_fb *fb);

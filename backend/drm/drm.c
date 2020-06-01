@@ -593,8 +593,8 @@ static bool drm_connector_commit(struct wlr_output *output) {
 }
 
 static void drm_connector_rollback_render(struct wlr_output *output) {
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
-	wlr_egl_unset_current(&drm->renderer.egl);
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+	return drm_surface_unset_current(&conn->crtc->primary->surf);
 }
 
 size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
@@ -883,7 +883,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		return false;
 	}
 
-	if (!plane->surf.gbm) {
+	if (!plane->surf.swapchain) {
 		int ret;
 		uint64_t w, h;
 		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_WIDTH, &w);
