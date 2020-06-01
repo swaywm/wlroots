@@ -8,6 +8,7 @@ wlr_files += files(
 	'gles2/renderer.c',
 	'gles2/shaders.c',
 	'gles2/texture.c',
+	'swapchain.c',
 	'wlr_renderer.c',
 	'wlr_texture.c',
 )
