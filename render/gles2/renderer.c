@@ -558,6 +558,10 @@ extern const GLchar tex_fragment_src_rgbx[];
 extern const GLchar tex_fragment_src_external[];
 
 struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
+	if (!wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL)) {
+		return NULL;
+	}
+
 	const char *exts_str = (const char *)glGetString(GL_EXTENSIONS);
 	if (exts_str == NULL) {
 		wlr_log(WLR_ERROR, "Failed to get GL_EXTENSIONS");
@@ -572,11 +576,6 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	wlr_renderer_init(&renderer->wlr_renderer, &renderer_impl);
 
 	renderer->egl = egl;
-	if (!wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL)) {
-		free(renderer);
-		return NULL;
-	}
-
 	renderer->exts_str = exts_str;
 
 	wlr_log(WLR_INFO, "Using %s", glGetString(GL_VERSION));
