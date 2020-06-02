@@ -411,6 +411,18 @@ bool wlr_egl_is_current(struct wlr_egl *egl) {
 	return eglGetCurrentContext() == egl->context;
 }
 
+void wlr_egl_save_context(struct wlr_egl_context *context) {
+	context->display = eglGetCurrentDisplay();
+	context->context = eglGetCurrentContext();
+	context->draw_surface = eglGetCurrentSurface(EGL_DRAW);
+	context->read_surface = eglGetCurrentSurface(EGL_READ);
+}
+
+bool wlr_egl_restore_context(struct wlr_egl_context *context) {
+	return eglMakeCurrent(context->display, context->draw_surface,
+			context->read_surface, context->context);
+}
+
 bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 		pixman_region32_t *damage) {
 	// Never block when swapping buffers on Wayland
