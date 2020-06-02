@@ -289,12 +289,6 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		}
 	}
 
-	if (!eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
-			egl->context)) {
-		wlr_log(WLR_ERROR, "Failed to make EGL context current");
-		goto error;
-	}
-
 	return true;
 
 error:
