@@ -356,7 +356,11 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn, uint32_t flags) {
 static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
-	if (conn->pageflip_pending) {
+	// wlr_drm_interface.crtc_commit will perform either a non-blocking
+	// page-flip, either a blocking modeset. When performing a blocking modeset
+	// we'll wait for all queued page-flips to complete, so we don't need this
+	// safeguard.
+	if (conn->pageflip_pending && !crtc->pending_modeset) {
 		wlr_log(WLR_ERROR, "Failed to page-flip output '%s': "
 			"a page-flip is already pending", conn->output.name);
 		return false;
