@@ -74,7 +74,7 @@ static void layer_surface_handle_ack_configure(struct wl_client *client,
 	if (!found) {
 		wl_resource_post_error(resource,
 			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_SURFACE_STATE,
-			"wrong configure serial: %u", serial);
+			"wrong configure serial: %" PRIu32, serial);
 		return;
 	}
 	// Then remove old configures from the list
@@ -114,7 +114,7 @@ static void layer_surface_handle_set_anchor(struct wl_client *client,
 	if (anchor > max_anchor) {
 		wl_resource_post_error(resource,
 			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_ANCHOR,
-			"invalid anchor %d", anchor);
+			"invalid anchor %" PRIu32, anchor);
 	}
 	struct wlr_layer_surface_v1 *surface = layer_surface_from_resource(resource);
 
@@ -187,7 +187,7 @@ static void layer_surface_set_layer(struct wl_client *client,
 	if (layer > ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY) {
 		wl_resource_post_error(surface->resource,
 				ZWLR_LAYER_SHELL_V1_ERROR_INVALID_LAYER,
-				"Invalid layer %d", layer);
+				"Invalid layer %" PRIu32, layer);
 		return;
 	}
 	surface->client_pending.layer = layer;
@@ -403,7 +403,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 		free(surface);
 		wl_resource_post_error(client_resource,
 				ZWLR_LAYER_SHELL_V1_ERROR_INVALID_LAYER,
-				"Invalid layer %d", layer);
+				"Invalid layer %" PRIu32, layer);
 		return;
 	}
 	surface->namespace = strdup(namespace);

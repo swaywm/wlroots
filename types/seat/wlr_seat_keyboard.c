@@ -267,7 +267,7 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 		for (size_t i = 0; i < num_keycodes; ++i) {
 			uint32_t *p = wl_array_add(&keys, sizeof(uint32_t));
 			if (!p) {
-				wlr_log(WLR_ERROR, "Cannot allocate memory, skipping keycode: %d\n",
+				wlr_log(WLR_ERROR, "Cannot allocate memory, skipping keycode: %" PRIu32 "\n",
 					keycodes[i]);
 				continue;
 			}
@@ -449,7 +449,7 @@ void seat_client_create_keyboard(struct wlr_seat_client *seat_client,
 		for (size_t i = 0; i < num_keycodes; ++i) {
 			uint32_t *p = wl_array_add(&keys, sizeof(uint32_t));
 			if (!p) {
-				wlr_log(WLR_ERROR, "Cannot allocate memory, skipping keycode: %d\n",
+				wlr_log(WLR_ERROR, "Cannot allocate memory, skipping keycode: %" PRIu32 "\n",
 					keycodes[i]);
 				continue;
 			}
