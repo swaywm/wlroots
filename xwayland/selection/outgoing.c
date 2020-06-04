@@ -23,9 +23,9 @@ static void xwm_selection_send_notify(struct wlr_xwm *xwm,
 		.property = success ? req->property : XCB_ATOM_NONE,
 	};
 
-	wlr_log(WLR_DEBUG, "SendEvent destination=%d SelectionNotify(31) time=%d "
-		"requestor=%d selection=%d target=%d property=%d", req->requestor,
-		req->time, req->requestor, req->selection, req->target,
+	wlr_log(WLR_DEBUG, "SendEvent destination=%" PRIu32 " SelectionNotify(31) time=%" PRIu32
+		" requestor=%" PRIu32 " selection=%" PRIu32 " target=%" PRIu32 " property=%" PRIu32,
+		req->requestor, req->time, req->requestor, req->selection, req->target,
 		selection_notify.property);
 	xcb_send_event(xwm->xcb_conn,
 		0, // propagate

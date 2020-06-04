@@ -97,7 +97,7 @@ static void registry_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *iface, uint32_t version) {
 	struct wlr_wl_backend *wl = data;
 
-	wlr_log(WLR_DEBUG, "Remote wayland global: %s v%d", iface, version);
+	wlr_log(WLR_DEBUG, "Remote wayland global: %s v%" PRIu32, iface, version);
 
 	if (strcmp(iface, wl_compositor_interface.name) == 0) {
 		wl->compositor = wl_registry_bind(registry, name,

@@ -142,7 +142,7 @@ static bool logind_change_vt(struct wlr_session *base, unsigned vt) {
 		"/org/freedesktop/login1/seat/seat0", "org.freedesktop.login1.Seat", "SwitchTo",
 		&error, &msg, "u", (uint32_t)vt);
 	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Failed to change to vt '%d'", vt);
+		wlr_log(WLR_ERROR, "Failed to change to vt '%u'", vt);
 	}
 
 	sd_bus_error_free(&error);

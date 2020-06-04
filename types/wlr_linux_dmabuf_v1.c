@@ -210,7 +210,7 @@ static void params_create_common(struct wl_client *client,
 		if (buffer->attributes.offset[i] > size) {
 			wl_resource_post_error(params_resource,
 				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
-				"invalid offset %i for plane %d",
+				"invalid offset %" PRIu32 " for plane %d",
 				buffer->attributes.offset[i], i);
 			goto err_out;
 		}
@@ -219,7 +219,7 @@ static void params_create_common(struct wl_client *client,
 				buffer->attributes.stride[i] == 0) {
 			wl_resource_post_error(params_resource,
 				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
-				"invalid stride %i for plane %d",
+				"invalid stride %" PRIu32 " for plane %d",
 				buffer->attributes.stride[i], i);
 			goto err_out;
 		}
