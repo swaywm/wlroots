@@ -5,4 +5,5 @@ wlr_files += files(
 	'region.c',
 	'shm.c',
 	'signal.c',
+	'time.c',
 )
