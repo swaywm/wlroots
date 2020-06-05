@@ -20,6 +20,7 @@
 #include "relative-pointer-unstable-v1-client-protocol.h"
 #include "backend/wayland.h"
 #include "util/signal.h"
+#include "util/time.h"
 
 static struct wlr_wl_pointer *output_get_pointer(struct wlr_wl_output *output) {
 	struct wlr_input_device *wlr_dev;
@@ -195,12 +196,6 @@ static const struct wl_pointer_listener pointer_listener = {
 static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
 		uint32_t format, int32_t fd, uint32_t size) {
 	close(fd);
-}
-
-static uint32_t get_current_time_msec(void) {
-	struct timespec now;
-	clock_gettime(CLOCK_MONOTONIC, &now);
-	return now.tv_nsec / 1000;
 }
 
 static void keyboard_handle_enter(void *data, struct wl_keyboard *wl_keyboard,

@@ -13,6 +13,7 @@
 #include <wlr/interfaces/wlr_input_device.h>
 
 #include "util/signal.h"
+#include "util/time.h"
 #include "wlr/util/log.h"
 #include "tablet-unstable-v2-client-protocol.h"
 
@@ -83,12 +84,6 @@ struct wlr_wl_tablet_pad_group {
 	struct wl_list rings; // wlr_wl_tablet_pad_ring::link
 	struct wl_list strips; // wlr_wl_tablet_pad_strips::link
 };
-
-static uint32_t get_current_time_msec(void) {
-	struct timespec now;
-	clock_gettime(CLOCK_MONOTONIC, &now);
-	return now.tv_nsec / (1000 * 1000) + now.tv_sec * 1000;
-}
 
 static void handle_tablet_pad_ring_source(void *data,
 		struct zwp_tablet_pad_ring_v2 *zwp_tablet_pad_ring_v2,
