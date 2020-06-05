@@ -65,6 +65,7 @@ struct wlr_egl {
 	struct wl_display *wl_display;
 
 	struct wlr_drm_format_set dmabuf_formats;
+	EGLBoolean **external_only_dmabuf_formats;
 };
 
 // TODO: Allocate and return a wlr_egl
@@ -106,7 +107,7 @@ EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
  * of the dmabuf with wlr_egl_check_import_dmabuf once first.
  */
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
-	struct wlr_dmabuf_attributes *attributes);
+	struct wlr_dmabuf_attributes *attributes, bool *external_only);
 
 /**
  * Get the available dmabuf formats

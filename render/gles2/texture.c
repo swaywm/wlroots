@@ -273,26 +273,28 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 	wlr_texture_init(&texture->wlr_texture, &texture_impl,
 		attribs->width, attribs->height);
 	texture->egl = egl;
-	texture->target = GL_TEXTURE_EXTERNAL_OES;
 	texture->has_alpha = true;
 	texture->wl_format = 0xFFFFFFFF; // texture can't be written anyways
 	texture->inverted_y =
 		(attribs->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) != 0;
 
-	texture->image = wlr_egl_create_image_from_dmabuf(egl, attribs);
+	bool external_only;
+	texture->image =
+		wlr_egl_create_image_from_dmabuf(egl, attribs, &external_only);
 	if (texture->image == EGL_NO_IMAGE_KHR) {
 		wlr_log(WLR_ERROR, "Failed to create EGL image from DMA-BUF");
 		free(texture);
 		return NULL;
 	}
 
+	texture->target = external_only ? GL_TEXTURE_EXTERNAL_OES : GL_TEXTURE_2D;
+
 	PUSH_GLES2_DEBUG;
 
 	glGenTextures(1, &texture->tex);
-	glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture->tex);
-	gles2_procs.glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
-		texture->image);
-	glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+	glBindTexture(texture->target, texture->tex);
+	gles2_procs.glEGLImageTargetTexture2DOES(texture->target, texture->image);
+	glBindTexture(texture->target, 0);
 
 	POP_GLES2_DEBUG;
 

@@ -87,7 +87,7 @@ static void load_egl_proc(void *proc_ptr, const char *name) {
 
 static int get_egl_dmabuf_formats(struct wlr_egl *egl, int **formats);
 static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
-	uint64_t **modifiers);
+	uint64_t **modifiers, EGLBoolean **external_only);
 
 static void init_dmabuf_formats(struct wlr_egl *egl) {
 	int *formats;
@@ -96,11 +96,20 @@ static void init_dmabuf_formats(struct wlr_egl *egl) {
 		return;
 	}
 
+	egl->external_only_dmabuf_formats = calloc(formats_len, sizeof(EGLBoolean *));
+	if (egl->external_only_dmabuf_formats == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		goto out;
+	}
+
+	size_t external_formats_len = 0;
 	for (int i = 0; i < formats_len; i++) {
 		uint32_t fmt = formats[i];
 
 		uint64_t *modifiers;
-		int modifiers_len = get_egl_dmabuf_modifiers(egl, fmt, &modifiers);
+		EGLBoolean *external_only;
+		int modifiers_len =
+			get_egl_dmabuf_modifiers(egl, fmt, &modifiers, &external_only);
 		if (modifiers_len < 0) {
 			continue;
 		}
@@ -114,6 +123,9 @@ static void init_dmabuf_formats(struct wlr_egl *egl) {
 		}
 
 		free(modifiers);
+
+		egl->external_only_dmabuf_formats[external_formats_len] = external_only;
+		external_formats_len++;
 	}
 
 	char *str_formats = malloc(formats_len * 5 + 1);
@@ -305,6 +317,11 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 		return;
 	}
 
+	for (size_t i = 0; i < egl->dmabuf_formats.len; i++) {
+		free(egl->external_only_dmabuf_formats[i]);
+	}
+	free(egl->external_only_dmabuf_formats);
+
 	wlr_drm_format_set_finish(&egl->dmabuf_formats);
 
 	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -479,8 +496,29 @@ EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
 		EGL_WAYLAND_BUFFER_WL, data, attribs);
 }
 
+static bool dmabuf_format_is_external_only(struct wlr_egl *egl,
+		uint32_t format, uint64_t modifier) {
+	for (size_t i = 0; i < egl->dmabuf_formats.len; i++) {
+		struct wlr_drm_format *fmt = egl->dmabuf_formats.formats[i];
+		if (fmt->format == format) {
+			if (egl->external_only_dmabuf_formats[i] == NULL) {
+				break;
+			}
+			for (size_t j = 0; j < fmt->len; j++) {
+				if (fmt->modifiers[j] == modifier) {
+					return egl->external_only_dmabuf_formats[i][j];
+				}
+			}
+			break;
+		}
+	}
+	// No info, we're doomed. Choose GL_TEXTURE_EXTERNAL_OES and hope for the
+	// best.
+	return true;
+}
+
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
-		struct wlr_dmabuf_attributes *attributes) {
+		struct wlr_dmabuf_attributes *attributes, bool *external_only) {
 	if (!egl->exts.image_base_khr || !egl->exts.image_dmabuf_import_ext) {
 		wlr_log(WLR_ERROR, "dmabuf import extension not present");
 		return NULL;
@@ -561,8 +599,16 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 	attribs[atti++] = EGL_NONE;
 	assert(atti < sizeof(attribs)/sizeof(attribs[0]));
 
-	return egl->procs.eglCreateImageKHR(egl->display, EGL_NO_CONTEXT,
+	EGLImageKHR image = egl->procs.eglCreateImageKHR(egl->display, EGL_NO_CONTEXT,
 		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
+	if (image == EGL_NO_IMAGE_KHR) {
+		wlr_log(WLR_ERROR, "eglCreateImageKHR failed");
+		return EGL_NO_IMAGE_KHR;
+	}
+
+	*external_only = dmabuf_format_is_external_only(egl,
+		attributes->format, attributes->modifier);
+	return image;
 }
 
 static int get_egl_dmabuf_formats(struct wlr_egl *egl, int **formats) {
@@ -615,13 +661,15 @@ static int get_egl_dmabuf_formats(struct wlr_egl *egl, int **formats) {
 }
 
 static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
-		uint64_t **modifiers) {
+		uint64_t **modifiers, EGLBoolean **external_only) {
+	*modifiers = NULL;
+	*external_only = NULL;
+
 	if (!egl->exts.image_dmabuf_import_ext) {
 		wlr_log(WLR_DEBUG, "DMA-BUF extension not present");
 		return -1;
 	}
 	if (!egl->exts.image_dmabuf_import_modifiers_ext) {
-		*modifiers = NULL;
 		return 0;
 	}
 
@@ -632,18 +680,24 @@ static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
 		return -1;
 	}
 	if (num == 0) {
-		*modifiers = NULL;
 		return 0;
 	}
 
 	*modifiers = calloc(num, sizeof(uint64_t));
 	if (*modifiers == NULL) {
-		wlr_log(WLR_ERROR, "Allocation failed: %s", strerror(errno));
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return -1;
+	}
+	*external_only = calloc(num, sizeof(EGLBoolean));
+	if (*external_only == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		free(*modifiers);
+		*modifiers = NULL;
 		return -1;
 	}
 
 	if (!egl->procs.eglQueryDmaBufModifiersEXT(egl->display, format, num,
-		*modifiers, NULL, &num)) {
+			*modifiers, *external_only, &num)) {
 		wlr_log(WLR_ERROR, "Failed to query dmabuf modifiers");
 		free(*modifiers);
 		return -1;
