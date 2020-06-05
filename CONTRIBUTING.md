@@ -284,6 +284,11 @@ struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource) {
 }
 ```
 
+If a pointer to a `wl_resource` is stored, a resource destroy handler needs to
+be registered to clean it up. libwayland will automatically destroy resources
+in an arbitrary order when a client is disconnected, the compositor must handle
+this correctly.
+
 ### Destroying resources
 
 Object structs should only be destroyed when their resource is destroyed, ie.
