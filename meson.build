@@ -89,7 +89,7 @@ conf_data.set10('WLR_HAS_XCB_ERRORS', false)
 conf_data.set10('WLR_HAS_XCB_ICCCM', false)
 conf_data.set10('WLR_HAS_XDG_FOREIGN', false)
 
-wayland_server = dependency('wayland-server', version: '>=1.18')
+wayland_server = dependency('wayland-server', version: '>=1.19')
 wayland_client = dependency('wayland-client')
 wayland_protos = dependency('wayland-protocols', version: '>=1.17')
 egl = dependency('egl')
