@@ -11,6 +11,7 @@
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include "util/signal.h"
+#include "util/time.h"
 
 #define CALLBACK_VERSION 1
 #define SURFACE_VERSION 4
@@ -1060,10 +1061,6 @@ void wlr_surface_send_leave(struct wlr_surface *surface,
 			wl_surface_send_leave(surface->resource, resource);
 		}
 	}
-}
-
-static inline int64_t timespec_to_msec(const struct timespec *a) {
-	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
 }
 
 void wlr_surface_send_frame_done(struct wlr_surface *surface,

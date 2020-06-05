@@ -4,6 +4,7 @@
 
 #include "tablet-unstable-v2-protocol.h"
 #include "util/array.h"
+#include "util/time.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <types/wlr_tablet_v2.h>
@@ -301,16 +302,10 @@ static ssize_t tablet_tool_button_update(struct wlr_tablet_v2_tablet_tool *tool,
 	return i;
 }
 
-static inline int64_t timespec_to_msec(const struct timespec *a) {
-	return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
-}
-
 static void send_tool_frame(void *data) {
 	struct wlr_tablet_tool_client_v2 *tool = data;
 
-	struct timespec now;
-	clock_gettime(CLOCK_MONOTONIC, &now);
-	zwp_tablet_tool_v2_send_frame(tool->resource, timespec_to_msec(&now));
+	zwp_tablet_tool_v2_send_frame(tool->resource, get_current_time_msec());
 	tool->frame_source = NULL;
 }
 
