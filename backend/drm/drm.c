@@ -1052,7 +1052,12 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 	wlr_log(WLR_DEBUG, "De-allocating CRTC %zu for output '%s'",
 		conn->crtc - drm->crtcs, conn->output.name);
 
-	drm_connector_set_mode(conn, NULL);
+	conn->crtc->pending_modeset = true;
+	conn->crtc->pending.active = false;
+	if (!drm_crtc_commit(conn, 0)) {
+		return;
+	}
+
 	drm_plane_finish_surface(conn->crtc->primary);
 	drm_plane_finish_surface(conn->crtc->cursor);
 	if (conn->crtc->cursor != NULL) {
