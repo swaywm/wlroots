@@ -173,6 +173,7 @@ struct wlr_xwayland_surface {
 	bool modal;
 	bool fullscreen;
 	bool maximized_vert, maximized_horz;
+	bool minimized;
 
 	bool has_alpha;
 
@@ -181,6 +182,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal request_configure;
 		struct wl_signal request_move;
 		struct wl_signal request_resize;
+		struct wl_signal request_minimize;
 		struct wl_signal request_maximize;
 		struct wl_signal request_fullscreen;
 		struct wl_signal request_activate;
@@ -250,6 +252,9 @@ void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *surface,
 
 void wlr_xwayland_surface_close(struct wlr_xwayland_surface *surface);
 
+void wlr_xwayland_surface_set_minimized(struct wlr_xwayland_surface *surface,
+	bool minimized);
+	
 void wlr_xwayland_surface_set_maximized(struct wlr_xwayland_surface *surface,
 	bool maximized);
 
