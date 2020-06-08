@@ -50,7 +50,7 @@ const GLchar tex_vertex_src[] =
 "void main() {\n"
 "	gl_Position = vec4(proj * vec3(pos, 1.0), 1.0);\n"
 "	if (invert_y) {\n"
-"		v_texcoord = vec2(texcoord.s, 1.0 - texcoord.t);\n"
+"		v_texcoord = vec2(texcoord.x, 1.0 - texcoord.y);\n"
 "	} else {\n"
 "		v_texcoord = texcoord;\n"
 "	}\n"
