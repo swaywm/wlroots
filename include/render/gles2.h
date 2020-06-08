@@ -38,6 +38,8 @@ struct wlr_gles2_tex_shader {
 	GLint invert_y;
 	GLint tex;
 	GLint alpha;
+	GLint pos_attrib;
+	GLint tex_attrib;
 };
 
 struct wlr_gles2_renderer {
@@ -58,11 +60,14 @@ struct wlr_gles2_renderer {
 			GLuint program;
 			GLint proj;
 			GLint color;
+			GLint pos_attrib;
 		} quad;
 		struct {
 			GLuint program;
 			GLint proj;
 			GLint color;
+			GLint pos_attrib;
+			GLint tex_attrib;
 		} ellipse;
 		struct wlr_gles2_tex_shader tex_rgba;
 		struct wlr_gles2_tex_shader tex_rgbx;

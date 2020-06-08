@@ -14,6 +14,13 @@
 #include <wlr/util/log.h>
 #include "render/gles2.h"
 
+static const GLfloat verts[] = {
+	1, 0, // top right
+	0, 0, // top left
+	1, 1, // bottom right
+	0, 1, // bottom left
+};
+
 struct wlr_gles2_procs gles2_procs = {0};
 
 static const struct wlr_renderer_impl renderer_impl;
@@ -86,37 +93,6 @@ static void gles2_scissor(struct wlr_renderer *wlr_renderer,
 	POP_GLES2_DEBUG;
 }
 
-static void draw_quad_with_texcoord(GLfloat x1, GLfloat y1,
-		GLfloat x2, GLfloat y2) {
-	GLfloat verts[] = {
-		1, 0, // top right
-		0, 0, // top left
-		1, 1, // bottom right
-		0, 1, // bottom left
-	};
-	GLfloat texcoord[] = {
-		x2, y1, // top right
-		x1, y1, // top left
-		x2, y2, // bottom right
-		x1, y2, // bottom left
-	};
-
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, texcoord);
-
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-	glDisableVertexAttribArray(0);
-	glDisableVertexAttribArray(1);
-}
-
-static void draw_quad(void) {
-	draw_quad_with_texcoord(0, 0, 1, 1);
-}
-
 static bool gles2_render_subtexture_with_matrix(
 		struct wlr_renderer *wlr_renderer, struct wlr_texture *wlr_texture,
 		const struct wlr_fbox *box, const float matrix[static 9],
@@ -168,18 +144,33 @@ static bool gles2_render_subtexture_with_matrix(
 	glUniform1i(shader->tex, 0);
 	glUniform1f(shader->alpha, alpha);
 
-	GLfloat x1 = box->x / wlr_texture->width;
-	GLfloat y1 = box->y / wlr_texture->height;
-	GLfloat x2 = (box->x + box->width) / wlr_texture->width;
-	GLfloat y2 = (box->y + box->height) / wlr_texture->height;
-	draw_quad_with_texcoord(x1, y1, x2, y2);
+	const GLfloat x1 = box->x / wlr_texture->width;
+	const GLfloat y1 = box->y / wlr_texture->height;
+	const GLfloat x2 = (box->x + box->width) / wlr_texture->width;
+	const GLfloat y2 = (box->y + box->height) / wlr_texture->height;
+	const GLfloat texcoord[] = {
+		x2, y1, // top right
+		x1, y1, // top left
+		x2, y2, // bottom right
+		x1, y2, // bottom left
+	};
+
+	glVertexAttribPointer(shader->pos_attrib, 2, GL_FLOAT, GL_FALSE, 0, verts);
+	glVertexAttribPointer(shader->tex_attrib, 2, GL_FLOAT, GL_FALSE, 0, texcoord);
+
+	glEnableVertexAttribArray(shader->pos_attrib);
+	glEnableVertexAttribArray(shader->tex_attrib);
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	glDisableVertexAttribArray(shader->pos_attrib);
+	glDisableVertexAttribArray(shader->tex_attrib);
 
 	glBindTexture(texture->target, 0);
 
 	POP_GLES2_DEBUG;
 	return true;
 }
-
 
 static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 		const float color[static 4], const float matrix[static 9]) {
@@ -196,7 +187,16 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 
 	glUniformMatrix3fv(renderer->shaders.quad.proj, 1, GL_FALSE, transposition);
 	glUniform4f(renderer->shaders.quad.color, color[0], color[1], color[2], color[3]);
-	draw_quad();
+
+	glVertexAttribPointer(renderer->shaders.quad.pos_attrib, 2, GL_FLOAT, GL_FALSE,
+			0, verts);
+
+	glEnableVertexAttribArray(renderer->shaders.quad.pos_attrib);
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	glDisableVertexAttribArray(renderer->shaders.quad.pos_attrib);
+
 	POP_GLES2_DEBUG;
 }
 
@@ -210,12 +210,31 @@ static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
 	float transposition[9];
 	wlr_matrix_transpose(transposition, matrix);
 
+	static const GLfloat texcoord[] = {
+		1, 0, // top right
+		0, 0, // top left
+		1, 1, // bottom right
+		0, 1, // bottom left
+	};
+
 	PUSH_GLES2_DEBUG;
 	glUseProgram(renderer->shaders.ellipse.program);
 
 	glUniformMatrix3fv(renderer->shaders.ellipse.proj, 1, GL_FALSE, transposition);
 	glUniform4f(renderer->shaders.ellipse.color, color[0], color[1], color[2], color[3]);
-	draw_quad();
+
+	glVertexAttribPointer(renderer->shaders.ellipse.pos_attrib, 2, GL_FLOAT,
+			GL_FALSE, 0, verts);
+	glVertexAttribPointer(renderer->shaders.ellipse.tex_attrib, 2, GL_FLOAT,
+			GL_FALSE, 0, texcoord);
+
+	glEnableVertexAttribArray(renderer->shaders.ellipse.pos_attrib);
+	glEnableVertexAttribArray(renderer->shaders.ellipse.tex_attrib);
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	glDisableVertexAttribArray(renderer->shaders.ellipse.pos_attrib);
+	glDisableVertexAttribArray(renderer->shaders.ellipse.tex_attrib);
 	POP_GLES2_DEBUG;
 }
 
@@ -725,6 +744,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	}
 	renderer->shaders.quad.proj = glGetUniformLocation(prog, "proj");
 	renderer->shaders.quad.color = glGetUniformLocation(prog, "color");
+	renderer->shaders.quad.pos_attrib = glGetAttribLocation(prog, "pos");
 
 	renderer->shaders.ellipse.program = prog =
 		link_program(quad_vertex_src, ellipse_fragment_src);
@@ -733,6 +753,8 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	}
 	renderer->shaders.ellipse.proj = glGetUniformLocation(prog, "proj");
 	renderer->shaders.ellipse.color = glGetUniformLocation(prog, "color");
+	renderer->shaders.ellipse.pos_attrib = glGetAttribLocation(prog, "pos");
+	renderer->shaders.ellipse.tex_attrib = glGetAttribLocation(prog, "texcoord");
 
 	renderer->shaders.tex_rgba.program = prog =
 		link_program(tex_vertex_src, tex_fragment_src_rgba);
@@ -743,6 +765,8 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	renderer->shaders.tex_rgba.invert_y = glGetUniformLocation(prog, "invert_y");
 	renderer->shaders.tex_rgba.tex = glGetUniformLocation(prog, "tex");
 	renderer->shaders.tex_rgba.alpha = glGetUniformLocation(prog, "alpha");
+	renderer->shaders.tex_rgba.pos_attrib = glGetAttribLocation(prog, "pos");
+	renderer->shaders.tex_rgba.tex_attrib = glGetAttribLocation(prog, "texcoord");
 
 	renderer->shaders.tex_rgbx.program = prog =
 		link_program(tex_vertex_src, tex_fragment_src_rgbx);
@@ -753,6 +777,8 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	renderer->shaders.tex_rgbx.invert_y = glGetUniformLocation(prog, "invert_y");
 	renderer->shaders.tex_rgbx.tex = glGetUniformLocation(prog, "tex");
 	renderer->shaders.tex_rgbx.alpha = glGetUniformLocation(prog, "alpha");
+	renderer->shaders.tex_rgbx.pos_attrib = glGetAttribLocation(prog, "pos");
+	renderer->shaders.tex_rgbx.tex_attrib = glGetAttribLocation(prog, "texcoord");
 
 	if (renderer->exts.egl_image_external_oes) {
 		renderer->shaders.tex_ext.program = prog =
@@ -764,6 +790,8 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 		renderer->shaders.tex_ext.invert_y = glGetUniformLocation(prog, "invert_y");
 		renderer->shaders.tex_ext.tex = glGetUniformLocation(prog, "tex");
 		renderer->shaders.tex_ext.alpha = glGetUniformLocation(prog, "alpha");
+		renderer->shaders.tex_ext.pos_attrib = glGetAttribLocation(prog, "pos");
+		renderer->shaders.tex_ext.tex_attrib = glGetAttribLocation(prog, "texcoord");
 	}
 
 	POP_GLES2_DEBUG;
