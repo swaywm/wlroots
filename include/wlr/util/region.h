@@ -30,6 +30,9 @@
 void wlr_region_scale(pixman_region32_t *dst, pixman_region32_t *src,
 	float scale);
 
+void wlr_region_scale_xy(pixman_region32_t *dst, pixman_region32_t *src,
+	float scale_x, float scale_y);
+
 /**
  * Applies a transform to a region inside a box of size `width` x `height`.
  */

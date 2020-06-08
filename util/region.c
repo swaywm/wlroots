@@ -7,7 +7,12 @@
 
 void wlr_region_scale(pixman_region32_t *dst, pixman_region32_t *src,
 		float scale) {
-	if (scale == 1) {
+	wlr_region_scale_xy(dst, src, scale, scale);
+}
+
+void wlr_region_scale_xy(pixman_region32_t *dst, pixman_region32_t *src,
+		float scale_x, float scale_y) {
+	if (scale_x == 1.0 && scale_y == 1.0) {
 		pixman_region32_copy(dst, src);
 		return;
 	}
@@ -21,10 +26,10 @@ void wlr_region_scale(pixman_region32_t *dst, pixman_region32_t *src,
 	}
 
 	for (int i = 0; i < nrects; ++i) {
-		dst_rects[i].x1 = floor(src_rects[i].x1 * scale);
-		dst_rects[i].x2 = ceil(src_rects[i].x2 * scale);
-		dst_rects[i].y1 = floor(src_rects[i].y1 * scale);
-		dst_rects[i].y2 = ceil(src_rects[i].y2 * scale);
+		dst_rects[i].x1 = floor(src_rects[i].x1 * scale_x);
+		dst_rects[i].x2 = ceil(src_rects[i].x2 * scale_x);
+		dst_rects[i].y1 = floor(src_rects[i].y1 * scale_y);
+		dst_rects[i].y2 = ceil(src_rects[i].y2 * scale_y);
 	}
 
 	pixman_region32_fini(dst);
