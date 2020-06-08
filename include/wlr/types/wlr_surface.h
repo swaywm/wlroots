@@ -262,4 +262,15 @@ void wlr_surface_for_each_surface(struct wlr_surface *surface,
 void wlr_surface_get_effective_damage(struct wlr_surface *surface,
 	pixman_region32_t *damage);
 
+/**
+ * Get the source rectangle describing the region of the buffer that needs to
+ * be sampled to render this surface's current state. The box is in
+ * buffer-local coordinates.
+ *
+ * If the viewport's source rectangle is unset, the position is zero and the
+ * size is the buffer's.
+ */
+void wlr_surface_get_buffer_source_box(struct wlr_surface *surface,
+	struct wlr_fbox *box);
+
 #endif

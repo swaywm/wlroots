@@ -1226,3 +1226,26 @@ void wlr_surface_get_effective_damage(struct wlr_surface *surface,
 			surface->previous.width, surface->previous.height);
 	}
 }
+
+void wlr_surface_get_buffer_source_box(struct wlr_surface *surface,
+		struct wlr_fbox *box) {
+	box->x = box->y = 0;
+	box->width = surface->current.buffer_width;
+	box->height = surface->current.buffer_height;
+
+	if (surface->current.viewport.has_src) {
+		box->x = surface->current.viewport.src.x * surface->current.scale;
+		box->y = surface->current.viewport.src.y * surface->current.scale;
+		box->width = surface->current.viewport.src.width * surface->current.scale;
+		box->height = surface->current.viewport.src.height * surface->current.scale;
+		if ((surface->current.transform & WL_OUTPUT_TRANSFORM_90) != 0) {
+			double tmp = box->x;
+			box->x = box->y;
+			box->y = tmp;
+
+			tmp = box->width;
+			box->width = box->height;
+			box->height = tmp;
+		}
+	}
+}
