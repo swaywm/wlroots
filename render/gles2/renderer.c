@@ -364,7 +364,9 @@ static bool gles2_blit_dmabuf(struct wlr_renderer *wlr_renderer,
 
 	// TODO: The imported buffer should be checked with
 	// eglQueryDmaBufModifiersEXT to see if it may be modified.
-	EGLImageKHR image = wlr_egl_create_image_from_dmabuf(egl, dst_attr);
+	bool external_only = false;
+	EGLImageKHR image = wlr_egl_create_image_from_dmabuf(egl, dst_attr,
+			&external_only);
 	if (image == EGL_NO_IMAGE_KHR) {
 		goto texture_destroy_out;
 	}
