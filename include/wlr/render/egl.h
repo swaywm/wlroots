@@ -45,8 +45,10 @@ struct wlr_egl {
 	EGLDisplay display;
 	EGLConfig config;
 	EGLContext context;
+	EGLDeviceEXT device; // may be EGL_NO_DEVICE_EXT
 
 	struct {
+		// Display extensions
 		bool bind_wayland_display_wl;
 		bool buffer_age_ext;
 		bool image_base_khr;
@@ -54,6 +56,9 @@ struct wlr_egl {
 		bool image_dmabuf_import_ext;
 		bool image_dmabuf_import_modifiers_ext;
 		bool swap_buffers_with_damage;
+
+		// Device extensions
+		bool device_drm_ext;
 	} exts;
 
 	struct {
@@ -70,6 +75,8 @@ struct wlr_egl {
 		PFNEGLEXPORTDMABUFIMAGEQUERYMESAPROC eglExportDMABUFImageQueryMESA;
 		PFNEGLEXPORTDMABUFIMAGEMESAPROC eglExportDMABUFImageMESA;
 		PFNEGLDEBUGMESSAGECONTROLKHRPROC eglDebugMessageControlKHR;
+		PFNEGLQUERYDISPLAYATTRIBEXTPROC eglQueryDisplayAttribEXT;
+		PFNEGLQUERYDEVICESTRINGEXTPROC eglQueryDeviceStringEXT;
 	} procs;
 
 	struct wl_display *wl_display;
@@ -163,5 +170,7 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 	pixman_region32_t *damage);
 
 bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface);
+
+int wlr_egl_dup_drm_fd(struct wlr_egl *egl);
 
 #endif
