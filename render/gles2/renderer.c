@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
 #include <wlr/render/egl.h>
@@ -644,6 +645,17 @@ static bool gles2_init_wl_display(struct wlr_renderer *wlr_renderer,
 	return true;
 }
 
+static int gles2_get_drm_fd(struct wlr_renderer *wlr_renderer) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer(wlr_renderer);
+
+	if (renderer->drm_fd < 0) {
+		renderer->drm_fd = wlr_egl_dup_drm_fd(renderer->egl);
+	}
+
+	return renderer->drm_fd;
+}
+
 struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer(wlr_renderer);
@@ -675,6 +687,10 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 
 	wlr_egl_unset_current(renderer->egl);
 
+	if (renderer->drm_fd >= 0) {
+		close(renderer->drm_fd);
+	}
+
 	free(renderer);
 }
 
@@ -700,6 +716,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.texture_from_dmabuf = gles2_texture_from_dmabuf,
 	.init_wl_display = gles2_init_wl_display,
 	.blit_dmabuf = gles2_blit_dmabuf,
+	.get_drm_fd = gles2_get_drm_fd,
 };
 
 void push_gles2_debug_(struct wlr_gles2_renderer *renderer,
@@ -856,6 +873,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 
 	renderer->egl = egl;
 	renderer->exts_str = exts_str;
+	renderer->drm_fd = -1;
 
 	wlr_log(WLR_INFO, "Using %s", glGetString(GL_VERSION));
 	wlr_log(WLR_INFO, "GL vendor: %s", glGetString(GL_VENDOR));

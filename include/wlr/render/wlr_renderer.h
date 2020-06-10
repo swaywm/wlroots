@@ -132,6 +132,13 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	struct wl_display *wl_display);
 
 /**
+ * Obtains the FD of the DRM device used for rendering, or -1 if unavailable.
+ *
+ * The caller doesn't have ownership of the FD, it must not close it.
+ */
+int wlr_renderer_get_drm_fd(struct wlr_renderer *r);
+
+/**
  * Destroys this wlr_renderer. Textures must be destroyed separately.
  */
 void wlr_renderer_destroy(struct wlr_renderer *renderer);
