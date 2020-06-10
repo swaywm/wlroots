@@ -1,10 +1,14 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <drm_fourcc.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <wlr/render/egl.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
+#include <xf86drm.h>
 
 static bool egl_get_config(EGLDisplay disp, const EGLint *attribs,
 		EGLConfig *out, EGLint visual_id) {
@@ -289,6 +293,32 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 			"eglQueryWaylandBufferWL");
 	}
 
+	const char *device_exts_str = NULL;
+	if (check_egl_ext(client_exts_str, "EGL_EXT_device_query")) {
+		load_egl_proc(&egl->procs.eglQueryDisplayAttribEXT,
+			"eglQueryDisplayAttribEXT");
+		load_egl_proc(&egl->procs.eglQueryDeviceStringEXT,
+			"eglQueryDeviceStringEXT");
+
+		EGLAttrib device_attrib;
+		if (!egl->procs.eglQueryDisplayAttribEXT(egl->display,
+				EGL_DEVICE_EXT, &device_attrib)) {
+			wlr_log(WLR_ERROR, "eglQueryDisplayAttribEXT(EGL_DEVICE_EXT) failed");
+			goto error;
+		}
+		egl->device = (EGLDeviceEXT)device_attrib;
+
+		device_exts_str =
+			egl->procs.eglQueryDeviceStringEXT(egl->device, EGL_EXTENSIONS);
+		if (device_exts_str == NULL) {
+			wlr_log(WLR_ERROR, "eglQueryDeviceStringEXT(EGL_EXTENSIONS) failed");
+			goto error;
+		}
+
+		egl->exts.device_drm_ext =
+			check_egl_ext(device_exts_str, "EGL_EXT_device_drm");
+	}
+
 	if (!egl_get_config(egl->display, config_attribs, &egl->config, visual_id)) {
 		wlr_log(WLR_ERROR, "Failed to get EGL config");
 		goto error;
@@ -297,6 +327,9 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	wlr_log(WLR_INFO, "Using EGL %d.%d", (int)major, (int)minor);
 	wlr_log(WLR_INFO, "Supported EGL client extensions: %s", client_exts_str);
 	wlr_log(WLR_INFO, "Supported EGL display extensions: %s", display_exts_str);
+	if (device_exts_str != NULL) {
+		wlr_log(WLR_INFO, "Supported EGL device extensions: %s", device_exts_str);
+	}
 	wlr_log(WLR_INFO, "EGL vendor: %s", eglQueryString(egl->display, EGL_VENDOR));
 
 	init_dmabuf_formats(egl);
@@ -817,4 +850,40 @@ bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface) {
 		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 	}
 	return eglDestroySurface(egl->display, surface);
+}
+
+int wlr_egl_dup_drm_fd(struct wlr_egl *egl) {
+	if (egl->device == EGL_NO_DEVICE_EXT || !egl->exts.device_drm_ext) {
+		return -1;
+	}
+
+	const char *primary_name = egl->procs.eglQueryDeviceStringEXT(egl->device,
+		EGL_DRM_DEVICE_FILE_EXT);
+	if (primary_name == NULL) {
+		wlr_log(WLR_ERROR,
+			"eglQueryDeviceStringEXT(EGL_DRM_DEVICE_FILE_EXT) failed");
+		return -1;
+	}
+
+	int primary_fd = open(primary_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+	if (primary_fd < 0) {
+		wlr_log_errno(WLR_ERROR, "Failed to open primary DRM device");
+		return -1;
+	}
+
+	char *render_name = drmGetRenderDeviceNameFromFd(primary_fd);
+	if (render_name == NULL) {
+		wlr_log_errno(WLR_ERROR, "drmGetRenderDeviceNameFromFd failed");
+		close(primary_fd);
+		return -1;
+	}
+	close(primary_fd);
+
+	int render_fd = open(render_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+	if (render_fd < 0) {
+		wlr_log_errno(WLR_ERROR, "Failed to open render DRM device");
+		return -1;
+	}
+
+	return render_fd;
 }
