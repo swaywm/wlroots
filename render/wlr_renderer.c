@@ -269,3 +269,10 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
 
 	return renderer;
 }
+
+int wlr_renderer_get_drm_fd(struct wlr_renderer *r) {
+	if (!r->impl->get_drm_fd) {
+		return -1;
+	}
+	return r->impl->get_drm_fd(r);
+}

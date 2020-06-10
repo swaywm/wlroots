@@ -72,6 +72,7 @@ struct wlr_renderer_impl {
 	bool (*blit_dmabuf)(struct wlr_renderer *renderer,
 		struct wlr_dmabuf_attributes *dst,
 		struct wlr_dmabuf_attributes *src);
+	int (*get_drm_fd)(struct wlr_renderer *renderer);
 };
 
 void wlr_renderer_init(struct wlr_renderer *renderer,

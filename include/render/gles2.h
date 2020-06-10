@@ -35,6 +35,7 @@ struct wlr_gles2_renderer {
 	struct wlr_renderer wlr_renderer;
 
 	struct wlr_egl *egl;
+	int drm_fd;
 
 	const char *exts_str;
 	struct {
