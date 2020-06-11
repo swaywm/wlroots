@@ -87,7 +87,7 @@ static bool find_render_node(char *node, size_t maxlen) {
 			continue;
 		}
 
-		strncpy(node, dev->nodes[DRM_NODE_RENDER], maxlen);
+		strncpy(node, dev->nodes[DRM_NODE_RENDER], maxlen - 1);
 		node[maxlen - 1] = '\0';
 		r = true;
 		break;
