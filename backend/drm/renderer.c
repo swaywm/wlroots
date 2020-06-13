@@ -180,6 +180,8 @@ static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer,
 		gbm_bo_set_user_data(bo, tex, free_tex);
 	}
 
+	wlr_dmabuf_attributes_finish(&attribs);
+
 	return tex;
 }
 
