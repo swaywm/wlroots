@@ -197,9 +197,11 @@ static void frame_handle_output_precommit(struct wl_listener *listener,
 
 		wl_shm_buffer_begin_access(shm_buffer);
 		void *data = wl_shm_buffer_get_data(shm_buffer);
-		flags = 0;
-		ok = wlr_renderer_read_pixels(renderer, fmt, &flags, stride,
-				width, height, x, y, 0, 0, data);
+		uint32_t renderer_flags = 0;
+		ok = wlr_renderer_read_pixels(renderer, fmt, &renderer_flags,
+				stride, width, height, x, y, 0, 0, data);
+		flags |= renderer_flags & WLR_RENDERER_READ_PIXELS_Y_INVERT ?
+				ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT : 0;
 		wl_shm_buffer_end_access(shm_buffer);
 	} else if (dma_buffer) {
 		struct wlr_dmabuf_attributes attr = { 0 };
