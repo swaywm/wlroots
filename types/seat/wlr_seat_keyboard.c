@@ -316,10 +316,13 @@ void wlr_seat_keyboard_enter(struct wlr_seat *seat,
 void wlr_seat_keyboard_notify_enter(struct wlr_seat *seat,
 		struct wlr_surface *surface, uint32_t keycodes[], size_t num_keycodes,
 		struct wlr_keyboard_modifiers *modifiers) {
-	// NULL surfaces are prohibited in the grab-compatible API. Use
-	// wlr_seat_keyboard_notify_clear_focus() instead.
-	assert(surface);
 	struct wlr_seat_keyboard_grab *grab = seat->keyboard_state.grab;
+	if (!surface) {
+		// NULL surfaces are prohibited in the grab-compatible API.
+		// Clear focus instead.
+		grab->interface->clear_focus(grab);
+		return;
+	}
 	grab->interface->enter(grab, surface, keycodes, num_keycodes, modifiers);
 }
 

@@ -336,10 +336,13 @@ void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat) {
 
 void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
 		struct wlr_surface *surface, double sx, double sy) {
-	// NULL surfaces are prohibited in the grab-compatible API. Use
-	// wlr_seat_pointer_notify_clear_focus() instead.
-	assert(surface);
 	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
+	if (!surface) {
+		// NULL surfaces are prohibited in the grab-compatible API.
+		// Clear focus instead.
+		grab->interface->clear_focus(grab);
+		return;
+	}
 	grab->interface->enter(grab, surface, sx, sy);
 }
 
