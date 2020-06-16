@@ -86,6 +86,7 @@ bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
 
 void wlr_render_rect(struct wlr_renderer *r, const struct wlr_box *box,
 		const float color[static 4], const float projection[static 9]) {
+	assert(box->width > 0 && box->height > 0);
 	float matrix[9];
 	wlr_matrix_project_box(matrix, box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
 		projection);
@@ -101,6 +102,7 @@ void wlr_render_quad_with_matrix(struct wlr_renderer *r,
 
 void wlr_render_ellipse(struct wlr_renderer *r, const struct wlr_box *box,
 		const float color[static 4], const float projection[static 9]) {
+	assert(box->width > 0 && box->height > 0);
 	float matrix[9];
 	wlr_matrix_project_box(matrix, box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
 		projection);
