@@ -469,6 +469,9 @@ void seat_client_create_keyboard(struct wlr_seat_client *seat_client,
 		}
 
 		wl_array_release(&keys);
+
+		wlr_seat_keyboard_send_modifiers(seat_client->seat,
+			&keyboard->modifiers);
 	}
 }
 
