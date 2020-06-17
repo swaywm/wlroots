@@ -240,3 +240,13 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
 
 	return renderer;
 }
+
+bool wlr_renderer_preferred_read_format(struct wlr_renderer *r,
+		enum wl_shm_format *fmt) {
+	if (!r->impl->preferred_read_format || !r->impl->read_pixels) {
+		return false;
+	}
+
+	*fmt = r->impl->preferred_read_format(r);
+	return true;
+}

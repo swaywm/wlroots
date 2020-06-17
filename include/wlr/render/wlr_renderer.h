@@ -128,4 +128,7 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
  */
 void wlr_renderer_destroy(struct wlr_renderer *renderer);
 
+bool wlr_renderer_preferred_read_format(struct wlr_renderer *r,
+		enum wl_shm_format *fmt);
+
 #endif
