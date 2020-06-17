@@ -572,6 +572,9 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 	wlr_renderer_clear(backend->renderer, (float[]){ 1.0, 1.0, 1.0, 1.0 });
 	wlr_renderer_end(backend->renderer);
 
+	wlr_renderer_preferred_read_format(backend->renderer,
+			&output->wlr_output.read_format);
+
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 

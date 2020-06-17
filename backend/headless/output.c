@@ -33,6 +33,8 @@ static bool create_fbo(struct wlr_headless_output *output,
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
 		GL_RENDERBUFFER, rbo);
 	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	wlr_renderer_preferred_read_format(output->backend->renderer,
+			&output->wlr_output.read_format);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	wlr_egl_unset_current(output->backend->egl);

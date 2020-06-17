@@ -664,6 +664,9 @@ static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn) {
 	struct wlr_drm_plane *plane = crtc->primary;
 	if (plane_get_next_fb(plane)->type == WLR_DRM_FB_TYPE_NONE) {
 		drm_surface_render_black_frame(&plane->surf);
+		wlr_renderer_preferred_read_format(
+				plane->surf.renderer->wlr_rend,
+				&conn->output.read_format);
 		if (!drm_fb_lock_surface(&plane->pending_fb, &plane->surf)) {
 			return false;
 		}
