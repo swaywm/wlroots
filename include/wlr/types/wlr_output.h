@@ -134,6 +134,7 @@ struct wlr_output {
 	struct wlr_output_mode *current_mode;
 	int32_t width, height;
 	int32_t refresh; // mHz, may be zero
+	enum wl_shm_format read_format;
 
 	bool enabled;
 	float scale;

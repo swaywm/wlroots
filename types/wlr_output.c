@@ -321,6 +321,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	output->backend = backend;
 	output->impl = impl;
 	output->display = display;
+	output->read_format = 0xffffffff;
 	wl_list_init(&output->modes);
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
@@ -448,15 +449,10 @@ bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age) {
 
 bool wlr_output_preferred_read_format(struct wlr_output *output,
 		enum wl_shm_format *fmt) {
-	if (!output->impl->attach_render(output, NULL)) {
+	if (output->read_format == 0xffffffff)
 		return false;
-	}
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
-	if (!renderer->impl->preferred_read_format || !renderer->impl->read_pixels) {
-		return false;
-	}
-	*fmt = renderer->impl->preferred_read_format(renderer);
+	*fmt = output->read_format;
 	return true;
 }
 
