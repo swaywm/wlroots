@@ -17,6 +17,10 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 	return false;
 }
 
+static void output_rollback_render(struct wlr_output *wlr_output) {
+	// This space is intentionally left blank
+}
+
 static bool output_commit(struct wlr_output *wlr_output) {
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
 		wlr_log(WLR_DEBUG, "Cannot disable a noop output");
@@ -50,6 +54,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 static const struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
+	.rollback_render = output_rollback_render,
 	.commit = output_commit,
 };
 
