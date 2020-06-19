@@ -586,7 +586,7 @@ static bool drm_connector_commit(struct wlr_output *output) {
 	return true;
 }
 
-static void drm_connector_rollback(struct wlr_output *output) {
+static void drm_connector_rollback_render(struct wlr_output *output) {
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
 	wlr_egl_unset_current(&drm->renderer.egl);
 }
@@ -1024,7 +1024,7 @@ static const struct wlr_output_impl output_impl = {
 	.attach_render = drm_connector_attach_render,
 	.test = drm_connector_test,
 	.commit = drm_connector_commit,
-	.rollback = drm_connector_rollback,
+	.rollback_render = drm_connector_rollback_render,
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.export_dmabuf = drm_connector_export_dmabuf,
 };

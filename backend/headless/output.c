@@ -140,13 +140,12 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	return true;
 }
 
-static void output_rollback(struct wlr_output *wlr_output) {
+static void output_rollback_render(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
-	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		wlr_egl_unset_current(output->backend->egl);
-	}
+	assert(wlr_egl_is_current(output->backend->egl));
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	wlr_egl_unset_current(output->backend->egl);
 }
 
 static void output_destroy(struct wlr_output *wlr_output) {
@@ -162,7 +161,7 @@ static const struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
 	.commit = output_commit,
-	.rollback = output_rollback,
+	.rollback_render = output_rollback_render,
 };
 
 bool wlr_output_is_headless(struct wlr_output *wlr_output) {
