@@ -448,15 +448,16 @@ bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age) {
 
 bool wlr_output_preferred_read_format(struct wlr_output *output,
 		enum wl_shm_format *fmt) {
-	if (!output->impl->attach_render(output, NULL)) {
-		return false;
-	}
-
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	if (!renderer->impl->preferred_read_format || !renderer->impl->read_pixels) {
 		return false;
 	}
+
+	if (!output->impl->attach_render(output, NULL)) {
+		return false;
+	}
 	*fmt = renderer->impl->preferred_read_format(renderer);
+	output->impl->rollback_render(output);
 	return true;
 }
 
