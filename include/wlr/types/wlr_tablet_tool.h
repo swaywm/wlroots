@@ -35,7 +35,8 @@ enum wlr_tablet_tool_type {
 	WLR_TABLET_TOOL_TYPE_LENS,
 	/** A rotary device with positional and rotation data */
 	WLR_TABLET_TOOL_TYPE_TOTEM,
-
+	/** Sentinel enum entry */
+	WLR_TABLET_TOOL_TYPE_LAST,
 };
 
 struct wlr_tablet_tool {

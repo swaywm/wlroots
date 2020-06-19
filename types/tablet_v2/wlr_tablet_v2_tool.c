@@ -77,6 +77,8 @@ static enum zwp_tablet_tool_v2_type tablet_type_from_wlr_type(
 	case WLR_TABLET_TOOL_TYPE_TOTEM:
 		// missing, see:
 		// https://gitlab.freedesktop.org/wayland/wayland-protocols/-/issues/19
+	case WLR_TABLET_TOOL_TYPE_LAST:
+		// Sentinel, should not be called.
 		abort();
 	}
 	abort(); // unreachable
