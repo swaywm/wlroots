@@ -638,11 +638,13 @@ bool wlr_output_commit(struct wlr_output *output) {
 }
 
 void wlr_output_rollback(struct wlr_output *output) {
-	output_state_clear(&output->pending);
-
-	if (output->impl->rollback) {
-		output->impl->rollback(output);
+	if (output->impl->rollback_render &&
+			(output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
+			output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_RENDER) {
+		output->impl->rollback_render(output);
 	}
+
+	output_state_clear(&output->pending);
 }
 
 void wlr_output_attach_buffer(struct wlr_output *output,
