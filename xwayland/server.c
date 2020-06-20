@@ -232,8 +232,6 @@ static int xserver_handle_ready(int signal_number, void *data) {
 		.wm_fd = server->wm_fd[0],
 	};
 	wlr_signal_emit_safe(&server->events.ready, &event);
-	/* ready is a one-shot signal, fire and forget */
-	wl_signal_init(&server->events.ready);
 
 	return 1; /* wayland event loop dispatcher's count */
 
