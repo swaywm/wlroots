@@ -55,8 +55,6 @@ static void handle_server_ready(struct wl_listener *listener, void *data) {
 	}
 
 	wlr_signal_emit_safe(&xwayland->events.ready, NULL);
-	/* ready is a one-shot signal, fire and forget */
-	wl_signal_init(&xwayland->events.ready);
 }
 
 void wlr_xwayland_destroy(struct wlr_xwayland *xwayland) {
