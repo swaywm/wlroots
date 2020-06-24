@@ -107,16 +107,12 @@ static void xdg_surface_handle_ack_configure(struct wl_client *client,
 		return;
 	}
 
+	// First find the ack'ed configure
 	bool found = false;
 	struct wlr_xdg_surface_configure *configure, *tmp;
-	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
-		if (configure->serial < serial) {
-			wlr_signal_emit_safe(&surface->events.ack_configure, configure);
-			xdg_surface_configure_destroy(configure);
-		} else if (configure->serial == serial) {
+	wl_list_for_each(configure, &surface->configure_list, link) {
+		if (configure->serial == serial) {
 			found = true;
-			break;
-		} else {
 			break;
 		}
 	}
@@ -125,6 +121,14 @@ static void xdg_surface_handle_ack_configure(struct wl_client *client,
 			XDG_WM_BASE_ERROR_INVALID_SURFACE_STATE,
 			"wrong configure serial: %u", serial);
 		return;
+	}
+	// Then remove old configures from the list
+	wl_list_for_each_safe(configure, tmp, &surface->configure_list, link) {
+		if (configure->serial == serial) {
+			break;
+		}
+		wlr_signal_emit_safe(&surface->events.ack_configure, configure);
+		xdg_surface_configure_destroy(configure);
 	}
 
 	switch (surface->role) {
