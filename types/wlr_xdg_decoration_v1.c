@@ -111,8 +111,9 @@ static void toplevel_decoration_handle_surface_ack_configure(
 		wl_container_of(listener, decoration, surface_ack_configure);
 	struct wlr_xdg_surface_configure *surface_configure = data;
 
+	// First find the ack'ed configure
 	bool found = false;
-	struct wlr_xdg_toplevel_decoration_v1_configure *configure;
+	struct wlr_xdg_toplevel_decoration_v1_configure *configure, *tmp;
 	wl_list_for_each(configure, &decoration->configure_list, link) {
 		if (configure->surface_configure == surface_configure) {
 			found = true;
@@ -121,6 +122,14 @@ static void toplevel_decoration_handle_surface_ack_configure(
 	}
 	if (!found) {
 		return;
+	}
+	// Then remove old configures from the list
+	wl_list_for_each_safe(configure, tmp, &decoration->configure_list, link) {
+		if (configure->surface_configure == surface_configure) {
+			break;
+		}
+		wl_list_remove(&configure->link);
+		free(configure);
 	}
 
 	decoration->current_mode = configure->mode;
