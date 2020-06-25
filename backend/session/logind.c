@@ -241,6 +241,24 @@ static bool take_control(struct logind_session *session) {
 	return ret >= 0;
 }
 
+static bool set_type(struct logind_session *session) {
+	int ret;
+	sd_bus_message *msg = NULL;
+	sd_bus_error error = SD_BUS_ERROR_NULL;
+
+	ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
+		session->path, "org.freedesktop.login1.Session", "SetType",
+		&error, &msg, "s", "wayland");
+	if (ret < 0) {
+		wlr_log(WLR_ERROR, "Failed to set session type for session: %s",
+			error.message);
+	}
+
+	sd_bus_error_free(&error);
+	sd_bus_message_unref(msg);
+	return ret >= 0;
+}
+
 static void release_control(struct logind_session *session) {
 	int ret;
 	sd_bus_message *msg = NULL;
@@ -817,6 +835,11 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 				session->base.seat);
 			goto error_bus;
 		}
+	}
+
+	if (!set_type(session)) {
+		// Not fatal
+		wlr_log(WLR_INFO, "Failed to set logind session type to wayland");
 	}
 
 	wlr_log(WLR_INFO, "Successfully loaded logind session");
