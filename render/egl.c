@@ -1,7 +1,10 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <drm_fourcc.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <wlr/render/egl.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
@@ -287,6 +290,18 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 			"eglUnbindWaylandDisplayWL");
 		load_egl_proc(&egl->procs.eglQueryWaylandBufferWL,
 			"eglQueryWaylandBufferWL");
+	}
+
+	if (check_egl_ext(display_exts_str, "EGL_KHR_fence_sync") &&
+			check_egl_ext(display_exts_str, "EGL_ANDROID_native_fence_sync")) {
+		load_egl_proc(&egl->procs.eglCreateSyncKHR, "eglCreateSyncKHR");
+		load_egl_proc(&egl->procs.eglDestroySyncKHR, "eglDestroySyncKHR");
+		load_egl_proc(&egl->procs.eglDupNativeFenceFDANDROID,
+			"eglDupNativeFenceFDANDROID");
+	}
+
+	if (check_egl_ext(display_exts_str, "EGL_KHR_wait_sync")) {
+		load_egl_proc(&egl->procs.eglWaitSyncKHR, "eglWaitSyncKHR");
 	}
 
 	if (!egl_get_config(egl->display, config_attribs, &egl->config, visual_id)) {
@@ -804,4 +819,66 @@ bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface) {
 		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 	}
 	return eglDestroySurface(egl->display, surface);
+}
+
+EGLSyncKHR wlr_egl_create_sync(struct wlr_egl *egl, int fence_fd) {
+	if (!egl->procs.eglCreateSyncKHR) {
+		return EGL_NO_SYNC_KHR;
+	}
+
+	EGLint attribs[3] = { EGL_NONE };
+	int dup_fd = -1;
+	if (fence_fd >= 0) {
+		dup_fd = fcntl(fence_fd, F_DUPFD_CLOEXEC);
+		if (dup_fd < 0) {
+			wlr_log_errno(WLR_ERROR, "dup failed");
+			return EGL_NO_SYNC_KHR;
+		}
+
+		attribs[0] = EGL_SYNC_NATIVE_FENCE_FD_ANDROID;
+		attribs[1] = dup_fd;
+		attribs[2] = EGL_NONE;
+	}
+
+	EGLSyncKHR sync = egl->procs.eglCreateSyncKHR(egl->display,
+		EGL_SYNC_NATIVE_FENCE_ANDROID, attribs);
+	if (sync == EGL_NO_SYNC_KHR) {
+		wlr_log(WLR_ERROR, "eglCreateSyncKHR failed");
+		if (dup_fd >= 0) {
+			close(dup_fd);
+		}
+	}
+	return sync;
+}
+
+void wlr_egl_destroy_sync(struct wlr_egl *egl, EGLSyncKHR sync) {
+	if (sync == EGL_NO_SYNC_KHR) {
+		return;
+	}
+	assert(egl->procs.eglDestroySyncKHR);
+	if (egl->procs.eglDestroySyncKHR(egl->display, sync) != EGL_TRUE) {
+		wlr_log(WLR_ERROR, "eglDestroySyncKHR failed");
+	}
+}
+
+int wlr_egl_dup_fence_fd(struct wlr_egl *egl, EGLSyncKHR sync) {
+	if (!egl->procs.eglDupNativeFenceFDANDROID) {
+		return -1;
+	}
+
+	int fd = egl->procs.eglDupNativeFenceFDANDROID(egl->display, sync);
+	if (fd == EGL_NO_NATIVE_FENCE_FD_ANDROID) {
+		wlr_log(WLR_ERROR, "eglDupNativeFenceFDANDROID failed");
+		return -1;
+	}
+
+	return fd;
+}
+
+bool wlr_egl_wait_sync(struct wlr_egl *egl, EGLSyncKHR sync) {
+	if (egl->procs.eglWaitSyncKHR(egl->display, sync, 0) != EGL_TRUE) {
+		wlr_log(WLR_ERROR, "eglWaitSyncKHR failed");
+		return false;
+	}
+	return true;
 }

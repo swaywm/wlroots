@@ -6,6 +6,9 @@ wlr_files += files(
 	'gles2/renderer.c',
 	'gles2/shaders.c',
 	'gles2/texture.c',
+	'sync_file.c',
 	'wlr_renderer.c',
 	'wlr_texture.c',
 )
+
+conf_data.set10('WLR_HAS_LINUX_SYNC_FILE', cc.has_header('linux/sync_file.h'))

@@ -420,6 +420,13 @@ void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock);
  */
 void wlr_output_render_software_cursors(struct wlr_output *output,
 	pixman_region32_t *damage);
+/**
+ * Get the fence FD that will be signalled when buffers submitted with the last
+ * output commit stop being used.
+ *
+ * The returned FD must not be closed by the caller.
+ */
+int wlr_output_get_out_fence(struct wlr_output *output);
 
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);

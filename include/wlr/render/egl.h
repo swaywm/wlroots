@@ -67,6 +67,10 @@ struct wlr_egl {
 		PFNEGLEXPORTDMABUFIMAGEQUERYMESAPROC eglExportDMABUFImageQueryMESA;
 		PFNEGLEXPORTDMABUFIMAGEMESAPROC eglExportDMABUFImageMESA;
 		PFNEGLDEBUGMESSAGECONTROLKHRPROC eglDebugMessageControlKHR;
+		PFNEGLCREATESYNCKHRPROC eglCreateSyncKHR;
+		PFNEGLDESTROYSYNCKHRPROC eglDestroySyncKHR;
+		PFNEGLDUPNATIVEFENCEFDANDROIDPROC eglDupNativeFenceFDANDROID;
+		PFNEGLWAITSYNCKHRPROC eglWaitSyncKHR;
 	} procs;
 
 	struct wl_display *wl_display;
@@ -160,5 +164,13 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 	pixman_region32_t *damage);
 
 bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface);
+
+EGLSyncKHR wlr_egl_create_sync(struct wlr_egl *egl, int fence_fd);
+
+void wlr_egl_destroy_sync(struct wlr_egl *egl, EGLSyncKHR sync);
+
+int wlr_egl_dup_fence_fd(struct wlr_egl *egl, EGLSyncKHR sync);
+
+bool wlr_egl_wait_sync(struct wlr_egl *egl, EGLSyncKHR sync);
 
 #endif

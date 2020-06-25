@@ -17,7 +17,8 @@
 struct wlr_output_impl {
 	bool (*set_cursor)(struct wlr_output *output, struct wlr_texture *texture,
 		float scale, enum wl_output_transform transform,
-		int32_t hotspot_x, int32_t hotspot_y, bool update_texture);
+		int32_t hotspot_x, int32_t hotspot_y, bool update_texture,
+		struct wlr_buffer *buffer);
 	bool (*move_cursor)(struct wlr_output *output, int x, int y);
 	void (*destroy)(struct wlr_output *output);
 	bool (*attach_render)(struct wlr_output *output, int *buffer_age);
@@ -27,6 +28,7 @@ struct wlr_output_impl {
 	size_t (*get_gamma_size)(struct wlr_output *output);
 	bool (*export_dmabuf)(struct wlr_output *output,
 		struct wlr_dmabuf_attributes *attribs);
+	int (*get_out_fence)(struct wlr_output *output);
 };
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,

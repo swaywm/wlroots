@@ -37,6 +37,8 @@ struct wlr_buffer {
 	bool dropped;
 	size_t n_locks;
 
+	int in_fence_fd, out_fence_fd;
+
 	struct {
 		struct wl_signal destroy;
 		struct wl_signal release;
@@ -76,6 +78,17 @@ void wlr_buffer_unlock(struct wlr_buffer *buffer);
  */
 bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
 	struct wlr_dmabuf_attributes *attribs);
+
+/**
+ * Should be called after writing to the buffer with a fence which will be
+ * signalled once writing is complete.
+ */
+void wlr_buffer_set_in_fence(struct wlr_buffer *buffer, int fd);
+/**
+ * Should be called after reading from the buffer with a fence which will be
+ * signalled once reading is complete.
+ */
+void wlr_buffer_add_out_fence(struct wlr_buffer *buffer, int fd);
 
 /**
  * A client buffer.
