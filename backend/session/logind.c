@@ -257,12 +257,16 @@ static bool set_type(struct logind_session *session) {
 	sd_bus_error_free(&error);
 	sd_bus_message_unref(msg);
 
+	if (ret < 0) {
+		return false;
+	}
+
 	ret = setenv("XDG_SESSION_TYPE", "wayland", 1);
 	if (ret < 0) {
 		wlr_log(WLR_ERROR, "Failed to set XDG_SESSION_TYPE for session");
+		return false;
 	}
-
-	return ret >= 0;
+	return true;
 }
 
 static void release_control(struct logind_session *session) {
