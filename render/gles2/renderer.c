@@ -384,7 +384,9 @@ static bool gles2_blit_dmabuf(struct wlr_renderer *wlr_renderer,
 	bool dst_inverted_y =
 		!!(dst_attr->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT);
 	struct wlr_gles2_texture *gles2_src_tex = gles2_get_texture(src_tex);
-	gles2_src_tex->inverted_y = src_inverted_y ^ dst_inverted_y;
+	// The result is negated because wlr_matrix_projection y-inverts the
+	// texture.
+	gles2_src_tex->inverted_y = !(src_inverted_y ^ dst_inverted_y);
 
 	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(wlr_renderer);
 	if (!wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL)) {
