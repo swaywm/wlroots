@@ -349,7 +349,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	write_image("wayland-screenshot.png", buffer.format, buffer.width,
-		buffer.height, stride, !buffer.y_invert, data);
+		buffer.height, stride, buffer.y_invert, data);
 
 	gbm_bo_unmap(buffer.bo, map_data);
 	gbm_bo_destroy(buffer.bo);
