@@ -208,7 +208,7 @@ static void frame_handle_output_precommit(struct wl_listener *listener,
 		ok = wlr_output_export_dmabuf(frame->output, &attr);
 		ok = ok && wlr_renderer_blit_dmabuf(renderer,
 				&dma_buffer->attributes, &attr);
-		flags |= attr.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT ?
+		flags |= dma_buffer->attributes.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT ?
 				ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT : 0;
 		wlr_dmabuf_attributes_finish(&attr);
 	}
