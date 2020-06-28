@@ -124,8 +124,6 @@ static void drag_destroy(struct wlr_drag *drag) {
 	}
 	drag->cancelling = true;
 
-	wlr_signal_emit_safe(&drag->events.destroy, drag);
-
 	if (drag->started) {
 		wlr_seat_keyboard_end_grab(drag->seat);
 		switch (drag->grab_type) {
@@ -138,7 +136,12 @@ static void drag_destroy(struct wlr_drag *drag) {
 			wlr_seat_touch_end_grab(drag->seat);
 			break;
 		}
+	}
 
+	// We issue destroy after ending the grab to allow focus changes.
+	wlr_signal_emit_safe(&drag->events.destroy, drag);
+
+	if (drag->started) {
 		drag_set_focus(drag, NULL, 0, 0);
 
 		assert(drag->seat->drag == drag);
