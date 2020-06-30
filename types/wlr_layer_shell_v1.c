@@ -445,6 +445,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 
 static const struct zwlr_layer_shell_v1_interface layer_shell_implementation = {
 	.get_layer_surface = layer_shell_handle_get_layer_surface,
+	.destroy = resource_handle_destroy,
 };
 
 static void layer_shell_bind(struct wl_client *wl_client, void *data,
