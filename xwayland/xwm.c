@@ -1312,6 +1312,11 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 	xcb_generic_event_t *event;
 	struct wlr_xwm *xwm = data;
 
+	if ((mask & WL_EVENT_HANGUP) || (mask & WL_EVENT_ERROR)) {
+		xwm_destroy(xwm);
+		return 0;
+	}
+
 	while ((event = xcb_poll_for_event(xwm->xcb_conn))) {
 		count++;
 
@@ -1493,6 +1498,7 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	wl_list_remove(&xwm->compositor_destroy.link);
 	xcb_disconnect(xwm->xcb_conn);
 
+	xwm->xwayland->xwm = NULL;
 	free(xwm);
 }
 
