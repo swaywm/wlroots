@@ -29,7 +29,6 @@
  */
 struct wlr_layer_shell_v1 {
 	struct wl_global *global;
-	struct wl_list surfaces; // wl_layer_surface
 
 	struct wl_listener display_destroy;
 
@@ -63,7 +62,6 @@ struct wlr_layer_surface_v1_configure {
 };
 
 struct wlr_layer_surface_v1 {
-	struct wl_list link; // wlr_layer_shell_v1::surfaces
 	struct wlr_surface *surface;
 	struct wlr_output *output;
 	struct wl_resource *resource;
