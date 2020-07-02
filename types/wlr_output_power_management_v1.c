@@ -23,7 +23,7 @@ static void output_power_destroy(struct wlr_output_power_v1 *output_power) {
 	}
 	wl_resource_set_user_data(output_power->resource, NULL);
 	wl_list_remove(&output_power->output_destroy_listener.link);
-	wl_list_remove(&output_power->output_enable_listener.link);
+	wl_list_remove(&output_power->output_commit_listener.link);
 	wl_list_remove(&output_power->link);
 	free(output_power);
 }
@@ -58,11 +58,14 @@ static void output_power_v1_send_mode(struct wlr_output_power_v1 *output_power) 
 	zwlr_output_power_v1_send_mode(output_power->resource, mode);
 }
 
-static void output_power_handle_output_enable(struct wl_listener *listener,
+static void output_power_handle_output_commit(struct wl_listener *listener,
 		void *data) {
 	struct wlr_output_power_v1 *output_power =
-		wl_container_of(listener, output_power, output_enable_listener);
-	output_power_v1_send_mode(output_power);
+		wl_container_of(listener, output_power, output_commit_listener);
+	struct wlr_output_event_commit *event = data;
+	if (event->committed & WLR_OUTPUT_STATE_ENABLED) {
+		output_power_v1_send_mode(output_power);
+	}
 }
 
 static void output_power_handle_set_mode(struct wl_client *client,
@@ -147,10 +150,10 @@ static void output_power_manager_get_output_power(struct wl_client *client,
 		&output_power->output_destroy_listener);
 	output_power->output_destroy_listener.notify =
 		output_power_handle_output_destroy;
-	wl_signal_add(&output->events.enable,
-		&output_power->output_enable_listener);
-	output_power->output_enable_listener.notify =
-		output_power_handle_output_enable;
+	wl_signal_add(&output->events.commit,
+		&output_power->output_commit_listener);
+	output_power->output_commit_listener.notify =
+		output_power_handle_output_commit;
 
 	struct wlr_output_power_v1 *mgmt;
 	wl_list_for_each(mgmt, &manager->output_powers, link) {

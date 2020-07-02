@@ -25,7 +25,7 @@ struct wlr_output_power_v1 {
 	struct wl_list link;
 
 	struct wl_listener output_destroy_listener;
-	struct wl_listener output_enable_listener;
+	struct wl_listener output_commit_listener;
 
 	void *data;
 };
