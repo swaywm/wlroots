@@ -32,7 +32,7 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 		uint32_t *conns = NULL;
 		size_t conns_len = 0;
 		drmModeModeInfo *mode = NULL;
-		if (crtc->pending.mode != NULL) {
+		if (crtc->pending.active) {
 			conns = &conn->id;
 			conns_len = 1;
 			mode = &crtc->pending.mode->drm_mode;
