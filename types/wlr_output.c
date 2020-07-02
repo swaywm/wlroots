@@ -581,11 +581,11 @@ bool wlr_output_commit(struct wlr_output *output) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
-	struct wlr_output_event_precommit event = {
+	struct wlr_output_event_precommit pre_event = {
 		.output = output,
 		.when = &now,
 	};
-	wlr_signal_emit_safe(&output->events.precommit, &event);
+	wlr_signal_emit_safe(&output->events.precommit, &pre_event);
 
 	if (!output->impl->commit(output)) {
 		output_state_clear(&output->pending);
@@ -604,7 +604,11 @@ bool wlr_output_commit(struct wlr_output *output) {
 
 	output->commit_seq++;
 
-	wlr_signal_emit_safe(&output->events.commit, output);
+	struct wlr_output_event_commit event = {
+		.output = output,
+		.committed = output->pending.committed,
+	};
+	wlr_signal_emit_safe(&output->events.commit, &event);
 
 	bool scale_updated = output->pending.committed & WLR_OUTPUT_STATE_SCALE;
 	if (scale_updated) {
