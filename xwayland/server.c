@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -387,9 +388,51 @@ void wlr_xwayland_server_destroy(struct wlr_xwayland_server *server) {
 	free(server);
 }
 
+static bool test_xwayland(void) {
+	pid_t pid = fork();
+	if (pid < 0) {
+		wlr_log_errno(WLR_ERROR, "fork failed");
+		return false;
+	} else if (pid == 0) {
+		int devnull = open("/dev/null", O_WRONLY | O_CREAT | O_CLOEXEC, 0666);
+		if (devnull < 0) {
+			wlr_log_errno(WLR_ERROR, "failed to open /dev/null");
+			_exit(255);
+		}
+		dup2(devnull, STDOUT_FILENO);
+		dup2(devnull, STDERR_FILENO);
+		close(devnull);
+
+		execlp("Xwayland", "Xwayland", "-help", NULL);
+		_exit(255);
+	}
+
+	int stat;
+	if (waitpid(pid, &stat, 0) < 0) {
+		wlr_log_errno(WLR_ERROR, "waitpid failed");
+		return false;
+	}
+
+	if (!WIFEXITED(stat)) {
+		wlr_log(WLR_ERROR, "Xwayland was killed by signal");
+		return false;
+	} else if (WEXITSTATUS(stat) != 0) {
+		wlr_log(WLR_ERROR, "Xwayland exited with non-zero status %d",
+			WEXITSTATUS(stat));
+		return false;
+	}
+
+	return true;
+}
+
 struct wlr_xwayland_server *wlr_xwayland_server_create(
 		struct wl_display *wl_display,
 		struct wlr_xwayland_server_options *options) {
+	if (!test_xwayland()) {
+		wlr_log(WLR_ERROR, "Failed to check for working Xwayland executable");
+		return NULL;
+	}
+
 	struct wlr_xwayland_server *server =
 		calloc(1, sizeof(struct wlr_xwayland_server));
 	if (!server) {
