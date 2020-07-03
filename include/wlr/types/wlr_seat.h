@@ -410,6 +410,19 @@ void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,
 void wlr_seat_pointer_notify_clear_focus(struct wlr_seat *wlr_seat);
 
 /**
+ * Fetch the current position of the pointer of this seat, in surface-local
+ * coordinates.
+ */
+void wlr_seat_pointer_position(struct wlr_seat *wlr_seat,
+		double *sx, double *sy);
+
+/**
+ * Warp the pointer of this seat to the given surface-local coordinates, without
+ * generating motion events.
+ */
+void wlr_seat_pointer_warp(struct wlr_seat *wlr_seat, double sx, double sy);
+
+/**
  * Notify the seat of motion over the given surface. Pass surface-local
  * coordinates where the pointer motion occurred. Defers to any grab of the
  * pointer.
