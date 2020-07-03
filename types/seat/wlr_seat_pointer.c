@@ -199,11 +199,9 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 	wlr_seat->pointer_state.focused_client = client;
 	wlr_seat->pointer_state.focused_surface = surface;
 	if (surface != NULL) {
-		wlr_seat->pointer_state.sx = sx;
-		wlr_seat->pointer_state.sy = sy;
+		wlr_seat_pointer_warp(wlr_seat, sx, sy);
 	} else {
-		wlr_seat->pointer_state.sx = NAN;
-		wlr_seat->pointer_state.sy = NAN;
+		wlr_seat_pointer_warp(wlr_seat, NAN, NAN);
 	}
 
 	struct wlr_seat_pointer_focus_change_event event = {
@@ -218,6 +216,11 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 
 void wlr_seat_pointer_clear_focus(struct wlr_seat *wlr_seat) {
 	wlr_seat_pointer_enter(wlr_seat, NULL, 0, 0);
+}
+
+void wlr_seat_pointer_warp(struct wlr_seat *wlr_seat, double sx, double sy) {
+	wlr_seat->pointer_state.sx = sx;
+	wlr_seat->pointer_state.sy = sy;
 }
 
 void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
@@ -241,8 +244,7 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 			wl_fixed_from_double(sy));
 	}
 
-	wlr_seat->pointer_state.sx = sx;
-	wlr_seat->pointer_state.sy = sy;
+	wlr_seat_pointer_warp(wlr_seat, sx, sy);
 }
 
 uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat, uint32_t time,
