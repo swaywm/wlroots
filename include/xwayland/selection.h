@@ -56,6 +56,8 @@ struct wlr_xwm_selection *xwm_get_selection(struct wlr_xwm *xwm,
 void xwm_send_incr_chunk(struct wlr_xwm_selection_transfer *transfer);
 void xwm_handle_selection_request(struct wlr_xwm *xwm,
 	xcb_selection_request_event_t *req);
+void xwm_handle_selection_destroy_notify(struct wlr_xwm *xwm,
+		xcb_destroy_notify_event_t *event);
 
 void xwm_get_incr_chunk(struct wlr_xwm_selection_transfer *transfer);
 void xwm_handle_selection_notify(struct wlr_xwm *xwm,

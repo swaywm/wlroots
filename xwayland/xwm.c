@@ -846,6 +846,7 @@ static void xwm_handle_destroy_notify(struct wlr_xwm *xwm,
 		return;
 	}
 	xwayland_surface_destroy(xsurface);
+	xwm_handle_selection_destroy_notify(xwm, ev);
 }
 
 static void xwm_handle_configure_request(struct wlr_xwm *xwm,
