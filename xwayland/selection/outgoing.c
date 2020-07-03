@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wayland-util.h>
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/util/log.h>
@@ -415,5 +416,25 @@ void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		}
 		xwm_selection_send_data(selection, req, mime_type);
 		free(mime_type);
+	}
+}
+
+void xwm_handle_selection_destroy_notify(struct wlr_xwm *xwm,
+		xcb_destroy_notify_event_t *event) {
+	struct wlr_xwm_selection *selections[] = {
+		&xwm->clipboard_selection,
+		&xwm->primary_selection,
+		&xwm->dnd_selection,
+	};
+
+	for (size_t i = 0; i < sizeof(selections)/sizeof(selections[0]); ++i) {
+		struct wlr_xwm_selection *selection = selections[i];
+
+		struct wlr_xwm_selection_transfer *outgoing, *tmp;
+		wl_list_for_each_safe(outgoing, tmp, &selection->outgoing, outgoing_link) {
+			if (event->window == outgoing->request.requestor) {
+				xwm_selection_transfer_destroy_outgoing(outgoing);
+			}
+		}
 	}
 }
