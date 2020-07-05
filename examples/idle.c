@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
 	wl_registry_add_listener(registry, &registry_listener, NULL);
 	wl_display_dispatch(display);
 	wl_display_roundtrip(display);
-	free(registry);
+	wl_registry_destroy(registry);
 
 	if (idle_manager == NULL) {
 		fprintf(stderr, "display doesn't support idle protocol\n");
