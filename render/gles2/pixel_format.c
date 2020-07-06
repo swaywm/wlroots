@@ -39,9 +39,40 @@ static const struct wlr_gles2_pixel_format formats[] = {
 		.gl_type = GL_UNSIGNED_BYTE,
 		.has_alpha = true,
 	},
+		// 10 bit formats
+	{	
+		.wl_format = WL_SHM_FORMAT_ARGB2101010,
+		.depth = 32,
+		.bpp = 32,
+		.gl_format = GL_BGRA_EXT,
+		.gl_type = GL_UNSIGNED_BYTE,
+		.has_alpha = true,
+	},
+	{
+		.wl_format = WL_SHM_FORMAT_XRGB2101010,
+		.depth = 24,
+		.bpp = 32,
+		.gl_format = GL_BGRA_EXT,
+		.gl_type = GL_UNSIGNED_BYTE,
+		.has_alpha = false,
+	},
+	{
+		.wl_format = WL_SHM_FORMAT_XBGR2101010,
+		.depth = 24,
+		.bpp = 32,
+		.gl_format = GL_RGBA,
+		.gl_type = GL_UNSIGNED_BYTE,
+		.has_alpha = false,
+	},
+	{
+		.wl_format = WL_SHM_FORMAT_ABGR2101010,
+		.depth = 32,
+		.bpp = 32,
+		.gl_format = GL_RGBA,
+		.gl_type = GL_UNSIGNED_BYTE,
+		.has_alpha = true,
+	},
 };
-
-// TODO: more pixel formats
 
 const struct wlr_gles2_pixel_format *get_gles2_format_from_wl(
 		enum wl_shm_format fmt) {
