@@ -34,7 +34,8 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		EGL_ALPHA_SIZE, 1,
 		EGL_NONE,
 	};
-
+	
+	// TODO: allow setting from sway config/args. Have sane default set.
 	renderer->gbm_format = GBM_FORMAT_ARGB2101010;
 	renderer->wlr_rend = create_renderer_func(&renderer->egl,
 		EGL_PLATFORM_GBM_MESA, renderer->gbm,
