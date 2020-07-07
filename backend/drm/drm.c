@@ -928,7 +928,9 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		drm_surface_make_current(&plane->surf, NULL);
+		if (!drm_surface_make_current(&plane->surf, NULL)) {
+			return false;
+		}
 
 		struct wlr_renderer *rend = plane->surf.renderer->wlr_rend;
 
