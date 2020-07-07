@@ -126,8 +126,8 @@ static void finish_drm_surface(struct wlr_drm_surface *surf) {
 }
 
 bool drm_surface_make_current(struct wlr_drm_surface *surf,
-		int *buffer_damage) {
-	return wlr_egl_make_current(&surf->renderer->egl, surf->egl, buffer_damage);
+		int *buffer_age) {
+	return wlr_egl_make_current(&surf->renderer->egl, surf->egl, buffer_age);
 }
 
 bool export_drm_bo(struct gbm_bo *bo, struct wlr_dmabuf_attributes *attribs) {
