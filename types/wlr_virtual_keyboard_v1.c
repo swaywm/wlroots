@@ -40,6 +40,14 @@ static struct wlr_virtual_keyboard_v1 *virtual_keyboard_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
+struct wlr_virtual_keyboard_v1 *wlr_input_device_get_virtual_keyboard(
+		struct wlr_input_device *wlr_dev) {
+	if (wlr_dev->impl != &input_device_impl) {
+		return NULL;
+	}
+	return (struct wlr_virtual_keyboard_v1 *)wlr_dev;
+}
+
 static void virtual_keyboard_keymap(struct wl_client *client,
 		struct wl_resource *resource, uint32_t format, int32_t fd,
 		uint32_t size) {
