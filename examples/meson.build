@@ -170,6 +170,13 @@ clients = {
 		'dep': wlroots,
 		'proto': ['wlr-virtual-pointer-unstable-v1'],
 	},
+	'input-method-keyboard-grab': {
+		'src': 'input-method-keyboard-grab.c',
+		'dep': xkbcommon,
+		'proto': [
+			'input-method-unstable-v2',
+		],
+	},
 }
 
 foreach name, info : compositors
