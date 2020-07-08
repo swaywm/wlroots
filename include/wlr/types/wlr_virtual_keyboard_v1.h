@@ -26,8 +26,8 @@ struct wlr_virtual_keyboard_manager_v1 {
 };
 
 struct wlr_virtual_keyboard_v1 {
-	struct wl_resource *resource;
 	struct wlr_input_device input_device;
+	struct wl_resource *resource;
 	struct wlr_seat *seat;
 	bool has_keymap;
 
@@ -40,5 +40,8 @@ struct wlr_virtual_keyboard_v1 {
 
 struct wlr_virtual_keyboard_manager_v1* wlr_virtual_keyboard_manager_v1_create(
 	struct wl_display *display);
+
+struct wlr_virtual_keyboard_v1 *wlr_input_device_get_virtual_keyboard(
+	struct wlr_input_device *wlr_dev);
 
 #endif
