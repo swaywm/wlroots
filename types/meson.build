@@ -70,4 +70,5 @@ wlr_files += files(
 	'wlr_xcursor_manager.c',
 	'wlr_xdg_decoration_v1.c',
 	'wlr_xdg_output_v1.c',
+	'wlr_cursor_spy_v1.c',
 )
