@@ -64,6 +64,12 @@ bool wlr_texture_write_pixels(struct wlr_texture *texture,
 	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
 	const void *data);
 
+/**
+ * Read pixels from texture. Pixel buffer must be big enough to accommodate the
+ * pixels.
+ */
+bool wlr_texture_read_pixels(struct wlr_texture *texture, void *pixels);
+
 bool wlr_texture_to_dmabuf(struct wlr_texture *texture,
 	struct wlr_dmabuf_attributes *attribs);
 

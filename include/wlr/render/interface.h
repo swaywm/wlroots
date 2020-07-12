@@ -81,6 +81,7 @@ struct wlr_texture_impl {
 	bool (*to_dmabuf)(struct wlr_texture *texture,
 		struct wlr_dmabuf_attributes *attribs);
 	void (*destroy)(struct wlr_texture *texture);
+	bool (*read_pixels)(struct wlr_texture *texture, void *pixels);
 };
 
 void wlr_texture_init(struct wlr_texture *texture,

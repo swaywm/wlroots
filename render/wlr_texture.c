@@ -66,6 +66,14 @@ bool wlr_texture_write_pixels(struct wlr_texture *texture,
 		src_x, src_y, dst_x, dst_y, data);
 }
 
+bool wlr_texture_read_pixels(struct wlr_texture *texture,
+		void *pixels) {
+	if (!texture->impl->read_pixels) {
+		return false;
+	}
+	return texture->impl->read_pixels(texture, pixels);
+}
+
 bool wlr_texture_to_dmabuf(struct wlr_texture *texture,
 		struct wlr_dmabuf_attributes *attribs) {
 	if (!texture->impl->to_dmabuf) {

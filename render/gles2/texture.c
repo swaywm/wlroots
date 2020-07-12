@@ -79,6 +79,42 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	return true;
 }
 
+static bool gles2_texture_read_pixels(struct wlr_texture *wlr_texture,
+		void *pixels)
+{
+	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
+	bool rc = false;
+
+	const struct wlr_gles2_pixel_format *fmt =
+		get_gles2_format_from_wl(texture->wl_format);
+	if (!fmt) {
+		goto restore_context_out;
+	}
+
+	struct wlr_egl_context old_context;
+	wlr_egl_save_context(&old_context);
+	if (!wlr_egl_make_current(texture->egl, EGL_NO_SURFACE, NULL)) {
+		goto restore_context_out;
+	}
+
+	GLuint fbo = 0;
+	glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+			texture->target, texture->tex, 0);
+
+	glReadPixels(0, 0, wlr_texture->width, wlr_texture->height,
+			fmt->gl_format, fmt->gl_type, pixels);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glDeleteFramebuffers(1, &fbo);
+
+	rc = true;
+restore_context_out:
+	wlr_egl_restore_context(&old_context);
+	return rc;
+}
+
 static bool gles2_texture_to_dmabuf(struct wlr_texture *wlr_texture,
 		struct wlr_dmabuf_attributes *attribs) {
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
@@ -130,6 +166,7 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 static const struct wlr_texture_impl texture_impl = {
 	.is_opaque = gles2_texture_is_opaque,
 	.write_pixels = gles2_texture_write_pixels,
+	.read_pixels = gles2_texture_read_pixels,
 	.to_dmabuf = gles2_texture_to_dmabuf,
 	.destroy = gles2_texture_destroy,
 };
