@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="cursor_spy_unstable_v1">
+  <copyright>
+    Copyright © 2020 Andri Yngvason
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice (including the next
+    paragraph) shall be included in all copies or substantial portions of the
+    Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+  </copyright>
+
+  <description summary="spy on cursors">
+    This protocol allows a client to receive a list of all cursors on a specific
+    output, including but not limited to the image and hot spot.
+  </description>
+
+  <interface name="zext_cursor_spy_manager_v1" version="1">
+    <description summary="manager to inform clients and begin spying">
+      This object is a manager which offers requests to start spying on cursors.
+    </description>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the manager">
+        All objects created by the manager will still remain valid, until their
+        appropriate destroy request has been called.
+      </description>
+    </request>
+
+    <request name="create_spy">
+      <description summary="get a new spy object for a specific output">
+        Start spying on cursors on the specified output.
+      </description>
+      <arg name="spy" type="new_id" interface="zext_cursor_spy_v1"/>
+      <arg name="output" type="object" interface="wl_output"/>
+    </request>
+  </interface>
+
+  <interface name="zext_cursor_spy_v1" version="1">
+    <description summary="a spy for requesting and receiving cursors">
+      This object is used for requesting and receiving cursors.
+    </description>
+
+    <enum name="error">
+      <entry name="invalid_buffer" value="0"
+        summary="buffer attributes are invalid"/>
+      <entry name="invalid_output" value="1"
+        summary="supplied output is invalid"/>
+    </enum>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the spy">
+        This closes and cleans up the spy object.
+      </description>
+    </request>
+
+    <event name="buffer">
+      <description summary="wl_shm buffer information">
+        Provides information about wl_shm buffer parameters that need to be used
+        for this spy. This event is sent once after the spy is created and when
+        the buffer needs to be resized following a spy request.
+
+        The stride of the buffer must be large enough to contain on pixel row of
+        the minimum width.
+      </description>
+      <arg name="format" type="uint" enum="wl_shm.format"
+        summary="buffer format"/>
+      <arg name="min_width" type="uint" summary="minimum buffer width"/>
+      <arg name="min_height" type="uint" summary="minimum buffer height"/>
+    </event>
+
+    <event name="cursor">
+      <description summary="cursor info">
+        Provides information about a cursor. The compositor may place the
+        cursor image anywhere inside the supplied buffer and the client must
+        read it from the offset as specified by the offset argument.
+      </description>
+      <arg name="offset" type="uint"
+        summary="offset of the cursor image in the buffer"/>
+      <arg name="width" type="uint" summary="width of the cursor image"/>
+      <arg name="height" type="uint" summary="height of the cursor image"/>
+      <arg name="hotspot_x" type="uint" summary="hotspot x coordinates"/>
+      <arg name="hotspot_y" type="uint" summary="hotspot y coordinates"/>
+    </event>
+
+    <event name="done">
+      <description summary="end of cursor grabbing">
+        This event is emitted once at the end of a response to a spy request.
+      </description>
+      <arg name="seq" type="uint" summary="sequence number"/>
+    </event>
+
+    <event name="failed">
+      <description summary="cursor grabbing failed">
+        This event is emitted upon failure.
+      </description>
+      <arg name="error" type="uint" enum="error" summary="reason of failure"/>
+    </event>
+
+    <request name="spy">
+      <description summary="start spying">
+        Grabs all cursors and places them into the supplied buffer. When
+        grabbing is done, a cursor event is emitted for each cursor. When
+        all cursors have been handled, the done event is emitted.
+
+        If the buffer is too small, a buffer event will be emitted. When this
+        happens, the client must resize the buffer and retry the spy request.
+
+        The last_seq argument should be set to the last sequence number received
+        from the done event. If no cursor changes have happened since the last
+        time, the compositor will send the done event immediately without
+        sending any cursors.
+
+        If the request fails, the failed event is emitted and no more events
+        will be emitted until the next request.
+      </description>
+      <arg name="buffer" type="object" interface="wl_buffer"/>
+      <arg name="last_seq" type="uint" summary="sequence number"/>
+    </request>
+  </interface>
+</protocol>
