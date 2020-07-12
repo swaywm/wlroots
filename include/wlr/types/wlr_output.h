@@ -151,6 +151,10 @@ struct wlr_output {
 	// Commit sequence number. Incremented on each commit, may overflow.
 	uint32_t commit_seq;
 
+	// Cursor commit sequence number. Incremented on each cursor commit, may
+	// overflow.
+	uint32_t cursor_commit_seq;
+
 	struct {
 		// Request to render a frame
 		struct wl_signal frame;

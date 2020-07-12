@@ -325,6 +325,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
 	output->commit_seq = 0;
+	output->cursor_commit_seq = 0;
 	wl_list_init(&output->cursors);
 	wl_list_init(&output->resources);
 	wl_signal_init(&output->events.frame);
@@ -1046,6 +1047,8 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 
 static void output_cursor_commit(struct wlr_output_cursor *cursor,
 		bool update_hotspot) {
+	cursor->output->cursor_commit_seq++;
+
 	if (cursor->output->hardware_cursor != cursor) {
 		output_cursor_damage_whole(cursor);
 	}
