@@ -177,6 +177,11 @@ clients = {
 			'input-method-unstable-v2',
 		],
 	},
+	'cursor-spy': {
+		'src': 'cursor-spy.c',
+		'dep': [libpng, rt],
+		'proto': ['cursor-spy-unstable-v1'],
+	},
 }
 
 foreach name, info : compositors
