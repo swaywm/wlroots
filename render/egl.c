@@ -459,7 +459,9 @@ void wlr_egl_save_context(struct wlr_egl_context *context) {
 }
 
 bool wlr_egl_restore_context(struct wlr_egl_context *context) {
-	return eglMakeCurrent(context->display, context->draw_surface,
+	EGLDisplay display = context->display ?
+		context->display : eglGetCurrentDisplay();
+	return eglMakeCurrent(display, context->draw_surface,
 			context->read_surface, context->context);
 }
 
