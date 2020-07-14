@@ -128,6 +128,8 @@ struct wlr_surface {
 
 	struct wl_listener renderer_destroy;
 
+	struct wlr_color_config *color;
+
 	void *data;
 };
 

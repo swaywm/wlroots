@@ -24,6 +24,7 @@ struct wlr_drm_format_set;
 
 struct wlr_renderer {
 	const struct wlr_renderer_impl *impl;
+	struct wlr_color_config *color;
 
 	bool rendering;
 

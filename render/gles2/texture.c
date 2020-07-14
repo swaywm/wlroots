@@ -137,6 +137,7 @@ static const struct wlr_texture_impl texture_impl = {
 struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data) {
+	
 	wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
 
 	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);

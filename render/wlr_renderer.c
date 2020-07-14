@@ -30,6 +30,8 @@ void wlr_renderer_destroy(struct wlr_renderer *r) {
 	}
 	wlr_signal_emit_safe(&r->events.destroy, r);
 
+	wlr_color_config_free(r->color);
+
 	if (r->impl && r->impl->destroy) {
 		r->impl->destroy(r);
 	} else {

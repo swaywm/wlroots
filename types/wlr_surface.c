@@ -697,6 +697,7 @@ struct wlr_texture *wlr_surface_get_texture(struct wlr_surface *surface) {
 	if (surface->buffer == NULL) {
 		return NULL;
 	}
+	surface->buffer->texture->color = surface->color;
 	return surface->buffer->texture;
 }
 

@@ -107,6 +107,7 @@ libinput = dependency('libinput', version: '>=1.9.0')
 xkbcommon = dependency('xkbcommon')
 udev = dependency('libudev')
 pixman = dependency('pixman-1')
+lcms2 = dependency('lcms2')
 math = cc.find_library('m')
 rt = cc.find_library('rt')
 
@@ -128,6 +129,7 @@ wlr_deps = [
 	xkbcommon,
 	udev,
 	pixman,
+	lcms2,
 	math,
 	rt,
 ]

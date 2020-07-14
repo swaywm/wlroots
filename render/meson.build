@@ -6,6 +6,7 @@ wlr_files += files(
 	'gles2/renderer.c',
 	'gles2/shaders.c',
 	'gles2/texture.c',
+	'gles2/color.c',
 	'wlr_renderer.c',
 	'wlr_texture.c',
 )

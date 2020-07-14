@@ -12,12 +12,16 @@
 #include <stdint.h>
 #include <wayland-server-protocol.h>
 #include <wlr/render/dmabuf.h>
+#include <wlr/render/color.h>
 
 struct wlr_renderer;
 struct wlr_texture_impl;
 
 struct wlr_texture {
 	const struct wlr_texture_impl *impl;
+	struct wlr_color_config *color;
+	struct wlr_texture *colored;
+
 	uint32_t width, height;
 };
 

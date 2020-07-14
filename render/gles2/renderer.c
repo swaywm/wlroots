@@ -161,6 +161,15 @@ static bool gles2_render_subtexture_with_matrix(
 	glEnableVertexAttribArray(shader->pos_attrib);
 	glEnableVertexAttribArray(shader->tex_attrib);
 
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+	GLuint color_table = color_build_lut(wlr_texture->color, wlr_renderer->color);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_3D, color_table);
+	glUniform1i(shader->color_table, 1);
+	glUniform1i(shader->color_enable, color_table != 0);
+
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 	glDisableVertexAttribArray(shader->pos_attrib);
@@ -182,11 +191,14 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 	float transposition[9];
 	wlr_matrix_transpose(transposition, matrix);
 
+	float converted[4];
+	color_convert(NULL, wlr_renderer->color, color, converted);
+
 	PUSH_GLES2_DEBUG;
 	glUseProgram(renderer->shaders.quad.program);
 
 	glUniformMatrix3fv(renderer->shaders.quad.proj, 1, GL_FALSE, transposition);
-	glUniform4f(renderer->shaders.quad.color, color[0], color[1], color[2], color[3]);
+	glUniform4f(renderer->shaders.quad.color, converted[0], converted[1], converted[2], converted[3]);
 
 	glVertexAttribPointer(renderer->shaders.quad.pos_attrib, 2, GL_FLOAT, GL_FALSE,
 			0, verts);
@@ -217,11 +229,14 @@ static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
 		0, 1, // bottom left
 	};
 
+	float converted[4];
+	color_convert(NULL, wlr_renderer->color, color, converted);
+
 	PUSH_GLES2_DEBUG;
 	glUseProgram(renderer->shaders.ellipse.program);
 
 	glUniformMatrix3fv(renderer->shaders.ellipse.proj, 1, GL_FALSE, transposition);
-	glUniform4f(renderer->shaders.ellipse.color, color[0], color[1], color[2], color[3]);
+	glUniform4f(renderer->shaders.ellipse.color, converted[0], converted[1], converted[2], converted[3]);
 
 	glVertexAttribPointer(renderer->shaders.ellipse.pos_attrib, 2, GL_FLOAT,
 			GL_FALSE, 0, verts);
@@ -258,7 +273,7 @@ static bool gles2_resource_is_wl_drm_buffer(struct wlr_renderer *wlr_renderer,
 
 	EGLint fmt;
 	return renderer->egl->procs.eglQueryWaylandBufferWL(renderer->egl->display,
-		resource, EGL_TEXTURE_FORMAT, &fmt);
+			resource, EGL_TEXTURE_FORMAT, &fmt);
 }
 
 static void gles2_wl_drm_buffer_get_size(struct wlr_renderer *wlr_renderer,
@@ -665,9 +680,41 @@ extern const GLchar quad_vertex_src[];
 extern const GLchar quad_fragment_src[];
 extern const GLchar ellipse_fragment_src[];
 extern const GLchar tex_vertex_src[];
-extern const GLchar tex_fragment_src_rgba[];
-extern const GLchar tex_fragment_src_rgbx[];
-extern const GLchar tex_fragment_src_external[];
+extern struct wlr_gles2_tex_shader 
+	tex_fragment_src_rgba,
+	tex_fragment_src_rgbx,
+	tex_fragment_src_external;
+
+// return true on success
+static bool build_tex_shader(struct wlr_gles2_tex_shader *shader)
+{
+	GLuint prog;
+
+	char fragsrc[100000] = "";
+	int n = snprintf(fragsrc, sizeof(fragsrc), "%s\n%s\nvoid main() {\n%s\n}\n",
+			shader->head,
+			shader->util,
+			shader->main);
+
+	assert(n < (int)sizeof(fragsrc));
+
+	shader->program = prog = link_program(tex_vertex_src, fragsrc);
+	if (!prog) {
+		return false;
+	}
+
+	shader->proj = glGetUniformLocation(prog, "proj");
+	shader->invert_y = glGetUniformLocation(prog, "invert_y");
+	shader->tex = glGetUniformLocation(prog, "tex");
+	shader->alpha = glGetUniformLocation(prog, "alpha");
+	shader->pos_attrib = glGetAttribLocation(prog, "pos");
+	shader->tex_attrib = glGetAttribLocation(prog, "texcoord");
+
+	shader->color_table = glGetUniformLocation(prog, "color_table");
+	shader->color_enable = glGetUniformLocation(prog, "color_enable");
+
+	return true;
+}
 
 struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	if (!wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL)) {
@@ -694,6 +741,8 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	wlr_log(WLR_INFO, "GL vendor: %s", glGetString(GL_VENDOR));
 	wlr_log(WLR_INFO, "GL renderer: %s", glGetString(GL_RENDERER));
 	wlr_log(WLR_INFO, "Supported GLES2 extensions: %s", exts_str);
+
+	color_engine_setup();
 
 	if (!check_gl_ext(exts_str, "GL_EXT_texture_format_BGRA8888")) {
 		wlr_log(WLR_ERROR, "BGRA8888 format not supported by GLES2");
@@ -731,9 +780,9 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 
 		// Silence unwanted message types
 		gles2_procs.glDebugMessageControlKHR(GL_DONT_CARE,
-			GL_DEBUG_TYPE_POP_GROUP_KHR, GL_DONT_CARE, 0, NULL, GL_FALSE);
+				GL_DEBUG_TYPE_POP_GROUP_KHR, GL_DONT_CARE, 0, NULL, GL_FALSE);
 		gles2_procs.glDebugMessageControlKHR(GL_DONT_CARE,
-			GL_DEBUG_TYPE_PUSH_GROUP_KHR, GL_DONT_CARE, 0, NULL, GL_FALSE);
+				GL_DEBUG_TYPE_PUSH_GROUP_KHR, GL_DONT_CARE, 0, NULL, GL_FALSE);
 	}
 
 	PUSH_GLES2_DEBUG;
@@ -758,42 +807,21 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	renderer->shaders.ellipse.pos_attrib = glGetAttribLocation(prog, "pos");
 	renderer->shaders.ellipse.tex_attrib = glGetAttribLocation(prog, "texcoord");
 
-	renderer->shaders.tex_rgba.program = prog =
-		link_program(tex_vertex_src, tex_fragment_src_rgba);
-	if (!renderer->shaders.tex_rgba.program) {
+	renderer->shaders.tex_rgba = tex_fragment_src_rgba;
+	if(! build_tex_shader(&renderer->shaders.tex_rgba)) {
 		goto error;
 	}
-	renderer->shaders.tex_rgba.proj = glGetUniformLocation(prog, "proj");
-	renderer->shaders.tex_rgba.invert_y = glGetUniformLocation(prog, "invert_y");
-	renderer->shaders.tex_rgba.tex = glGetUniformLocation(prog, "tex");
-	renderer->shaders.tex_rgba.alpha = glGetUniformLocation(prog, "alpha");
-	renderer->shaders.tex_rgba.pos_attrib = glGetAttribLocation(prog, "pos");
-	renderer->shaders.tex_rgba.tex_attrib = glGetAttribLocation(prog, "texcoord");
 
-	renderer->shaders.tex_rgbx.program = prog =
-		link_program(tex_vertex_src, tex_fragment_src_rgbx);
-	if (!renderer->shaders.tex_rgbx.program) {
+	renderer->shaders.tex_rgbx = tex_fragment_src_rgbx;
+	if(! build_tex_shader(&renderer->shaders.tex_rgbx)) {
 		goto error;
 	}
-	renderer->shaders.tex_rgbx.proj = glGetUniformLocation(prog, "proj");
-	renderer->shaders.tex_rgbx.invert_y = glGetUniformLocation(prog, "invert_y");
-	renderer->shaders.tex_rgbx.tex = glGetUniformLocation(prog, "tex");
-	renderer->shaders.tex_rgbx.alpha = glGetUniformLocation(prog, "alpha");
-	renderer->shaders.tex_rgbx.pos_attrib = glGetAttribLocation(prog, "pos");
-	renderer->shaders.tex_rgbx.tex_attrib = glGetAttribLocation(prog, "texcoord");
 
 	if (renderer->exts.egl_image_external_oes) {
-		renderer->shaders.tex_ext.program = prog =
-			link_program(tex_vertex_src, tex_fragment_src_external);
-		if (!renderer->shaders.tex_ext.program) {
+		renderer->shaders.tex_ext = tex_fragment_src_external;
+		if(! build_tex_shader(&renderer->shaders.tex_ext)) {
 			goto error;
 		}
-		renderer->shaders.tex_ext.proj = glGetUniformLocation(prog, "proj");
-		renderer->shaders.tex_ext.invert_y = glGetUniformLocation(prog, "invert_y");
-		renderer->shaders.tex_ext.tex = glGetUniformLocation(prog, "tex");
-		renderer->shaders.tex_ext.alpha = glGetUniformLocation(prog, "alpha");
-		renderer->shaders.tex_ext.pos_attrib = glGetAttribLocation(prog, "pos");
-		renderer->shaders.tex_ext.tex_attrib = glGetAttribLocation(prog, "texcoord");
 	}
 
 	POP_GLES2_DEBUG;
