@@ -1,7 +1,7 @@
 project(
 	'wlroots',
 	'c',
-	version: '0.10.0',
+	version: '0.11.0',
 	license: 'MIT',
 	meson_version: '>=0.54.0',
 	default_options: [
@@ -15,7 +15,7 @@ project(
 # necessary for bugfix releases. Increasing soversion is required because
 # wlroots never guarantees ABI stability -- only API stability is guaranteed
 # between minor releases.
-soversion = 5
+soversion = 6
 
 add_project_arguments([
 	'-DWLR_USE_UNSTABLE',
