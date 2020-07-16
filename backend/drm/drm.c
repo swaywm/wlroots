@@ -204,23 +204,26 @@ static bool init_planes(struct wlr_drm_backend *drm) {
 			continue;
 		}
 
-		/*
-		 * This is a very naive implementation of the plane matching
-		 * logic. Primary and cursor planes should only work on a
-		 * single CRTC, and this should be perfectly adequate, but
-		 * overlay planes can potentially work with multiple CRTCs,
-		 * meaning this could return inefficient/skewed results.
-		 *
-		 * possible_crtcs is a bitmask of crtcs, where each bit is an
-		 * index into drmModeRes.crtcs. So if bit 0 is set (ffs starts
-		 * counting from 1), crtc 0 is possible.
-		 */
-		int crtc_bit = ffs(plane->possible_crtcs) - 1;
+		assert(drm->num_crtcs <= 32);
+		struct wlr_drm_crtc *crtc = NULL;
+		for (size_t j = 0; j < drm->num_crtcs ; j++) {
+			uint32_t crtc_bit = 1 << j;
+			if ((plane->possible_crtcs & crtc_bit) == 0) {
+				continue;
+			}
 
-		// This would be a kernel bug
-		assert(crtc_bit >= 0 && (size_t)crtc_bit < drm->num_crtcs);
+			struct wlr_drm_crtc *candidate = &drm->crtcs[j];
+			if ((type == DRM_PLANE_TYPE_PRIMARY && !candidate->primary) ||
+					(type == DRM_PLANE_TYPE_CURSOR && !candidate->cursor)) {
+				crtc = candidate;
+				break;
+			}
+		}
+		if (!crtc) {
+			drmModeFreePlane(plane);
+			continue;
+		}
 
-		struct wlr_drm_crtc *crtc = &drm->crtcs[crtc_bit];
 		if (!add_plane(drm, crtc, plane, type, &props)) {
 			drmModeFreePlane(plane);
 			goto error;
