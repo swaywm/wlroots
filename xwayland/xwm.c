@@ -44,6 +44,7 @@ const char *atom_map[ATOM_LAST] = {
 	[NET_WM_STATE_MAXIMIZED_HORZ] = "_NET_WM_STATE_MAXIMIZED_HORZ",
 	[NET_WM_PING] = "_NET_WM_PING",
 	[WM_STATE] = "WM_STATE",
+	[WM_CHANGE_STATE] = "WM_CHANGE_STATE",
 	[CLIPBOARD] = "CLIPBOARD",
 	[PRIMARY] = "PRIMARY",
 	[WL_SELECTION] = "_WL_SELECTION",
@@ -1202,6 +1203,27 @@ static void xwm_handle_net_active_window_message(struct wlr_xwm *xwm,
 	wlr_signal_emit_safe(&surface->events.request_activate, surface);
 }
 
+#if WLR_HAS_XCB_ICCCM
+static void xwm_handle_wm_change_state(struct wlr_xwm *xwm,
+		xcb_client_message_event_t *ev) {
+	if (ev->data.data32[0] == XCB_ICCCM_WM_STATE_ICONIC) {
+		/* For compatiblity reasons, Wine will request iconic state and cannot ensure that the WM has agreed on it;
+		* immediately revert to normal to avoid being stuck in a paused state. */
+		wlr_log(WLR_DEBUG,
+			"Client has requested iconic state, rejecting (%u)\n",
+			ev->window);
+		long data[] = {XCB_ICCCM_WM_STATE_NORMAL, XCB_NONE};
+		xcb_change_property(xwm->xcb_conn, XCB_PROP_MODE_REPLACE,
+			ev->window, xwm->atoms[WM_STATE], xwm->atoms[WM_STATE],
+			32, 2, data);
+	} else {
+		wlr_log(WLR_DEBUG,
+			"Not handling WM_CHANGE_STATE request. (%u, state = "
+			"%d)\n", ev->window, ev->data.data32[0]);
+	}
+}
+#endif
+
 static void xwm_handle_client_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
 	wlr_log(WLR_DEBUG, "XCB_CLIENT_MESSAGE (%u)", ev->window);
@@ -1216,6 +1238,10 @@ static void xwm_handle_client_message(struct wlr_xwm *xwm,
 		xwm_handle_wm_protocols_message(xwm, ev);
 	} else if (ev->type == xwm->atoms[NET_ACTIVE_WINDOW]) {
 		xwm_handle_net_active_window_message(xwm, ev);
+	#if WLR_HAS_XCB_ICCCM
+	} else if (ev->type == xwm->atoms[WM_CHANGE_STATE]) {
+		xwm_handle_wm_change_state(xwm, ev);
+	#endif
 	} else if (!xwm_handle_selection_client_message(xwm, ev)) {
 		char *type_name = xwm_get_atom_name(xwm, ev->type);
 		wlr_log(WLR_DEBUG, "unhandled x11 client message %u (%s)", ev->type,
