@@ -1915,6 +1915,7 @@ bool wlr_xwayland_or_surface_wants_focus(
 		if (xwm_atoms_contains(surface->xwm, surface->window_type,
 				surface->window_type_len, needles[i])) {
 			ret = false;
+			break;
 		}
 	}
 
