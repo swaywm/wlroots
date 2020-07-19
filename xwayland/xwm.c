@@ -258,8 +258,9 @@ static void xwm_send_focus_window(struct wlr_xwm *xwm,
 	} else {
 		xwm_send_wm_message(xsurface, &message_data, XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT);
 
-		xcb_set_input_focus(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
-			xsurface->window_id, XCB_CURRENT_TIME);
+		xcb_void_cookie_t cookie = xcb_set_input_focus(xwm->xcb_conn,
+			XCB_INPUT_FOCUS_POINTER_ROOT, xsurface->window_id, XCB_CURRENT_TIME);
+		xwm->last_focus_seq = cookie.sequence;
 	}
 
 	uint32_t values[1];
@@ -1246,6 +1247,11 @@ static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 	struct wlr_xwayland_surface *requested_focus = lookup_surface(xwm, ev->event);
 	if (xwm->focus_surface && requested_focus &&
 			requested_focus->pid == xwm->focus_surface->pid) {
+		// We let the application override focus immediately after our focus change
+		// request, but not later
+		if (ev->sequence != xwm->last_focus_seq) {
+			return;
+		}
 		xwm->focus_surface = requested_focus;
 	}
 
