@@ -128,6 +128,7 @@ struct wlr_xwm {
 #if WLR_HAS_XCB_ERRORS
 	xcb_errors_context_t *errors_context;
 #endif
+	unsigned int last_focus_seq;
 
 	struct wl_listener compositor_new_surface;
 	struct wl_listener compositor_destroy;

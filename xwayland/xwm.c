@@ -275,8 +275,9 @@ static void xwm_set_focus_window(struct wlr_xwm *xwm,
 	} else {
 		xwm_send_wm_message(xsurface, &message_data, XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT);
 
-		xcb_set_input_focus(xwm->xcb_conn, XCB_INPUT_FOCUS_POINTER_ROOT,
-			xsurface->window_id, XCB_CURRENT_TIME);
+		xcb_void_cookie_t cookie = xcb_set_input_focus(xwm->xcb_conn,
+			XCB_INPUT_FOCUS_POINTER_ROOT, xsurface->window_id, XCB_CURRENT_TIME);
+		xwm->last_focus_seq = cookie.sequence;
 	}
 
 	uint32_t values[1];
@@ -1293,6 +1294,16 @@ static void xwm_handle_client_message(struct wlr_xwm *xwm,
 	}
 }
 
+static bool validate_focus_serial(uint16_t last_focus_seq, uint16_t event_seq) {
+	uint16_t rev_dist = event_seq - last_focus_seq;
+	if (rev_dist >= UINT16_MAX / 2) {
+		// Probably overflow or too old
+		return false;
+	}
+
+	return true;
+}
+
 static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 		xcb_focus_in_event_t *ev) {
 	// Do not interfere with grabs
@@ -1311,10 +1322,13 @@ static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 	// Note: Some applications rely on being able to change focus, for ex. Steam:
 	// https://github.com/swaywm/sway/issues/1865
 	// Because of that, we allow changing focus between surfaces belonging to the
-	// same application.
+	// same application. We must be careful to ignore requests that are too old
+	// though, because otherwise it may lead to race conditions:
+	// https://github.com/swaywm/wlroots/issues/2324
 	struct wlr_xwayland_surface *requested_focus = lookup_surface(xwm, ev->event);
 	if (xwm->focus_surface && requested_focus &&
-			requested_focus->pid == xwm->focus_surface->pid) {
+			requested_focus->pid == xwm->focus_surface->pid &&
+			validate_focus_serial(xwm->last_focus_seq, ev->sequence)) {
 		xwm_set_focus_window(xwm, requested_focus);
 	} else {
 		xwm_set_focus_window(xwm, xwm->focus_surface);
