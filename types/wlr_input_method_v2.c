@@ -3,15 +3,19 @@
 #endif
 #include <assert.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #include <wayland-util.h>
 #include <wlr/types/wlr_input_method_v2.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "input-method-unstable-v2-protocol.h"
+#include "util/shm.h"
 #include "util/signal.h"
 
 static const struct zwp_input_method_v2_interface input_method_impl;
+static const struct zwp_input_method_keyboard_grab_v2_interface keyboard_grab_impl;
 
 static struct wlr_input_method_v2 *input_method_from_resource(
 		struct wl_resource *resource) {
@@ -20,10 +24,19 @@ static struct wlr_input_method_v2 *input_method_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
+static struct wlr_input_method_keyboard_grab_v2 *keyboard_grab_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource,
+		&zwp_input_method_keyboard_grab_v2_interface,
+		&keyboard_grab_impl));
+	return wl_resource_get_user_data(resource);
+}
+
 static void input_method_destroy(struct wlr_input_method_v2 *input_method) {
 	wlr_signal_emit_safe(&input_method->events.destroy, input_method);
 	wl_list_remove(wl_resource_get_link(input_method->resource));
-	wl_list_remove(&input_method->seat_destroy.link);
+	wl_list_remove(&input_method->seat_client_destroy.link);
+	wlr_input_method_keyboard_grab_v2_destroy(input_method->keyboard_grab);
 	free(input_method->pending.commit_text);
 	free(input_method->pending.preedit.text);
 	free(input_method->current.commit_text);
@@ -101,10 +114,189 @@ static void im_get_input_popup_surface(struct wl_client *client,
 	wlr_log(WLR_INFO, "Stub: zwp_input_method_v2::get_input_popup_surface");
 }
 
+void wlr_input_method_keyboard_grab_v2_destroy(
+		struct wlr_input_method_keyboard_grab_v2 *keyboard_grab) {
+	if (!keyboard_grab) {
+		return;
+	}
+	wlr_signal_emit_safe(&keyboard_grab->events.destroy, keyboard_grab);
+	keyboard_grab->input_method->keyboard_grab = NULL;
+	if (keyboard_grab->keyboard) {
+		wl_list_remove(&keyboard_grab->keyboard_keymap.link);
+		wl_list_remove(&keyboard_grab->keyboard_repeat_info.link);
+		wl_list_remove(&keyboard_grab->keyboard_destroy.link);
+	}
+	wl_resource_set_user_data(keyboard_grab->resource, NULL);
+	free(keyboard_grab);
+}
+
+static void keyboard_grab_resource_destroy(struct wl_resource *resource) {
+	struct wlr_input_method_keyboard_grab_v2 *keyboard_grab =
+		keyboard_grab_from_resource(resource);
+	wlr_input_method_keyboard_grab_v2_destroy(keyboard_grab);
+}
+
+static void keyboard_grab_release(struct wl_client *client,
+		struct wl_resource *resource) {
+	wl_resource_destroy(resource);
+}
+
+static const struct zwp_input_method_keyboard_grab_v2_interface keyboard_grab_impl = {
+	.release = keyboard_grab_release,
+};
+
+void wlr_input_method_keyboard_grab_v2_send_key(
+		struct wlr_input_method_keyboard_grab_v2 *keyboard_grab,
+		uint32_t time, uint32_t key, uint32_t state) {
+	zwp_input_method_keyboard_grab_v2_send_key(
+		keyboard_grab->resource,
+		wlr_seat_client_next_serial(keyboard_grab->input_method->seat_client),
+		time, key, state);
+}
+
+void wlr_input_method_keyboard_grab_v2_send_modifiers(
+		struct wlr_input_method_keyboard_grab_v2 *keyboard_grab,
+		struct wlr_keyboard_modifiers *modifiers) {
+	zwp_input_method_keyboard_grab_v2_send_modifiers(
+		keyboard_grab->resource,
+		wlr_seat_client_next_serial(keyboard_grab->input_method->seat_client),
+		modifiers->depressed, modifiers->latched,
+		modifiers->locked, modifiers->group);
+}
+
+static bool keyboard_grab_send_keymap(
+		struct wlr_input_method_keyboard_grab_v2 *keyboard_grab,
+		struct wlr_keyboard *keyboard) {
+	int keymap_fd = allocate_shm_file(keyboard->keymap_size);
+	if (keymap_fd < 0) {
+		wlr_log(WLR_ERROR, "creating a keymap file for %zu bytes failed",
+			keyboard->keymap_size);
+		return false;
+	}
+
+	void *ptr = mmap(NULL, keyboard->keymap_size, PROT_READ | PROT_WRITE,
+		MAP_SHARED, keymap_fd, 0);
+	if (ptr == MAP_FAILED) {
+		wlr_log(WLR_ERROR, "failed to mmap() %zu bytes",
+			keyboard->keymap_size);
+		close(keymap_fd);
+		return false;
+	}
+
+	memcpy(ptr, keyboard->keymap_string, keyboard->keymap_size);
+	munmap(ptr, keyboard->keymap_size);
+
+	zwp_input_method_keyboard_grab_v2_send_keymap(keyboard_grab->resource,
+		WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1, keymap_fd,
+		keyboard->keymap_size);
+
+	close(keymap_fd);
+	return true;
+}
+
+static void keyboard_grab_send_repeat_info(
+		struct wlr_input_method_keyboard_grab_v2 *keyboard_grab,
+		struct wlr_keyboard *keyboard) {
+	zwp_input_method_keyboard_grab_v2_send_repeat_info(
+		keyboard_grab->resource, keyboard->repeat_info.rate,
+		keyboard->repeat_info.delay);
+}
+
+static void handle_keyboard_keymap(struct wl_listener *listener, void *data) {
+	struct wlr_input_method_keyboard_grab_v2 *keyboard_grab =
+		wl_container_of(listener, keyboard_grab, keyboard_keymap);
+	keyboard_grab_send_keymap(keyboard_grab, data);
+}
+
+static void handle_keyboard_repeat_info(struct wl_listener *listener,
+		void *data) {
+	struct wlr_input_method_keyboard_grab_v2 *keyboard_grab =
+		wl_container_of(listener, keyboard_grab, keyboard_repeat_info);
+	keyboard_grab_send_repeat_info(keyboard_grab, data);
+}
+
+static void handle_keyboard_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_input_method_keyboard_grab_v2 *keyboard_grab =
+		wl_container_of(listener, keyboard_grab, keyboard_destroy);
+	wlr_input_method_keyboard_grab_v2_set_keyboard(keyboard_grab, NULL);
+}
+
+void wlr_input_method_keyboard_grab_v2_set_keyboard(
+		struct wlr_input_method_keyboard_grab_v2 *keyboard_grab,
+		struct wlr_keyboard *keyboard) {
+	if (keyboard == keyboard_grab->keyboard) {
+		return;
+	}
+
+	if (keyboard_grab->keyboard) {
+		wl_list_remove(&keyboard_grab->keyboard_keymap.link);
+		wl_list_remove(&keyboard_grab->keyboard_repeat_info.link);
+		wl_list_remove(&keyboard_grab->keyboard_destroy.link);
+	}
+
+	if (keyboard) {
+		if (keyboard_grab->keyboard == NULL ||
+				strcmp(keyboard_grab->keyboard->keymap_string,
+				keyboard->keymap_string) != 0) {
+			// send keymap only if it is changed, or if input method is not
+			// aware that it did not change and blindly send it back with
+			// virtual keyboard, it may cause an infinite recursion.
+			if (!keyboard_grab_send_keymap(keyboard_grab, keyboard)) {
+				wlr_log(WLR_ERROR, "Failed to send keymap for input-method keyboard grab");
+				return;
+			}
+		}
+		keyboard_grab_send_repeat_info(keyboard_grab, keyboard);
+		keyboard_grab->keyboard_keymap.notify = handle_keyboard_keymap;
+		wl_signal_add(&keyboard->events.keymap,
+			&keyboard_grab->keyboard_keymap);
+		keyboard_grab->keyboard_repeat_info.notify =
+			handle_keyboard_repeat_info;
+		wl_signal_add(&keyboard->events.repeat_info,
+			&keyboard_grab->keyboard_repeat_info);
+		keyboard_grab->keyboard_destroy.notify =
+			handle_keyboard_destroy;
+		wl_signal_add(&keyboard->events.destroy,
+			&keyboard_grab->keyboard_destroy);
+	}
+
+	keyboard_grab->keyboard = keyboard;
+};
 
 static void im_grab_keyboard(struct wl_client *client,
 		struct wl_resource *resource, uint32_t keyboard) {
-	wlr_log(WLR_INFO, "Stub: zwp_input_method_v2::grab_keyboard");
+	struct wlr_input_method_v2 *input_method =
+		input_method_from_resource(resource);
+	if (!input_method) {
+		return;
+	}
+	if (input_method->keyboard_grab) {
+		// Already grabbed
+		return;
+	}
+	struct wlr_input_method_keyboard_grab_v2 *keyboard_grab =
+		calloc(1, sizeof(struct wlr_input_method_keyboard_grab_v2));
+	if (!keyboard_grab) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+	struct wl_resource *keyboard_grab_resource = wl_resource_create(
+		client, &zwp_input_method_keyboard_grab_v2_interface,
+		wl_resource_get_version(resource), keyboard);
+	if (keyboard_grab_resource == NULL) {
+		free(keyboard_grab);
+		wl_client_post_no_memory(client);
+		return;
+	}
+	wl_resource_set_implementation(keyboard_grab_resource,
+		&keyboard_grab_impl, keyboard_grab,
+		keyboard_grab_resource_destroy);
+	keyboard_grab->resource = keyboard_grab_resource;
+	keyboard_grab->input_method = input_method;
+	input_method->keyboard_grab = keyboard_grab;
+	wl_signal_init(&keyboard_grab->events.destroy);
+	wlr_signal_emit_safe(&input_method->events.grab_keyboard, keyboard_grab);
 }
 
 static const struct zwp_input_method_v2_interface input_method_impl = {
@@ -176,10 +368,10 @@ static struct wlr_input_method_manager_v2 *input_method_manager_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-static void input_method_handle_seat_destroy(struct wl_listener *listener,
+static void input_method_handle_seat_client_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_input_method_v2 *input_method = wl_container_of(listener,
-		input_method, seat_destroy);
+		input_method, seat_client_destroy);
 	wlr_input_method_v2_send_unavailable(input_method);
 }
 
@@ -196,6 +388,7 @@ static void manager_get_input_method(struct wl_client *client,
 		return;
 	}
 	wl_signal_init(&input_method->events.commit);
+	wl_signal_init(&input_method->events.grab_keyboard);
 	wl_signal_init(&input_method->events.destroy);
 	int version = wl_resource_get_version(resource);
 	struct wl_resource *im_resource = wl_resource_create(client,
@@ -208,14 +401,14 @@ static void manager_get_input_method(struct wl_client *client,
 	wl_resource_set_implementation(im_resource, &input_method_impl,
 		input_method, input_method_resource_destroy);
 
-	struct wlr_seat_client *seat_client = wlr_seat_client_from_resource(seat);
-	wl_signal_add(&seat_client->events.destroy,
-		&input_method->seat_destroy);
-	input_method->seat_destroy.notify =
-		input_method_handle_seat_destroy;
+	input_method->seat_client = wlr_seat_client_from_resource(seat);
+	input_method->seat = input_method->seat_client->seat;
+	wl_signal_add(&input_method->seat_client->events.destroy,
+		&input_method->seat_client_destroy);
+	input_method->seat_client_destroy.notify =
+		input_method_handle_seat_client_destroy;
 
 	input_method->resource = im_resource;
-	input_method->seat = seat_client->seat;
 	wl_list_insert(&im_manager->input_methods,
 		wl_resource_get_link(input_method->resource));
 	wlr_signal_emit_safe(&im_manager->events.input_method, input_method);

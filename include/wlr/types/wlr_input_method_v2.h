@@ -34,6 +34,7 @@ struct wlr_input_method_v2 {
 	struct wl_resource *resource;
 
 	struct wlr_seat *seat;
+	struct wlr_seat_client *seat_client;
 
 	struct wlr_input_method_v2_state pending;
 	struct wlr_input_method_v2_state current;
@@ -41,13 +42,30 @@ struct wlr_input_method_v2 {
 	bool client_active; // state known to the client
 	uint32_t current_serial; // received in last commit call
 
+	struct wlr_input_method_keyboard_grab_v2 *keyboard_grab;
+
 	struct wl_list link;
 
-	struct wl_listener seat_destroy;
+	struct wl_listener seat_client_destroy;
 
 	struct {
 		struct wl_signal commit; // (struct wlr_input_method_v2*)
+		struct wl_signal grab_keyboard; // (struct wlr_input_method_keyboard_grab_v2*)
 		struct wl_signal destroy; // (struct wlr_input_method_v2*)
+	} events;
+};
+
+struct wlr_input_method_keyboard_grab_v2 {
+	struct wl_resource *resource;
+	struct wlr_input_method_v2 *input_method;
+	struct wlr_keyboard *keyboard;
+
+	struct wl_listener keyboard_keymap;
+	struct wl_listener keyboard_repeat_info;
+	struct wl_listener keyboard_destroy;
+
+	struct {
+		struct wl_signal destroy; // (struct wlr_input_method_keyboard_grab_v2*)
 	} events;
 };
 
@@ -81,5 +99,17 @@ void wlr_input_method_v2_send_text_change_cause(
 void wlr_input_method_v2_send_done(struct wlr_input_method_v2 *input_method);
 void wlr_input_method_v2_send_unavailable(
 	struct wlr_input_method_v2 *input_method);
+
+void wlr_input_method_keyboard_grab_v2_send_key(
+	struct wlr_input_method_keyboard_grab_v2 *keyboard_grab,
+	uint32_t time, uint32_t key, uint32_t state);
+void wlr_input_method_keyboard_grab_v2_send_modifiers(
+	struct wlr_input_method_keyboard_grab_v2 *keyboard_grab,
+	struct wlr_keyboard_modifiers *modifiers);
+void wlr_input_method_keyboard_grab_v2_set_keyboard(
+	struct wlr_input_method_keyboard_grab_v2 *keyboard_grab,
+	struct wlr_keyboard *keyboard);
+void wlr_input_method_keyboard_grab_v2_destroy(
+	struct wlr_input_method_keyboard_grab_v2 *keyboard_grab);
 
 #endif

@@ -232,7 +232,6 @@ static void layer_surface_destroy(struct wlr_layer_surface_v1 *surface) {
 	wl_resource_set_user_data(surface->resource, NULL);
 	surface->surface->role_data = NULL;
 	wl_list_remove(&surface->surface_destroy.link);
-	wl_list_remove(&surface->link);
 	free(surface->namespace);
 	free(surface);
 }
@@ -440,7 +439,6 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 			surface, surface->resource);
 	wl_resource_set_implementation(surface->resource,
 		&layer_surface_implementation, surface, layer_surface_resource_destroy);
-	wl_list_insert(&shell->surfaces, &surface->link);
 }
 
 static const struct zwlr_layer_shell_v1_interface layer_shell_implementation = {
@@ -478,8 +476,6 @@ struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display)
 	if (!layer_shell) {
 		return NULL;
 	}
-
-	wl_list_init(&layer_shell->surfaces);
 
 	struct wl_global *global = wl_global_create(display,
 		&zwlr_layer_shell_v1_interface, 2, layer_shell, layer_shell_bind);
