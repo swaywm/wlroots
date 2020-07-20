@@ -295,55 +295,41 @@ void handle_xdg_toplevel_v6_ack_configure(struct wlr_xdg_surface_v6 *surface,
 	assert(surface->role == WLR_XDG_SURFACE_V6_ROLE_TOPLEVEL);
 	assert(configure->toplevel_state != NULL);
 
-	surface->toplevel->current.maximized =
-		configure->toplevel_state->maximized;
-	surface->toplevel->current.fullscreen =
-		configure->toplevel_state->fullscreen;
-	surface->toplevel->current.resizing =
-		configure->toplevel_state->resizing;
-	surface->toplevel->current.activated =
-		configure->toplevel_state->activated;
+	surface->toplevel->last_acked = *configure->toplevel_state;
 }
 
 bool compare_xdg_surface_v6_toplevel_state(struct wlr_xdg_toplevel_v6 *state) {
-	struct {
-		struct wlr_xdg_toplevel_v6_state state;
-		uint32_t width, height;
-	} configured;
-
 	// is pending state different from current state?
 	if (!state->base->configured) {
 		return false;
 	}
 
+	struct wlr_xdg_toplevel_v6_state *configured = NULL;
 	if (wl_list_empty(&state->base->configure_list)) {
-		// last configure is actually the current state, just use it
-		configured.state = state->current;
-		configured.width = state->base->surface->current.width;
-		configured.height = state->base->surface->current.height;
+		// There are currently no pending configures, so check against the last
+		// state acked by the client.
+		configured = &state->last_acked;
 	} else {
 		struct wlr_xdg_surface_v6_configure *configure =
 			wl_container_of(state->base->configure_list.prev, configure, link);
-		configured.state = *configure->toplevel_state;
-		configured.width = configure->toplevel_state->width;
-		configured.height = configure->toplevel_state->height;
+		configured = configure->toplevel_state;
 	}
 
-	if (state->server_pending.activated != configured.state.activated) {
+	if (state->server_pending.activated != configured->activated) {
 		return false;
 	}
-	if (state->server_pending.fullscreen != configured.state.fullscreen) {
+	if (state->server_pending.fullscreen != configured->fullscreen) {
 		return false;
 	}
-	if (state->server_pending.maximized != configured.state.maximized) {
+	if (state->server_pending.maximized != configured->maximized) {
 		return false;
 	}
-	if (state->server_pending.resizing != configured.state.resizing) {
+	if (state->server_pending.resizing != configured->resizing) {
 		return false;
 	}
 
-	if (state->server_pending.width == configured.width &&
-			state->server_pending.height == configured.height) {
+	if (state->server_pending.width == configured->width &&
+			state->server_pending.height == configured->height) {
 		return true;
 	}
 
@@ -430,7 +416,10 @@ void handle_xdg_surface_v6_toplevel_committed(struct wlr_xdg_surface_v6 *surface
 		return;
 	}
 
-	// update state that doesn't need compositor approval
+	// apply state from the last acked configure now that the client committed
+	surface->toplevel->current = surface->toplevel->last_acked;
+
+	// update state from the client that doesn't need compositor approval
 	surface->toplevel->current.max_width =
 		surface->toplevel->client_pending.max_width;
 	surface->toplevel->current.min_width =
