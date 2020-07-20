@@ -139,6 +139,7 @@ struct wlr_xdg_toplevel_v6 {
 
 	struct wlr_xdg_toplevel_v6_state client_pending;
 	struct wlr_xdg_toplevel_v6_state server_pending;
+	struct wlr_xdg_toplevel_v6_state last_acked;
 	struct wlr_xdg_toplevel_v6_state current;
 
 	char *title;
