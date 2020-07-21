@@ -134,7 +134,7 @@ struct wlr_drm_connector {
 	struct wl_list link;
 
 	/*
-	 * We've asked for a state change in the kernel, and yet to recieve a
+	 * We've asked for a state change in the kernel, and yet to receive a
 	 * notification for its completion. Currently, the kernel only has a
 	 * queue length of 1, and no way to modify your submissions after
 	 * they're sent.
