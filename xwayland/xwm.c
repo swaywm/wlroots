@@ -913,10 +913,7 @@ static void xwm_handle_configure_notify(struct wlr_xwm *xwm,
 static void xsurface_set_wm_state(struct wlr_xwayland_surface *xsurface,
 		int32_t state) {
 	struct wlr_xwm *xwm = xsurface->xwm;
-	uint32_t property[2];
-
-	property[0] = state;
-	property[1] = XCB_WINDOW_NONE;
+	uint32_t property[] = { state, XCB_WINDOW_NONE };
 
 	xcb_change_property(xwm->xcb_conn,
 		XCB_PROP_MODE_REPLACE,
@@ -924,7 +921,7 @@ static void xsurface_set_wm_state(struct wlr_xwayland_surface *xsurface,
 		xwm->atoms[WM_STATE],
 		xwm->atoms[WM_STATE],
 		32, // format
-		2, property);
+		sizeof(property) / sizeof(property[0]), property);
 }
 
 static void xwm_handle_map_request(struct wlr_xwm *xwm,
