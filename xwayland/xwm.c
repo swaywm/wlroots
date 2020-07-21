@@ -141,7 +141,6 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 	surface->width = width;
 	surface->height = height;
 	surface->override_redirect = override_redirect;
-	wl_list_insert(&xwm->surfaces, &surface->link);
 	wl_list_init(&surface->children);
 	wl_list_init(&surface->parent_link);
 	wl_signal_init(&surface->events.destroy);
@@ -181,6 +180,8 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 		wlr_log(WLR_ERROR, "Could not add timer to event loop");
 		return NULL;
 	}
+
+	wl_list_insert(&xwm->surfaces, &surface->link);
 
 	wlr_signal_emit_safe(&xwm->xwayland->events.new_surface, surface);
 
