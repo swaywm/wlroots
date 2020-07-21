@@ -294,10 +294,9 @@ static void xwm_surface_activate(struct wlr_xwm *xwm,
 
 static void xsurface_set_net_wm_state(struct wlr_xwayland_surface *xsurface) {
 	struct wlr_xwm *xwm = xsurface->xwm;
-	uint32_t property[5];
-	int i;
 
-	i = 0;
+	uint32_t property[5];
+	size_t i = 0;
 	if (xsurface->modal) {
 		property[i++] = xwm->atoms[NET_WM_STATE_MODAL];
 	}
@@ -313,6 +312,7 @@ static void xsurface_set_net_wm_state(struct wlr_xwayland_surface *xsurface) {
 	if (xsurface->minimized) {
 		property[i++] = xwm->atoms[NET_WM_STATE_HIDDEN];
 	}
+	assert(i <= sizeof(property) / sizeof(property[0]));
 
 	xcb_change_property(xwm->xcb_conn,
 		XCB_PROP_MODE_REPLACE,
