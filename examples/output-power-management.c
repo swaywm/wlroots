@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
 
 	if (output_power_manager == NULL) {
 		fprintf(stderr,
-			"compositor doesn't support wlr-output-power-managment-unstable-v1\n");
+			"compositor doesn't support wlr-output-power-management-unstable-v1\n");
 		return EXIT_FAILURE;
 	}
 
