@@ -203,6 +203,8 @@ static uint32_t strip_alpha_channel(uint32_t format) {
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:
 		return DRM_FORMAT_XRGB8888;
+	case DRM_FORMAT_ARGB2101010:
+		return DRM_FORMAT_XRGB2101010;
 	default:
 		return DRM_FORMAT_INVALID;
 	}
