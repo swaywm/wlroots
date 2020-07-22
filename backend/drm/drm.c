@@ -110,8 +110,7 @@ static bool add_plane(struct wlr_drm_backend *drm,
 		uint32_t fmt = drm_plane->formats[j];
 
 		if (fmt == DRM_FORMAT_ARGB2101010) {
-			// Prefer formats with 10 bit color
-			// and/or alhpa channel.
+			// Prefer formats with 10 bit color and/or alpha channel.
 			rgb_format = fmt;
 			break;
 		} else if (fmt == DRM_FORMAT_XRGB2101010) {
