@@ -42,7 +42,7 @@ programming language.
 
 Install dependencies:
 
-* meson
+* meson >= 0.54
 * wayland
 * wayland-protocols
 * EGL
