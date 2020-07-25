@@ -62,3 +62,12 @@ if logind_found
 	wlr_files += files('logind.c')
 	wlr_deps += logind
 endif
+
+# libseat
+
+libseat = dependency('libseat', required: get_option('libseat'))
+if libseat.found()
+	wlr_files += files('libseat.c')
+	wlr_deps += libseat
+	conf_data.set10('WLR_HAS_LIBSEAT', true)
+endif

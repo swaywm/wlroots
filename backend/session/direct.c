@@ -18,6 +18,7 @@
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
 #include "backend/session/direct-ipc.h"
+#include "backend/session/session.h"
 #include "util/signal.h"
 
 enum { DRM_MAJOR = 226 };
@@ -246,6 +247,7 @@ static struct wlr_session *direct_session_create(struct wl_display *disp) {
 		return NULL;
 	}
 
+	session_init(&session->base);
 	session->sock = direct_ipc_init(&session->child);
 	if (session->sock == -1) {
 		goto error_session;
@@ -267,6 +269,7 @@ static struct wlr_session *direct_session_create(struct wl_display *disp) {
 
 	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
 	session->base.impl = &session_direct;
+	session->base.active = true;
 
 	wlr_log(WLR_INFO, "Successfully loaded direct session");
 	return &session->base;

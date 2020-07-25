@@ -13,13 +13,18 @@
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include "backend/session/session.h"
 #include "util/signal.h"
 
+extern const struct session_impl session_libseat;
 extern const struct session_impl session_logind;
 extern const struct session_impl session_direct;
 extern const struct session_impl session_noop;
 
 static const struct session_impl *impls[] = {
+#if WLR_HAS_LIBSEAT
+	&session_libseat,
+#endif
 #if WLR_HAS_SYSTEMD || WLR_HAS_ELOGIND
 	&session_logind,
 #endif
@@ -65,12 +70,24 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_session_destroy(session);
 }
 
+void session_init(struct wlr_session *session) {
+	wl_signal_init(&session->session_signal);
+	wl_signal_init(&session->events.destroy);
+	wl_list_init(&session->devices);
+}
+
 struct wlr_session *wlr_session_create(struct wl_display *disp) {
 	struct wlr_session *session = NULL;
 
 	const char *env_wlr_session = getenv("WLR_SESSION");
 	if (env_wlr_session) {
-		if (strcmp(env_wlr_session, "logind") == 0 ||
+		if (strcmp(env_wlr_session, "libseat") == 0) {
+#if WLR_HAS_LIBSEAT
+			session = session_libseat.create(disp);
+#else
+			wlr_log(WLR_ERROR, "wlroots is not compiled with libseat support");
+#endif
+		} else if (strcmp(env_wlr_session, "logind") == 0 ||
 				strcmp(env_wlr_session, "systemd") == 0) {
 #if WLR_HAS_SYSTEMD || WLR_HAS_ELOGIND
 			session = session_logind.create(disp);
@@ -96,11 +113,6 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 		wlr_log(WLR_ERROR, "Failed to load session backend");
 		return NULL;
 	}
-
-	session->active = true;
-	wl_signal_init(&session->session_signal);
-	wl_signal_init(&session->events.destroy);
-	wl_list_init(&session->devices);
 
 	session->udev = udev_new();
 	if (!session->udev) {

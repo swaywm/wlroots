@@ -12,6 +12,7 @@ packages:
   - xcb-util-errors
   - xcb-util-image
   - xcb-util-wm
+  - seatd
 sources:
   - https://github.com/swaywm/wlroots
 tasks:
