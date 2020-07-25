@@ -18,6 +18,7 @@ packages:
 - x11/pixman
 - x11/xcb-util-errors
 - x11/xcb-util-wm
+- sysutils/seatd
 sources:
 - https://github.com/swaywm/wlroots
 tasks:

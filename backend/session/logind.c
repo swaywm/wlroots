@@ -13,6 +13,7 @@
 #include <wlr/backend/session/interface.h>
 #include <wlr/config.h>
 #include <wlr/util/log.h>
+#include "backend/session/session.h"
 #include "util/signal.h"
 
 #if WLR_HAS_SYSTEMD
@@ -778,6 +779,8 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 		return NULL;
 	}
 
+	session_init(&session->base);
+
 	if (!get_display_session(&session->id)) {
 		goto error;
 	}
@@ -855,6 +858,8 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 	wlr_log(WLR_INFO, "Successfully loaded logind session");
 
 	session->base.impl = &session_logind;
+	session->base.active = true;
+
 	return &session->base;
 
 error_bus:
