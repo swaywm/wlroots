@@ -103,7 +103,8 @@ static void virtual_pointer_axis(struct wl_client *client,
 		return;
 	}
 	struct wlr_input_device *wlr_dev = &pointer->input_device;
-	pointer->axis_valid[axis] = true;
+	pointer->axis = axis;
+	pointer->axis_valid[pointer->axis] = true;
 	pointer->axis_event[pointer->axis].device = wlr_dev;
 	pointer->axis_event[pointer->axis].time_msec = time;
 	pointer->axis_event[pointer->axis].orientation = axis;
