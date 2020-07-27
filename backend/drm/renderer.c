@@ -137,7 +137,7 @@ static void finish_drm_surface(struct wlr_drm_surface *surf) {
 bool drm_surface_make_current(struct wlr_drm_surface *surf,
 		int *buffer_age) {
 	wlr_buffer_unlock(surf->back_buffer);
-	surf->back_buffer = wlr_swapchain_acquire(surf->swapchain);
+	surf->back_buffer = wlr_swapchain_acquire(surf->swapchain, buffer_age);
 	if (surf->back_buffer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to acquire swapchain buffer");
 		return false;
@@ -151,10 +151,6 @@ bool drm_surface_make_current(struct wlr_drm_surface *surf,
 		return false;
 	}
 
-	// TODO: damage tracking
-	if (buffer_age != NULL) {
-		*buffer_age = -1;
-	}
 	return true;
 }
 
