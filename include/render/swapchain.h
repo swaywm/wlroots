@@ -10,6 +10,7 @@
 struct wlr_swapchain_slot {
 	struct wlr_buffer *buffer;
 	bool acquired; // waiting for release
+	int age;
 
 	struct wl_listener release;
 };
@@ -35,7 +36,15 @@ void wlr_swapchain_destroy(struct wlr_swapchain *swapchain);
  * The returned buffer is locked. When the caller is done with it, they must
  * unlock it by calling wlr_buffer_unlock.
  */
-struct wlr_buffer *wlr_swapchain_acquire(
-	struct wlr_swapchain *swapchain);
+struct wlr_buffer *wlr_swapchain_acquire(struct wlr_swapchain *swapchain,
+	int *age);
+/**
+ * Mark the buffer as submitted for presentation. This needs to be called by
+ * swap chain users on frame boundaries.
+ *
+ * If the buffer hasn't been created via the swap chain, the call is ignored.
+ */
+void wlr_swapchain_set_buffer_submitted(struct wlr_swapchain *swapchain,
+	struct wlr_buffer *buffer);
 
 #endif
