@@ -27,6 +27,7 @@
 #include "backend/drm/drm.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
+#include "render/swapchain.h"
 #include "util/signal.h"
 
 bool check_drm_features(struct wlr_drm_backend *drm) {
@@ -331,6 +332,15 @@ static bool drm_connector_attach_render(struct wlr_output *output,
 	return drm_surface_make_current(&conn->crtc->primary->surf, buffer_age);
 }
 
+static void drm_plane_set_committed(struct wlr_drm_plane *plane) {
+	drm_fb_move(&plane->queued_fb, &plane->pending_fb);
+
+	struct wlr_buffer *queued = plane->queued_fb.wlr_buf;
+	if (queued != NULL) {
+		wlr_swapchain_set_buffer_submitted(plane->surf.swapchain, queued);
+	}
+}
+
 static bool drm_crtc_commit(struct wlr_drm_connector *conn, uint32_t flags) {
 	struct wlr_drm_backend *drm =
 		get_drm_backend_from_backend(conn->output.backend);
@@ -338,9 +348,9 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn, uint32_t flags) {
 	bool ok = drm->iface->crtc_commit(drm, conn, flags);
 	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
 		memcpy(&crtc->current, &crtc->pending, sizeof(struct wlr_drm_crtc_state));
-		drm_fb_move(&crtc->primary->queued_fb, &crtc->primary->pending_fb);
+		drm_plane_set_committed(crtc->primary);
 		if (crtc->cursor != NULL) {
-			drm_fb_move(&crtc->cursor->queued_fb, &crtc->cursor->pending_fb);
+			drm_plane_set_committed(crtc->cursor);
 		}
 	} else {
 		memcpy(&crtc->pending, &crtc->current, sizeof(struct wlr_drm_crtc_state));
