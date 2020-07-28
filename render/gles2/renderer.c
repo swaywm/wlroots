@@ -36,6 +36,139 @@ static struct wlr_gles2_renderer *gles2_get_renderer_in_context(
 	return renderer;
 }
 
+static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
+	wl_list_remove(&buffer->link);
+	wl_list_remove(&buffer->buffer_destroy.link);
+
+	wlr_egl_make_current(buffer->renderer->egl, EGL_NO_SURFACE, NULL);
+
+	push_gles2_debug(buffer->renderer);
+
+	glDeleteFramebuffers(1, &buffer->fbo);
+	glDeleteRenderbuffers(1, &buffer->rbo);
+
+	pop_gles2_debug(buffer->renderer);
+
+	wlr_egl_destroy_image(buffer->renderer->egl, buffer->image);
+	wlr_egl_unset_current(buffer->renderer->egl);
+	free(buffer);
+}
+
+static struct wlr_gles2_buffer *get_buffer(struct wlr_gles2_renderer *renderer,
+		struct wlr_buffer *wlr_buffer) {
+	struct wlr_gles2_buffer *buffer;
+	wl_list_for_each(buffer, &renderer->buffers, link) {
+		if (buffer->buffer == wlr_buffer) {
+			return buffer;
+		}
+	}
+	return NULL;
+}
+
+static void handle_buffer_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_gles2_buffer *buffer =
+		wl_container_of(listener, buffer, buffer_destroy);
+	destroy_buffer(buffer);
+}
+
+static struct wlr_gles2_buffer *create_buffer(struct wlr_gles2_renderer *renderer,
+		struct wlr_buffer *wlr_buffer) {
+	struct wlr_gles2_buffer *buffer = calloc(1, sizeof(*buffer));
+	if (buffer == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return NULL;
+	}
+	buffer->buffer = wlr_buffer;
+	buffer->renderer = renderer;
+
+	struct wlr_dmabuf_attributes dmabuf = {0};
+	if (!wlr_buffer_get_dmabuf(wlr_buffer, &dmabuf)) {
+		goto error_buffer;
+	}
+
+	bool external_only;
+	buffer->image = wlr_egl_create_image_from_dmabuf(renderer->egl,
+		&dmabuf, &external_only);
+	if (buffer->image == EGL_NO_IMAGE_KHR) {
+		goto error_buffer;
+	}
+
+	push_gles2_debug(renderer);
+
+	glGenRenderbuffers(1, &buffer->rbo);
+	glBindRenderbuffer(GL_RENDERBUFFER, buffer->rbo);
+	renderer->procs.glEGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER,
+		buffer->image);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	glGenFramebuffers(1, &buffer->fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, buffer->fbo);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+		GL_RENDERBUFFER, buffer->rbo);
+	GLenum fb_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	pop_gles2_debug(renderer);
+
+	if (fb_status != GL_FRAMEBUFFER_COMPLETE) {
+		wlr_log(WLR_ERROR, "Failed to create FBO");
+		goto error_image;
+	}
+
+	buffer->buffer_destroy.notify = handle_buffer_destroy;
+	wl_signal_add(&wlr_buffer->events.destroy, &buffer->buffer_destroy);
+
+	wl_list_insert(&renderer->buffers, &buffer->link);
+
+	wlr_log(WLR_DEBUG, "Created GL FBO for buffer %dx%d",
+		wlr_buffer->width, wlr_buffer->height);
+
+	return buffer;
+
+error_image:
+	wlr_egl_destroy_image(renderer->egl, buffer->image);
+error_buffer:
+	free(buffer);
+	return NULL;
+}
+
+static bool gles2_bind_buffer(struct wlr_renderer *wlr_renderer,
+		struct wlr_buffer *wlr_buffer) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
+
+	if (renderer->current_buffer != NULL) {
+		push_gles2_debug(renderer);
+		glFlush();
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		pop_gles2_debug(renderer);
+
+		wlr_buffer_unlock(renderer->current_buffer->buffer);
+		renderer->current_buffer = NULL;
+	}
+
+	if (wlr_buffer == NULL) {
+		return true;
+	}
+
+	struct wlr_gles2_buffer *buffer = get_buffer(renderer, wlr_buffer);
+	if (buffer == NULL) {
+		buffer = create_buffer(renderer, wlr_buffer);
+	}
+	if (buffer == NULL) {
+		return false;
+	}
+
+	wlr_buffer_lock(wlr_buffer);
+	renderer->current_buffer = buffer;
+
+	push_gles2_debug(renderer);
+	glBindFramebuffer(GL_FRAMEBUFFER, renderer->current_buffer->fbo);
+	pop_gles2_debug(renderer);
+
+	return true;
+}
+
 static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 		uint32_t height) {
 	struct wlr_gles2_renderer *renderer =
@@ -477,6 +610,11 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 
 	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
 
+	struct wlr_gles2_buffer *buffer, *buffer_tmp;
+	wl_list_for_each_safe(buffer, buffer_tmp, &renderer->buffers, link) {
+		destroy_buffer(buffer);
+	}
+
 	push_gles2_debug(renderer);
 	glDeleteProgram(renderer->shaders.quad.program);
 	glDeleteProgram(renderer->shaders.ellipse.program);
@@ -497,6 +635,7 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 
 static const struct wlr_renderer_impl renderer_impl = {
 	.destroy = gles2_destroy,
+	.bind_buffer = gles2_bind_buffer,
 	.begin = gles2_begin,
 	.end = gles2_end,
 	.clear = gles2_clear,
@@ -667,6 +806,8 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 		return NULL;
 	}
 	wlr_renderer_init(&renderer->wlr_renderer, &renderer_impl);
+
+	wl_list_init(&renderer->buffers);
 
 	renderer->egl = egl;
 	renderer->exts_str = exts_str;

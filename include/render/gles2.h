@@ -72,7 +72,22 @@ struct wlr_gles2_renderer {
 		struct wlr_gles2_tex_shader tex_ext;
 	} shaders;
 
+	struct wl_list buffers; // wlr_gles2_buffer.link
+
+	struct wlr_gles2_buffer *current_buffer;
 	uint32_t viewport_width, viewport_height;
+};
+
+struct wlr_gles2_buffer {
+	struct wlr_buffer *buffer;
+	struct wlr_gles2_renderer *renderer;
+	struct wl_list link; // wlr_gles2_renderer.buffers
+
+	EGLImageKHR image;
+	GLuint rbo;
+	GLuint fbo;
+
+	struct wl_listener buffer_destroy;
 };
 
 struct wlr_gles2_texture {
