@@ -292,11 +292,12 @@ void drm_fb_clear(struct wlr_drm_fb *fb) {
 	fb->bo = NULL;
 
 	if (fb->mgpu_bo) {
-		// TODO
-		/*assert(fb->mgpu_surf);
-		gbm_surface_release_buffer(fb->mgpu_surf->gbm, fb->mgpu_bo);
+		assert(fb->mgpu_surf);
+		gbm_bo_destroy(fb->mgpu_bo);
+		wlr_buffer_unlock(fb->mgpu_wlr_buf);
 		fb->mgpu_bo = NULL;
-		fb->mgpu_surf = NULL;*/
+		fb->mgpu_wlr_buf = NULL;
+		fb->mgpu_surf = NULL;
 	}
 }
 
@@ -430,18 +431,15 @@ struct gbm_bo *drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm
 	wlr_render_texture_with_matrix(renderer, tex, mat, 1.0f);
 	wlr_renderer_end(renderer);
 
-	// TODO
-	/*if (!wlr_egl_swap_buffers(&mgpu->renderer->egl, mgpu->egl, NULL)) {
-		wlr_log(WLR_ERROR, "Failed to swap buffers");
-		return NULL;
+	struct wlr_drm_fb mgpu_fb = {
+		.bo = fb->mgpu_bo,
+		.wlr_buf = fb->mgpu_wlr_buf,
+	};
+	if (!drm_fb_lock_surface(&mgpu_fb, mgpu)) {
+		return false;
 	}
-
-	fb->mgpu_bo = gbm_surface_lock_front_buffer(mgpu->gbm);
-	if (!fb->mgpu_bo) {
-		wlr_log(WLR_ERROR, "Failed to lock front buffer");
-		return NULL;
-	}
-
-	fb->mgpu_surf = mgpu;*/
+	fb->mgpu_bo = mgpu_fb.bo;
+	fb->mgpu_wlr_buf = mgpu_fb.wlr_buf;
+	fb->mgpu_surf = mgpu;
 	return fb->mgpu_bo;
 }

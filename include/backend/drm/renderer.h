@@ -39,6 +39,7 @@ struct wlr_drm_fb {
 
 	struct wlr_drm_surface *mgpu_surf;
 	struct gbm_bo *mgpu_bo;
+	struct wlr_buffer *mgpu_wlr_buf;
 };
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
