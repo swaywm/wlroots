@@ -280,21 +280,15 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 }
 
 void drm_fb_clear(struct wlr_drm_fb *fb) {
-	switch (fb->type) {
-	case WLR_DRM_FB_TYPE_NONE:
-		assert(!fb->bo);
-		break;
-	case WLR_DRM_FB_TYPE_SURFACE:
-		abort(); // TODO: remove this case entirely
-		break;
-	case WLR_DRM_FB_TYPE_WLR_BUFFER:
-		gbm_bo_destroy(fb->bo);
-		wlr_buffer_unlock(fb->wlr_buf);
-		fb->wlr_buf = NULL;
-		break;
+	if (!fb->bo) {
+		assert(!fb->wlr_buf);
+		return;
 	}
 
-	fb->type = WLR_DRM_FB_TYPE_NONE;
+	gbm_bo_destroy(fb->bo);
+	wlr_buffer_unlock(fb->wlr_buf);
+
+	fb->wlr_buf = NULL;
 	fb->bo = NULL;
 
 	if (fb->mgpu_bo) {
@@ -376,7 +370,6 @@ bool drm_fb_import_wlr(struct wlr_drm_fb *fb, struct wlr_drm_renderer *renderer,
 		return false;
 	}
 
-	fb->type = WLR_DRM_FB_TYPE_WLR_BUFFER;
 	fb->wlr_buf = wlr_buffer_lock(buf);
 
 	return true;
