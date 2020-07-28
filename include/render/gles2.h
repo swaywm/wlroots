@@ -79,7 +79,7 @@ struct wlr_gles2_renderer {
 
 struct wlr_gles2_texture {
 	struct wlr_texture wlr_texture;
-	struct wlr_egl *egl;
+	struct wlr_gles2_renderer *renderer;
 
 	// Basically:
 	//   GL_TEXTURE_2D == mutable
