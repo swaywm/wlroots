@@ -21,6 +21,7 @@ enum wlr_renderer_read_pixels_flags {
 
 struct wlr_renderer_impl;
 struct wlr_drm_format_set;
+struct wlr_buffer;
 
 struct wlr_renderer {
 	const struct wlr_renderer_impl *impl;
