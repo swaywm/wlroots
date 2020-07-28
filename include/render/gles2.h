@@ -14,17 +14,6 @@
 #include <wlr/render/wlr_texture.h>
 #include <wlr/util/log.h>
 
-struct wlr_gles2_procs {
-	PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
-	PFNGLDEBUGMESSAGECALLBACKKHRPROC glDebugMessageCallbackKHR;
-	PFNGLDEBUGMESSAGECONTROLKHRPROC glDebugMessageControlKHR;
-	PFNGLPOPDEBUGGROUPKHRPROC glPopDebugGroupKHR;
-	PFNGLPUSHDEBUGGROUPKHRPROC glPushDebugGroupKHR;
-	PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC glEGLImageTargetRenderbufferStorageOES;
-};
-
-extern struct wlr_gles2_procs gles2_procs;
-
 struct wlr_gles2_pixel_format {
 	enum wl_shm_format wl_format;
 	GLint gl_format, gl_type;
@@ -54,6 +43,15 @@ struct wlr_gles2_renderer {
 		bool egl_image_external_oes;
 		bool egl_image_oes;
 	} exts;
+
+	struct {
+		PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
+		PFNGLDEBUGMESSAGECALLBACKKHRPROC glDebugMessageCallbackKHR;
+		PFNGLDEBUGMESSAGECONTROLKHRPROC glDebugMessageControlKHR;
+		PFNGLPOPDEBUGGROUPKHRPROC glPopDebugGroupKHR;
+		PFNGLPUSHDEBUGGROUPKHRPROC glPushDebugGroupKHR;
+		PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC glEGLImageTargetRenderbufferStorageOES;
+	} procs;
 
 	struct {
 		struct {
