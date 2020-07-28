@@ -21,8 +21,6 @@ static const GLfloat verts[] = {
 	0, 1, // bottom left
 };
 
-struct wlr_gles2_procs gles2_procs = {0};
-
 static const struct wlr_renderer_impl renderer_impl;
 
 struct wlr_gles2_renderer *gles2_get_renderer(
@@ -364,7 +362,8 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 static bool gles2_blit_dmabuf(struct wlr_renderer *wlr_renderer,
 		struct wlr_dmabuf_attributes *dst_attr,
 		struct wlr_dmabuf_attributes *src_attr) {
-	if (!gles2_procs.glEGLImageTargetRenderbufferStorageOES) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	if (!renderer->procs.glEGLImageTargetRenderbufferStorageOES) {
 		return false;
 	}
 
@@ -389,15 +388,14 @@ static bool gles2_blit_dmabuf(struct wlr_renderer *wlr_renderer,
 	// texture.
 	gles2_src_tex->inverted_y = !(src_inverted_y ^ dst_inverted_y);
 
-	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(wlr_renderer);
-	if (!wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL)) {
+	if (!wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL)) {
 		goto texture_destroy_out;
 	}
 
 	// TODO: The imported buffer should be checked with
 	// eglQueryDmaBufModifiersEXT to see if it may be modified.
 	bool external_only = false;
-	EGLImageKHR image = wlr_egl_create_image_from_dmabuf(egl, dst_attr,
+	EGLImageKHR image = wlr_egl_create_image_from_dmabuf(renderer->egl, dst_attr,
 			&external_only);
 	if (image == EGL_NO_IMAGE_KHR) {
 		goto texture_destroy_out;
@@ -406,7 +404,7 @@ static bool gles2_blit_dmabuf(struct wlr_renderer *wlr_renderer,
 	GLuint rbo = 0;
 	glGenRenderbuffers(1, &rbo);
 	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-	gles2_procs.glEGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER,
+	renderer->procs.glEGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER,
 			image);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
@@ -435,7 +433,7 @@ out:
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDeleteFramebuffers(1, &fbo);
 	glDeleteRenderbuffers(1, &rbo);
-	wlr_egl_destroy_image(egl, image);
+	wlr_egl_destroy_image(renderer->egl, image);
 texture_destroy_out:
 	wlr_texture_destroy(src_tex);
 restore_context_out:
@@ -489,7 +487,7 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 
 	if (renderer->exts.debug_khr) {
 		glDisable(GL_DEBUG_OUTPUT_KHR);
-		gles2_procs.glDebugMessageCallbackKHR(NULL, NULL);
+		renderer->procs.glDebugMessageCallbackKHR(NULL, NULL);
 	}
 
 	wlr_egl_unset_current(renderer->egl);
@@ -522,19 +520,19 @@ static const struct wlr_renderer_impl renderer_impl = {
 
 void push_gles2_debug_(struct wlr_gles2_renderer *renderer,
 		const char *file, const char *func) {
-	if (!gles2_procs.glPushDebugGroupKHR) {
+	if (!renderer->procs.glPushDebugGroupKHR) {
 		return;
 	}
 
 	int len = snprintf(NULL, 0, "%s:%s", file, func) + 1;
 	char str[len];
 	snprintf(str, len, "%s:%s", file, func);
-	gles2_procs.glPushDebugGroupKHR(GL_DEBUG_SOURCE_APPLICATION_KHR, 1, -1, str);
+	renderer->procs.glPushDebugGroupKHR(GL_DEBUG_SOURCE_APPLICATION_KHR, 1, -1, str);
 }
 
 void pop_gles2_debug(struct wlr_gles2_renderer *renderer) {
-	if (gles2_procs.glPopDebugGroupKHR) {
-		gles2_procs.glPopDebugGroupKHR();
+	if (renderer->procs.glPopDebugGroupKHR) {
+		renderer->procs.glPopDebugGroupKHR();
 	}
 }
 
@@ -689,33 +687,33 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 
 	if (check_gl_ext(exts_str, "GL_KHR_debug")) {
 		renderer->exts.debug_khr = true;
-		load_gl_proc(&gles2_procs.glDebugMessageCallbackKHR,
+		load_gl_proc(&renderer->procs.glDebugMessageCallbackKHR,
 			"glDebugMessageCallbackKHR");
-		load_gl_proc(&gles2_procs.glDebugMessageControlKHR,
+		load_gl_proc(&renderer->procs.glDebugMessageControlKHR,
 			"glDebugMessageControlKHR");
 	}
 
 	if (check_gl_ext(exts_str, "GL_OES_EGL_image_external")) {
 		renderer->exts.egl_image_external_oes = true;
-		load_gl_proc(&gles2_procs.glEGLImageTargetTexture2DOES,
+		load_gl_proc(&renderer->procs.glEGLImageTargetTexture2DOES,
 			"glEGLImageTargetTexture2DOES");
 	}
 
 	if (check_gl_ext(exts_str, "GL_OES_EGL_image")) {
 		renderer->exts.egl_image_oes = true;
-		load_gl_proc(&gles2_procs.glEGLImageTargetRenderbufferStorageOES,
+		load_gl_proc(&renderer->procs.glEGLImageTargetRenderbufferStorageOES,
 			"glEGLImageTargetRenderbufferStorageOES");
 	}
 
 	if (renderer->exts.debug_khr) {
 		glEnable(GL_DEBUG_OUTPUT_KHR);
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_KHR);
-		gles2_procs.glDebugMessageCallbackKHR(gles2_log, NULL);
+		renderer->procs.glDebugMessageCallbackKHR(gles2_log, NULL);
 
 		// Silence unwanted message types
-		gles2_procs.glDebugMessageControlKHR(GL_DONT_CARE,
+		renderer->procs.glDebugMessageControlKHR(GL_DONT_CARE,
 			GL_DEBUG_TYPE_POP_GROUP_KHR, GL_DONT_CARE, 0, NULL, GL_FALSE);
-		gles2_procs.glDebugMessageControlKHR(GL_DONT_CARE,
+		renderer->procs.glDebugMessageControlKHR(GL_DONT_CARE,
 			GL_DEBUG_TYPE_PUSH_GROUP_KHR, GL_DONT_CARE, 0, NULL, GL_FALSE);
 	}
 
@@ -796,7 +794,7 @@ error:
 
 	if (renderer->exts.debug_khr) {
 		glDisable(GL_DEBUG_OUTPUT_KHR);
-		gles2_procs.glDebugMessageCallbackKHR(NULL, NULL);
+		renderer->procs.glDebugMessageCallbackKHR(NULL, NULL);
 	}
 
 	wlr_egl_unset_current(renderer->egl);

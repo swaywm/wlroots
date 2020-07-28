@@ -183,7 +183,7 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 
 	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
 
-	if (!gles2_procs.glEGLImageTargetTexture2DOES) {
+	if (!renderer->procs.glEGLImageTargetTexture2DOES) {
 		return NULL;
 	}
 
@@ -232,7 +232,7 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 
 	glGenTextures(1, &texture->tex);
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture->tex);
-	gles2_procs.glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
+	renderer->procs.glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
 		texture->image);
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
 
@@ -248,7 +248,7 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 
 	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
 
-	if (!gles2_procs.glEGLImageTargetTexture2DOES) {
+	if (!renderer->procs.glEGLImageTargetTexture2DOES) {
 		return NULL;
 	}
 
@@ -299,7 +299,7 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 
 	glGenTextures(1, &texture->tex);
 	glBindTexture(texture->target, texture->tex);
-	gles2_procs.glEGLImageTargetTexture2DOES(texture->target, texture->image);
+	renderer->procs.glEGLImageTargetTexture2DOES(texture->target, texture->image);
 	glBindTexture(texture->target, 0);
 
 	pop_gles2_debug(renderer);
