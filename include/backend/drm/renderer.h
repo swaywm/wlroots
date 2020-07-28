@@ -33,20 +33,12 @@ struct wlr_drm_surface {
 	struct wlr_buffer *back_buffer;
 };
 
-enum wlr_drm_fb_type {
-	WLR_DRM_FB_TYPE_NONE,
-	WLR_DRM_FB_TYPE_SURFACE,
-	WLR_DRM_FB_TYPE_WLR_BUFFER
-};
-
 struct wlr_drm_fb {
-	enum wlr_drm_fb_type type;
 	struct gbm_bo *bo;
+	struct wlr_buffer *wlr_buf;
 
 	struct wlr_drm_surface *mgpu_surf;
 	struct gbm_bo *mgpu_bo;
-
-	struct wlr_buffer *wlr_buf;
 };
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
