@@ -104,6 +104,11 @@ struct wlr_client_buffer {
 struct wlr_renderer;
 
 /**
+ * Get a client buffer from a generic buffer. If the buffer isn't a client
+ * buffer, returns NULL.
+ */
+struct wlr_client_buffer *wlr_client_buffer_get(struct wlr_buffer *buffer);
+/**
  * Check if a resource is a wl_buffer resource.
  */
 bool wlr_resource_is_buffer(struct wl_resource *resource);
