@@ -43,7 +43,7 @@ static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 
 	glViewport(0, 0, width, height);
 	renderer->viewport_width = width;
@@ -56,7 +56,7 @@ static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 	// XXX: maybe we should save output projection and remove some of the need
 	// for users to sling matricies themselves
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 }
 
 static void gles2_end(struct wlr_renderer *wlr_renderer) {
@@ -66,12 +66,13 @@ static void gles2_end(struct wlr_renderer *wlr_renderer) {
 
 static void gles2_clear(struct wlr_renderer *wlr_renderer,
 		const float color[static 4]) {
-	gles2_get_renderer_in_context(wlr_renderer);
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 	glClearColor(color[0], color[1], color[2], color[3]);
 	glClear(GL_COLOR_BUFFER_BIT);
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 }
 
 static void gles2_scissor(struct wlr_renderer *wlr_renderer,
@@ -79,7 +80,7 @@ static void gles2_scissor(struct wlr_renderer *wlr_renderer,
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 	if (box != NULL) {
 		struct wlr_box gl_box;
 		wlr_box_transform(&gl_box, box, WL_OUTPUT_TRANSFORM_FLIPPED_180,
@@ -90,7 +91,7 @@ static void gles2_scissor(struct wlr_renderer *wlr_renderer,
 	} else {
 		glDisable(GL_SCISSOR_TEST);
 	}
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 }
 
 static bool gles2_render_subtexture_with_matrix(
@@ -130,7 +131,7 @@ static bool gles2_render_subtexture_with_matrix(
 	float transposition[9];
 	wlr_matrix_transpose(transposition, matrix);
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(texture->target, texture->tex);
@@ -168,7 +169,7 @@ static bool gles2_render_subtexture_with_matrix(
 
 	glBindTexture(texture->target, 0);
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 	return true;
 }
 
@@ -182,7 +183,7 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 	float transposition[9];
 	wlr_matrix_transpose(transposition, matrix);
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 	glUseProgram(renderer->shaders.quad.program);
 
 	glUniformMatrix3fv(renderer->shaders.quad.proj, 1, GL_FALSE, transposition);
@@ -197,7 +198,7 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 
 	glDisableVertexAttribArray(renderer->shaders.quad.pos_attrib);
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 }
 
 static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
@@ -217,7 +218,7 @@ static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
 		0, 1, // bottom left
 	};
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 	glUseProgram(renderer->shaders.ellipse.program);
 
 	glUniformMatrix3fv(renderer->shaders.ellipse.proj, 1, GL_FALSE, transposition);
@@ -235,7 +236,7 @@ static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
 
 	glDisableVertexAttribArray(renderer->shaders.ellipse.pos_attrib);
 	glDisableVertexAttribArray(renderer->shaders.ellipse.tex_attrib);
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 }
 
 static const enum wl_shm_format *gles2_renderer_formats(
@@ -288,10 +289,10 @@ static enum wl_shm_format gles2_preferred_read_format(
 		gles2_get_renderer_in_context(wlr_renderer);
 
 	GLint gl_format = -1, gl_type = -1;
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 	glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_FORMAT, &gl_format);
 	glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_TYPE, &gl_type);
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 
 	EGLint alpha_size = -1;
 	eglGetConfigAttrib(renderer->egl->display, renderer->egl->config,
@@ -328,7 +329,7 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 		return false;
 	}
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 
 	// Make sure any pending drawing is finished before we try to read it
 	glFinish();
@@ -355,7 +356,7 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 		}
 	}
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 
 	return glGetError() == GL_NO_ERROR;
 }
@@ -478,13 +479,13 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 
 	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 	glDeleteProgram(renderer->shaders.quad.program);
 	glDeleteProgram(renderer->shaders.ellipse.program);
 	glDeleteProgram(renderer->shaders.tex_rgba.program);
 	glDeleteProgram(renderer->shaders.tex_rgbx.program);
 	glDeleteProgram(renderer->shaders.tex_ext.program);
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 
 	if (renderer->exts.debug_khr) {
 		glDisable(GL_DEBUG_OUTPUT_KHR);
@@ -519,7 +520,8 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.blit_dmabuf = gles2_blit_dmabuf,
 };
 
-void push_gles2_marker(const char *file, const char *func) {
+void push_gles2_debug_(struct wlr_gles2_renderer *renderer,
+		const char *file, const char *func) {
 	if (!gles2_procs.glPushDebugGroupKHR) {
 		return;
 	}
@@ -530,7 +532,7 @@ void push_gles2_marker(const char *file, const char *func) {
 	gles2_procs.glPushDebugGroupKHR(GL_DEBUG_SOURCE_APPLICATION_KHR, 1, -1, str);
 }
 
-void pop_gles2_marker(void) {
+void pop_gles2_debug(struct wlr_gles2_renderer *renderer) {
 	if (gles2_procs.glPopDebugGroupKHR) {
 		gles2_procs.glPopDebugGroupKHR();
 	}
@@ -556,8 +558,9 @@ static void gles2_log(GLenum src, GLenum type, GLuint id, GLenum severity,
 	_wlr_log(gles2_log_importance_to_wlr(type), "[GLES2] %s", msg);
 }
 
-static GLuint compile_shader(GLuint type, const GLchar *src) {
-	PUSH_GLES2_DEBUG;
+static GLuint compile_shader(struct wlr_gles2_renderer *renderer,
+		GLuint type, const GLchar *src) {
+	push_gles2_debug(renderer);
 
 	GLuint shader = glCreateShader(type);
 	glShaderSource(shader, 1, &src, NULL);
@@ -570,19 +573,20 @@ static GLuint compile_shader(GLuint type, const GLchar *src) {
 		shader = 0;
 	}
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 	return shader;
 }
 
-static GLuint link_program(const GLchar *vert_src, const GLchar *frag_src) {
-	PUSH_GLES2_DEBUG;
+static GLuint link_program(struct wlr_gles2_renderer *renderer,
+		const GLchar *vert_src, const GLchar *frag_src) {
+	push_gles2_debug(renderer);
 
-	GLuint vert = compile_shader(GL_VERTEX_SHADER, vert_src);
+	GLuint vert = compile_shader(renderer, GL_VERTEX_SHADER, vert_src);
 	if (!vert) {
 		goto error;
 	}
 
-	GLuint frag = compile_shader(GL_FRAGMENT_SHADER, frag_src);
+	GLuint frag = compile_shader(renderer, GL_FRAGMENT_SHADER, frag_src);
 	if (!frag) {
 		glDeleteShader(vert);
 		goto error;
@@ -605,11 +609,11 @@ static GLuint link_program(const GLchar *vert_src, const GLchar *frag_src) {
 		goto error;
 	}
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 	return prog;
 
 error:
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 	return 0;
 }
 
@@ -715,11 +719,11 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 			GL_DEBUG_TYPE_PUSH_GROUP_KHR, GL_DONT_CARE, 0, NULL, GL_FALSE);
 	}
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 
 	GLuint prog;
 	renderer->shaders.quad.program = prog =
-		link_program(quad_vertex_src, quad_fragment_src);
+		link_program(renderer, quad_vertex_src, quad_fragment_src);
 	if (!renderer->shaders.quad.program) {
 		goto error;
 	}
@@ -728,7 +732,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	renderer->shaders.quad.pos_attrib = glGetAttribLocation(prog, "pos");
 
 	renderer->shaders.ellipse.program = prog =
-		link_program(quad_vertex_src, ellipse_fragment_src);
+		link_program(renderer, quad_vertex_src, ellipse_fragment_src);
 	if (!renderer->shaders.ellipse.program) {
 		goto error;
 	}
@@ -738,7 +742,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	renderer->shaders.ellipse.tex_attrib = glGetAttribLocation(prog, "texcoord");
 
 	renderer->shaders.tex_rgba.program = prog =
-		link_program(tex_vertex_src, tex_fragment_src_rgba);
+		link_program(renderer, tex_vertex_src, tex_fragment_src_rgba);
 	if (!renderer->shaders.tex_rgba.program) {
 		goto error;
 	}
@@ -750,7 +754,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	renderer->shaders.tex_rgba.tex_attrib = glGetAttribLocation(prog, "texcoord");
 
 	renderer->shaders.tex_rgbx.program = prog =
-		link_program(tex_vertex_src, tex_fragment_src_rgbx);
+		link_program(renderer, tex_vertex_src, tex_fragment_src_rgbx);
 	if (!renderer->shaders.tex_rgbx.program) {
 		goto error;
 	}
@@ -763,7 +767,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 
 	if (renderer->exts.egl_image_external_oes) {
 		renderer->shaders.tex_ext.program = prog =
-			link_program(tex_vertex_src, tex_fragment_src_external);
+			link_program(renderer, tex_vertex_src, tex_fragment_src_external);
 		if (!renderer->shaders.tex_ext.program) {
 			goto error;
 		}
@@ -775,7 +779,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 		renderer->shaders.tex_ext.tex_attrib = glGetAttribLocation(prog, "texcoord");
 	}
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 
 	wlr_egl_unset_current(renderer->egl);
 
@@ -788,7 +792,7 @@ error:
 	glDeleteProgram(renderer->shaders.tex_rgbx.program);
 	glDeleteProgram(renderer->shaders.tex_ext.program);
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 
 	if (renderer->exts.debug_khr) {
 		glDisable(GL_DEBUG_OUTPUT_KHR);

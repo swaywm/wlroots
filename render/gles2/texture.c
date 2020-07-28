@@ -56,7 +56,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	assert(fmt);
 
 	// TODO: what if the unpack subimage extension isn't supported?
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(texture->renderer);
 
 	glBindTexture(GL_TEXTURE_2D, texture->tex);
 
@@ -73,7 +73,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(texture->renderer);
 
 	wlr_egl_unset_current(texture->renderer->egl);
 	return true;
@@ -115,12 +115,12 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 	struct wlr_gles2_texture *texture =
 		get_gles2_texture_in_context(wlr_texture);
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(texture->renderer);
 
 	glDeleteTextures(1, &texture->tex);
 	wlr_egl_destroy_image(texture->renderer->egl, texture->image);
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(texture->renderer);
 
 	wlr_egl_unset_current(texture->renderer->egl);
 
@@ -159,7 +159,7 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 	texture->has_alpha = fmt->has_alpha;
 	texture->wl_format = fmt->wl_format;
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 
 	glGenTextures(1, &texture->tex);
 	glBindTexture(GL_TEXTURE_2D, texture->tex);
@@ -171,7 +171,7 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 
 	wlr_egl_unset_current(renderer->egl);
 	return &texture->wlr_texture;
@@ -228,7 +228,7 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 
 	texture->target = GL_TEXTURE_EXTERNAL_OES;
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 
 	glGenTextures(1, &texture->tex);
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture->tex);
@@ -236,7 +236,7 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 		texture->image);
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 
 	wlr_egl_unset_current(renderer->egl);
 	return &texture->wlr_texture;
@@ -295,14 +295,14 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 
 	texture->target = external_only ? GL_TEXTURE_EXTERNAL_OES : GL_TEXTURE_2D;
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 
 	glGenTextures(1, &texture->tex);
 	glBindTexture(texture->target, texture->tex);
 	gles2_procs.glEGLImageTargetTexture2DOES(texture->target, texture->image);
 	glBindTexture(texture->target, 0);
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 
 	wlr_egl_unset_current(renderer->egl);
 	return &texture->wlr_texture;
