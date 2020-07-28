@@ -96,10 +96,18 @@ bool wlr_resource_get_buffer_size(struct wl_resource *resource,
 
 static const struct wlr_buffer_impl client_buffer_impl;
 
+struct wlr_client_buffer *wlr_client_buffer_get(struct wlr_buffer *buffer) {
+	if (buffer->impl != &client_buffer_impl) {
+		return NULL;
+	}
+	return (struct wlr_client_buffer *)buffer;
+}
+
 static struct wlr_client_buffer *client_buffer_from_buffer(
 		struct wlr_buffer *buffer) {
-	assert(buffer->impl == &client_buffer_impl);
-	return (struct wlr_client_buffer *) buffer;
+	struct wlr_client_buffer *client_buffer = wlr_client_buffer_get(buffer);
+	assert(client_buffer != NULL);
+	return client_buffer;
 }
 
 static void client_buffer_destroy(struct wlr_buffer *_buffer) {
