@@ -30,6 +30,8 @@
 #include <wlr/render/dmabuf.h>
 
 struct wlr_renderer_impl {
+	bool (*bind_buffer)(struct wlr_renderer *renderer,
+		struct wlr_buffer *buffer);
 	void (*begin)(struct wlr_renderer *renderer, uint32_t width,
 		uint32_t height);
 	void (*end)(struct wlr_renderer *renderer);

@@ -7,6 +7,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
+#include "render/wlr_renderer.h"
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
 		const struct wlr_renderer_impl *impl) {
@@ -35,6 +36,15 @@ void wlr_renderer_destroy(struct wlr_renderer *r) {
 	} else {
 		free(r);
 	}
+}
+
+bool wlr_renderer_bind_buffer(struct wlr_renderer *r,
+		struct wlr_buffer *buffer) {
+	assert(!r->rendering);
+	if (!r->impl->bind_buffer) {
+		return false;
+	}
+	return r->impl->bind_buffer(r, buffer);
 }
 
 void wlr_renderer_begin(struct wlr_renderer *r, uint32_t width, uint32_t height) {
