@@ -115,9 +115,9 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 	struct wlr_dmabuf_attributes *attribs);
 
-void push_gles2_marker(const char *file, const char *func);
-void pop_gles2_marker(void);
-#define PUSH_GLES2_DEBUG push_gles2_marker(_WLR_FILENAME, __func__)
-#define POP_GLES2_DEBUG pop_gles2_marker()
+void push_gles2_debug_(struct wlr_gles2_renderer *renderer,
+	const char *file, const char *func);
+#define push_gles2_debug(renderer) push_gles2_debug_(renderer, _WLR_FILENAME, __func__)
+void pop_gles2_debug(struct wlr_gles2_renderer *renderer);
 
 #endif
