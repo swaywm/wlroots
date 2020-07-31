@@ -1398,7 +1398,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			bool is_mst = false;
 			char *path = get_drm_prop_blob(drm->fd, wlr_conn->id,
 				wlr_conn->props.path, &path_len);
-			if (path_len > 4 && path && strncmp(path, "mst:", 4) == 0) {
+			if (path && path_len > 4 && strncmp(path, "mst:", 4) == 0) {
 				is_mst = true;
 			}
 			free(path);
