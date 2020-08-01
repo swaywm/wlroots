@@ -581,7 +581,7 @@ uint32_t wlr_xdg_toplevel_set_maximized(struct wlr_xdg_surface *surface,
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
 	surface->toplevel->server_pending.maximized = maximized;
 
-	return schedule_xdg_surface_configure(surface);
+	return wlr_xdg_surface_schedule_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_set_fullscreen(struct wlr_xdg_surface *surface,
@@ -589,7 +589,7 @@ uint32_t wlr_xdg_toplevel_set_fullscreen(struct wlr_xdg_surface *surface,
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
 	surface->toplevel->server_pending.fullscreen = fullscreen;
 
-	return schedule_xdg_surface_configure(surface);
+	return wlr_xdg_surface_schedule_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_set_resizing(struct wlr_xdg_surface *surface,
