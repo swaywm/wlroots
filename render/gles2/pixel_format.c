@@ -50,7 +50,7 @@ static const struct wlr_gles2_pixel_format formats[] = {
 	},
 	{
 		.wl_format = WL_SHM_FORMAT_XRGB2101010,
-		.depth = 24,
+		.depth = 30,
 		.bpp = 32,
 		.gl_format = GL_BGRA_EXT,
 		.gl_type = GL_UNSIGNED_BYTE,
@@ -58,7 +58,7 @@ static const struct wlr_gles2_pixel_format formats[] = {
 	},
 	{
 		.wl_format = WL_SHM_FORMAT_XBGR2101010,
-		.depth = 24,
+		.depth = 30,
 		.bpp = 32,
 		.gl_format = GL_RGBA,
 		.gl_type = GL_UNSIGNED_BYTE,
