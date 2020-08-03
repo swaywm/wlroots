@@ -10,6 +10,7 @@
 #include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render/interface.h>
+#include <wlr/render/color.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/wlr_texture.h>
 #include <wlr/util/log.h>
@@ -81,6 +82,7 @@ struct wlr_gles2_renderer {
 	} shaders;
 
 	uint32_t viewport_width, viewport_height;
+	struct wlr_color_config *color;
 };
 
 struct wlr_gles2_texture {

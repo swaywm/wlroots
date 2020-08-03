@@ -77,10 +77,6 @@ static const char *color_describe(struct wlr_color_config *color) {
 struct wlr_color_config *wlr_color_config_load(const char *icc_profile_path) {
 	assert(icc_profile_path);
 
-	if(0 == strlen(icc_profile_path)) {
-		return NULL;
-	}
-
 	bool can_access = access(icc_profile_path, F_OK) != -1;
 	if (!can_access) {
 		wlr_log(WLR_ERROR, "Unable to access color profile '%s'", icc_profile_path);
@@ -235,7 +231,8 @@ static void lcms_error_handler(cmsContext ctx, cmsUInt32Number code, const char 
 }
 
 void color_engine_setup(void) {
-	wlr_list_init(&luts);
+	if(luts.capacity == 0)
+		wlr_list_init(&luts);
 	cmsSetLogErrorHandler(lcms_error_handler);
 }
 

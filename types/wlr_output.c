@@ -380,6 +380,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 	}
 
 	free(output->description);
+	wlr_color_config_free(output->color);
 
 	pixman_region32_fini(&output->pending.damage);
 

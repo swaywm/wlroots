@@ -30,8 +30,6 @@ void wlr_renderer_destroy(struct wlr_renderer *r) {
 	}
 	wlr_signal_emit_safe(&r->events.destroy, r);
 
-	wlr_color_config_free(r->color);
-
 	if (r->impl && r->impl->destroy) {
 		r->impl->destroy(r);
 	} else {
@@ -65,6 +63,11 @@ void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]) {
 void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box) {
 	assert(r->rendering);
 	r->impl->scissor(r, box);
+}
+
+void wlr_renderer_color_config(struct wlr_renderer *r, struct wlr_color_config *color) {
+	assert(r->rendering);
+	r->impl->color_config(r, color);
 }
 
 bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,

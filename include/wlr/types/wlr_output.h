@@ -185,6 +185,8 @@ struct wlr_output {
 
 	struct wl_listener display_destroy;
 
+	struct wlr_color_config *color;
+
 	void *data;
 };
 

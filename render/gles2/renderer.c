@@ -49,6 +49,8 @@ static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 	renderer->viewport_width = width;
 	renderer->viewport_height = height;
 
+	renderer->color = NULL;
+
 	// enable transparency
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
@@ -91,6 +93,13 @@ static void gles2_scissor(struct wlr_renderer *wlr_renderer,
 		glDisable(GL_SCISSOR_TEST);
 	}
 	POP_GLES2_DEBUG;
+}
+
+static void gles2_color_config(struct wlr_renderer *wlr_renderer, struct wlr_color_config *color) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
+
+	renderer->color = color;
 }
 
 static bool gles2_render_subtexture_with_matrix(
@@ -164,7 +173,7 @@ static bool gles2_render_subtexture_with_matrix(
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-	GLuint color_table = color_build_lut(wlr_texture->color, wlr_renderer->color);
+	GLuint color_table = color_build_lut(wlr_texture->color, renderer->color);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_3D, color_table);
 	glUniform1i(shader->color_table, 1);
@@ -192,7 +201,7 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 	wlr_matrix_transpose(transposition, matrix);
 
 	float converted[4];
-	color_convert(NULL, wlr_renderer->color, color, converted);
+	color_convert(NULL, renderer->color, color, converted);
 
 	PUSH_GLES2_DEBUG;
 	glUseProgram(renderer->shaders.quad.program);
@@ -230,7 +239,7 @@ static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
 	};
 
 	float converted[4];
-	color_convert(NULL, wlr_renderer->color, color, converted);
+	color_convert(NULL, renderer->color, color, converted);
 
 	PUSH_GLES2_DEBUG;
 	glUseProgram(renderer->shaders.ellipse.program);
@@ -538,6 +547,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.end = gles2_end,
 	.clear = gles2_clear,
 	.scissor = gles2_scissor,
+	.color_config = gles2_color_config,
 	.render_subtexture_with_matrix = gles2_render_subtexture_with_matrix,
 	.render_quad_with_matrix = gles2_render_quad_with_matrix,
 	.render_ellipse_with_matrix = gles2_render_ellipse_with_matrix,

@@ -24,7 +24,6 @@ struct wlr_drm_format_set;
 
 struct wlr_renderer {
 	const struct wlr_renderer_impl *impl;
-	struct wlr_color_config *color;
 
 	bool rendering;
 
@@ -45,6 +44,10 @@ void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
  * box.
  */
 void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box);
+/**
+ * Define an output color config for future renderering functions.
+ */
+void wlr_renderer_color_config(struct wlr_renderer *r, struct wlr_color_config *color);
 /**
  * Renders the requested texture.
  */
