@@ -108,6 +108,7 @@ static void gamma_control_handle_set_gamma(struct wl_client *client,
 	wlr_output_set_gamma(gamma_control->output, ramp_size, r, g, b);
 	if (!wlr_output_test(gamma_control->output)) {
 		gamma_control_send_failed(gamma_control);
+		wlr_output_rollback(gamma_control->output);
 		goto error_table;
 	}
 	free(table);
