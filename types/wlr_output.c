@@ -551,6 +551,10 @@ static bool output_basic_test(struct wlr_output *output) {
 		wlr_log(WLR_DEBUG, "Tried to enable adaptive sync on a disabled output");
 		return false;
 	}
+	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
+		wlr_log(WLR_DEBUG, "Tried to set the gamma lut on a disabled output");
+		return false;
+	}
 
 	return true;
 }
