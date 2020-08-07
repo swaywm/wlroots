@@ -6,6 +6,7 @@
 #include <string.h>
 #include <wlr/render/drm_format_set.h>
 #include <wlr/util/log.h>
+#include "render/drm_format_set.h"
 
 void wlr_drm_format_set_finish(struct wlr_drm_format_set *set) {
 	for (size_t i = 0; i < set->len; ++i) {
@@ -124,4 +125,15 @@ bool wlr_drm_format_set_add(struct wlr_drm_format_set *set, uint32_t format,
 
 	set->formats[set->len++] = fmt;
 	return true;
+}
+
+struct wlr_drm_format *wlr_drm_format_dup(const struct wlr_drm_format *format) {
+	size_t format_size = sizeof(struct wlr_drm_format) +
+		format->len * sizeof(format->modifiers[0]);
+	struct wlr_drm_format *duped_format = malloc(format_size);
+	if (duped_format == NULL) {
+		return NULL;
+	}
+	memcpy(duped_format, format, format_size);
+	return duped_format;
 }
