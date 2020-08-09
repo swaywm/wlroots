@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 199309L
 #include <assert.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/mman.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_virtual_keyboard_v1.h>
@@ -72,12 +73,14 @@ static void virtual_keyboard_keymap(struct wl_client *client,
 	keyboard->has_keymap = true;
 	xkb_keymap_unref(keymap);
 	xkb_context_unref(context);
+	close(fd);
 	return;
 keymap_fail:
 fd_fail:
 	xkb_context_unref(context);
 context_fail:
 	wl_client_post_no_memory(client);
+	close(fd);
 }
 
 static void virtual_keyboard_key(struct wl_client *client,
