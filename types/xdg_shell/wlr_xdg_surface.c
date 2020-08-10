@@ -484,10 +484,9 @@ void reset_xdg_surface(struct wlr_xdg_surface *xdg_surface) {
 		wl_resource_set_user_data(xdg_surface->toplevel->resource, NULL);
 		xdg_surface->toplevel->resource = NULL;
 
-		if (xdg_surface->toplevel->client_pending.fullscreen_output) {
-			struct wlr_xdg_toplevel_state *client_pending =
-				&xdg_surface->toplevel->client_pending;
-			wl_list_remove(&client_pending->fullscreen_output_destroy.link);
+		if (xdg_surface->toplevel->requested_fullscreen_output) {
+			struct wlr_xdg_toplevel *toplevel = xdg_surface->toplevel;
+			wl_list_remove(&toplevel->requested_fullscreen_output_destroy.link);
 		}
 		free(xdg_surface->toplevel);
 		xdg_surface->toplevel = NULL;

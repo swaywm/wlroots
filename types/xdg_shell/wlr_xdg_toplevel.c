@@ -404,25 +404,26 @@ static void xdg_toplevel_handle_unset_maximized(struct wl_client *client,
 
 static void handle_fullscreen_output_destroy(struct wl_listener *listener,
 		void *data) {
-	struct wlr_xdg_toplevel_state *state =
-		wl_container_of(listener, state, fullscreen_output_destroy);
-	state->fullscreen_output = NULL;
-	wl_list_remove(&state->fullscreen_output_destroy.link);
+	struct wlr_xdg_toplevel *toplevel =
+		wl_container_of(listener, toplevel, requested_fullscreen_output_destroy);
+	toplevel->requested_fullscreen_output = NULL;
+	wl_list_remove(&toplevel->requested_fullscreen_output_destroy.link);
 }
 
 static void store_fullscreen_pending(struct wlr_xdg_surface *surface,
 		bool fullscreen, struct wlr_output *output) {
-	struct wlr_xdg_toplevel_state *state = &surface->toplevel->client_pending;
+	struct wlr_xdg_toplevel *toplevel = surface->toplevel;
+	struct wlr_xdg_toplevel_state *state = &toplevel->client_pending;
 	state->fullscreen = fullscreen;
-	if (state->fullscreen_output) {
-		wl_list_remove(&state->fullscreen_output_destroy.link);
+	if (toplevel->requested_fullscreen_output) {
+		wl_list_remove(&toplevel->requested_fullscreen_output_destroy.link);
 	}
-	state->fullscreen_output = output;
-	if (state->fullscreen_output) {
-		state->fullscreen_output_destroy.notify =
+	toplevel->requested_fullscreen_output = output;
+	if (toplevel->requested_fullscreen_output) {
+		toplevel->requested_fullscreen_output_destroy.notify =
 			handle_fullscreen_output_destroy;
-		wl_signal_add(&state->fullscreen_output->events.destroy,
-				&state->fullscreen_output_destroy);
+		wl_signal_add(&toplevel->requested_fullscreen_output->events.destroy,
+			&toplevel->requested_fullscreen_output_destroy);
 	}
 }
 
