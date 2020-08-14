@@ -681,7 +681,9 @@ static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn) {
 	// drm_crtc_page_flip expects a FB to be available
 	struct wlr_drm_plane *plane = crtc->primary;
 	if (!plane_get_next_fb(plane)->bo) {
-		drm_surface_render_black_frame(&plane->surf);
+		if (!drm_surface_render_black_frame(&plane->surf)) {
+			return false;
+		}
 		if (!drm_fb_lock_surface(&plane->pending_fb, &plane->surf)) {
 			return false;
 		}
