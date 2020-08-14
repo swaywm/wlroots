@@ -135,7 +135,7 @@ static struct lut *load_lut(struct wlr_color_config *input, struct wlr_color_con
 			inp, TYPE_RGB_16,
 			outp, TYPE_RGB_16,
 			INTENT_PERCEPTUAL,
-			cmsFLAGS_HIGHRESPRECALC | cmsFLAGS_NOCACHE);
+			cmsFLAGS_HIGHRESPRECALC | cmsFLAGS_NOCACHE | cmsFLAGS_NOOPTIMIZE);
 
 	cmsCloseProfile(inp);
 	cmsCloseProfile(outp);
