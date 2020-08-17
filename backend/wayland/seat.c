@@ -473,6 +473,9 @@ static void pointer_handle_output_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_wl_pointer *pointer =
 		wl_container_of(listener, pointer, output_destroy);
+	if (pointer->relative_pointer) {
+		zwp_relative_pointer_v1_destroy(pointer->relative_pointer);
+	}
 	wlr_input_device_destroy(&pointer->input_device->wlr_input_device);
 }
 
