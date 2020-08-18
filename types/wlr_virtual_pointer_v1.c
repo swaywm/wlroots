@@ -173,7 +173,6 @@ static void virtual_pointer_axis_stop(struct wl_client *client,
 	pointer->axis_event[pointer->axis].time_msec = time;
 	pointer->axis_event[pointer->axis].orientation = axis;
 	pointer->axis_event[pointer->axis].delta = 0;
-	pointer->axis_event[pointer->axis].delta_discrete = 0;
 }
 
 static void virtual_pointer_axis_discrete(struct wl_client *client,
@@ -197,7 +196,7 @@ static void virtual_pointer_axis_discrete(struct wl_client *client,
 	pointer->axis_event[pointer->axis].time_msec = time;
 	pointer->axis_event[pointer->axis].orientation = axis;
 	pointer->axis_event[pointer->axis].delta = wl_fixed_to_double(value);
-	pointer->axis_event[pointer->axis].delta_discrete = discrete;
+	pointer->axis_event[pointer->axis].v120 = discrete * 120;
 }
 
 static void virtual_pointer_destroy_resource(struct wl_resource *resource) {

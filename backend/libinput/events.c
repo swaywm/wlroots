@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <wayland-util.h>
 #include <wlr/backend/session.h>
+#include <wlr/config.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "backend/libinput.h"
@@ -246,11 +247,18 @@ void handle_libinput_event(struct wlr_libinput_backend *backend,
 		handle_pointer_button(event, libinput_dev);
 		break;
 	case LIBINPUT_EVENT_POINTER_AXIS:
+		// Deprecated in libinput-next in favour of WHEEL/CONTINUOUS/FINGER
+#if !WLR_HAS_LIBINPUT_AXIS_V120
+		handle_pointer_axis_legacy(event, libinput_dev);
+#endif
+		break;
+#if WLR_HAS_LIBINPUT_AXIS_V120
+	case LIBINPUT_EVENT_POINTER_AXIS_WHEEL:
+	case LIBINPUT_EVENT_POINTER_AXIS_FINGER:
+	case LIBINPUT_EVENT_POINTER_AXIS_CONTINUOUS:
 		handle_pointer_axis(event, libinput_dev);
 		break;
-	case LIBINPUT_EVENT_POINTER_AXIS_WHEEL:
-		handle_pointer_axis_wheel(event, libinput_dev);
-		break;
+#endif
 	case LIBINPUT_EVENT_TOUCH_DOWN:
 		handle_touch_down(event, libinput_dev);
 		break;

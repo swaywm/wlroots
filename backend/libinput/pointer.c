@@ -89,7 +89,8 @@ void handle_pointer_button(struct libinput_event *event,
 	wlr_signal_emit_safe(&wlr_dev->pointer->events.frame, wlr_dev->pointer);
 }
 
-void handle_pointer_axis(struct libinput_event *event,
+#if !WLR_HAS_LIBINPUT_AXIS_V120
+void handle_pointer_axis_legacy(struct libinput_event *event,
 		struct libinput_device *libinput_dev) {
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);
@@ -105,8 +106,8 @@ void handle_pointer_axis(struct libinput_event *event,
 		usec_to_msec(libinput_event_pointer_get_time_usec(pevent));
 	switch (libinput_event_pointer_get_axis_source(pevent)) {
 	case LIBINPUT_POINTER_AXIS_SOURCE_WHEEL:
-		// dropped when v120 API in use
-		return;
+		wlr_event.source = WLR_AXIS_SOURCE_WHEEL;
+		break;
 	case LIBINPUT_POINTER_AXIS_SOURCE_FINGER:
 		wlr_event.source = WLR_AXIS_SOURCE_FINGER;
 		break;
@@ -140,8 +141,10 @@ void handle_pointer_axis(struct libinput_event *event,
 	}
 	wlr_signal_emit_safe(&wlr_dev->pointer->events.frame, wlr_dev->pointer);
 }
+#endif
 
-void handle_pointer_axis_wheel(struct libinput_event *event,
+
+void handle_pointer_axis(struct libinput_event *event,
 		struct libinput_device *libinput_dev) {
 	struct wlr_input_device *wlr_dev =
 		get_appropriate_device(WLR_INPUT_DEVICE_POINTER, libinput_dev);

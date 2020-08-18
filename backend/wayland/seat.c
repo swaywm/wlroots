@@ -119,14 +119,12 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_event_pointer_axis event = {
 		.device = &pointer->input_device->wlr_input_device,
 		.delta = wl_fixed_to_double(value),
-		.delta_discrete = pointer->axis_discrete,
 		.orientation = axis,
 		.time_msec = time,
 		.source = pointer->axis_source,
+		.has_v120 = false
 	};
 	wlr_signal_emit_safe(&pointer->wlr_pointer.events.axis, &event);
-
-	pointer->axis_discrete = 0;
 }
 
 static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
@@ -162,7 +160,6 @@ static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_event_pointer_axis event = {
 		.device = &pointer->input_device->wlr_input_device,
 		.delta = 0,
-		.delta_discrete = 0,
 		.orientation = axis,
 		.time_msec = time,
 		.source = pointer->axis_source,
@@ -177,12 +174,11 @@ static void pointer_handle_axis_discrete(void *data,
 	if (pointer == NULL) {
 		return;
 	}
-
-	pointer->axis_discrete = discrete;
+	pointer->axis_v120 = discrete * 120;
 }
 
 static void pointer_handle_axis_v120(void *data,
-		struct wl_pointer *wl_pointer, uint32_t time, int32_t v120) {
+		struct wl_pointer *wl_pointer, uint32_t axis, int32_t v120) {
 	struct wlr_wl_backend *backend = data;
 	struct wlr_wl_pointer *pointer = backend->current_pointer;
 	if (pointer == NULL) {

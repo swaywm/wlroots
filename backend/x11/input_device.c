@@ -49,7 +49,7 @@ static void send_axis_event(struct wlr_x11_output *output, int32_t delta,
 		.orientation = WLR_AXIS_ORIENTATION_VERTICAL,
 		// 15 is a typical value libinput sends for one scroll
 		.delta = delta * 15,
-		.delta_discrete = delta,
+		.v120 = delta * 120,
 	};
 	wlr_signal_emit_safe(&output->pointer.events.axis, &ev);
 	wlr_signal_emit_safe(&output->pointer.events.frame, &output->pointer);
