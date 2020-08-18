@@ -183,8 +183,13 @@ void handle_pointer_axis(struct libinput_event *event,
 			if (axis == 0) {
 				continue;
 			}
+#if WLR_HAS_LIBINPUT_AXIS_V120
 			double hr_delta =
 					libinput_event_pointer_get_axis_value_v120(pevent, axes[i]);
+#else
+		    double hr_delta =
+		    		libinput_event_pointer_get_axis_value_discrete(pointer_event, axis) * 120;
+#endif
 			double angle = fabs(axis) / fabs(hr_delta);
 			wlr_event.delta = hr_delta * angle; // scale based on click angle
 			wlr_signal_emit_safe(&wlr_dev->pointer->events.axis, &wlr_event);
