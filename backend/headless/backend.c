@@ -1,12 +1,18 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
+#include <drm_fourcc.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/egl.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
+#include <xf86drm.h>
 #include "backend/headless.h"
+#include "render/drm_format_set.h"
+#include "render/gbm_allocator.h"
 #include "util/signal.h"
 
 struct wlr_headless_backend *headless_backend_from_backend(
@@ -62,6 +68,8 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 
 	wlr_signal_emit_safe(&wlr_backend->events.destroy, backend);
 
+	free(backend->format);
+	wlr_allocator_destroy(backend->allocator);
 	if (backend->egl == &backend->priv_egl) {
 		wlr_renderer_destroy(backend->renderer);
 		wlr_egl_finish(&backend->priv_egl);
@@ -104,17 +112,39 @@ static bool backend_init(struct wlr_headless_backend *backend,
 	backend->renderer = renderer;
 	backend->egl = wlr_gles2_renderer_get_egl(renderer);
 
-	if (wlr_gles2_renderer_check_ext(backend->renderer, "GL_OES_rgb8_rgba8") ||
-			wlr_gles2_renderer_check_ext(backend->renderer,
-				"GL_OES_required_internalformat") ||
-			wlr_gles2_renderer_check_ext(backend->renderer, "GL_ARM_rgba8")) {
-		backend->internal_format = GL_RGBA8_OES;
-	} else {
-		wlr_log(WLR_INFO, "GL_RGBA8_OES not supported, "
-			"falling back to GL_RGBA4 internal format "
-			"(performance may be affected)");
-		backend->internal_format = GL_RGBA4;
+	int fd = wlr_renderer_get_drm_fd(renderer);
+	if (fd < 0) {
+		wlr_log(WLR_ERROR, "Failed to get DRM device FD from renderer");
+		return false;
 	}
+
+	fd = dup(fd);
+	if (fd < 0) {
+		wlr_log_errno(WLR_ERROR, "dup failed");
+		return false;
+	}
+
+	struct wlr_gbm_allocator *alloc = wlr_gbm_allocator_create(fd);
+	if (alloc == NULL) {
+		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
+		return false;
+	}
+	backend->allocator = &alloc->base;
+
+	const struct wlr_drm_format_set *formats =
+		wlr_renderer_get_dmabuf_formats(backend->renderer);
+	if (formats == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get available DMA-BUF formats from renderer");
+		return false;
+	}
+	// TODO: filter modifiers with external_only=false
+	const struct wlr_drm_format *format =
+		wlr_drm_format_set_get(formats, DRM_FORMAT_XRGB8888);
+	if (format == NULL) {
+		wlr_log(WLR_ERROR, "Renderer doesn't support XRGB8888");
+		return false;
+	}
+	backend->format = wlr_drm_format_dup(format);
 
 	backend->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &backend->display_destroy);
