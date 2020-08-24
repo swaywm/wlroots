@@ -162,7 +162,6 @@ int main(int argc, char *argv[]) {
 
 	struct wl_registry *registry = wl_display_get_registry(display);
 	wl_registry_add_listener(registry, &registry_listener, NULL);
-	wl_display_dispatch(display);
 	wl_display_roundtrip(display);
 
 	if (gamma_control_manager == NULL) {

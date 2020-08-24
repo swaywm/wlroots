@@ -754,7 +754,6 @@ static int init(struct capture_context *ctx) {
 	wl_registry_add_listener(ctx->registry, &registry_listener, ctx);
 
 	wl_display_roundtrip(ctx->display);
-	wl_display_dispatch(ctx->display);
 
 	if (!ctx->export_manager) {
 		av_log(ctx, AV_LOG_ERROR, "Compositor doesn't support %s!\n",
