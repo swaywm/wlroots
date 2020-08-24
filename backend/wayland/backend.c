@@ -279,7 +279,6 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}
 
 	wl_registry_add_listener(wl->registry, &registry_listener, wl);
-	wl_display_dispatch(wl->remote_display);
 	wl_display_roundtrip(wl->remote_display);
 
 	if (!wl->compositor) {
