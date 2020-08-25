@@ -121,6 +121,23 @@ static void output_rollback_render(struct wlr_output *wlr_output) {
 	output->back_buffer = NULL;
 }
 
+static bool output_export_dmabuf(struct wlr_output *wlr_output,
+		struct wlr_dmabuf_attributes *attribs) {
+	struct wlr_headless_output *output =
+		headless_output_from_output(wlr_output);
+
+	if (!output->front_buffer) {
+		return false;
+	}
+
+	struct wlr_dmabuf_attributes tmp;
+	if (!wlr_buffer_get_dmabuf(output->front_buffer, &tmp)) {
+		return false;
+	}
+
+	return wlr_dmabuf_attributes_copy(attribs, &tmp);
+}
+
 static void output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
@@ -137,6 +154,7 @@ static const struct wlr_output_impl output_impl = {
 	.attach_render = output_attach_render,
 	.commit = output_commit,
 	.rollback_render = output_rollback_render,
+	.export_dmabuf = output_export_dmabuf,
 };
 
 bool wlr_output_is_headless(struct wlr_output *wlr_output) {
