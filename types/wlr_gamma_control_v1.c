@@ -24,7 +24,9 @@ static void gamma_control_destroy(struct wlr_gamma_control_v1 *gamma_control) {
 	wlr_output_set_gamma(gamma_control->output, 0, NULL, NULL, NULL);
 	wl_resource_set_user_data(gamma_control->resource, NULL);
 	wl_list_remove(&gamma_control->output_destroy_listener.link);
+	wl_list_remove(&gamma_control->output_commit_listener.link);
 	wl_list_remove(&gamma_control->link);
+	free(gamma_control->table);
 	free(gamma_control);
 }
 
@@ -32,6 +34,22 @@ static void gamma_control_send_failed(
 		struct wlr_gamma_control_v1 *gamma_control) {
 	zwlr_gamma_control_v1_send_failed(gamma_control->resource);
 	gamma_control_destroy(gamma_control);
+}
+
+static void gamma_control_apply(struct wlr_gamma_control_v1 *gamma_control) {
+	uint16_t *r = gamma_control->table;
+	uint16_t *g = gamma_control->table + gamma_control->ramp_size;
+	uint16_t *b = gamma_control->table + 2 * gamma_control->ramp_size;
+
+	wlr_output_set_gamma(gamma_control->output, gamma_control->ramp_size, r, g, b);
+	if (!wlr_output_test(gamma_control->output)) {
+		wlr_output_rollback(gamma_control->output);
+		gamma_control_send_failed(gamma_control);
+		return;
+	}
+
+	// Gamma LUT will be applied on next output commit
+	wlr_output_schedule_frame(gamma_control->output);
 }
 
 static const struct zwlr_gamma_control_v1_interface gamma_control_impl;
@@ -54,6 +72,17 @@ static void gamma_control_handle_output_destroy(struct wl_listener *listener,
 	struct wlr_gamma_control_v1 *gamma_control =
 		wl_container_of(listener, gamma_control, output_destroy_listener);
 	gamma_control_destroy(gamma_control);
+}
+
+static void gamma_control_handle_output_commit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_gamma_control_v1 *gamma_control =
+		wl_container_of(listener, gamma_control, output_commit_listener);
+	struct wlr_output_event_commit *event = data;
+	if ((event->committed & WLR_OUTPUT_STATE_ENABLED) &&
+			gamma_control->output->enabled) {
+		gamma_control_apply(gamma_control);
+	}
 }
 
 static void gamma_control_handle_set_gamma(struct wl_client *client,
@@ -101,20 +130,13 @@ static void gamma_control_handle_set_gamma(struct wl_client *client,
 	close(fd);
 	fd = -1;
 
-	uint16_t *r = table;
-	uint16_t *g = table + ramp_size;
-	uint16_t *b = table + 2 * ramp_size;
+	free(gamma_control->table);
+	gamma_control->table = table;
+	gamma_control->ramp_size = ramp_size;
 
-	wlr_output_set_gamma(gamma_control->output, ramp_size, r, g, b);
-	if (!wlr_output_test(gamma_control->output)) {
-		wlr_output_rollback(gamma_control->output);
-		gamma_control_send_failed(gamma_control);
-		goto error_table;
+	if (gamma_control->output->enabled) {
+		gamma_control_apply(gamma_control);
 	}
-	free(table);
-
-	// Gamma LUT will be applied on next output commit
-	wlr_output_schedule_frame(gamma_control->output);
 
 	return;
 
@@ -176,6 +198,11 @@ static void gamma_control_manager_get_gamma_control(struct wl_client *client,
 		&gamma_control->output_destroy_listener);
 	gamma_control->output_destroy_listener.notify =
 		gamma_control_handle_output_destroy;
+
+	wl_signal_add(&output->events.commit,
+		&gamma_control->output_commit_listener);
+	gamma_control->output_commit_listener.notify =
+		gamma_control_handle_output_commit;
 
 	wl_list_init(&gamma_control->link);
 
