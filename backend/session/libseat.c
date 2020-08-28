@@ -62,6 +62,28 @@ static struct libseat_session *libseat_session_from_session(
 	return (struct libseat_session *)base;
 }
 
+static enum wlr_log_importance libseat_log_level_to_wlr(
+		enum libseat_log_level level) {
+	switch (level) {
+	case LIBSEAT_LOG_LEVEL_ERROR:
+		return WLR_ERROR;
+	case LIBSEAT_LOG_LEVEL_INFO:
+		return WLR_INFO;
+	default:
+		return WLR_DEBUG;
+	}
+}
+
+static void log_libseat(enum libseat_log_level level,
+		const char *fmt, va_list args) {
+	enum wlr_log_importance importance = libseat_log_level_to_wlr(level);
+
+	static char wlr_fmt[1024];
+	snprintf(wlr_fmt, sizeof(wlr_fmt), "[libseat] %s", fmt);
+
+	_wlr_vlog(importance, wlr_fmt, args);
+}
+
 static struct wlr_session *libseat_session_create(struct wl_display *disp) {
 	struct libseat_session *session = calloc(1, sizeof(*session));
 	if (!session) {
@@ -71,6 +93,9 @@ static struct wlr_session *libseat_session_create(struct wl_display *disp) {
 
 	session_init(&session->base);
 	wl_list_init(&session->devices);
+
+	libseat_set_log_handler(log_libseat);
+	libseat_set_log_level(LIBSEAT_LOG_LEVEL_ERROR);
 
 	session->seat = libseat_open_seat(&seat_listener, session);
 	if (session->seat == NULL) {
