@@ -1021,8 +1021,8 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 
 	output_cursor_reset(cursor);
 
-	cursor->width = width;
-	cursor->height = height;
+	cursor->width = width * cursor->output->scale;
+	cursor->height = height * cursor->output->scale;
 	cursor->hotspot_x = hotspot_x;
 	cursor->hotspot_y = hotspot_y;
 	output_cursor_update_visible(cursor);
