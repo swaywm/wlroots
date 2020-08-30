@@ -285,11 +285,12 @@ _XcursorReadUInt (XcursorFile *file, XcursorUInt *u)
         return XcursorFalse;
 
     if ((*file->read) (file, bytes, 4) != 4)
-	return XcursorFalse;
-    *u = ((bytes[0] << 0) |
-	  (bytes[1] << 8) |
-	  (bytes[2] << 16) |
-	  (bytes[3] << 24));
+        return XcursorFalse;
+
+    *u = ((XcursorUInt)(bytes[0]) << 0) |
+         ((XcursorUInt)(bytes[1]) << 8) |
+         ((XcursorUInt)(bytes[2]) << 16) |
+         ((XcursorUInt)(bytes[3]) << 24);
     return XcursorTrue;
 }
 
