@@ -1061,8 +1061,8 @@ static void output_cursor_commit(struct wlr_output_cursor *cursor,
 
 	// Some clients commit a cursor surface with a NULL buffer to hide it.
 	cursor->enabled = wlr_surface_has_buffer(surface);
-	cursor->width = surface->current.width * cursor->output->scale;
-	cursor->height = surface->current.height * cursor->output->scale;
+	cursor->width = surface->current.width * surface->current.scale * cursor->output->scale;
+	cursor->height = surface->current.height * surface->current.scale * cursor->output->scale;
 	output_cursor_update_visible(cursor);
 	if (update_hotspot) {
 		cursor->hotspot_x -= surface->current.dx * cursor->output->scale;
