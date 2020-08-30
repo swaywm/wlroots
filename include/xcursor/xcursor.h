@@ -26,8 +26,10 @@
 #ifndef XCURSOR_H
 #define XCURSOR_H
 
-typedef int		XcursorBool;
-typedef unsigned int	XcursorUInt;
+#include <stdint.h>
+
+typedef int XcursorBool;
+typedef uint32_t XcursorUInt;
 
 typedef XcursorUInt	XcursorDim;
 typedef XcursorUInt	XcursorPixel;
