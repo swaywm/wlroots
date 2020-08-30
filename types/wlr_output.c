@@ -981,12 +981,10 @@ static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
 }
 
 static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
-	float scale = cursor->output->scale;
 	enum wl_output_transform transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	struct wlr_texture *texture = cursor->texture;
 	if (cursor->surface != NULL) {
 		texture = wlr_surface_get_texture(cursor->surface);
-		scale = cursor->surface->current.scale;
 		transform = cursor->surface->current.transform;
 	}
 
@@ -1002,7 +1000,7 @@ static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
 		cursor->output->impl->move_cursor(cursor->output,
 			(int)cursor->x, (int)cursor->y);
 		if (cursor->output->impl->set_cursor(cursor->output, texture,
-				scale, transform, cursor->hotspot_x, cursor->hotspot_y, true)) {
+				1, transform, cursor->hotspot_x, cursor->hotspot_y, true)) {
 			cursor->output->hardware_cursor = cursor;
 			return true;
 		}
