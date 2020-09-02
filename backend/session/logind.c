@@ -130,8 +130,8 @@ static void logind_release_device(struct wlr_session *base, int fd) {
 static bool logind_change_vt(struct wlr_session *base, unsigned vt) {
 	struct logind_session *session = logind_session_from_session(base);
 
-	// Only seat0 has VTs associated with it
-	if (strcmp(session->base.seat, "seat0") != 0) {
+	// Only if seat has VTs associated with it
+	if (!sd_seat_can_tty(session->base.seat)) {
 		return true;
 	}
 
@@ -791,7 +791,7 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 	}
 	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
 
-	if (strcmp(seat, "seat0") == 0) {
+	if (sd_seat_can_tty(seat)) {
 		ret = sd_session_get_vt(session->id, &session->base.vtnr);
 		if (ret < 0) {
 			wlr_log(WLR_ERROR, "Session not running in virtual terminal");
