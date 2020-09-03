@@ -450,6 +450,9 @@ static void relative_pointer_handle_relative_motion(void *data,
 		wl_fixed_t dy_unaccel) {
 	struct wlr_wl_input_device *input_device = data;
 	struct wlr_input_device *wlr_dev = &input_device->wlr_input_device;
+	if (pointer_get_wl(wlr_dev->pointer) != input_device->backend->current_pointer) {
+		return;
+	}
 
 	uint64_t time_usec = (uint64_t)utime_hi << 32 | utime_lo;
 
