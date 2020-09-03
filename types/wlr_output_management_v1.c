@@ -6,7 +6,7 @@
 #include "util/signal.h"
 #include "wlr-output-management-unstable-v1-protocol.h"
 
-#define OUTPUT_MANAGER_VERSION 1
+#define OUTPUT_MANAGER_VERSION 2
 
 enum {
 	HEAD_STATE_ENABLED = 1 << 0,
@@ -759,6 +759,16 @@ static void manager_send_head(struct wlr_output_manager_v1 *manager,
 	if (output->phys_width > 0 && output->phys_height > 0) {
 		zwlr_output_head_v1_send_physical_size(head_resource,
 			output->phys_width, output->phys_height);
+	}
+
+	if (version >= ZWLR_OUTPUT_HEAD_V1_MAKE_SINCE_VERSION && output->make[0] != '\0') {
+		zwlr_output_head_v1_send_make(head_resource, output->make);
+	}
+	if (version >= ZWLR_OUTPUT_HEAD_V1_MODEL_SINCE_VERSION && output->model[0] != '\0') {
+		zwlr_output_head_v1_send_model(head_resource, output->model);
+	}
+	if (version >= ZWLR_OUTPUT_HEAD_V1_SERIAL_NUMBER_SINCE_VERSION && output->serial[0] != '\0') {
+		zwlr_output_head_v1_send_serial_number(head_resource, output->serial);
 	}
 
 	struct wlr_output_mode *mode;
