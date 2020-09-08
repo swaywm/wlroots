@@ -534,16 +534,20 @@ static void xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
 	}
 }
 
-static void layer_surface_for_each_surface(struct wlr_layer_surface_v1 *surface,
-		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data) {
+void wlr_layer_surface_v1_for_each_surface(struct wlr_layer_surface_v1 *surface,
+		wlr_surface_iterator_func_t iterator, void *user_data) {
 	struct layer_surface_iterator_data data = {
 		.user_iterator = iterator,
 		.user_data = user_data,
-		.x = x, .y = y,
+		.x = 0, .y = 0,
 	};
 	wlr_surface_for_each_surface(surface->surface,
 			layer_surface_iterator, &data);
+	wlr_layer_surface_v1_for_each_popup(surface, iterator, user_data);
+}
 
+void wlr_layer_surface_v1_for_each_popup(struct wlr_layer_surface_v1 *surface,
+		wlr_surface_iterator_func_t iterator, void *user_data){
 	struct wlr_xdg_popup *popup_state;
 	wl_list_for_each(popup_state, &surface->popups, link) {
 		struct wlr_xdg_surface *popup = popup_state->base;
@@ -558,11 +562,6 @@ static void layer_surface_for_each_surface(struct wlr_layer_surface_v1 *surface,
 		xdg_surface_for_each_surface(popup,
 			popup_sx, popup_sy, iterator, user_data);
 	}
-}
-
-void wlr_layer_surface_v1_for_each_surface(struct wlr_layer_surface_v1 *surface,
-		wlr_surface_iterator_func_t iterator, void *user_data) {
-	layer_surface_for_each_surface(surface, 0, 0, iterator, user_data);
 }
 
 struct wlr_surface *wlr_layer_surface_v1_surface_at(
