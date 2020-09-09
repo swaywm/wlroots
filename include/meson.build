@@ -1,6 +1,9 @@
 subdir('wlr')
 
 exclude_files = ['meson.build', 'config.h.in', 'version.h.in']
+if conf_data.get('WLR_HAS_FBDEV_BACKEND', 0) != 1
+	exclude_files += 'backend/fbdev.h'
+endif
 if conf_data.get('WLR_HAS_X11_BACKEND', 0) != 1
 	exclude_files += 'backend/x11.h'
 endif

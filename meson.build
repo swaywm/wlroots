@@ -179,6 +179,7 @@ summary({
 	'elogind': conf_data.get('WLR_HAS_ELOGIND', 0),
 	'libseat': conf_data.get('WLR_HAS_LIBSEAT', 0),
 	'xwayland': conf_data.get('WLR_HAS_XWAYLAND', 0),
+	'fbdev_backend': conf_data.get('WLR_HAS_FBDEV_BACKEND', 0),
 	'x11_backend': conf_data.get('WLR_HAS_X11_BACKEND', 0),
 	'xcb-icccm': conf_data.get('WLR_HAS_XCB_ICCCM', 0),
 	'xcb-errors': conf_data.get('WLR_HAS_XCB_ERRORS', 0),

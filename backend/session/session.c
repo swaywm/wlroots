@@ -16,6 +16,12 @@
 #include "backend/session/session.h"
 #include "util/signal.h"
 
+#if WLR_HAS_FBDEV_BACKEND
+#include <linux/fb.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#endif
+
 extern const struct session_impl session_libseat;
 extern const struct session_impl session_logind;
 extern const struct session_impl session_direct;
@@ -262,6 +268,42 @@ out_fd:
 	return -1;
 }
 
+#if WLR_HAS_FBDEV_BACKEND
+static int open_if_fbdev(struct wlr_session *restrict session,
+		const char *restrict path) {
+	if (!path) {
+		return -1;
+	}
+
+	int fd = wlr_session_open_file(session, path);
+	if (fd < 0) {
+		return -1;
+	}
+
+	struct fb_fix_screeninfo scr_fix;
+	if (ioctl(fd, FBIOGET_FSCREENINFO, &scr_fix) == -1) {
+		wlr_log(WLR_ERROR, "%s: FBIOGET_FSCREENINFO failed", path);
+		goto out_fd;
+	}
+
+	// Skip fbdevs that can't be opened with mmap (as seen on a Nexus 4
+	// downstream kernel)
+	size_t fbmem_size = 1;
+	unsigned char *fbmem = mmap(NULL, fbmem_size, PROT_WRITE, MAP_SHARED, fd, 0);
+	if (fbmem == MAP_FAILED) {
+		wlr_log(WLR_ERROR, "%s: mmap failed", path);
+		goto out_fd;
+	}
+
+	munmap(fbmem, fbmem_size);
+	return fd;
+
+out_fd:
+	wlr_session_close_file(session, fd);
+	return -1;
+}
+#endif
+
 static size_t find_devs_explicit(struct wlr_session *session,
 		size_t ret_len, int ret[static ret_len], const char *str,
 		int (*open_if_dev)(struct wlr_session *restrict session,
@@ -383,3 +425,11 @@ size_t wlr_session_find_gpus(struct wlr_session *session,
 	return find_devs(session, ret_len, ret, "WLR_DRM_DEVICES",
 			"drm", "card[0-9]*", open_if_kms, "DRM");
 }
+
+#if WLR_HAS_FBDEV_BACKEND
+size_t wlr_session_find_fbdevs(struct wlr_session *session,
+		size_t ret_len, int *ret) {
+	return find_devs(session, ret_len, ret, "WLR_FBDEV_DEVICES",
+			 "graphics", "fb[0-9]*", open_if_fbdev, "fbdev");
+}
+#endif

@@ -24,7 +24,7 @@
 	#include <elogind/sd-login.h>
 #endif
 
-enum { DRM_MAJOR = 226 };
+enum { DRM_MAJOR = 226, FB_MAJOR= 29 };
 
 const struct session_impl session_logind;
 
@@ -43,6 +43,7 @@ struct logind_session {
 	// if so, the session will be (de)activated with the drm fd,
 	// otherwise with the dbus PropertiesChanged on "active" signal
 	bool has_drm;
+	bool has_fb;
 };
 
 static struct logind_session *logind_session_from_session(
@@ -68,6 +69,14 @@ static int logind_take_device(struct wlr_session *base, const char *path) {
 	if (major(st.st_rdev) == DRM_MAJOR) {
 		session->has_drm = true;
 	}
+#if WLR_HAS_FBDEV_BACKEND
+	if (major(st.st_rdev) == FB_MAJOR) {
+		session->has_fb = true;
+		// logind will answer with 'No such device', so open it
+		// directly.
+		return open(path, O_RDWR);
+	}
+#endif
 
 	ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
 		session->path, "org.freedesktop.login1.Session", "TakeDevice",
@@ -501,8 +510,8 @@ static int seat_properties_changed(sd_bus_message *msg, void *userdata,
 	struct logind_session *session = userdata;
 	int ret = 0;
 
-	// if we have a drm fd we don't depend on this
-	if (session->has_drm) {
+	// if we have a drm/framebuffer fd we don't depend on this
+	if (session->has_drm || session->has_fb) {
 		return 0;
 	}
 

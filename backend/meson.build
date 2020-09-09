@@ -1,6 +1,7 @@
 wlr_files += files('backend.c')
 
 subdir('drm')
+subdir('fbdev')
 subdir('headless')
 subdir('libinput')
 subdir('multi')

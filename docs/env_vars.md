@@ -3,7 +3,7 @@ wlroots reads these environment variables
 # wlroots specific
 
 * *WLR_BACKENDS*: comma-separated list of backends to use (available backends:
-  libinput, drm, wayland, x11, headless, noop)
+  libinput, drm, wayland, x11, headless, noop, fbdev)
 * *WLR_NO_HARDWARE_CURSORS*: set to 1 to use software cursors instead of
   hardware cursors
 * *WLR_SESSION*: specifies the wlr\_session to be used (available sessions:
@@ -19,6 +19,12 @@ wlroots reads these environment variables
   mode setting
 * *WLR_DRM_NO_MODIFIERS*: set to 1 to always allocate planes without modifiers,
   this can fix certain modeset failures because of bandwidth restrictions.
+
+## fbdev backend
+
+* *WLR_FBDEV_DEVICES*: specifies the framebuffer devices (as colon separated
+  list) instead of auto probing them. The first existing device in this list is
+  considered the primary framebuffer device.
 
 ## Headless backend
 
