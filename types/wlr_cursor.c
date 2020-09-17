@@ -682,6 +682,20 @@ static struct wlr_cursor_device *cursor_device_create(
 	return c_device;
 }
 
+bool wlr_cursor_is_input_device_attached(struct wlr_cursor *cur,
+		struct wlr_input_device *dev) {
+	if (!cur || !dev) {
+		return false;
+	}
+	struct wlr_cursor_device *_dev;
+	wl_list_for_each(_dev, &cur->state->devices, link) {
+		if (_dev->device == dev) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 		struct wlr_input_device *dev) {
 	if (dev->type != WLR_INPUT_DEVICE_POINTER &&
@@ -693,11 +707,8 @@ void wlr_cursor_attach_input_device(struct wlr_cursor *cur,
 	}
 
 	// make sure it is not already attached
-	struct wlr_cursor_device *_dev;
-	wl_list_for_each(_dev, &cur->state->devices, link) {
-		if (_dev->device == dev) {
-			return;
-		}
+	if (wlr_cursor_is_input_device_attached(cur, dev)) {
+		return;
 	}
 
 	cursor_device_create(cur, dev);

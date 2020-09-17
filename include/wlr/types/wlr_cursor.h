@@ -151,6 +151,13 @@ void wlr_cursor_set_surface(struct wlr_cursor *cur, struct wlr_surface *surface,
 	int32_t hotspot_x, int32_t hotspot_y);
 
 /**
+ * Returns true when the input device, dev, is attached to the cursor, cur, 
+ * by the wlr_cursor_attach_input_device function.
+ */
+bool wlr_cursor_is_input_device_attached(struct wlr_cursor *cur,
+		struct wlr_input_device *dev);
+
+/**
  * Attaches this input device to this cursor. The input device must be one of:
  *
  * - WLR_INPUT_DEVICE_POINTER
