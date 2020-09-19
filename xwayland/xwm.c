@@ -467,19 +467,40 @@ static void read_surface_title(struct wlr_xwm *xwm,
 	wlr_signal_emit_safe(&xsurface->events.set_title, xsurface);
 }
 
+static bool has_parent(struct wlr_xwayland_surface *parent,
+		struct wlr_xwayland_surface *child) {
+	while (parent) {
+		if (child == parent) {
+			return true;
+		}
+
+		parent = parent->parent;
+	}
+
+	return false;
+}
+
 static void read_surface_parent(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface,
 		xcb_get_property_reply_t *reply) {
+	struct wlr_xwayland_surface *found_parent = NULL;
 	if (reply->type != XCB_ATOM_WINDOW) {
 		return;
 	}
 
 	xcb_window_t *xid = xcb_get_property_value(reply);
 	if (xid != NULL) {
-		xsurface->parent = lookup_surface(xwm, *xid);
+		found_parent = lookup_surface(xwm, *xid);
+		if (!has_parent(found_parent, xsurface)) {
+			xsurface->parent = found_parent;
+		} else {
+			wlr_log(WLR_INFO, "%p with %p would create a loop", xsurface,
+						found_parent);
+		}
 	} else {
 		xsurface->parent = NULL;
 	}
+
 
 	wl_list_remove(&xsurface->parent_link);
 	if (xsurface->parent != NULL) {
