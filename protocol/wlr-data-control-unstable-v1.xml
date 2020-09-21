@@ -108,7 +108,8 @@
         the primary clipboard selections). Immediately following the
         wlr_data_control_device.data_offer event, the new data_offer object
         will send out wlr_data_control_offer.offer events to describe the MIME
-        types it offers.
+        types it offers. Offers will be propagated to other listening clients
+        except for the client that made the offer.
       </description>
       <arg name="id" type="new_id" interface="zwlr_data_control_offer_v1"/>
     </event>

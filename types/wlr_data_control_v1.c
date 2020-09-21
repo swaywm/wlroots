@@ -457,6 +457,17 @@ static void control_send_selection(struct wlr_data_control_device_v1 *device) {
 	}
 
 	device->selection_offer_resource = NULL;
+
+	struct client_data_source *client_source =
+		wl_container_of(source, client_source, source);
+	if (client_source && device->resource) {
+		struct wl_resource *source_resource = client_source->resource;
+		// Don't send the offer back to the client that sent it
+		if (source_resource && wl_resource_get_client(source_resource) ==
+			wl_resource_get_client(device->resource))
+			return;
+	}
+
 	if (source != NULL) {
 		device->selection_offer_resource =
 			create_offer(device, &source->mime_types, false);
@@ -488,6 +499,17 @@ static void control_send_primary_selection(
 	}
 
 	device->primary_selection_offer_resource = NULL;
+
+	struct client_primary_selection_source *client_source =
+		wl_container_of(source, client_source, source);
+	if (client_source && device->resource) {
+		struct wl_resource *source_resource = client_source->resource;
+		// Don't send the offer back to the client that sent it
+		if (source_resource && wl_resource_get_client(source_resource) ==
+			wl_resource_get_client(device->resource))
+			return;
+	}
+
 	if (source != NULL) {
 		device->primary_selection_offer_resource =
 			create_offer(device, &source->mime_types, true);
