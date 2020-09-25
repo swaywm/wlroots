@@ -8,6 +8,8 @@ wlroots reads these environment variables
   hardware cursors
 * *WLR_SESSION*: specifies the wlr\_session to be used (available sessions:
   logind/systemd, direct)
+* *WLR_SESSION_LOGIND_NO_WAIT_CAN_GRAPHICAL*: do not wait for 'CanGraphical'
+  from logind/systemd (needed for fbdev)
 * *WLR_DIRECT_TTY*: specifies the tty to be used (instead of using /dev/tty)
 
 ## DRM backend

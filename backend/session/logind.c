@@ -843,17 +843,21 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 	}
 
 	// Check for CanGraphical first
-	session->can_graphical = sd_seat_can_graphical(session->base.seat);
-	if (!session->can_graphical) {
-		wlr_log(WLR_INFO, "Waiting for 'CanGraphical' on seat %s", session->base.seat);
-	}
-
-	while (!session->can_graphical) {
-		ret = wl_event_loop_dispatch(event_loop, -1);
-		if (ret < 0) {
-			wlr_log(WLR_ERROR, "Polling error waiting for 'CanGraphical' on seat %s",
+	char *no_wait = getenv("WLR_SESSION_LOGIND_NO_WAIT_CAN_GRAPHICAL");
+	if (!no_wait || strcmp(no_wait, "1") != 0) {
+		session->can_graphical = sd_seat_can_graphical(session->base.seat);
+		if (!session->can_graphical) {
+			wlr_log(WLR_INFO, "Waiting for 'CanGraphical' on seat %s",
 				session->base.seat);
-			goto error_bus;
+		}
+
+		while (!session->can_graphical) {
+			ret = wl_event_loop_dispatch(event_loop, -1);
+			if (ret < 0) {
+				wlr_log(WLR_ERROR, "Polling error waiting for 'CanGraphical'"
+					" on seat %s", session->base.seat);
+				goto error_bus;
+			}
 		}
 	}
 
