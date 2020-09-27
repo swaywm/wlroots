@@ -16,11 +16,19 @@ sources:
 tasks:
   - setup: |
       cd wlroots
-      meson build -Dauto_features=enabled -Dlogind=disabled -Dlibseat=disabled -Dxcb-errors=disabled
+      meson build \
+        -Dauto_features=enabled \
+        -Dlogind=disabled \
+        -Dlibseat=disabled \
+        -Dxcb-errors=disabled \
+        -Dfbdev-backend=enabled
   - build: |
       cd wlroots
       ninja -C build
   - build-features-disabled: |
       cd wlroots
-      meson build --reconfigure -Dauto_features=disabled
+      meson build \
+        --reconfigure \
+        -Dauto_features=disabled \
+        -Dfbdev-backend=disabled
       ninja -C build

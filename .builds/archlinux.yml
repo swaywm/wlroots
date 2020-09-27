@@ -18,8 +18,14 @@ sources:
 tasks:
   - setup: |
       cd wlroots
-      CC=gcc meson build-gcc -Dauto_features=enabled -Dlogind-provider=systemd
-      CC=clang meson build-clang -Dauto_features=enabled -Dlogind-provider=systemd
+      CC=gcc meson build-gcc \
+        -Dauto_features=enabled \
+        -Dlogind-provider=systemd \
+        -Dfbdev-backend=enabled
+      CC=clang meson build-clang \
+        -Dauto_features=enabled \
+        -Dlogind-provider=systemd \
+        -Dfbdev-backend=enabled
   - gcc: |
       cd wlroots/build-gcc
       ninja
