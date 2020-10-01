@@ -680,6 +680,9 @@ static void head_send_state(struct wlr_output_head_v1 *head,
 
 	if (state & HEAD_STATE_ENABLED) {
 		zwlr_output_head_v1_send_enabled(head_resource, head->state.enabled);
+		// On enabling we send all current data since clients have not been
+		// notified about potential data changes while the head was disabled.
+		state = HEAD_STATE_ALL;
 	}
 
 	if (!head->state.enabled) {
