@@ -39,7 +39,7 @@ struct wlr_wl_backend {
 	struct wp_presentation *presentation;
 	struct zwp_linux_dmabuf_v1 *zwp_linux_dmabuf_v1;
 	struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1;
-	struct wlr_wl_seat *seat;
+	struct wl_list seats; // wlr_wl_seat.link
 	struct wlr_wl_pointer *current_pointer;
 	struct zwp_tablet_manager_v2 *tablet_manager;
 	struct wlr_drm_format_set linux_dmabuf_v1_formats;
@@ -109,6 +109,7 @@ struct wlr_wl_pointer {
 struct wlr_wl_seat {
 	struct wl_seat *wl_seat;
 
+	struct wl_list link; // wlr_wl_backend.seats
 	char *name;
 	struct wl_touch *touch;
 	struct wl_pointer *pointer;

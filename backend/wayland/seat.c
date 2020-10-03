@@ -373,7 +373,6 @@ static struct wlr_wl_input_device *get_wl_input_device_from_input_device(
 }
 
 bool create_wl_seat(struct wl_seat *wl_seat, struct wlr_wl_backend *wl) {
-	assert(!wl->seat);  // only one seat supported at the moment
 	struct wlr_wl_seat *seat = calloc(1, sizeof(struct wlr_wl_seat));
 	if (!seat) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
@@ -381,32 +380,31 @@ bool create_wl_seat(struct wl_seat *wl_seat, struct wlr_wl_backend *wl) {
 	}
 	seat->wl_seat = wl_seat;
 	seat->backend = wl;
-	wl->seat = seat;
+	wl_list_insert(&wl->seats, &seat->link);
 	wl_seat_add_listener(wl_seat, &seat_listener, seat);
 	return true;
 }
 
 void destroy_wl_seats(struct wlr_wl_backend *wl) {
-	struct wlr_wl_seat *seat = wl->seat;
-	if (!seat) {
-		return;
-	}
-
-	if (seat->touch) {
-		wl_touch_destroy(seat->touch);
-	}
-	if (seat->pointer) {
-		wl_pointer_destroy(seat->pointer);
-	}
-	if (seat->keyboard && !wl->started) {
-		// early termination will not be handled by input_device_destroy
-		wl_keyboard_destroy(seat->keyboard);
-	}
-	free(seat->name);
-	if (seat->wl_seat) {
+	struct wlr_wl_seat *seat, *tmp_seat;
+	wl_list_for_each_safe(seat, tmp_seat, &wl->seats, link) {
+		if (seat->touch) {
+			wl_touch_destroy(seat->touch);
+		}
+		if (seat->pointer) {
+			wl_pointer_destroy(seat->pointer);
+		}
+		if (seat->keyboard && !wl->started) {
+			// early termination will not be handled by input_device_destroy
+			wl_keyboard_destroy(seat->keyboard);
+		}
+		free(seat->name);
+		assert(seat->wl_seat);
 		wl_seat_destroy(seat->wl_seat);
+
+		wl_list_remove(&seat->link);
+		free(seat);
 	}
-	free(seat);
 }
 
 static struct wlr_wl_seat *input_device_get_seat(struct wlr_input_device *wlr_dev) {
