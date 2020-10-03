@@ -48,6 +48,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_wl_output *output = wl_surface_get_user_data(surface);
 	assert(output);
 	struct wlr_wl_pointer *pointer = output_get_pointer(output);
+	assert(!backend->current_pointer || backend->current_pointer == pointer);
 
 	output->enter_serial = serial;
 	backend->current_pointer = pointer;
