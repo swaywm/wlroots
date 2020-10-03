@@ -412,8 +412,8 @@ void destroy_wl_seats(struct wlr_wl_backend *wl) {
 static struct wlr_wl_seat *input_device_get_seat(struct wlr_input_device *wlr_dev) {
 	struct wlr_wl_input_device *dev =
 		get_wl_input_device_from_input_device(wlr_dev);
-	assert(dev->backend->seat);
-	return dev->backend->seat;
+	assert(dev->seat);
+	return dev->seat;
 }
 
 static void input_device_destroy(struct wlr_input_device *wlr_dev) {
@@ -437,14 +437,15 @@ bool wlr_input_device_is_wl(struct wlr_input_device *dev) {
 }
 
 struct wlr_wl_input_device *create_wl_input_device(
-		struct wlr_wl_backend *backend, enum wlr_input_device_type type) {
+		struct wlr_wl_seat *seat, enum wlr_input_device_type type) {
 	struct wlr_wl_input_device *dev =
 		calloc(1, sizeof(struct wlr_wl_input_device));
 	if (dev == NULL) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
-	dev->backend = backend;
+	dev->backend = seat->backend;
+	dev->seat = seat;
 
 	struct wlr_input_device *wlr_dev = &dev->wlr_input_device;
 
@@ -452,7 +453,7 @@ struct wlr_wl_input_device *create_wl_input_device(
 	const char *name = "wayland";
 	wlr_input_device_init(wlr_dev, type, &input_device_impl, name, vendor,
 		product);
-	wl_list_insert(&backend->devices, &wlr_dev->link);
+	wl_list_insert(&seat->backend->devices, &wlr_dev->link);
 	return dev;
 }
 
@@ -617,7 +618,9 @@ static void pointer_handle_output_destroy(struct wl_listener *listener,
 	wlr_input_device_destroy(&pointer->input_device->wlr_input_device);
 }
 
-void create_wl_pointer(struct wl_pointer *wl_pointer, struct wlr_wl_output *output) {
+void create_wl_pointer(struct wlr_wl_seat *seat, struct wlr_wl_output *output) {
+	assert(seat->pointer);
+	struct wl_pointer *wl_pointer = seat->pointer;
 	struct wlr_wl_backend *backend = output->backend;
 
 	struct wlr_input_device *wlr_dev;
@@ -640,7 +643,7 @@ void create_wl_pointer(struct wl_pointer *wl_pointer, struct wlr_wl_output *outp
 	pointer->output = output;
 
 	struct wlr_wl_input_device *dev =
-		create_wl_input_device(backend, WLR_INPUT_DEVICE_POINTER);
+		create_wl_input_device(seat, WLR_INPUT_DEVICE_POINTER);
 	if (dev == NULL) {
 		free(pointer);
 		wlr_log(WLR_ERROR, "Allocation failed");
@@ -677,9 +680,11 @@ void create_wl_pointer(struct wl_pointer *wl_pointer, struct wlr_wl_output *outp
 	wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_dev);
 }
 
-void create_wl_keyboard(struct wl_keyboard *wl_keyboard, struct wlr_wl_backend *wl) {
+void create_wl_keyboard(struct wlr_wl_seat *seat) {
+	assert(seat->keyboard);
+	struct wl_keyboard *wl_keyboard = seat->keyboard;
 	struct wlr_wl_input_device *dev =
-		create_wl_input_device(wl, WLR_INPUT_DEVICE_KEYBOARD);
+		create_wl_input_device(seat, WLR_INPUT_DEVICE_KEYBOARD);
 	if (!dev) {
 		return;
 	}
@@ -695,12 +700,14 @@ void create_wl_keyboard(struct wl_keyboard *wl_keyboard, struct wlr_wl_backend *
 	wlr_keyboard_init(wlr_dev->keyboard, NULL);
 
 	wl_keyboard_add_listener(wl_keyboard, &keyboard_listener, wlr_dev);
-	wlr_signal_emit_safe(&wl->backend.events.new_input, wlr_dev);
+	wlr_signal_emit_safe(&seat->backend->backend.events.new_input, wlr_dev);
 }
 
-void create_wl_touch(struct wl_touch *wl_touch, struct wlr_wl_backend *wl) {
+void create_wl_touch(struct wlr_wl_seat *seat) {
+	assert(seat->touch);
+	struct wl_touch *wl_touch = seat->touch;
 	struct wlr_wl_input_device *dev =
-		create_wl_input_device(wl, WLR_INPUT_DEVICE_TOUCH);
+		create_wl_input_device(seat, WLR_INPUT_DEVICE_TOUCH);
 	if (!dev) {
 		return;
 	}
@@ -716,7 +723,7 @@ void create_wl_touch(struct wl_touch *wl_touch, struct wlr_wl_backend *wl) {
 	wlr_touch_init(wlr_dev->touch, NULL);
 
 	wl_touch_add_listener(wl_touch, &touch_listener, dev);
-	wlr_signal_emit_safe(&wl->backend.events.new_input, wlr_dev);
+	wlr_signal_emit_safe(&seat->backend->backend.events.new_input, wlr_dev);
 }
 
 
@@ -733,7 +740,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 
 		struct wlr_wl_output *output;
 		wl_list_for_each(output, &backend->outputs, link) {
-			create_wl_pointer(wl_pointer, output);
+			create_wl_pointer(seat, output);
 		}
 	}
 	if (!(caps & WL_SEAT_CAPABILITY_POINTER) && seat->pointer != NULL) {
@@ -757,7 +764,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		seat->keyboard = wl_keyboard;
 
 		if (backend->started) {
-			create_wl_keyboard(wl_keyboard, backend);
+			create_wl_keyboard(seat);
 		}
 	}
 	if (!(caps & WL_SEAT_CAPABILITY_KEYBOARD) && seat->keyboard != NULL) {
@@ -777,7 +784,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 
 		seat->touch = wl_seat_get_touch(wl_seat);
 		if (backend->started) {
-			create_wl_touch(seat->touch, backend);
+			create_wl_touch(seat);
 		}
 	}
 	if (!(caps & WL_SEAT_CAPABILITY_TOUCH) && seat->touch != NULL) {

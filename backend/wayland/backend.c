@@ -160,7 +160,7 @@ static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_wl_seat *seat = wl->seat;
 	if (seat != NULL) {
 		if (seat->keyboard) {
-			create_wl_keyboard(seat->keyboard, wl);
+			create_wl_keyboard(seat);
 		}
 
 		if (wl->tablet_manager) {
