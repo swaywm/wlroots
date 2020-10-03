@@ -103,9 +103,9 @@ static void registry_global(void *data, struct wl_registry *registry,
 		wl->compositor = wl_registry_bind(registry, name,
 			&wl_compositor_interface, 4);
 	} else if (strcmp(iface, wl_seat_interface.name) == 0) {
-		wl->seat = wl_registry_bind(registry, name,
+		struct wl_seat *wl_seat = wl_registry_bind(registry, name,
 			&wl_seat_interface, 5);
-		wl_seat_add_listener(wl->seat, &seat_listener, wl);
+		create_wl_seat(wl_seat, wl);
 	} else if (strcmp(iface, xdg_wm_base_interface.name) == 0) {
 		wl->xdg_wm_base = wl_registry_bind(registry, name,
 			&xdg_wm_base_interface, 1);
@@ -155,13 +155,16 @@ static bool backend_start(struct wlr_backend *backend) {
 
 	wl->started = true;
 
-	if (wl->keyboard) {
-		create_wl_keyboard(wl->keyboard, wl);
-	}
+	struct wlr_wl_seat *seat = wl->seat;
+	if (seat != NULL) {
+		if (seat->keyboard) {
+			create_wl_keyboard(seat->keyboard, wl);
+		}
 
-	if (wl->tablet_manager && wl->seat) {
-		wl_add_tablet_seat(wl->tablet_manager,
-			wl->seat, wl);
+		if (wl->tablet_manager) {
+			wl_add_tablet_seat(wl->tablet_manager,
+				seat->wl_seat, wl);
+		}
 	}
 
 	for (size_t i = 0; i < wl->requested_outputs; ++i) {
@@ -192,8 +195,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wl_list_remove(&wl->local_display_destroy.link);
 
-	free(wl->seat_name);
-
 	wl_event_source_remove(wl->remote_display_src);
 
 	wlr_renderer_destroy(wl->renderer);
@@ -201,12 +202,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wlr_drm_format_set_finish(&wl->linux_dmabuf_v1_formats);
 
-	if (wl->pointer) {
-		wl_pointer_destroy(wl->pointer);
-	}
-	if (wl->seat) {
-		wl_seat_destroy(wl->seat);
-	}
+	destroy_wl_seats(wl);
 	if (wl->zxdg_decoration_manager_v1) {
 		zxdg_decoration_manager_v1_destroy(wl->zxdg_decoration_manager_v1);
 	}
