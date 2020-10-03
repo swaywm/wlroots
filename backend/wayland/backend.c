@@ -157,8 +157,8 @@ static bool backend_start(struct wlr_backend *backend) {
 
 	wl->started = true;
 
-	struct wlr_wl_seat *seat = wl->seat;
-	if (seat != NULL) {
+	struct wlr_wl_seat *seat;
+	wl_list_for_each(seat, &wl->seats, link) {
 		if (seat->keyboard) {
 			create_wl_keyboard(seat);
 		}
@@ -262,6 +262,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	wl->local_display = display;
 	wl_list_init(&wl->devices);
 	wl_list_init(&wl->outputs);
+	wl_list_init(&wl->seats);
 
 	wl->remote_display = wl_display_connect(remote);
 	if (!wl->remote_display) {

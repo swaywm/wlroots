@@ -586,8 +586,8 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 
 	wlr_signal_emit_safe(&backend->backend.events.new_output, wlr_output);
 
-	struct wlr_wl_seat *seat = backend->seat;
-	if (seat != NULL) {
+	struct wlr_wl_seat *seat;
+	wl_list_for_each(seat, &backend->seats, link) {
 		if (seat->pointer) {
 			create_wl_pointer(seat, output);
 		}
