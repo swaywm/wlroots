@@ -429,7 +429,8 @@ static void handle_pad_added(void *data,
 		struct zwp_tablet_seat_v2 *zwp_tablet_seat_v2,
 		struct zwp_tablet_pad_v2 *id) {
 	wlr_log(WLR_DEBUG, "New tablet pad");
-	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_seat *seat = data;
+	struct wlr_wl_backend *backend = seat->backend;
 	struct wlr_wl_input_device *dev = create_wl_input_device(
 		backend, WLR_INPUT_DEVICE_TABLET_PAD);
 	if (!dev) {
@@ -889,7 +890,8 @@ static void handle_tab_added(void *data,
 		struct zwp_tablet_seat_v2 *zwp_tablet_seat_v2,
 		struct zwp_tablet_v2 *id) {
 	wlr_log(WLR_DEBUG, "New tablet");
-	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_seat *seat = data;
+	struct wlr_wl_backend *backend = seat->backend;
 	struct wlr_wl_input_device *dev = create_wl_input_device(
 		backend, WLR_INPUT_DEVICE_TABLET_TOOL);
 
@@ -919,18 +921,18 @@ static const struct zwp_tablet_seat_v2_listener tablet_seat_listener = {
 
 struct wlr_wl_tablet_seat *wl_add_tablet_seat(
 		struct zwp_tablet_manager_v2 *manager,
-		struct wl_seat *seat, struct wlr_wl_backend *backend) {
+		struct wlr_wl_seat *seat) {
 	struct wlr_wl_tablet_seat *ret =
 		calloc(1, sizeof(struct wlr_wl_tablet_seat));
 
 	if (!(ret->tablet_seat =
-			zwp_tablet_manager_v2_get_tablet_seat(manager, seat))) {
+			zwp_tablet_manager_v2_get_tablet_seat(manager, seat->wl_seat))) {
 		free(ret);
 		return NULL;
 	}
 
 	zwp_tablet_seat_v2_add_listener(ret->tablet_seat,
-		&tablet_seat_listener, backend);
+		&tablet_seat_listener, seat);
 
 	return ret;
 }
