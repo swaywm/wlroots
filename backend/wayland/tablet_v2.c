@@ -430,9 +430,8 @@ static void handle_pad_added(void *data,
 		struct zwp_tablet_pad_v2 *id) {
 	wlr_log(WLR_DEBUG, "New tablet pad");
 	struct wlr_wl_seat *seat = data;
-	struct wlr_wl_backend *backend = seat->backend;
 	struct wlr_wl_input_device *dev = create_wl_input_device(
-		backend, WLR_INPUT_DEVICE_TABLET_PAD);
+		seat, WLR_INPUT_DEVICE_TABLET_PAD);
 	if (!dev) {
 		/* This leaks a couple of server-sent resource ids. iirc this
 		 * shouldn't ever be a problem, but it isn't exactly nice
@@ -891,9 +890,8 @@ static void handle_tab_added(void *data,
 		struct zwp_tablet_v2 *id) {
 	wlr_log(WLR_DEBUG, "New tablet");
 	struct wlr_wl_seat *seat = data;
-	struct wlr_wl_backend *backend = seat->backend;
 	struct wlr_wl_input_device *dev = create_wl_input_device(
-		backend, WLR_INPUT_DEVICE_TABLET_TOOL);
+		seat, WLR_INPUT_DEVICE_TABLET_TOOL);
 
 	if (!dev) {
 		zwp_tablet_v2_destroy(id);
