@@ -107,8 +107,16 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 		dup2(devnull, STDERR_FILENO);
 	}
 
+	const char *xwayland_path = getenv("WLR_XWAYLAND");
+	if (xwayland_path) {
+		wlr_log(WLR_INFO, "Using Xwayland binary to '%s' due to WLR_XWAYLAND",
+			xwayland_path);
+	} else {
+		xwayland_path = "Xwayland";
+	}
+
 	// This returns if and only if the call fails
-	execvp("Xwayland", argv);
+	execvp(xwayland_path, argv);
 
 	wlr_log_errno(WLR_ERROR, "failed to exec Xwayland");
 	close(devnull);
