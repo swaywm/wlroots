@@ -372,12 +372,49 @@ static struct wlr_wl_input_device *get_wl_input_device_from_input_device(
 	return (struct wlr_wl_input_device *)wlr_dev;
 }
 
+void create_wl_seat(struct wl_seat *wl_seat, struct wlr_wl_backend *wl) {
+	assert(!wl->seat);  // only one seat supported at the moment
+	struct wlr_wl_seat *seat = calloc(1, sizeof(struct wlr_wl_seat));
+	seat->wl_seat = wl_seat;
+	wl->seat = seat;
+	wl_seat_add_listener(wl_seat, &seat_listener, wl);
+}
+
+void destroy_wl_seats(struct wlr_wl_backend *wl) {
+	struct wlr_wl_seat *seat = wl->seat;
+	if (!seat) {
+		return;
+	}
+
+	if (seat->pointer) {
+		wl_pointer_destroy(seat->pointer);
+	}
+	free(seat->name);
+	if (seat->wl_seat) {
+		wl_seat_destroy(seat->wl_seat);
+	}
+	free(seat);
+}
+
+static struct wlr_wl_seat *backend_get_seat(struct wlr_wl_backend *backend, struct wl_seat *wl_seat) {
+	assert(backend->seat && backend->seat->wl_seat == wl_seat);
+	return backend->seat;
+}
+
+static struct wlr_wl_seat *input_device_get_seat(struct wlr_input_device *wlr_dev) {
+	struct wlr_wl_input_device *dev =
+		get_wl_input_device_from_input_device(wlr_dev);
+	assert(dev->backend->seat);
+	return dev->backend->seat;
+}
+
 static void input_device_destroy(struct wlr_input_device *wlr_dev) {
 	struct wlr_wl_input_device *dev =
 		get_wl_input_device_from_input_device(wlr_dev);
 	if (dev->wlr_input_device.type == WLR_INPUT_DEVICE_KEYBOARD) {
-		wl_keyboard_release(dev->backend->keyboard);
-		dev->backend->keyboard = NULL;
+		struct wlr_wl_seat *seat = input_device_get_seat(wlr_dev);
+		wl_keyboard_release(seat->keyboard);
+		seat->keyboard = NULL;
 	}
 	wl_list_remove(&dev->wlr_input_device.link);
 	free(dev);
@@ -678,20 +715,20 @@ void create_wl_touch(struct wl_touch *wl_touch, struct wlr_wl_backend *wl) {
 static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		enum wl_seat_capability caps) {
 	struct wlr_wl_backend *backend = data;
-	assert(backend->seat == wl_seat);
+	struct wlr_wl_seat *seat = backend_get_seat(backend, wl_seat);
 
-	if ((caps & WL_SEAT_CAPABILITY_POINTER) && backend->pointer == NULL) {
+	if ((caps & WL_SEAT_CAPABILITY_POINTER) && seat->pointer == NULL) {
 		wlr_log(WLR_DEBUG, "seat %p offered pointer", (void *)wl_seat);
 
 		struct wl_pointer *wl_pointer = wl_seat_get_pointer(wl_seat);
-		backend->pointer = wl_pointer;
+		seat->pointer = wl_pointer;
 
 		struct wlr_wl_output *output;
 		wl_list_for_each(output, &backend->outputs, link) {
 			create_wl_pointer(wl_pointer, output);
 		}
 	}
-	if (!(caps & WL_SEAT_CAPABILITY_POINTER) && backend->pointer != NULL) {
+	if (!(caps & WL_SEAT_CAPABILITY_POINTER) && seat->pointer != NULL) {
 		wlr_log(WLR_DEBUG, "seat %p dropped pointer", (void *)wl_seat);
 
 		struct wlr_input_device *device, *tmp;
@@ -701,21 +738,21 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 			}
 		}
 
-		wl_pointer_release(backend->pointer);
-		backend->pointer = NULL;
+		wl_pointer_release(seat->pointer);
+		seat->pointer = NULL;
 	}
 
-	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD) && backend->keyboard == NULL) {
+	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD) && seat->keyboard == NULL) {
 		wlr_log(WLR_DEBUG, "seat %p offered keyboard", (void *)wl_seat);
 
 		struct wl_keyboard *wl_keyboard = wl_seat_get_keyboard(wl_seat);
-		backend->keyboard = wl_keyboard;
+		seat->keyboard = wl_keyboard;
 
 		if (backend->started) {
 			create_wl_keyboard(wl_keyboard, backend);
 		}
 	}
-	if (!(caps & WL_SEAT_CAPABILITY_KEYBOARD) && backend->keyboard != NULL) {
+	if (!(caps & WL_SEAT_CAPABILITY_KEYBOARD) && seat->keyboard != NULL) {
 		wlr_log(WLR_DEBUG, "seat %p dropped keyboard", (void *)wl_seat);
 
 		struct wlr_input_device *device, *tmp;
@@ -724,18 +761,18 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 				wlr_input_device_destroy(device);
 			}
 		}
-		assert(backend->keyboard == NULL); // free'ed by input_device_destroy
+		assert(seat->keyboard == NULL); // free'ed by input_device_destroy
 	}
 
-	if ((caps & WL_SEAT_CAPABILITY_TOUCH) && backend->touch == NULL) {
+	if ((caps & WL_SEAT_CAPABILITY_TOUCH) && seat->touch == NULL) {
 		wlr_log(WLR_DEBUG, "seat %p offered touch", (void *)wl_seat);
 
-		backend->touch = wl_seat_get_touch(wl_seat);
+		seat->touch = wl_seat_get_touch(wl_seat);
 		if (backend->started) {
-			create_wl_touch(backend->touch, backend);
+			create_wl_touch(seat->touch, backend);
 		}
 	}
-	if (!(caps & WL_SEAT_CAPABILITY_TOUCH) && backend->touch != NULL) {
+	if (!(caps & WL_SEAT_CAPABILITY_TOUCH) && seat->touch != NULL) {
 		wlr_log(WLR_DEBUG, "seat %p dropped touch", (void *)wl_seat);
 
 		struct wlr_input_device *device, *tmp;
@@ -745,18 +782,17 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 			}
 		}
 
-		wl_touch_release(backend->touch);
-		backend->touch = NULL;
+		wl_touch_release(seat->touch);
+		seat->touch = NULL;
 	}
 }
 
 static void seat_handle_name(void *data, struct wl_seat *wl_seat,
 		const char *name) {
 	struct wlr_wl_backend *backend = data;
-	assert(backend->seat == wl_seat);
-	// Do we need to check if seatName was previously set for name change?
-	free(backend->seat_name);
-	backend->seat_name = strdup(name);
+	struct wlr_wl_seat *seat = backend_get_seat(backend, wl_seat);
+	free(seat->name);
+	seat->name = strdup(name);
 }
 
 const struct wl_seat_listener seat_listener = {
@@ -765,7 +801,5 @@ const struct wl_seat_listener seat_listener = {
 };
 
 struct wl_seat *wlr_wl_input_device_get_seat(struct wlr_input_device *wlr_dev) {
-	struct wlr_wl_input_device *dev =
-		get_wl_input_device_from_input_device(wlr_dev);
-	return dev->backend->seat;
+	return input_device_get_seat(wlr_dev)->wl_seat;
 }
