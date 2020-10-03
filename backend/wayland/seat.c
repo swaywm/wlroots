@@ -380,8 +380,9 @@ bool create_wl_seat(struct wl_seat *wl_seat, struct wlr_wl_backend *wl) {
 		return false;
 	}
 	seat->wl_seat = wl_seat;
+	seat->backend = wl;
 	wl->seat = seat;
-	wl_seat_add_listener(wl_seat, &seat_listener, wl);
+	wl_seat_add_listener(wl_seat, &seat_listener, seat);
 	return true;
 }
 
@@ -406,11 +407,6 @@ void destroy_wl_seats(struct wlr_wl_backend *wl) {
 		wl_seat_destroy(seat->wl_seat);
 	}
 	free(seat);
-}
-
-static struct wlr_wl_seat *backend_get_seat(struct wlr_wl_backend *backend, struct wl_seat *wl_seat) {
-	assert(backend->seat && backend->seat->wl_seat == wl_seat);
-	return backend->seat;
 }
 
 static struct wlr_wl_seat *input_device_get_seat(struct wlr_input_device *wlr_dev) {
@@ -726,8 +722,8 @@ void create_wl_touch(struct wl_touch *wl_touch, struct wlr_wl_backend *wl) {
 
 static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		enum wl_seat_capability caps) {
-	struct wlr_wl_backend *backend = data;
-	struct wlr_wl_seat *seat = backend_get_seat(backend, wl_seat);
+	struct wlr_wl_seat *seat = data;
+	struct wlr_wl_backend *backend = seat->backend;
 
 	if ((caps & WL_SEAT_CAPABILITY_POINTER) && seat->pointer == NULL) {
 		wlr_log(WLR_DEBUG, "seat %p offered pointer", (void *)wl_seat);
@@ -801,8 +797,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 
 static void seat_handle_name(void *data, struct wl_seat *wl_seat,
 		const char *name) {
-	struct wlr_wl_backend *backend = data;
-	struct wlr_wl_seat *seat = backend_get_seat(backend, wl_seat);
+	struct wlr_wl_seat *seat = data;
 	free(seat->name);
 	seat->name = strdup(name);
 }

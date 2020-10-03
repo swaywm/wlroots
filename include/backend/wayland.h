@@ -112,6 +112,8 @@ struct wlr_wl_seat {
 	struct wl_touch *touch;
 	struct wl_pointer *pointer;
 	struct wl_keyboard *keyboard;
+
+	struct wlr_wl_backend *backend;
 };
 
 struct wlr_wl_backend *get_wl_backend_from_backend(struct wlr_backend *backend);
@@ -129,6 +131,6 @@ extern const struct wl_seat_listener seat_listener;
 
 struct wlr_wl_tablet_seat *wl_add_tablet_seat(
 		struct zwp_tablet_manager_v2 *manager,
-		struct wl_seat *seat, struct wlr_wl_backend *backend);
+		struct wlr_wl_seat *seat);
 
 #endif
