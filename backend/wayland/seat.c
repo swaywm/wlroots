@@ -22,14 +22,16 @@
 #include "util/signal.h"
 #include "util/time.h"
 
-static struct wlr_wl_pointer *output_get_pointer(struct wlr_wl_output *output) {
+static struct wlr_wl_pointer *output_get_pointer(
+		struct wlr_wl_output *output,
+		const struct wl_pointer *wl_pointer) {
 	struct wlr_input_device *wlr_dev;
 	wl_list_for_each(wlr_dev, &output->backend->devices, link) {
 		if (wlr_dev->type != WLR_INPUT_DEVICE_POINTER) {
 			continue;
 		}
 		struct wlr_wl_pointer *pointer = pointer_get_wl(wlr_dev->pointer);
-		if (pointer->output == output) {
+		if (pointer->output == output && pointer->wl_pointer == wl_pointer) {
 			return pointer;
 		}
 	}
@@ -47,8 +49,15 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 
 	struct wlr_wl_output *output = wl_surface_get_user_data(surface);
 	assert(output);
-	struct wlr_wl_pointer *pointer = output_get_pointer(output);
-	assert(!backend->current_pointer || backend->current_pointer == pointer);
+	struct wlr_wl_pointer *pointer = output_get_pointer(output, wl_pointer);
+
+	struct wlr_wl_pointer *current_pointer = backend->current_pointer;
+	if (current_pointer && current_pointer != pointer) {
+		wlr_log(WLR_INFO, "Ignoring seat %s pointer cursor in favor of seat %s",
+			pointer->input_device->seat->name,
+			current_pointer->input_device->seat->name);
+		return;
+	}
 
 	output->enter_serial = serial;
 	backend->current_pointer = pointer;
@@ -422,6 +431,8 @@ static void input_device_destroy(struct wlr_input_device *wlr_dev) {
 		wl_keyboard_release(seat->keyboard);
 		seat->keyboard = NULL;
 	}
+	// We can't destroy pointer here because we might have multiple devices
+	// exposing it to compositor.
 	wl_list_remove(&dev->wlr_input_device.link);
 	free(dev);
 }
@@ -625,15 +636,11 @@ void create_wl_pointer(struct wlr_wl_seat *seat, struct wlr_wl_output *output) {
 	struct wl_pointer *wl_pointer = seat->pointer;
 	struct wlr_wl_backend *backend = output->backend;
 
-	struct wlr_input_device *wlr_dev;
-	wl_list_for_each(wlr_dev, &output->backend->devices, link) {
-		if (wlr_dev->type != WLR_INPUT_DEVICE_POINTER) {
-			continue;
-		}
-		struct wlr_wl_pointer *pointer = pointer_get_wl(wlr_dev->pointer);
-		if (pointer->output == output) {
-			return;
-		}
+	if (output_get_pointer(output, wl_pointer)) {
+		wlr_log(WLR_DEBUG,
+			"Pointer for seat %s and output %s already exists (ignoring)",
+			seat->name, output->wlr_output.name);
+		return;
 	}
 
 	struct wlr_wl_pointer *pointer = calloc(1, sizeof(struct wlr_wl_pointer));
@@ -642,7 +649,7 @@ void create_wl_pointer(struct wlr_wl_seat *seat, struct wlr_wl_output *output) {
 		return;
 	}
 	pointer->wl_pointer = wl_pointer;
-	pointer->output = output;
+	pointer->output = output;  // we need output to map absolute coordinates onto
 
 	struct wlr_wl_input_device *dev =
 		create_wl_input_device(seat, WLR_INPUT_DEVICE_POINTER);
@@ -656,7 +663,7 @@ void create_wl_pointer(struct wlr_wl_seat *seat, struct wlr_wl_output *output) {
 	wl_signal_add(&output->wlr_output.events.destroy, &pointer->output_destroy);
 	pointer->output_destroy.notify = pointer_handle_output_destroy;
 
-	wlr_dev = &dev->wlr_input_device;
+	struct wlr_input_device *wlr_dev = &dev->wlr_input_device;
 	wlr_dev->pointer = &pointer->wlr_pointer;
 	wlr_dev->output_name = strdup(output->wlr_output.name);
 	wlr_pointer_init(wlr_dev->pointer, &pointer_impl);
@@ -748,11 +755,21 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 	if (!(caps & WL_SEAT_CAPABILITY_POINTER) && seat->pointer != NULL) {
 		wlr_log(WLR_DEBUG, "seat %p dropped pointer", (void *)wl_seat);
 
+		struct wl_pointer *wl_pointer = seat->pointer;
+
 		struct wlr_input_device *device, *tmp;
 		wl_list_for_each_safe(device, tmp, &backend->devices, link) {
-			if (device->type == WLR_INPUT_DEVICE_POINTER) {
-				wlr_input_device_destroy(device);
+			if (device->type != WLR_INPUT_DEVICE_POINTER) {
+				continue;
 			}
+			struct wlr_wl_pointer *pointer = pointer_get_wl(device->pointer);
+			if (pointer->wl_pointer != wl_pointer) {
+				continue;
+			}
+			wlr_log(WLR_DEBUG, "dropping pointer %s",
+				pointer->input_device->wlr_input_device.name);
+			wlr_input_device_destroy(device);
+			assert(backend->current_pointer != pointer);
 		}
 
 		wl_pointer_release(seat->pointer);
@@ -774,9 +791,16 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 
 		struct wlr_input_device *device, *tmp;
 		wl_list_for_each_safe(device, tmp, &backend->devices, link) {
-			if (device->type == WLR_INPUT_DEVICE_KEYBOARD) {
-				wlr_input_device_destroy(device);
+			if (device->type != WLR_INPUT_DEVICE_KEYBOARD) {
+				continue;
 			}
+
+			struct wlr_wl_input_device *input_device =
+				get_wl_input_device_from_input_device(device);
+			if (input_device->seat != seat) {
+				continue;
+			}
+			wlr_input_device_destroy(device);
 		}
 		assert(seat->keyboard == NULL); // free'ed by input_device_destroy
 	}
