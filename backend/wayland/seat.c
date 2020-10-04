@@ -448,7 +448,11 @@ struct wlr_wl_input_device *create_wl_input_device(
 	struct wlr_input_device *wlr_dev = &dev->wlr_input_device;
 
 	unsigned int vendor = 0, product = 0;
-	const char *name = "wayland";
+
+	size_t name_size = 8 + strlen(seat->name) + 1;
+	char name[name_size];
+	(void) snprintf(name, name_size, "wayland-%s", seat->name);
+
 	wlr_input_device_init(wlr_dev, type, &input_device_impl, name, vendor,
 		product);
 	wl_list_insert(&seat->backend->devices, &wlr_dev->link);
