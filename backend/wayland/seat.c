@@ -42,7 +42,8 @@ static struct wlr_wl_pointer *output_get_pointer(
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface, wl_fixed_t sx,
 		wl_fixed_t sy) {
-	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_seat *seat = data;
+	struct wlr_wl_backend *backend = seat->backend;
 	if (surface == NULL) {
 		return;
 	}
@@ -54,8 +55,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_wl_pointer *current_pointer = backend->current_pointer;
 	if (current_pointer && current_pointer != pointer) {
 		wlr_log(WLR_INFO, "Ignoring seat %s pointer cursor in favor of seat %s",
-			pointer->input_device->seat->name,
-			current_pointer->input_device->seat->name);
+			seat->name, current_pointer->input_device->seat->name);
 		return;
 	}
 
@@ -66,7 +66,8 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface) {
-	struct wlr_wl_backend *backend = data;
+	struct wlr_wl_seat *seat = data;
+	struct wlr_wl_backend *backend = seat->backend;
 	if (surface == NULL) {
 		return;
 	}
@@ -85,8 +86,8 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
-	struct wlr_wl_backend *backend = data;
-	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	struct wlr_wl_seat *seat = data;
+	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -103,8 +104,8 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
-	struct wlr_wl_backend *backend = data;
-	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	struct wlr_wl_seat *seat = data;
+	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -120,8 +121,8 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 
 static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, uint32_t axis, wl_fixed_t value) {
-	struct wlr_wl_backend *backend = data;
-	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	struct wlr_wl_seat *seat = data;
+	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -140,8 +141,8 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 }
 
 static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
-	struct wlr_wl_backend *backend = data;
-	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	struct wlr_wl_seat *seat = data;
+	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -152,8 +153,8 @@ static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
 
 static void pointer_handle_axis_source(void *data,
 		struct wl_pointer *wl_pointer, uint32_t axis_source) {
-	struct wlr_wl_backend *backend = data;
-	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	struct wlr_wl_seat *seat = data;
+	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -163,8 +164,8 @@ static void pointer_handle_axis_source(void *data,
 
 static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, uint32_t axis) {
-	struct wlr_wl_backend *backend = data;
-	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	struct wlr_wl_seat *seat = data;
+	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -182,8 +183,8 @@ static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,
 
 static void pointer_handle_axis_discrete(void *data,
 		struct wl_pointer *wl_pointer, uint32_t axis, int32_t discrete) {
-	struct wlr_wl_backend *backend = data;
-	struct wlr_wl_pointer *pointer = backend->current_pointer;
+	struct wlr_wl_seat *seat = data;
+	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -685,7 +686,7 @@ void create_wl_pointer(struct wlr_wl_seat *seat, struct wlr_wl_output *output) {
 			&relative_pointer_listener, dev);
 	}
 
-	wl_pointer_add_listener(wl_pointer, &pointer_listener, backend);
+	wl_pointer_add_listener(wl_pointer, &pointer_listener, seat);
 	wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_dev);
 }
 
