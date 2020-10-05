@@ -9,7 +9,7 @@
 #include "util/signal.h"
 #include "wlr-foreign-toplevel-management-unstable-v1-protocol.h"
 
-#define FOREIGN_TOPLEVEL_MANAGEMENT_V1_VERSION 2
+#define FOREIGN_TOPLEVEL_MANAGEMENT_V1_VERSION 3
 
 static const struct zwlr_foreign_toplevel_handle_v1_interface toplevel_handle_impl;
 
@@ -405,6 +405,37 @@ void wlr_foreign_toplevel_handle_v1_set_fullscreen(
 	toplevel_send_state(toplevel);
 }
 
+static void toplevel_resource_send_parent(
+		struct wl_resource *toplevel_resource,
+		struct wlr_foreign_toplevel_handle_v1 *parent) {
+	struct wl_client *client = wl_resource_get_client(toplevel_resource);
+	struct wl_resource *parent_resource = NULL;
+	if (parent) {
+		parent_resource = wl_resource_find_for_client(&parent->resources, client);
+		if (!parent_resource) {
+			/* don't send an event if this client destroyed the parent handle */
+			return;
+		}
+	}
+	zwlr_foreign_toplevel_handle_v1_send_parent(toplevel_resource,
+		parent_resource);
+}
+
+void wlr_foreign_toplevel_handle_v1_set_parent(
+		struct wlr_foreign_toplevel_handle_v1 *toplevel,
+		struct wlr_foreign_toplevel_handle_v1 *parent) {
+	if (parent == toplevel->parent) {
+		/* only send parent event to the clients if there was a change */
+		return;
+	}
+	struct wl_resource *toplevel_resource, *tmp;
+	wl_resource_for_each_safe(toplevel_resource, tmp, &toplevel->resources) {
+		toplevel_resource_send_parent(toplevel_resource, parent);
+	}
+	toplevel->parent = parent;
+	toplevel_update_idle_source(toplevel);
+}
+
 void wlr_foreign_toplevel_handle_v1_destroy(
 		struct wlr_foreign_toplevel_handle_v1 *toplevel) {
 	if (!toplevel) {
@@ -431,6 +462,19 @@ void wlr_foreign_toplevel_handle_v1_destroy(
 	}
 
 	wl_list_remove(&toplevel->link);
+
+	/* need to ensure no other toplevels hold a pointer to this one as
+	 * a parent, so that a later call to foreign_toplevel_manager_bind()
+	 * will not result in a segfault */
+	struct wlr_foreign_toplevel_handle_v1 *tl, *tmp3;
+	wl_list_for_each_safe(tl, tmp3, &toplevel->manager->toplevels, link) {
+		if (tl->parent == toplevel) {
+			/* Note: we send a parent signal to all clients in this case;
+			 * the caller should first destroy the child handles if it
+			 * wishes to avoid this behavior. */
+			wlr_foreign_toplevel_handle_v1_set_parent(tl, NULL);
+		}
+	}
 
 	free(toplevel->title);
 	free(toplevel->app_id);
@@ -542,6 +586,8 @@ static void toplevel_send_details_to_toplevel_resource(
 	zwlr_foreign_toplevel_handle_v1_send_state(resource, &states);
 	wl_array_release(&states);
 
+	toplevel_resource_send_parent(resource, toplevel->parent);
+
 	zwlr_foreign_toplevel_handle_v1_send_done(resource);
 }
 
@@ -560,9 +606,17 @@ static void foreign_toplevel_manager_bind(struct wl_client *client, void *data,
 	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 
 	struct wlr_foreign_toplevel_handle_v1 *toplevel, *tmp;
+	/* First loop: create a handle for all toplevels for all clients.
+	 * Separation into two loops avoid the case where a child handle
+	 * is created before a parent handle, so the parent relationship
+	 * could not be sent to a client. */
+	wl_list_for_each_safe(toplevel, tmp, &manager->toplevels, link) {
+		create_toplevel_resource_for_resource(toplevel, resource);
+	}
+	/* Second loop: send details about each toplevel. */
 	wl_list_for_each_safe(toplevel, tmp, &manager->toplevels, link) {
 		struct wl_resource *toplevel_resource =
-			create_toplevel_resource_for_resource(toplevel, resource);
+			wl_resource_find_for_client(&toplevel->resources, client);
 		toplevel_send_details_to_toplevel_resource(toplevel,
 			toplevel_resource);
 	}
