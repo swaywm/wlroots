@@ -6,6 +6,7 @@
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
 #include <wlr/util/log.h>
+#include <include/backend/drm/drm.h>
 #include "backend/multi.h"
 #include "util/signal.h"
 
@@ -201,6 +202,15 @@ bool wlr_multi_backend_add(struct wlr_backend *_multi,
 	sub->new_output.notify = new_output_reemit;
 
 	wlr_signal_emit_safe(&multi->events.backend_add, backend);
+
+	// TODO: get rid of this hack
+	// drm backends now keep track of their parent multi backend
+	// for GPU hotplugging purposes
+	if(wlr_backend_is_drm(backend)) {
+		struct wlr_drm_backend *drm_backend = get_drm_backend_from_backend(backend);
+		drm_backend->multi = multi;
+	}
+
 	return true;
 }
 

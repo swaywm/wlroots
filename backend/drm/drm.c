@@ -1020,7 +1020,6 @@ bool drm_connector_is_cursor_visible(struct wlr_drm_connector *conn) {
 }
 
 static void drm_connector_destroy(struct wlr_output *output) {
-	wlr_log(WLR_INFO, "ENTERING drm_connector_destroy!!");
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	drm_connector_cleanup(conn);
 	drmModeFreeCrtc(conn->old_crtc);

@@ -15,6 +15,7 @@
 #include "backend/drm/drm.h"
 #include "util/signal.h"
 #include <backtrace.h>
+#include <include/wlr/backend/multi.h>
 
 struct wlr_drm_backend *get_drm_backend_from_backend(
 		struct wlr_backend *wlr_backend) {
@@ -57,8 +58,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wlr_log(WLR_INFO, "Destroying DRM BACKEND!!!");
 
-	print_trace();
-
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
 
 	restore_drm_outputs(drm);
@@ -74,6 +73,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&drm->session_destroy.link);
 	wl_list_remove(&drm->session_signal.link);
 	wl_list_remove(&drm->drm_invalidated.link);
+	wl_list_remove(&drm->add_gpu_signal.link);
 
 	finish_drm_resources(drm);
 	finish_drm_renderer(&drm->renderer);
@@ -107,6 +107,35 @@ static struct wlr_backend_impl backend_impl = {
 
 bool wlr_backend_is_drm(struct wlr_backend *b) {
 	return b->impl == &backend_impl;
+}
+
+static void handle_add_gpu(struct wl_listener* listener, void *data) {
+	struct wlr_drm_backend *drm =
+			wl_container_of(listener, drm, add_gpu_signal);
+	struct wlr_event_add_gpu *event = data;
+
+	wlr_log(WLR_INFO, "parent drm fd is %d", drm->fd);
+
+	wlr_log(WLR_INFO, "got handle_gpu signal with fd = %d", event->gpu_fd);
+
+	// TODO:
+	struct wlr_backend *child_drm = wlr_drm_backend_create(drm->display, drm->session,
+						event->gpu_fd, &drm->backend, NULL);
+
+	if (!child_drm) {
+		wlr_log(WLR_ERROR, "Failed to open DRM device %d", event->gpu_fd);
+		return;
+	} else {
+		wlr_log(WLR_INFO, "Successfully opened DRM device %d", event->gpu_fd);
+	}
+
+	fprintf(stderr, "is multi? %d\n\n\n", wlr_backend_is_multi(&drm->backend));
+
+	if(!wlr_multi_backend_add(&drm->multi->backend, child_drm)) {
+		wlr_log(WLR_INFO, "Failed to add to multi backend");
+	} else {
+		wlr_log(WLR_INFO, "Added to multi backend");
+	}
 }
 
 static void session_signal(struct wl_listener *listener, void *data) {
@@ -215,6 +244,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	}
 	wlr_backend_init(&drm->backend, &backend_impl);
 
+	drm->multi = NULL;
 	drm->session = session;
 	wl_list_init(&drm->outputs);
 
@@ -238,6 +268,9 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 	drm->session_signal.notify = session_signal;
 	wl_signal_add(&session->session_signal, &drm->session_signal);
+
+	drm->add_gpu_signal.notify = handle_add_gpu;
+	wl_signal_add(&session->events.add_gpu, &drm->add_gpu_signal);
 
 	if (!check_drm_features(drm)) {
 		goto error_event;

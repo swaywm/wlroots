@@ -98,24 +98,21 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 	if (!found && strcmp(action, "add") == 0
 			&& strcmp(udev_device_get_subsystem(udev_dev), "drm") == 0
 			&& is_card(udev_device_get_sysname(udev_dev))) {
-		wlr_log(WLR_INFO, "wlroots detected a fresh drm device, trying to add to backend");
 
-		int gpu_fd = session_try_add_gpu(session, udev_dev);
+		int gpu_fd = session_try_open_gpu(session, udev_dev);
 
 		if(gpu_fd >= 0) {
-			wlr_log(WLR_INFO, "got GPU!");
-//			struct wlr_backend *drm = wlr_drm_backend_create(display, session,
-//			gpus[i], primary_drm, create_renderer_func);
-//			if (!drm) {
-//		wlr_log(WLR_ERROR, "Failed to open DRM device %d", gpus[i]);
-//		continue;
-//	}
-//
-//	if (!primary_drm) {
-//		primary_drm = drm;
-//	}
-//
-//	wlr_multi_backend_add(backend, drm);
+
+			struct wlr_event_add_gpu *event = malloc(sizeof(*event));
+			event->session = session;
+			event->gpu_fd = gpu_fd;
+
+			wlr_log(WLR_DEBUG, "sending add GPU signal with fd = %d", gpu_fd);
+
+			// this is the same signal as a VT switch...
+			wlr_signal_emit_safe(&session->events.add_gpu, event);
+
+			free(event);
 		}
 	}
 
@@ -133,6 +130,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 void session_init(struct wlr_session *session) {
 	wl_signal_init(&session->session_signal);
 	wl_signal_init(&session->events.destroy);
+	wl_signal_init(&session->events.add_gpu);
 	wl_list_init(&session->devices);
 }
 
@@ -429,7 +427,7 @@ size_t wlr_session_find_gpus(struct wlr_session *session,
 	return i;
 }
 
-int session_try_add_gpu(struct wlr_session *session, struct udev_device *udev_dev) {
+int session_try_open_gpu(struct wlr_session *session, struct udev_device *udev_dev) {
 	bool is_boot_vga = false;
 
 	const char *seat = udev_device_get_property_value(udev_dev, "ID_SEAT");

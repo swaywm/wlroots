@@ -13,6 +13,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/render/drm_format_set.h>
 #include <wlr/render/egl.h>
+#include <backend/multi.h>
 #include <xf86drmMode.h>
 #include "iface.h"
 #include "properties.h"
@@ -93,11 +94,15 @@ struct wlr_drm_backend {
 	struct wl_listener session_destroy;
 	struct wl_listener session_signal;
 	struct wl_listener drm_invalidated;
+	struct wl_listener add_gpu_signal;
 
 	struct wl_list outputs;
 
 	struct wlr_drm_renderer renderer;
 	struct wlr_session *session;
+
+	// TODO: is this needed?
+	struct wlr_multi_backend *multi;
 };
 
 enum wlr_drm_connector_state {

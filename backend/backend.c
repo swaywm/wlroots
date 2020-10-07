@@ -20,6 +20,7 @@
 
 #if WLR_HAS_X11_BACKEND
 #include <wlr/backend/x11.h>
+#include <include/backend/drm/drm.h>
 #endif
 
 void wlr_backend_init(struct wlr_backend *backend,

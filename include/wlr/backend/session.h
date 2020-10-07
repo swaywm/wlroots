@@ -42,7 +42,13 @@ struct wlr_session {
 
 	struct {
 		struct wl_signal destroy;
+		struct wl_signal add_gpu;
 	} events;
+};
+
+struct wlr_event_add_gpu {
+	struct wlr_session* session;
+	int gpu_fd;
 };
 
 /*
