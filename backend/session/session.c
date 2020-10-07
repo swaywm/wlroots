@@ -13,6 +13,7 @@
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <ctype.h>
 #include "backend/session/session.h"
 #include "util/signal.h"
 
@@ -32,6 +33,28 @@ static const struct session_impl *impls[] = {
 	NULL,
 };
 
+// determines if the sysname is of the form card[0-9]*
+static bool is_card(const char *name) {
+	wlr_log(WLR_DEBUG, "determining if '%s' is a card", name);
+
+	if(strncmp(name, "card", strlen("card")) != 0) {
+		// doesn't start with card
+		return false;
+	}
+
+	name = name + strlen("card");
+	while(*name != '\0') {
+		if(!isdigit(*name)) {
+			return false;
+		}
+		name++;
+	}
+
+	return true;
+}
+
+// NOTE to self: this is an important function - need to look at this to detect e.g.:
+// when new graphics cards / drm devices are added to the system
 static int udev_event(int fd, uint32_t mask, void *data) {
 	struct wlr_session *session = data;
 
@@ -45,17 +68,54 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 	wlr_log(WLR_DEBUG, "udev event for %s (%s)",
 		udev_device_get_sysname(udev_dev), action);
 
-	if (!action || strcmp(action, "change") != 0) {
+	if (!action) {
 		goto out;
 	}
 
 	dev_t devnum = udev_device_get_devnum(udev_dev);
 	struct wlr_device *dev;
 
+	bool found = false;
 	wl_list_for_each(dev, &session->devices, link) {
 		if (dev->dev == devnum) {
-			wlr_signal_emit_safe(&dev->signal, session);
-			break;
+			found = true;
+			if (strcmp(action, "change") == 0) {
+				wlr_log(WLR_DEBUG, "found device for event %ld", dev->dev);
+				wlr_signal_emit_safe(&dev->signal, session);
+				break;
+			}
+		}
+	}
+
+	// there is a drm device which we don't yet know about
+	// in the `wlr_session_find_gpus` function, they use
+	// - udev_enumerate_add_match_subsystem(en, "drm")
+	// - udev_enumerate_add_match_sysname(en, "card[0-9]*")
+	//
+	// to restrict to only GPUs
+	// we attempt to do the same with `udev_device_get_subsystem`
+	//                            and `udev_device_get_sysname`
+	if (!found && strcmp(action, "add") == 0
+			&& strcmp(udev_device_get_subsystem(udev_dev), "drm") == 0
+			&& is_card(udev_device_get_sysname(udev_dev))) {
+		wlr_log(WLR_INFO, "wlroots detected a fresh drm device, trying to add to backend");
+
+		int gpu_fd = session_try_add_gpu(session, udev_dev);
+
+		if(gpu_fd >= 0) {
+			wlr_log(WLR_INFO, "got GPU!");
+//			struct wlr_backend *drm = wlr_drm_backend_create(display, session,
+//			gpus[i], primary_drm, create_renderer_func);
+//			if (!drm) {
+//		wlr_log(WLR_ERROR, "Failed to open DRM device %d", gpus[i]);
+//		continue;
+//	}
+//
+//	if (!primary_drm) {
+//		primary_drm = drm;
+//	}
+//
+//	wlr_multi_backend_add(backend, drm);
 		}
 	}
 
@@ -367,4 +427,37 @@ size_t wlr_session_find_gpus(struct wlr_session *session,
 	udev_enumerate_unref(en);
 
 	return i;
+}
+
+int session_try_add_gpu(struct wlr_session *session, struct udev_device *udev_dev) {
+	bool is_boot_vga = false;
+
+	const char *seat = udev_device_get_property_value(udev_dev, "ID_SEAT");
+	if (!seat) {
+		seat = "seat0";
+	}
+	if (session->seat[0] && strcmp(session->seat, seat) != 0) {
+		return -1;
+	}
+
+	// This is owned by 'udev_dev', so we don't need to free it
+	struct udev_device *pci =
+			udev_device_get_parent_with_subsystem_devtype(udev_dev, "pci", NULL);
+
+	if (pci) {
+		const char *id = udev_device_get_sysattr_value(pci, "boot_vga");
+		if (id && strcmp(id, "1") == 0) {
+			is_boot_vga = true;
+		}
+	}
+
+	int fd = open_if_kms(session, udev_device_get_devnode(udev_dev));
+	if (fd < 0) {
+		wlr_log(WLR_INFO, "failed to open device %s", udev_device_get_devnode(udev_dev));
+		return fd;
+	}
+
+	wlr_log(WLR_INFO, "isbootvga? %d", is_boot_vga);
+
+	return fd;
 }

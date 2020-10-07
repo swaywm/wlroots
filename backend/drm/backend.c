@@ -12,9 +12,9 @@
 #include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
-#include <execinfo.h>
 #include "backend/drm/drm.h"
 #include "util/signal.h"
+#include <backtrace.h>
 
 struct wlr_drm_backend *get_drm_backend_from_backend(
 		struct wlr_backend *wlr_backend) {
@@ -28,23 +28,26 @@ static bool backend_start(struct wlr_backend *backend) {
 	return true;
 }
 
-static void print_trace(void)
-{
-	void *array[10];
-	char **strings;
-	int size, i;
+static int bt_callback(void *data, uintptr_t pc,
+		const char *filename, int lineno,
+		const char *function) {
+	wlr_log(WLR_DEBUG, "Backtrace: %s in %s:%d", function, filename, lineno);
+	return 0;
+}
 
-	size = backtrace (array, 10);
-	strings = backtrace_symbols (array, size);
-	if (strings != NULL)
-	{
+static void bt_error(void *data, const char *msg,
+		int errnum) {
+	wlr_log(WLR_ERROR, "Backtrace error%s", msg);
+}
 
-		fprintf (stderr, "Obtained %d stack frames.\n", size);
-		for (i = 0; i < size; i++)
-			fprintf (stderr, "%s\n", strings[i]);
-	}
+static void print_trace(void) {
+	wlr_log(WLR_DEBUG, "Trying to obtain a backtrace");
 
-	free (strings);
+	struct backtrace_state *s = backtrace_create_state(NULL, 0,bt_error, NULL);
+
+	wlr_log(WLR_DEBUG, "Tried to obtain a backtrace");
+
+	backtrace_full(s, 0, bt_callback, bt_error, NULL);
 }
 
 static void backend_destroy(struct wlr_backend *backend) {
@@ -134,20 +137,49 @@ static void drm_invalidated(struct wl_listener *listener, void *data) {
 
 	char *name = drmGetDeviceNameFromFd2(drm->fd);
 	wlr_log(WLR_DEBUG, "%s invalidated", name);
-	wlr_log(WLR_INFO, "Should we destroy the DRM backend? %s", name);
-	if(drm->parent != NULL) {
-		char *name2 = drmGetDeviceNameFromFd2(drm->parent->fd);
-		wlr_log(WLR_INFO, "Parent drm backend: %p %s", drm->parent, name2);
-		free(name2);
-	}
-	wlr_log(WLR_INFO, "Trying to anyway... hehe");
-	// wlr_backend_destroy(conn->output.backend);
 
-	free(name);
+
+	size_t seen_len = wl_list_length(&drm->outputs);
+	wlr_log(WLR_DEBUG, "%ld outputs before scan", seen_len);
 
 	scan_drm_connectors(drm);
 
-	wlr_backend_destroy(&drm->backend);
+	// if all the drm connectors (outputs?) are disconnected, then we try to
+	// destroy the whole drm backend so we can unload drivers etc...
+	struct wlr_drm_connector *c = NULL;
+	bool all_disconnected = true;
+	wl_list_for_each(c, &drm->outputs, link) {
+		if(c->state != WLR_DRM_CONN_DISCONNECTED) {
+			all_disconnected = false;
+		}
+		wlr_log(WLR_INFO, "drm connector state: %s", c->output.name);
+		wlr_log(WLR_INFO, "drm connector state: %d", c->state);
+		wlr_log(WLR_INFO, "drm connector output mode: %p", c->desired_mode);
+		wlr_log(WLR_INFO, "drm connector output mode: %d", c->output.enabled);
+	}
+
+	seen_len = wl_list_length(&drm->outputs);
+	wlr_log(WLR_DEBUG, "%ld outputs after scan", seen_len);
+
+	// TODO: only destroy backend if we find that all drm_connectors have been lost ?
+	// i.e.: have unplugged all monitors
+
+	wlr_log(WLR_INFO, "Should we destroy the DRM backend? %s - %d", name, all_disconnected);
+	free(name);
+
+	if(drm->parent != NULL) {
+		name = drmGetDeviceNameFromFd2(drm->parent->fd);
+		wlr_log(WLR_INFO, "Parent drm backend: %p %s", drm->parent, name);
+		free(name);
+	}
+
+	print_trace();
+
+	if(all_disconnected) {
+		wlr_log(WLR_INFO, "Destroying DRM backend anyway... hehe");
+		// this is what we added - to destroy the backend when drm is invalidated...
+		wlr_backend_destroy(&drm->backend);
+	}
 }
 
 static void handle_session_destroy(struct wl_listener *listener, void *data) {
