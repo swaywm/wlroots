@@ -171,20 +171,27 @@ static void drm_invalidated(struct wl_listener *listener, void *data) {
 	size_t seen_len = wl_list_length(&drm->outputs);
 	wlr_log(WLR_DEBUG, "%ld outputs before scan", seen_len);
 
+	// if all the drm connectors (outputs?) are disconnected, then we try to
+	// destroy the whole drm backend so we can unload drivers etc...
+	struct wlr_drm_connector *c = NULL;
+	bool was_all_disconnected = true;
+	wl_list_for_each(c, &drm->outputs, link) {
+		if(c->state != WLR_DRM_CONN_DISCONNECTED) {
+			was_all_disconnected = false;
+		}
+		wlr_log(WLR_INFO, "drm connector state: %s - %d", c->output.name, c->state);
+	}
+
 	scan_drm_connectors(drm);
 
 	// if all the drm connectors (outputs?) are disconnected, then we try to
 	// destroy the whole drm backend so we can unload drivers etc...
-	struct wlr_drm_connector *c = NULL;
-	bool all_disconnected = true;
+	bool is_all_disconnected = true;
 	wl_list_for_each(c, &drm->outputs, link) {
 		if(c->state != WLR_DRM_CONN_DISCONNECTED) {
-			all_disconnected = false;
+			is_all_disconnected = false;
 		}
-		wlr_log(WLR_INFO, "drm connector state: %s", c->output.name);
-		wlr_log(WLR_INFO, "drm connector state: %d", c->state);
-		wlr_log(WLR_INFO, "drm connector output mode: %p", c->desired_mode);
-		wlr_log(WLR_INFO, "drm connector output mode: %d", c->output.enabled);
+		wlr_log(WLR_INFO, "drm connector state: %s - %d", c->output.name, c->state);
 	}
 
 	seen_len = wl_list_length(&drm->outputs);
@@ -193,9 +200,10 @@ static void drm_invalidated(struct wl_listener *listener, void *data) {
 	// TODO: only destroy backend if we find that all drm_connectors have been lost ?
 	// i.e.: have unplugged all monitors
 
-	wlr_log(WLR_INFO, "Should we destroy the DRM backend? %s - %d", name, all_disconnected);
+	bool should_destroy = !was_all_disconnected && is_all_disconnected;
+	wlr_log(WLR_INFO, "Should we destroy the DRM backend? %s - %d", name, should_destroy);
 	free(name);
-
+	
 	if(drm->parent != NULL) {
 		name = drmGetDeviceNameFromFd2(drm->parent->fd);
 		wlr_log(WLR_INFO, "Parent drm backend: %p %s", drm->parent, name);
@@ -204,7 +212,7 @@ static void drm_invalidated(struct wl_listener *listener, void *data) {
 
 	print_trace();
 
-	if(all_disconnected) {
+	if(should_destroy) {
 		wlr_log(WLR_INFO, "Destroying DRM backend anyway... hehe");
 		// this is what we added - to destroy the backend when drm is invalidated...
 		wlr_backend_destroy(&drm->backend);
