@@ -51,7 +51,9 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	struct wlr_wl_output *output = wl_surface_get_user_data(surface);
 	assert(output);
 	struct wlr_wl_pointer *pointer = output_get_pointer(output, wl_pointer);
+	seat->active_pointer = pointer;
 
+	// Manage cursor icon/rendering on output
 	struct wlr_wl_pointer *current_pointer = backend->current_pointer;
 	if (current_pointer && current_pointer != pointer) {
 		wlr_log(WLR_INFO, "Ignoring seat %s pointer cursor in favor of seat %s",
@@ -74,6 +76,12 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 
 	struct wlr_wl_output *output = wl_surface_get_user_data(surface);
 	assert(output);
+
+	if (seat->active_pointer != NULL &&
+			seat->active_pointer->output == output) {
+		seat->active_pointer = NULL;
+	}
+
 	output->enter_serial = 0;
 
 	if (backend->current_pointer == NULL ||
@@ -87,7 +95,7 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
 	struct wlr_wl_seat *seat = data;
-	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
+	struct wlr_wl_pointer *pointer = seat->active_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -105,7 +113,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
 	struct wlr_wl_seat *seat = data;
-	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
+	struct wlr_wl_pointer *pointer = seat->active_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -122,7 +130,7 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, uint32_t axis, wl_fixed_t value) {
 	struct wlr_wl_seat *seat = data;
-	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
+	struct wlr_wl_pointer *pointer = seat->active_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -142,7 +150,7 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 
 static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
 	struct wlr_wl_seat *seat = data;
-	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
+	struct wlr_wl_pointer *pointer = seat->active_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -154,7 +162,7 @@ static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer) {
 static void pointer_handle_axis_source(void *data,
 		struct wl_pointer *wl_pointer, uint32_t axis_source) {
 	struct wlr_wl_seat *seat = data;
-	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
+	struct wlr_wl_pointer *pointer = seat->active_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -165,7 +173,7 @@ static void pointer_handle_axis_source(void *data,
 static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, uint32_t axis) {
 	struct wlr_wl_seat *seat = data;
-	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
+	struct wlr_wl_pointer *pointer = seat->active_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -184,7 +192,7 @@ static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,
 static void pointer_handle_axis_discrete(void *data,
 		struct wl_pointer *wl_pointer, uint32_t axis, int32_t discrete) {
 	struct wlr_wl_seat *seat = data;
-	struct wlr_wl_pointer *pointer = seat->backend->current_pointer;
+	struct wlr_wl_pointer *pointer = seat->active_pointer;
 	if (pointer == NULL) {
 		return;
 	}
@@ -485,6 +493,11 @@ static void pointer_destroy(struct wlr_pointer *wlr_pointer) {
 		pointer->output->backend->current_pointer = NULL;
 	}
 
+	struct wlr_wl_seat *seat = pointer->input_device->seat;
+	if (seat->active_pointer == pointer) {
+		seat->active_pointer = NULL;
+	}
+
 	wl_list_remove(&pointer->output_destroy.link);
 	free(pointer);
 }
@@ -600,7 +613,7 @@ static void relative_pointer_handle_relative_motion(void *data,
 		wl_fixed_t dy_unaccel) {
 	struct wlr_wl_input_device *input_device = data;
 	struct wlr_input_device *wlr_dev = &input_device->wlr_input_device;
-	if (pointer_get_wl(wlr_dev->pointer) != input_device->backend->current_pointer) {
+	if (pointer_get_wl(wlr_dev->pointer) != input_device->seat->active_pointer) {
 		return;
 	}
 
@@ -770,6 +783,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 			wlr_log(WLR_DEBUG, "dropping pointer %s",
 				pointer->input_device->wlr_input_device.name);
 			wlr_input_device_destroy(device);
+			assert(seat->active_pointer != pointer);
 			assert(backend->current_pointer != pointer);
 		}
 

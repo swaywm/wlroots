@@ -116,6 +116,7 @@ struct wlr_wl_seat {
 	struct wl_keyboard *keyboard;
 
 	struct wlr_wl_backend *backend;
+	struct wlr_wl_pointer *active_pointer;
 };
 
 struct wlr_wl_backend *get_wl_backend_from_backend(struct wlr_backend *backend);
