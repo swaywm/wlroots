@@ -130,7 +130,7 @@ wlr_deps = [
 	udev,
 	pixman,
 	math,
-	rt
+	rt,
 ]
 
 libinput_ver = libinput.version().split('.')
