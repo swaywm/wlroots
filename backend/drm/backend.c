@@ -3,18 +3,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <wayland-server-core.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render/egl.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include "backend/drm/drm.h"
 #include "util/signal.h"
-#include <backtrace.h>
 #include <include/wlr/backend/multi.h>
 
 struct wlr_drm_backend *get_drm_backend_from_backend(
@@ -27,28 +24,6 @@ static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
 	scan_drm_connectors(drm);
 	return true;
-}
-
-static int bt_callback(void *data, uintptr_t pc,
-		const char *filename, int lineno,
-		const char *function) {
-	wlr_log(WLR_DEBUG, "Backtrace: %s in %s:%d", function, filename, lineno);
-	return 0;
-}
-
-static void bt_error(void *data, const char *msg,
-		int errnum) {
-	wlr_log(WLR_ERROR, "Backtrace error%s", msg);
-}
-
-static void print_trace(void) {
-	wlr_log(WLR_DEBUG, "Trying to obtain a backtrace");
-
-	struct backtrace_state *s = backtrace_create_state(NULL, 0,bt_error, NULL);
-
-	wlr_log(WLR_DEBUG, "Tried to obtain a backtrace");
-
-	backtrace_full(s, 0, bt_callback, bt_error, NULL);
 }
 
 static void backend_destroy(struct wlr_backend *backend) {
@@ -115,10 +90,10 @@ static void handle_add_gpu(struct wl_listener* listener, void *data) {
 	struct wlr_event_add_gpu *event = data;
 
 	wlr_log(WLR_INFO, "parent drm fd is %d", drm->fd);
-
 	wlr_log(WLR_INFO, "got handle_gpu signal with fd = %d", event->gpu_fd);
 
-	// TODO:
+	// TODO: create_renderer_func should not be forced NULL
+	//       even though this currently works in sway, it may not work in general.
 	struct wlr_backend *child_drm = wlr_drm_backend_create(drm->display, drm->session,
 						event->gpu_fd, &drm->backend, NULL);
 
@@ -131,10 +106,10 @@ static void handle_add_gpu(struct wl_listener* listener, void *data) {
 
 	fprintf(stderr, "is multi? %d\n\n\n", wlr_backend_is_multi(&drm->backend));
 
-	if(!wlr_multi_backend_add(&drm->multi->backend, child_drm)) {
-		wlr_log(WLR_INFO, "Failed to add to multi backend");
+	if (!wlr_multi_backend_add(&drm->multi->backend, child_drm)) {
+		wlr_log(WLR_ERROR, "Failed to add new drm backend to multi backend");
 	} else {
-		wlr_log(WLR_INFO, "Added to multi backend");
+		wlr_log(WLR_ERROR, "NOTICE: successfully new drm backend to multi backend");
 	}
 }
 
@@ -197,23 +172,12 @@ static void drm_invalidated(struct wl_listener *listener, void *data) {
 	seen_len = wl_list_length(&drm->outputs);
 	wlr_log(WLR_DEBUG, "%ld outputs after scan", seen_len);
 
-	// TODO: only destroy backend if we find that all drm_connectors have been lost ?
-	// i.e.: have unplugged all monitors
-
 	bool should_destroy = !was_all_disconnected && is_all_disconnected;
 	wlr_log(WLR_INFO, "Should we destroy the DRM backend? %s - %d", name, should_destroy);
 	free(name);
-	
-	if(drm->parent != NULL) {
-		name = drmGetDeviceNameFromFd2(drm->parent->fd);
-		wlr_log(WLR_INFO, "Parent drm backend: %p %s", drm->parent, name);
-		free(name);
-	}
-
-	print_trace();
 
 	if(should_destroy) {
-		wlr_log(WLR_INFO, "Destroying DRM backend anyway... hehe");
+		wlr_log(WLR_ERROR, "NOTICE: All outputs disconnected, destroying drm backend");
 		// this is what we added - to destroy the backend when drm is invalidated...
 		wlr_backend_destroy(&drm->backend);
 	}

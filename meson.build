@@ -110,7 +110,6 @@ udev = dependency('libudev')
 pixman = dependency('pixman-1')
 math = cc.find_library('m')
 rt = cc.find_library('rt')
-backtrace = cc.find_library('backtrace')
 
 if cc.has_header('EGL/eglmesaext.h', dependencies: egl)
 	conf_data.set10('WLR_HAS_EGLMESAEXT_H', true)
@@ -131,8 +130,7 @@ wlr_deps = [
 	udev,
 	pixman,
 	math,
-	rt,
-	backtrace
+	rt
 ]
 
 libinput_ver = libinput.version().split('.')

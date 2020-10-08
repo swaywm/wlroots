@@ -107,8 +107,6 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 			event->session = session;
 			event->gpu_fd = gpu_fd;
 
-			wlr_log(WLR_DEBUG, "sending add GPU signal with fd = %d", gpu_fd);
-
 			// this is the same signal as a VT switch...
 			wlr_signal_emit_safe(&session->events.add_gpu, event);
 
@@ -455,6 +453,7 @@ int session_try_open_gpu(struct wlr_session *session, struct udev_device *udev_d
 		return fd;
 	}
 
+	// TODO: do we care if this device is boot_vga ?
 	wlr_log(WLR_INFO, "isbootvga? %d", is_boot_vga);
 
 	return fd;
