@@ -307,6 +307,26 @@ static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
 		return;
 	}
 
+	const uint32_t horiz = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+		ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+	if (surface->client_pending.desired_width == 0 &&
+		(surface->client_pending.anchor & horiz) != horiz) {
+		wl_resource_post_error(surface->resource,
+			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_SIZE,
+			"width 0 requested without setting left and right anchors");
+		return;
+	}
+
+	const uint32_t vert = ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
+		ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
+	if (surface->client_pending.desired_height == 0 &&
+		(surface->client_pending.anchor & vert) != vert) {
+		wl_resource_post_error(surface->resource,
+			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_SIZE,
+			"height 0 requested without setting top and bottom anchors");
+		return;
+	}
+
 	if (surface->closed) {
 		// Ignore commits after the compositor has closed it
 		return;
