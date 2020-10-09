@@ -40,7 +40,6 @@ struct wlr_wl_backend {
 	struct zwp_linux_dmabuf_v1 *zwp_linux_dmabuf_v1;
 	struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1;
 	struct wl_list seats; // wlr_wl_seat.link
-	struct wlr_wl_pointer *current_pointer;
 	struct zwp_tablet_manager_v2 *tablet_manager;
 	struct wlr_drm_format_set linux_dmabuf_v1_formats;
 };
@@ -75,6 +74,7 @@ struct wlr_wl_output {
 	uint32_t enter_serial;
 
 	struct {
+		struct wlr_wl_pointer *pointer;
 		struct wl_surface *surface;
 		struct wl_egl_window *egl_window;
 		int32_t hotspot_x, hotspot_y;
