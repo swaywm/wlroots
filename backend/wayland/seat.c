@@ -43,7 +43,6 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface, wl_fixed_t sx,
 		wl_fixed_t sy) {
 	struct wlr_wl_seat *seat = data;
-	struct wlr_wl_backend *backend = seat->backend;
 	if (surface == NULL) {
 		return;
 	}
@@ -54,7 +53,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	seat->active_pointer = pointer;
 
 	// Manage cursor icon/rendering on output
-	struct wlr_wl_pointer *current_pointer = backend->current_pointer;
+	struct wlr_wl_pointer *current_pointer = output->cursor.pointer;
 	if (current_pointer && current_pointer != pointer) {
 		wlr_log(WLR_INFO, "Ignoring seat %s pointer cursor in favor of seat %s",
 			seat->name, current_pointer->input_device->seat->name);
@@ -62,14 +61,13 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	}
 
 	output->enter_serial = serial;
-	backend->current_pointer = pointer;
+	output->cursor.pointer = pointer;
 	update_wl_output_cursor(output);
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface) {
 	struct wlr_wl_seat *seat = data;
-	struct wlr_wl_backend *backend = seat->backend;
 	if (surface == NULL) {
 		return;
 	}
@@ -82,14 +80,10 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 		seat->active_pointer = NULL;
 	}
 
-	output->enter_serial = 0;
-
-	if (backend->current_pointer == NULL ||
-			backend->current_pointer->output != output) {
-		return;
+	if (output->cursor.pointer == seat->active_pointer) {
+		output->enter_serial = 0;
+		output->cursor.pointer = NULL;
 	}
-
-	backend->current_pointer = NULL;
 }
 
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
@@ -489,8 +483,8 @@ struct wlr_wl_pointer *pointer_get_wl(struct wlr_pointer *wlr_pointer) {
 static void pointer_destroy(struct wlr_pointer *wlr_pointer) {
 	struct wlr_wl_pointer *pointer = pointer_get_wl(wlr_pointer);
 
-	if (pointer->output->backend->current_pointer == pointer) {
-		pointer->output->backend->current_pointer = NULL;
+	if (pointer->output->cursor.pointer == pointer) {
+		pointer->output->cursor.pointer = NULL;
 	}
 
 	struct wlr_wl_seat *seat = pointer->input_device->seat;
@@ -782,9 +776,10 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 			}
 			wlr_log(WLR_DEBUG, "dropping pointer %s",
 				pointer->input_device->wlr_input_device.name);
+			struct wlr_wl_output *output = pointer->output;
 			wlr_input_device_destroy(device);
 			assert(seat->active_pointer != pointer);
-			assert(backend->current_pointer != pointer);
+			assert(output->cursor.pointer != pointer);
 		}
 
 		wl_pointer_release(seat->pointer);
