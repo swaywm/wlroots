@@ -44,9 +44,24 @@ static int handle_libinput_readable(int fd, uint32_t mask, void *_backend) {
 	return 0;
 }
 
+static enum wlr_log_importance libinput_log_priority_to_wlr(
+		enum libinput_log_priority priority) {
+	switch (priority) {
+	case LIBINPUT_LOG_PRIORITY_ERROR:
+		return WLR_ERROR;
+	case LIBINPUT_LOG_PRIORITY_INFO:
+		return WLR_INFO;
+	default:
+		return WLR_DEBUG;
+	}
+}
+
 static void log_libinput(struct libinput *libinput_context,
 		enum libinput_log_priority priority, const char *fmt, va_list args) {
-	_wlr_vlog(WLR_ERROR, fmt, args);
+	enum wlr_log_importance importance = libinput_log_priority_to_wlr(priority);
+	static char wlr_fmt[1024];
+	snprintf(wlr_fmt, sizeof(wlr_fmt), "[libinput] %s", fmt);
+	_wlr_vlog(importance, wlr_fmt, args);
 }
 
 static bool backend_start(struct wlr_backend *wlr_backend) {
