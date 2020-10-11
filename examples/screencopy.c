@@ -90,7 +90,7 @@ static struct wl_buffer *create_shm_buffer(enum wl_shm_format fmt,
 
 	void *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (data == MAP_FAILED) {
-		fprintf(stderr, "mmap failed: %m\n");
+		perror("mmap failed");
 		close(fd);
 		return NULL;
 	}
@@ -228,7 +228,7 @@ static void write_image(char *filename, enum wl_shm_format wl_fmt, int width,
 int main(int argc, char *argv[]) {
 	struct wl_display * display = wl_display_connect(NULL);
 	if (display == NULL) {
-		fprintf(stderr, "failed to create display: %m\n");
+		perror("failed to create display");
 		return EXIT_FAILURE;
 	}
 
