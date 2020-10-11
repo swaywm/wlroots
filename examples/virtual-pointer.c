@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
 	}
 	struct wl_display * display = wl_display_connect(NULL);
 	if (display == NULL) {
-		fprintf(stderr, "failed to create display: %m\n");
+		perror("failed to create display");
 		return EXIT_FAILURE;
 	}
 
