@@ -92,7 +92,7 @@ static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 	size_t available = transfer->source_data.alloc - current;
 	ssize_t len = read(fd, p, available);
 	if (len == -1) {
-		wlr_log(WLR_ERROR, "read error from data source: %m");
+		wlr_log_errno(WLR_ERROR, "read error from data source");
 		goto error_out;
 	}
 
@@ -289,7 +289,7 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 
 	int p[2];
 	if (pipe(p) == -1) {
-		wlr_log(WLR_ERROR, "pipe() failed: %m");
+		wlr_log_errno(WLR_ERROR, "pipe() failed");
 		xwm_selection_send_notify(selection->xwm, req, false);
 		return;
 	}
