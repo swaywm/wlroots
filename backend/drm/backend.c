@@ -107,7 +107,7 @@ static void session_signal(struct wl_listener *listener, void *data) {
 
 static void drm_invalidated(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *drm =
-			wl_container_of(listener, drm, drm_invalidated);
+		wl_container_of(listener, drm, drm_invalidated);
 
 	char *name = drmGetDeviceNameFromFd2(drm->fd);
 	wlr_log(WLR_DEBUG, "%s invalidated", name);
@@ -125,7 +125,6 @@ static void handle_session_destroy(struct wl_listener *listener, void *data) {
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *drm =
 		wl_container_of(listener, drm, display_destroy);
-	wlr_log(WLR_INFO, "ENTERING handle_display_destroy");
 
 	backend_destroy(&drm->backend);
 }

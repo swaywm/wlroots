@@ -64,7 +64,7 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 	}
 
 	const char *action = udev_device_get_action(udev_dev);
-	
+
 	wlr_log(WLR_DEBUG, "udev event for %s (%s)",
 		udev_device_get_sysname(udev_dev), action);
 

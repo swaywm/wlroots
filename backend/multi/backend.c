@@ -284,7 +284,6 @@ bool wlr_multi_backend_add(struct wlr_backend *_multi,
 	sub->new_output.notify = new_output_reemit;
 
 	wlr_signal_emit_safe(&multi->events.backend_add, backend);
-
 	return true;
 }
 

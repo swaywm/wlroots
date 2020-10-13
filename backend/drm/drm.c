@@ -1621,7 +1621,6 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		wlr_log(WLR_INFO, "Emitting destruction signal for '%s'",
 			conn->output.name);
 		dealloc_crtc(conn);
-
 		conn->possible_crtc = 0;
 		conn->desired_mode = NULL;
 		conn->pageflip_pending = false;
