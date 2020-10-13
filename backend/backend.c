@@ -307,6 +307,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		wlr_backend_destroy(backend);
 		return NULL;
 	}
+	wlr_multi_backend_init_gpu_hotplug(multi, primary_drm);
 
 	return backend;
 

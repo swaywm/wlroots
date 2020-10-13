@@ -7,6 +7,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/util/log.h>
 #include <include/backend/drm/drm.h>
+#include <stdio.h>
 #include "backend/multi.h"
 #include "util/signal.h"
 
@@ -49,6 +50,8 @@ static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
 	struct wlr_multi_backend *backend = multi_backend_from_backend(wlr_backend);
 
 	wl_list_remove(&backend->display_destroy.link);
+	wl_list_remove(&backend->hotplug.add_gpu_signal.link);
+	wl_list_remove(&backend->hotplug.remove_gpu_signal.link);
 
 	// Some backends may depend on other backends, ie. destroying a backend may
 	// also destroy other backends
@@ -111,6 +114,75 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	multi_backend_destroy((struct wlr_backend*)backend);
 }
 
+static void handle_add_gpu(struct wl_listener *listener, void *data) {
+	struct wlr_multi_backend *multi =
+			wl_container_of(listener, multi, hotplug.add_gpu_signal);
+	struct wlr_event_add_gpu *event = data;
+
+	wlr_log(WLR_INFO, "got handle_gpu signal with fd = %d", event->gpu_fd);
+
+	// TODO: create_renderer_func should not be forced NULL
+	//       even though this currently works in sway, it may not work in general.
+	struct wlr_backend *child_drm = wlr_drm_backend_create(
+			get_drm_backend_from_backend(multi->hotplug.primary_drm)->display,
+			multi->session,
+			event->gpu_fd,
+			multi->hotplug.primary_drm,
+			NULL);
+
+	if (!child_drm) {
+		wlr_log(WLR_ERROR, "Failed to open DRM device %d", event->gpu_fd);
+		return;
+	} else {
+		wlr_log(WLR_INFO, "Successfully opened DRM device %d", event->gpu_fd);
+	}
+
+	if (!wlr_multi_backend_add(&multi->backend, child_drm)) {
+		wlr_log(WLR_ERROR, "Failed to add new drm backend to multi backend");
+	} else {
+		wlr_log(WLR_ERROR, "NOTICE: successfully new drm backend to multi backend");
+	}
+
+	if(!wlr_backend_start(child_drm)) {
+		wlr_log(WLR_ERROR, "Failed to start new child drm backend");
+	}
+}
+
+struct handle_remove_specific_gpu {
+	struct wlr_multi_backend *multi;
+	struct wlr_event_remove_gpu *event;
+	struct wlr_backend *to_remove;
+};
+
+static void handle_remove_specific_gpu(struct wlr_backend *backend, void *data) {
+	struct handle_remove_specific_gpu *s = data;
+
+	if(wlr_backend_is_drm(backend)) {
+		struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
+		if(drm->fd == s->event->gpu_fd) {
+			s->to_remove = backend;
+		}
+	}
+}
+
+static void handle_remove_gpu(struct wl_listener *listener, void *data) {
+	struct handle_remove_specific_gpu s;
+	s.multi =
+			wl_container_of(listener, s.multi, hotplug.remove_gpu_signal);
+	s.event = data;
+	s.to_remove = NULL;
+
+	wlr_log(WLR_INFO, "handling remove GPU!!");
+
+	fprintf(stderr, "is MULTI? %d\n", wlr_backend_is_multi(&s.multi->backend));
+	wlr_multi_for_each_backend(&s.multi->backend, handle_remove_specific_gpu, &s);
+
+	if(s.to_remove) {
+		wlr_multi_backend_remove(&s.multi->backend, s.to_remove);
+		wlr_backend_destroy(s.to_remove);
+	}
+}
+
 struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 	struct wlr_multi_backend *backend =
 		calloc(1, sizeof(struct wlr_multi_backend));
@@ -129,6 +201,16 @@ struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 	wl_display_add_destroy_listener(display, &backend->display_destroy);
 
 	return &backend->backend;
+}
+
+void wlr_multi_backend_init_gpu_hotplug(struct wlr_multi_backend *multi, struct wlr_backend *primary_drm) {
+	multi->hotplug.add_gpu_signal.notify = handle_add_gpu;
+	wl_signal_add(&multi->session->events.add_gpu, &multi->hotplug.add_gpu_signal);
+
+	multi->hotplug.remove_gpu_signal.notify = handle_remove_gpu;
+	wl_signal_add(&multi->session->events.remove_gpu, &multi->hotplug.remove_gpu_signal);
+
+	multi->hotplug.primary_drm = primary_drm;
 }
 
 bool wlr_backend_is_multi(struct wlr_backend *b) {
@@ -202,14 +284,6 @@ bool wlr_multi_backend_add(struct wlr_backend *_multi,
 	sub->new_output.notify = new_output_reemit;
 
 	wlr_signal_emit_safe(&multi->events.backend_add, backend);
-
-	// TODO: get rid of this hack
-	// drm backends now keep track of their parent multi backend
-	// for GPU hotplugging purposes
-	if(wlr_backend_is_drm(backend)) {
-		struct wlr_drm_backend *drm_backend = get_drm_backend_from_backend(backend);
-		drm_backend->multi = multi;
-	}
 
 	return true;
 }

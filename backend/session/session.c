@@ -64,7 +64,7 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 	}
 
 	const char *action = udev_device_get_action(udev_dev);
-
+	
 	wlr_log(WLR_DEBUG, "udev event for %s (%s)",
 		udev_device_get_sysname(udev_dev), action);
 
@@ -76,9 +76,11 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 	struct wlr_device *dev;
 
 	bool found = false;
+	int open_fd = -1;
 	wl_list_for_each(dev, &session->devices, link) {
 		if (dev->dev == devnum) {
 			found = true;
+			open_fd = dev->fd;
 			if (strcmp(action, "change") == 0) {
 				wlr_log(WLR_DEBUG, "found device for event %ld", dev->dev);
 				wlr_signal_emit_safe(&dev->signal, session);
@@ -87,7 +89,6 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 		}
 	}
 
-	// there is a drm device which we don't yet know about
 	// in the `wlr_session_find_gpus` function, they use
 	// - udev_enumerate_add_match_subsystem(en, "drm")
 	// - udev_enumerate_add_match_sysname(en, "card[0-9]*")
@@ -95,20 +96,36 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 	// to restrict to only GPUs
 	// we attempt to do the same with `udev_device_get_subsystem`
 	//                            and `udev_device_get_sysname`
-	if (!found && strcmp(action, "add") == 0
-			&& strcmp(udev_device_get_subsystem(udev_dev), "drm") == 0
-			&& is_card(udev_device_get_sysname(udev_dev))) {
+	if(strcmp(udev_device_get_subsystem(udev_dev), "drm") == 0
+		  && is_card(udev_device_get_sysname(udev_dev))) {
 
-		int gpu_fd = session_try_open_gpu(session, udev_dev);
+		// there is a drm device which we don't yet know about
+		if (!found && strcmp(action, "add") == 0) {
+			wlr_log(WLR_INFO, "trying to open gpu");
+			int gpu_fd = session_try_open_gpu(session, udev_dev);
 
-		if(gpu_fd >= 0) {
+			if (gpu_fd >= 0) {
 
-			struct wlr_event_add_gpu *event = malloc(sizeof(*event));
+				struct wlr_event_add_gpu *event = malloc(sizeof(*event));
+				event->session = session;
+				event->gpu_fd = gpu_fd;
+
+				// this is the same signal as a VT switch...
+				wlr_signal_emit_safe(&session->events.add_gpu, event);
+
+				free(event);
+			}
+		// there is a drm device which we should remove
+		} else if(found && strcmp(action, "remove") == 0) {
+			wlr_log(WLR_INFO, "trying to destroy backend for gpu %d %d", fd, open_fd);
+
+			struct wlr_event_remove_gpu *event = malloc(sizeof(*event));
 			event->session = session;
-			event->gpu_fd = gpu_fd;
+			assert(open_fd >= 0);
+			event->gpu_fd = open_fd;
 
 			// this is the same signal as a VT switch...
-			wlr_signal_emit_safe(&session->events.add_gpu, event);
+			wlr_signal_emit_safe(&session->events.remove_gpu, event);
 
 			free(event);
 		}
@@ -129,6 +146,7 @@ void session_init(struct wlr_session *session) {
 	wl_signal_init(&session->session_signal);
 	wl_signal_init(&session->events.destroy);
 	wl_signal_init(&session->events.add_gpu);
+	wl_signal_init(&session->events.remove_gpu);
 	wl_list_init(&session->devices);
 }
 
