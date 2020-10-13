@@ -265,15 +265,14 @@ static struct wl_array *xwm_selection_source_get_mime_types(
 /**
  * Read the Wayland selection and send it to an Xwayland client.
  */
-static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
+static bool xwm_selection_send_data(struct wlr_xwm_selection *selection,
 		xcb_selection_request_event_t *req, const char *mime_type) {
 	// Check MIME type
 	struct wl_array *mime_types =
 		xwm_selection_source_get_mime_types(selection);
 	if (mime_types == NULL) {
 		wlr_log(WLR_ERROR, "not sending selection: no MIME type list available");
-		xwm_selection_send_notify(selection->xwm, req, false);
-		return;
+		return false;
 	}
 
 	bool found = false;
@@ -288,16 +287,16 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 	if (!found) {
 		wlr_log(WLR_ERROR, "not sending selection: "
 			"requested an unsupported MIME type %s", mime_type);
-		xwm_selection_send_notify(selection->xwm, req, false);
-		return;
+		return false;
 	}
 
 	struct wlr_xwm_selection_transfer *transfer =
 		calloc(1, sizeof(struct wlr_xwm_selection_transfer));
 	if (transfer == NULL) {
 		wlr_log(WLR_ERROR, "Allocation failed");
-		return;
+		return false;
 	}
+
 	transfer->selection = selection;
 	transfer->request = *req;
 	wl_array_init(&transfer->source_data);
@@ -305,9 +304,9 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 	int p[2];
 	if (pipe(p) == -1) {
 		wlr_log_errno(WLR_ERROR, "pipe() failed");
-		xwm_selection_send_notify(selection->xwm, req, false);
-		return;
+		return false;
 	}
+
 	fcntl(p[0], F_SETFD, FD_CLOEXEC);
 	fcntl(p[0], F_SETFL, O_NONBLOCK);
 	fcntl(p[1], F_SETFD, FD_CLOEXEC);
@@ -345,6 +344,8 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 			wlr_log(WLR_DEBUG, "Transfer %p still queued", outgoing);
 		}
 	}
+
+	return true;
 }
 
 static void xwm_selection_send_targets(struct wlr_xwm_selection *selection,
@@ -416,12 +417,12 @@ void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		xwm_get_selection(xwm, req->selection);
 	if (selection == NULL) {
 		wlr_log(WLR_DEBUG, "received selection request for unknown selection");
-		return;
+		goto fail_notify_requestor;
 	}
 
 	if (selection->window != req->owner) {
 		wlr_log(WLR_DEBUG, "received selection request with invalid owner");
-		return;
+		goto fail_notify_requestor;
 	}
 
 	// No xwayland surface focused, deny access to clipboard
@@ -430,8 +431,7 @@ void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		wlr_log(WLR_DEBUG, "denying read access to selection %u (%s): "
 			"no xwayland surface focused", selection->atom, selection_name);
 		free(selection_name);
-		xwm_selection_send_notify(xwm, req, false);
-		return;
+		goto fail_notify_requestor;
 	}
 
 	if (req->target == xwm->atoms[TARGETS]) {
@@ -446,12 +446,22 @@ void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		if (mime_type == NULL) {
 			wlr_log(WLR_ERROR, "ignoring selection request: unknown atom %u",
 				req->target);
-			xwm_selection_send_notify(xwm, req, false);
-			return;
+			goto fail_notify_requestor;
 		}
-		xwm_selection_send_data(selection, req, mime_type);
+
+		bool send_success = xwm_selection_send_data(selection, req, mime_type);
 		free(mime_type);
+		if (!send_success) {
+			goto fail_notify_requestor;
+		}
 	}
+
+	return;
+
+fail_notify_requestor:
+	// Something went wrong, and there won't be any data being sent to the
+	// requestor, so let them know.
+	xwm_selection_send_notify(xwm, req, false);
 }
 
 void xwm_handle_selection_destroy_notify(struct wlr_xwm *xwm,
