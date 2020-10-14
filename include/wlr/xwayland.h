@@ -198,6 +198,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal set_hints;
 		struct wl_signal set_decorations;
 		struct wl_signal set_override_redirect;
+		struct wl_signal set_geometry;
 		struct wl_signal ping_timeout;
 	} events;
 
