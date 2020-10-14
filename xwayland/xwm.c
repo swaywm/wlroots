@@ -164,6 +164,7 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 	wl_signal_init(&surface->events.set_decorations);
 	wl_signal_init(&surface->events.set_override_redirect);
 	wl_signal_init(&surface->events.ping_timeout);
+	wl_signal_init(&surface->events.set_geometry);
 
 	xcb_get_geometry_reply_t *geometry_reply =
 		xcb_get_geometry_reply(xwm->xcb_conn, geometry_cookie, NULL);
@@ -935,14 +936,24 @@ static void xwm_handle_configure_notify(struct wlr_xwm *xwm,
 		return;
 	}
 
-	xsurface->x = ev->x;
-	xsurface->y = ev->y;
-	xsurface->width = ev->width;
-	xsurface->height = ev->height;
+	bool geometry_changed =
+		(xsurface->x != ev->x || xsurface->y != ev->y ||
+		 xsurface->width != ev->width || xsurface->height != ev->height);
+
+	if (geometry_changed) {
+		xsurface->x = ev->x;
+		xsurface->y = ev->y;
+		xsurface->width = ev->width;
+		xsurface->height = ev->height;
+	}
 
 	if (xsurface->override_redirect != ev->override_redirect) {
 		xsurface->override_redirect = ev->override_redirect;
 		wlr_signal_emit_safe(&xsurface->events.set_override_redirect, xsurface);
+	}
+
+	if (geometry_changed) {
+		wlr_signal_emit_safe(&xsurface->events.set_geometry, NULL);
 	}
 }
 
