@@ -50,7 +50,6 @@ static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
 	struct wlr_multi_backend *backend = multi_backend_from_backend(wlr_backend);
 
 	wl_list_remove(&backend->display_destroy.link);
-
 	if(backend->hotplug.enabled) {
 		wl_list_remove(&backend->hotplug.add_gpu_signal.link);
 		wl_list_remove(&backend->hotplug.remove_gpu_signal.link);
@@ -177,7 +176,6 @@ static void handle_remove_gpu(struct wl_listener *listener, void *data) {
 
 	wlr_log(WLR_INFO, "handling remove GPU!!");
 
-	fprintf(stderr, "is MULTI? %d\n", wlr_backend_is_multi(&s.multi->backend));
 	wlr_multi_for_each_backend(&s.multi->backend, handle_remove_specific_gpu, &s);
 
 	if(s.to_remove) {

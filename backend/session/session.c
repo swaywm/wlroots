@@ -35,8 +35,6 @@ static const struct session_impl *impls[] = {
 
 // determines if the sysname is of the form card[0-9]*
 static bool is_card(const char *name) {
-	wlr_log(WLR_DEBUG, "determining if '%s' is a card", name);
-
 	if(strncmp(name, "card", strlen("card")) != 0) {
 		// doesn't start with card
 		return false;
@@ -82,7 +80,7 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 			found = true;
 			open_fd = dev->fd;
 			if (strcmp(action, "change") == 0) {
-				wlr_log(WLR_DEBUG, "found device for event %ld", dev->dev);
+				wlr_log(WLR_DEBUG, "found device for devnum %ld", dev->dev);
 				wlr_signal_emit_safe(&dev->signal, session);
 				break;
 			}
@@ -98,6 +96,7 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 	//                            and `udev_device_get_sysname`
 	if(strcmp(udev_device_get_subsystem(udev_dev), "drm") == 0
 		  && is_card(udev_device_get_sysname(udev_dev))) {
+		wlr_log(WLR_DEBUG, "'%s' is a card", udev_device_get_sysname(udev_dev));
 
 		// there is a drm device which we don't yet know about
 		if (!found && strcmp(action, "add") == 0) {
@@ -117,7 +116,7 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 			}
 		// there is a drm device which we should remove
 		} else if(found && strcmp(action, "remove") == 0) {
-			wlr_log(WLR_INFO, "trying to destroy backend for gpu %d %d", fd, open_fd);
+			wlr_log(WLR_INFO, "trying to destroy backend for gpu %s fd=%d",  udev_device_get_sysname(udev_dev), open_fd);
 
 			struct wlr_event_remove_gpu *event = malloc(sizeof(*event));
 			event->session = session;
