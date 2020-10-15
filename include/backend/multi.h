@@ -7,6 +7,7 @@
 #include <wlr/backend/session.h>
 
 struct wlr_multi_backend_gpu_hotplug {
+	bool enabled;
 	struct wl_listener add_gpu_signal;
 	struct wl_listener remove_gpu_signal;
 	struct wlr_backend *primary_drm;

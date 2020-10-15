@@ -50,8 +50,11 @@ static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
 	struct wlr_multi_backend *backend = multi_backend_from_backend(wlr_backend);
 
 	wl_list_remove(&backend->display_destroy.link);
-	wl_list_remove(&backend->hotplug.add_gpu_signal.link);
-	wl_list_remove(&backend->hotplug.remove_gpu_signal.link);
+
+	if(backend->hotplug.enabled) {
+		wl_list_remove(&backend->hotplug.add_gpu_signal.link);
+		wl_list_remove(&backend->hotplug.remove_gpu_signal.link);
+	}
 
 	// Some backends may depend on other backends, ie. destroying a backend may
 	// also destroy other backends
@@ -178,7 +181,9 @@ static void handle_remove_gpu(struct wl_listener *listener, void *data) {
 	wlr_multi_for_each_backend(&s.multi->backend, handle_remove_specific_gpu, &s);
 
 	if(s.to_remove) {
+		wlr_log(WLR_DEBUG, "removing from multi backend");
 		wlr_multi_backend_remove(&s.multi->backend, s.to_remove);
+		wlr_log(WLR_DEBUG, "destroying backend");
 		wlr_backend_destroy(s.to_remove);
 	}
 }
@@ -200,17 +205,18 @@ struct wlr_backend *wlr_multi_backend_create(struct wl_display *display) {
 	backend->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &backend->display_destroy);
 
+	backend->hotplug.enabled = false;
+
 	return &backend->backend;
 }
 
 void wlr_multi_backend_init_gpu_hotplug(struct wlr_multi_backend *multi, struct wlr_backend *primary_drm) {
 	multi->hotplug.add_gpu_signal.notify = handle_add_gpu;
 	wl_signal_add(&multi->session->events.add_gpu, &multi->hotplug.add_gpu_signal);
-
 	multi->hotplug.remove_gpu_signal.notify = handle_remove_gpu;
 	wl_signal_add(&multi->session->events.remove_gpu, &multi->hotplug.remove_gpu_signal);
-
 	multi->hotplug.primary_drm = primary_drm;
+	multi->hotplug.enabled = true;
 }
 
 bool wlr_backend_is_multi(struct wlr_backend *b) {
