@@ -39,6 +39,7 @@ struct wlr_wl_backend {
 	struct zwp_linux_dmabuf_v1 *zwp_linux_dmabuf_v1;
 	struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1;
 	struct wl_seat *seat;
+	struct wl_touch *touch;
 	struct wl_pointer *pointer;
 	struct wl_keyboard *keyboard;
 	struct wlr_wl_pointer *current_pointer;
@@ -112,6 +113,7 @@ void update_wl_output_cursor(struct wlr_wl_output *output);
 struct wlr_wl_pointer *pointer_get_wl(struct wlr_pointer *wlr_pointer);
 void create_wl_pointer(struct wl_pointer *wl_pointer, struct wlr_wl_output *output);
 void create_wl_keyboard(struct wl_keyboard *wl_keyboard, struct wlr_wl_backend *wl);
+void create_wl_touch(struct wl_touch *wl_touch, struct wlr_wl_backend *wl);
 struct wlr_wl_input_device *create_wl_input_device(
 	struct wlr_wl_backend *backend, enum wlr_input_device_type type);
 
