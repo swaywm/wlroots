@@ -720,6 +720,6 @@ struct wlr_seat_client *wlr_seat_client_from_pointer_resource(
 /**
  * Check whether a surface has bound to touch events.
  */
-bool wlr_surface_accepts_touch(struct wlr_seat *wlr_seat, struct wlr_surface *surface);
+bool wlr_surface_accepts_touch(struct wlr_surface *surface, struct wlr_seat *wlr_seat);
 
 #endif
