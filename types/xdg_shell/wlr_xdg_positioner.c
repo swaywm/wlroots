@@ -282,12 +282,12 @@ static enum xdg_positioner_gravity positioner_gravity_invert_y(
 }
 
 
-void wlr_positioner_invert_x(struct wlr_xdg_positioner *positioner) {
+void wlr_xdg_positioner_invert_x(struct wlr_xdg_positioner *positioner) {
 	positioner->anchor = positioner_anchor_invert_x(positioner->anchor);
 	positioner->gravity = positioner_gravity_invert_x(positioner->gravity);
 }
 
-void wlr_positioner_invert_y(struct wlr_xdg_positioner *positioner) {
+void wlr_xdg_positioner_invert_y(struct wlr_xdg_positioner *positioner) {
 	positioner->anchor = positioner_anchor_invert_y(positioner->anchor);
 	positioner->gravity = positioner_gravity_invert_y(positioner->gravity);
 }

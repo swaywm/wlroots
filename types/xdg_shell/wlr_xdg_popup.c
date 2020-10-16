@@ -466,10 +466,10 @@ static bool xdg_popup_unconstrain_flip(struct wlr_xdg_popup *popup,
 		 XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_FLIP_Y);
 
 	if (flip_x) {
-		wlr_positioner_invert_x(&popup->positioner);
+		wlr_xdg_positioner_invert_x(&popup->positioner);
 	}
 	if (flip_y) {
-		wlr_positioner_invert_y(&popup->positioner);
+		wlr_xdg_positioner_invert_y(&popup->positioner);
 	}
 
 	popup->geometry =
@@ -485,10 +485,10 @@ static bool xdg_popup_unconstrain_flip(struct wlr_xdg_popup *popup,
 
 	// revert the positioner back if it didn't fix it and go to the next part
 	if (offset_x && flip_x) {
-		wlr_positioner_invert_x(&popup->positioner);
+		wlr_xdg_positioner_invert_x(&popup->positioner);
 	}
 	if (offset_y && flip_y) {
-		wlr_positioner_invert_y(&popup->positioner);
+		wlr_xdg_positioner_invert_y(&popup->positioner);
 	}
 
 	popup->geometry =
