@@ -48,8 +48,6 @@ struct wlr_xdg_client {
 };
 
 struct wlr_xdg_positioner {
-	struct wl_resource *resource;
-
 	struct wlr_box anchor_rect;
 	enum xdg_positioner_anchor anchor;
 	enum xdg_positioner_gravity gravity;
