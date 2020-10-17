@@ -24,6 +24,8 @@ struct wlr_texture {
 /**
  * Create a new texture from raw pixel data. `stride` is in bytes. The returned
  * texture is mutable.
+ * This should not be called between wlr_render_begin and wlr_render_end
+ * and should rather be placed before them
  */
 struct wlr_texture *wlr_texture_from_pixels(struct wlr_renderer *renderer,
 	enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width, uint32_t height,
