@@ -7,7 +7,7 @@
 #include <wayland-client.h>
 #include "wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
 
-#define WLR_FOREIGN_TOPLEVEL_MANAGEMENT_VERSION 2
+#define WLR_FOREIGN_TOPLEVEL_MANAGEMENT_VERSION 3
 
 /**
  * Usage:
@@ -38,11 +38,14 @@ enum toplevel_state_field {
 	TOPLEVEL_STATE_INVALID = (1 << 4),
 };
 
+static const uint32_t no_parent = (uint32_t)-1;
+
 struct toplevel_state {
 	char *title;
 	char *app_id;
 
 	uint32_t state;
+	uint32_t parent_id;
 };
 
 static void copy_state(struct toplevel_state *current,
@@ -67,6 +70,8 @@ static void copy_state(struct toplevel_state *current,
 		current->state = pending->state;
 	}
 
+	current->parent_id = pending->parent_id;
+
 	pending->state = TOPLEVEL_STATE_INVALID;
 }
 
@@ -84,6 +89,12 @@ static void print_toplevel(struct toplevel_v1 *toplevel, bool print_endl) {
 			toplevel->current.title ?: "(nil)",
 			toplevel->current.app_id ?: "(nil)");
 
+	if (toplevel->current.parent_id != no_parent) {
+		printf(" parent=%u", toplevel->current.parent_id);
+	} else {
+		printf(" no parent");
+	}
+	
 	if (print_endl) {
 		printf("\n");
 	}
@@ -172,6 +183,28 @@ static void toplevel_handle_state(void *data,
 	toplevel->pending.state = array_to_state(state);
 }
 
+static struct zwlr_foreign_toplevel_manager_v1 *toplevel_manager = NULL;
+static struct wl_list toplevel_list;
+
+static void toplevel_handle_parent(void *data,
+		struct zwlr_foreign_toplevel_handle_v1 *zwlr_toplevel,
+		struct zwlr_foreign_toplevel_handle_v1 *zwlr_parent) {
+	struct toplevel_v1 *toplevel = data;
+	toplevel->pending.parent_id = no_parent;
+	if (zwlr_parent) {
+		struct toplevel_v1 *toplevel_tmp;
+		wl_list_for_each(toplevel_tmp, &toplevel_list, link) {
+			if (toplevel_tmp->zwlr_toplevel == zwlr_parent) {
+				toplevel->pending.parent_id = toplevel_tmp->id;
+				break;
+			}
+		}
+		if (toplevel->pending.parent_id == no_parent) {
+			fprintf(stderr, "Cannot find parent toplevel!\n");
+		}
+	}
+}
+
 static void toplevel_handle_done(void *data,
 		struct zwlr_foreign_toplevel_handle_v1 *zwlr_toplevel) {
 	struct toplevel_v1 *toplevel = data;
@@ -202,10 +235,8 @@ static const struct zwlr_foreign_toplevel_handle_v1_listener toplevel_impl = {
 	.state = toplevel_handle_state,
 	.done = toplevel_handle_done,
 	.closed = toplevel_handle_closed,
+	.parent = toplevel_handle_parent
 };
-
-static struct zwlr_foreign_toplevel_manager_v1 *toplevel_manager = NULL;
-static struct wl_list toplevel_list;
 
 static void toplevel_manager_handle_toplevel(void *data,
 		struct zwlr_foreign_toplevel_manager_v1 *toplevel_manager,
@@ -218,6 +249,8 @@ static void toplevel_manager_handle_toplevel(void *data,
 
 	toplevel->id = global_id++;
 	toplevel->zwlr_toplevel = zwlr_toplevel;
+	toplevel->current.parent_id = no_parent;
+	toplevel->pending.parent_id = no_parent;
 	wl_list_insert(&toplevel_list, &toplevel->link);
 
 	zwlr_foreign_toplevel_handle_v1_add_listener(zwlr_toplevel, &toplevel_impl,
