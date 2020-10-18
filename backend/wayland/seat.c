@@ -636,9 +636,6 @@ void create_wl_pointer(struct wl_pointer *wl_pointer, struct wlr_wl_output *outp
 	pointer->wl_pointer = wl_pointer;
 	pointer->output = output;
 
-	wl_signal_add(&output->wlr_output.events.destroy, &pointer->output_destroy);
-	pointer->output_destroy.notify = pointer_handle_output_destroy;
-
 	struct wlr_wl_input_device *dev =
 		create_wl_input_device(backend, WLR_INPUT_DEVICE_POINTER);
 	if (dev == NULL) {
@@ -647,6 +644,9 @@ void create_wl_pointer(struct wl_pointer *wl_pointer, struct wlr_wl_output *outp
 		return;
 	}
 	pointer->input_device = dev;
+
+	wl_signal_add(&output->wlr_output.events.destroy, &pointer->output_destroy);
+	pointer->output_destroy.notify = pointer_handle_output_destroy;
 
 	wlr_dev = &dev->wlr_input_device;
 	wlr_dev->pointer = &pointer->wlr_pointer;
@@ -686,7 +686,7 @@ void create_wl_keyboard(struct wl_keyboard *wl_keyboard, struct wlr_wl_backend *
 	wlr_dev->keyboard = calloc(1, sizeof(*wlr_dev->keyboard));
 	if (!wlr_dev->keyboard) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
-		free(dev);
+		wlr_input_device_destroy(wlr_dev);
 		return;
 	}
 	wlr_keyboard_init(wlr_dev->keyboard, NULL);
@@ -707,7 +707,7 @@ void create_wl_touch(struct wl_touch *wl_touch, struct wlr_wl_backend *wl) {
 	wlr_dev->touch = calloc(1, sizeof(*wlr_dev->touch));
 	if (!wlr_dev->touch) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
-		free(dev);
+		wlr_input_device_destroy(wlr_dev);
 		return;
 	}
 	wlr_touch_init(wlr_dev->touch, NULL);
