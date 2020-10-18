@@ -366,7 +366,6 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 		return false;
 	}
 
-	assert(crtc->pending.active);
 	assert(plane_get_next_fb(crtc->primary)->type != WLR_DRM_FB_TYPE_NONE);
 	if (!drm_crtc_commit(conn, DRM_MODE_PAGE_FLIP_EVENT)) {
 		return false;
@@ -547,22 +546,13 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		return false;
 	}
 
-	if (output->pending.committed &
-			(WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_ENABLED)) {
-		struct wlr_output_mode *wlr_mode = output->current_mode;
+	if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
+		assert((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) ?
+			output->pending.enabled : output->enabled);
 
-		bool enable = (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) ?
-			output->pending.enabled : output->enabled;
-		if (!enable) {
-			wlr_mode = NULL;
-		}
-
-		if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
-			assert(enable);
-			wlr_mode = drm_connector_get_pending_mode(conn);
-			if (wlr_mode == NULL) {
-				return false;
-			}
+		struct wlr_output_mode *wlr_mode = drm_connector_get_pending_mode(conn);
+		if (wlr_mode == NULL) {
+			return false;
 		}
 
 		if (!drm_connector_set_mode(conn, wlr_mode)) {
@@ -574,7 +564,8 @@ static bool drm_connector_commit(struct wlr_output *output) {
 			return false;
 		}
 	} else if (output->pending.committed &
-			(WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED |
+			(WLR_OUTPUT_STATE_ENABLE |
+			WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED |
 			WLR_OUTPUT_STATE_GAMMA_LUT)) {
 		assert(conn->crtc != NULL);
 		// TODO: maybe request a page-flip event here?
@@ -694,7 +685,6 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	struct wlr_drm_plane *plane = crtc->primary;
 
 	crtc->pending_modeset = true;
-	crtc->pending.active = true;
 	crtc->pending.mode = mode;
 
 	int width = mode->wlr_mode.width;
@@ -725,7 +715,6 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 		modifiers = false;
 
 		crtc->pending_modeset = true;
-		crtc->pending.active = true;
 		crtc->pending.mode = mode;
 
 		if (!drm_plane_init_surface(plane, drm, width, height, format,
@@ -773,7 +762,7 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 	if (wlr_mode == NULL) {
 		if (conn->crtc != NULL) {
 			conn->crtc->pending_modeset = true;
-			conn->crtc->pending.active = false;
+			conn->crtc->pending.mode = NULL;
 			if (!drm_crtc_commit(conn, 0)) {
 				return false;
 			}

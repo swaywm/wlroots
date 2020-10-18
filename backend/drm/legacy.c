@@ -14,8 +14,24 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *cursor = crtc->cursor;
 
+	bool enabled = output->enabled;
+	if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
+		enabled = output->pending.enabled;
+	}
+
+	if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
+		uint32_t dpms = output->pending.enabled ?
+			DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF;
+		if (drmModeConnectorSetProperty(drm->fd, conn->id, conn->props.dpms,
+				dpms) != 0) {
+			wlr_log_errno(WLR_ERROR, "%s: failed to set DPMS property",
+				conn->output.name);
+			return false;
+		}
+	}
+
 	uint32_t fb_id = 0;
-	if (crtc->pending.active) {
+	if (enabled) {
 		struct wlr_drm_fb *fb = plane_get_next_fb(crtc->primary);
 		struct gbm_bo *bo = drm_fb_acquire(fb, drm, &crtc->primary->mgpu_surf);
 		if (!bo) {
@@ -36,15 +52,6 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 			conns = &conn->id;
 			conns_len = 1;
 			mode = &crtc->pending.mode->drm_mode;
-		}
-
-		uint32_t dpms = crtc->pending.active ?
-			DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF;
-		if (drmModeConnectorSetProperty(drm->fd, conn->id, conn->props.dpms,
-				dpms) != 0) {
-			wlr_log_errno(WLR_ERROR, "%s: failed to set DPMS property",
-				conn->output.name);
-			return false;
 		}
 
 		if (drmModeSetCrtc(drm->fd, crtc->id, fb_id, 0, 0,
