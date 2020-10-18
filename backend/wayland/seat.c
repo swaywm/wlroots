@@ -391,8 +391,15 @@ void destroy_wl_seats(struct wlr_wl_backend *wl) {
 		return;
 	}
 
+	if (seat->touch) {
+		wl_touch_destroy(seat->touch);
+	}
 	if (seat->pointer) {
 		wl_pointer_destroy(seat->pointer);
+	}
+	if (seat->keyboard && !wl->started) {
+		// early termination will not be handled by input_device_destroy
+		wl_keyboard_destroy(seat->keyboard);
 	}
 	free(seat->name);
 	if (seat->wl_seat) {
