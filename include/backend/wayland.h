@@ -121,7 +121,7 @@ void create_wl_keyboard(struct wl_keyboard *wl_keyboard, struct wlr_wl_backend *
 void create_wl_touch(struct wl_touch *wl_touch, struct wlr_wl_backend *wl);
 struct wlr_wl_input_device *create_wl_input_device(
 	struct wlr_wl_backend *backend, enum wlr_input_device_type type);
-void create_wl_seat(struct wl_seat *wl_seat, struct wlr_wl_backend *wl);
+bool create_wl_seat(struct wl_seat *wl_seat, struct wlr_wl_backend *wl);
 void destroy_wl_seats(struct wlr_wl_backend *wl);
 
 extern const struct wl_seat_listener seat_listener;

@@ -372,12 +372,17 @@ static struct wlr_wl_input_device *get_wl_input_device_from_input_device(
 	return (struct wlr_wl_input_device *)wlr_dev;
 }
 
-void create_wl_seat(struct wl_seat *wl_seat, struct wlr_wl_backend *wl) {
+bool create_wl_seat(struct wl_seat *wl_seat, struct wlr_wl_backend *wl) {
 	assert(!wl->seat);  // only one seat supported at the moment
 	struct wlr_wl_seat *seat = calloc(1, sizeof(struct wlr_wl_seat));
+	if (!seat) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return false;
+	}
 	seat->wl_seat = wl_seat;
 	wl->seat = seat;
 	wl_seat_add_listener(wl_seat, &seat_listener, wl);
+	return true;
 }
 
 void destroy_wl_seats(struct wlr_wl_backend *wl) {
