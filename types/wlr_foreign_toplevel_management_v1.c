@@ -408,6 +408,10 @@ void wlr_foreign_toplevel_handle_v1_set_fullscreen(
 static void toplevel_resource_send_parent(
 		struct wl_resource *toplevel_resource,
 		struct wlr_foreign_toplevel_handle_v1 *parent) {
+	if (wl_resource_get_version(toplevel_resource) <
+			ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_PARENT_SINCE_VERSION) {
+		return;
+	}
 	struct wl_client *client = wl_resource_get_client(toplevel_resource);
 	struct wl_resource *parent_resource = NULL;
 	if (parent) {
