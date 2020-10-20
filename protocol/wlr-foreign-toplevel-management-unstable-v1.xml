@@ -261,7 +261,7 @@
     <event name="parent" since="3">
       <description summary="parent change">
         This event is emitted whenever the parent of the toplevel changes.
-        
+
         No event is emitted when the parent handle is destroyed by the client.
       </description>
       <arg name="parent" type="object" interface="zwlr_foreign_toplevel_handle_v1" allow-null="true"/>
