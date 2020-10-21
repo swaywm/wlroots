@@ -209,7 +209,7 @@ static void keyboard_handle_enter(void *data, struct wl_keyboard *wl_keyboard,
 	wl_array_for_each(keycode_ptr, keys) {
 		struct wlr_event_keyboard_key event = {
 			.keycode = *keycode_ptr,
-			.state = WLR_KEY_PRESSED,
+			.state = WL_KEYBOARD_KEY_STATE_PRESSED,
 			.time_msec = time,
 			.update_state = false,
 		};
@@ -232,7 +232,7 @@ static void keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
 
 		struct wlr_event_keyboard_key event = {
 			.keycode = keycode,
-			.state = WLR_KEY_RELEASED,
+			.state = WL_KEYBOARD_KEY_STATE_RELEASED,
 			.time_msec = time,
 			.update_state = false,
 		};

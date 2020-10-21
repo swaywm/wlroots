@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <wayland-server-core.h>
+#include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
 #include "types/wlr_keyboard.h"
 #include "util/signal.h"
@@ -95,11 +96,11 @@ static bool process_key(struct keyboard_group_device *group_device,
 		if (key->keycode != event->keycode) {
 			continue;
 		}
-		if (event->state == WLR_KEY_PRESSED) {
+		if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
 			key->count++;
 			return false;
 		}
-		if (event->state == WLR_KEY_RELEASED) {
+		if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED) {
 			key->count--;
 			if (key->count > 0) {
 				return false;
@@ -110,7 +111,7 @@ static bool process_key(struct keyboard_group_device *group_device,
 		break;
 	}
 
-	if (event->state == WLR_KEY_PRESSED) {
+	if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
 		struct keyboard_group_key *key =
 			calloc(1, sizeof(struct keyboard_group_key));
 		if (!key) {
@@ -199,7 +200,7 @@ static void handle_keyboard_repeat_info(struct wl_listener *listener,
 }
 
 static void refresh_state(struct keyboard_group_device *device,
-		enum wlr_key_state state) {
+		enum wl_keyboard_key_state state) {
 	struct wl_array keys;
 	wl_array_init(&keys);
 
@@ -229,7 +230,7 @@ static void refresh_state(struct keyboard_group_device *device,
 
 	// If there are any unique keys, emit the enter/leave event
 	if (keys.size > 0) {
-		if (state == WLR_KEY_PRESSED) {
+		if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
 			wlr_signal_emit_safe(&device->keyboard->group->events.enter, &keys);
 		} else {
 			wlr_signal_emit_safe(&device->keyboard->group->events.leave, &keys);
@@ -240,7 +241,7 @@ static void refresh_state(struct keyboard_group_device *device,
 }
 
 static void remove_keyboard_group_device(struct keyboard_group_device *device) {
-	refresh_state(device, WLR_KEY_RELEASED);
+	refresh_state(device, WL_KEYBOARD_KEY_STATE_RELEASED);
 	device->keyboard->group = NULL;
 	wl_list_remove(&device->link);
 	wl_list_remove(&device->key.link);
@@ -312,7 +313,7 @@ bool wlr_keyboard_group_add_keyboard(struct wlr_keyboard_group *group,
 				group_kb->repeat_info.delay);
 	}
 
-	refresh_state(device, WLR_KEY_PRESSED);
+	refresh_state(device, WL_KEYBOARD_KEY_STATE_PRESSED);
 	return true;
 }
 
