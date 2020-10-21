@@ -12,7 +12,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
-#include <wayland-server-core.h>
+#include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
 
 #define WLR_LED_COUNT 3
@@ -91,16 +91,11 @@ struct wlr_keyboard {
 	void *data;
 };
 
-enum wlr_key_state {
-	WLR_KEY_RELEASED,
-	WLR_KEY_PRESSED,
-};
-
 struct wlr_event_keyboard_key {
 	uint32_t time_msec;
 	uint32_t keycode;
 	bool update_state; // if backend doesn't update modifiers on its own
-	enum wlr_key_state state;
+	enum wl_keyboard_key_state state;
 };
 
 bool wlr_keyboard_set_keymap(struct wlr_keyboard *kb,

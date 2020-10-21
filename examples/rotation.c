@@ -140,7 +140,7 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 		if (sym == XKB_KEY_Escape) {
 			wl_display_terminate(sample->display);
 		}
-		if (event->state == WLR_KEY_PRESSED) {
+		if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
 			switch (sym) {
 			case XKB_KEY_Left:
 				update_velocities(sample, -16, 0);
