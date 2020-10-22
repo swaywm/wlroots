@@ -374,7 +374,6 @@ static void frame_handle_copy(struct wl_client *wl_client,
 	frame->buffer_destroy.notify = frame_handle_buffer_destroy;
 
 	// Schedule a buffer commit
-	output->needs_frame = true;
 	wlr_output_schedule_frame(output);
 
 	wlr_output_lock_attach_render(output, true);
