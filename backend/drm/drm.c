@@ -639,13 +639,13 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 		return false;
 	}
 
-	struct wlr_drm_plane *plane = crtc->primary;
-
-	if (plane->current_fb.type == WLR_DRM_FB_TYPE_NONE) {
+	// TODO: only provide access to the current frame
+	struct wlr_drm_fb *next_fb = plane_get_next_fb(crtc->primary);
+	if (next_fb->type == WLR_DRM_FB_TYPE_NONE) {
 		return false;
 	}
 
-	return export_drm_bo(plane->current_fb.bo, attribs);
+	return export_drm_bo(next_fb->bo, attribs);
 }
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
