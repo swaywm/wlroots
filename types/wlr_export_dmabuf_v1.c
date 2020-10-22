@@ -42,7 +42,6 @@ static void frame_destroy(struct wlr_export_dmabuf_frame_v1 *frame) {
 	}
 	wl_list_remove(&frame->link);
 	wl_list_remove(&frame->output_precommit.link);
-	wlr_dmabuf_attributes_finish(&frame->attribs);
 	// Make the frame resource inert
 	wl_resource_set_user_data(frame->resource, NULL);
 	free(frame);
@@ -65,6 +64,31 @@ static void frame_output_handle_precommit(struct wl_listener *listener,
 
 	wl_list_remove(&frame->output_precommit.link);
 	wl_list_init(&frame->output_precommit.link);
+
+	struct wlr_dmabuf_attributes attribs = {0};
+	if (!wlr_output_export_dmabuf(frame->output, &attribs)) {
+		zwlr_export_dmabuf_frame_v1_send_cancel(frame->resource,
+			ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_TEMPORARY);
+		frame_destroy(frame);
+		return;
+	}
+
+	uint32_t frame_flags = ZWLR_EXPORT_DMABUF_FRAME_V1_FLAGS_TRANSIENT;
+	uint32_t mod_high = attribs.modifier >> 32;
+	uint32_t mod_low = attribs.modifier & 0xFFFFFFFF;
+
+	zwlr_export_dmabuf_frame_v1_send_frame(frame->resource,
+		attribs.width, attribs.height, 0, 0, attribs.flags, frame_flags,
+		attribs.format, mod_high, mod_low, attribs.n_planes);
+
+	for (int i = 0; i < attribs.n_planes; ++i) {
+		off_t size = lseek(attribs.fd[i], 0, SEEK_END);
+
+		zwlr_export_dmabuf_frame_v1_send_object(frame->resource, i,
+			attribs.fd[i], size, attribs.offset[i], attribs.stride[i], i);
+	}
+
+	wlr_dmabuf_attributes_finish(&attribs);
 
 	time_t tv_sec = event->when->tv_sec;
 	uint32_t tv_sec_hi = (sizeof(tv_sec) > 4) ? tv_sec >> 32 : 0;
@@ -120,14 +144,6 @@ static void manager_handle_capture_output(struct wl_client *client,
 		return;
 	}
 
-	struct wlr_dmabuf_attributes *attribs = &frame->attribs;
-	if (!wlr_output_export_dmabuf(output, attribs)) {
-		zwlr_export_dmabuf_frame_v1_send_cancel(frame->resource,
-			ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_TEMPORARY);
-		frame_destroy(frame);
-		return;
-	}
-
 	frame->output = output;
 
 	wlr_output_lock_attach_render(frame->output, true);
@@ -136,26 +152,11 @@ static void manager_handle_capture_output(struct wl_client *client,
 		frame->cursor_locked = true;
 	}
 
-	uint32_t frame_flags = ZWLR_EXPORT_DMABUF_FRAME_V1_FLAGS_TRANSIENT;
-	uint32_t mod_high = attribs->modifier >> 32;
-	uint32_t mod_low = attribs->modifier & 0xFFFFFFFF;
-
-	zwlr_export_dmabuf_frame_v1_send_frame(frame->resource,
-		output->width, output->height, 0, 0, attribs->flags, frame_flags,
-		attribs->format, mod_high, mod_low, attribs->n_planes);
-
-	for (int i = 0; i < attribs->n_planes; ++i) {
-		off_t size = lseek(attribs->fd[i], 0, SEEK_END);
-
-		zwlr_export_dmabuf_frame_v1_send_object(frame->resource, i,
-			attribs->fd[i], size, attribs->offset[i], attribs->stride[i], i);
-	}
-
-	wlr_output_schedule_frame(output);
-
 	wl_list_remove(&frame->output_precommit.link);
 	wl_signal_add(&output->events.precommit, &frame->output_precommit);
 	frame->output_precommit.notify = frame_output_handle_precommit;
+
+	wlr_output_schedule_frame(output);
 }
 
 static void manager_handle_destroy(struct wl_client *client,
