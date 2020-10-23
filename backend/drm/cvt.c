@@ -245,11 +245,11 @@ void generate_cvt_mode(drmModeModeInfo *mode, int hdisplay, int vdisplay,
 	}
 
 	/* 15/13. Find pixel clock frequency (kHz for xf86) */
-	mode->clock = mode->htotal * 1000.0 / hperiod;
-	mode->clock -= mode->clock % CVT_CLOCK_STEP;
+	mode->clock = ((uint64_t) mode->htotal) * 1000.0 / hperiod;
+	mode->clock -= ((uint64_t) mode->clock) % CVT_CLOCK_STEP;
 
 	/* 17/15. Find actual Field rate */
-	mode->vrefresh = (1000.0 * ((float) mode->clock)) /
+	mode->vrefresh = (1000.0 * ((double) mode->clock)) /
 		((float) (mode->htotal * mode->vtotal));
 
 	/* 18/16. Find actual vertical frame frequency */
