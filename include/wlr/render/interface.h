@@ -15,6 +15,9 @@
 #ifndef EGL_NO_X11
 #define EGL_NO_X11
 #endif
+#ifndef EGL_NO_PLATFORM_SPECIFIC_TYPES
+#define EGL_NO_PLATFORM_SPECIFIC_TYPES
+#endif
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
