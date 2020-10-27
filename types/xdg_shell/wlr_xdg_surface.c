@@ -336,7 +336,9 @@ static void xdg_surface_handle_surface_commit(struct wl_listener *listener,
 		return;
 	}
 
-	if (surface->role == WLR_XDG_SURFACE_ROLE_NONE) {
+	// surface->role might be NONE for inert popups
+	// So we check surface->surface->role
+	if (surface->surface->role == NULL) {
 		wl_resource_post_error(surface->resource,
 			XDG_SURFACE_ERROR_NOT_CONSTRUCTED,
 			"xdg_surface must have a role");
@@ -361,7 +363,8 @@ void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 
 	switch (surface->role) {
 	case WLR_XDG_SURFACE_ROLE_NONE:
-		assert(false);
+		// inert toplevel or popup
+		return;
 	case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
 		handle_xdg_surface_toplevel_committed(surface);
 		break;
