@@ -494,7 +494,7 @@ void reset_xdg_surface(struct wlr_xdg_surface *xdg_surface) {
 		break;
 	case WLR_XDG_SURFACE_ROLE_POPUP:
 		wl_resource_set_user_data(xdg_surface->popup->resource, NULL);
-		xdg_surface->toplevel->resource = NULL;
+		xdg_surface->popup->resource = NULL;
 
 		wl_list_remove(&xdg_surface->popup->link);
 
