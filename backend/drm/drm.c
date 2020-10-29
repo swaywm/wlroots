@@ -1523,7 +1523,7 @@ static void page_flip_handler(int fd, unsigned seq,
 	};
 	wlr_output_send_present(&conn->output, &present_event);
 
-	if (drm->session->active) {
+	if (drm->session->active && conn->output.enabled) {
 		wlr_output_send_frame(&conn->output);
 	}
 }
