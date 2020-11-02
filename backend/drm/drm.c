@@ -373,6 +373,12 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 	}
 
 	conn->pageflip_pending = true;
+
+	// wlr_output's API guarantees that submitting a buffer will schedule a
+	// frame event. However the DRM backend will also schedule a frame event
+	// when performing a modeset. Set frame_pending to true so that
+	// wlr_output_schedule_frame doesn't trigger a synthetic frame event.
+	conn->output.frame_pending = true;
 	return true;
 }
 
