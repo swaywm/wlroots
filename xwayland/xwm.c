@@ -1054,49 +1054,49 @@ static void xwm_handle_surface_id_message(struct wlr_xwm *xwm,
 	}
 }
 
-#define _NET_WM_MOVERESIZE_SIZE_TOPLEFT      0
-#define _NET_WM_MOVERESIZE_SIZE_TOP          1
-#define _NET_WM_MOVERESIZE_SIZE_TOPRIGHT     2
-#define _NET_WM_MOVERESIZE_SIZE_RIGHT        3
-#define _NET_WM_MOVERESIZE_SIZE_BOTTOMRIGHT  4
-#define _NET_WM_MOVERESIZE_SIZE_BOTTOM       5
-#define _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT   6
-#define _NET_WM_MOVERESIZE_SIZE_LEFT         7
-#define _NET_WM_MOVERESIZE_MOVE              8  // movement only
-#define _NET_WM_MOVERESIZE_SIZE_KEYBOARD     9  // size via keyboard
-#define _NET_WM_MOVERESIZE_MOVE_KEYBOARD    10  // move via keyboard
-#define _NET_WM_MOVERESIZE_CANCEL           11  // cancel operation
+#define _NET_WM_MOVERESIZE_SIZE_TOPLEFT 0
+#define _NET_WM_MOVERESIZE_SIZE_TOP 1
+#define _NET_WM_MOVERESIZE_SIZE_TOPRIGHT 2
+#define _NET_WM_MOVERESIZE_SIZE_RIGHT 3
+#define _NET_WM_MOVERESIZE_SIZE_BOTTOMRIGHT 4
+#define _NET_WM_MOVERESIZE_SIZE_BOTTOM 5
+#define _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT 6
+#define _NET_WM_MOVERESIZE_SIZE_LEFT 7
+#define _NET_WM_MOVERESIZE_MOVE 8  // movement only
+#define _NET_WM_MOVERESIZE_SIZE_KEYBOARD 9  // size via keyboard
+#define _NET_WM_MOVERESIZE_MOVE_KEYBOARD 10  // move via keyboard
+#define _NET_WM_MOVERESIZE_CANCEL 11  // cancel operation
 
 static enum wlr_edges net_wm_edges_to_wlr(uint32_t net_wm_edges) {
 	enum wlr_edges edges = WLR_EDGE_NONE;
 
 	switch(net_wm_edges) {
-		case _NET_WM_MOVERESIZE_SIZE_TOPLEFT:
-			edges = WLR_EDGE_TOP | WLR_EDGE_LEFT;
-			break;
-		case _NET_WM_MOVERESIZE_SIZE_TOP:
-			edges = WLR_EDGE_TOP;
-			break;
-		case _NET_WM_MOVERESIZE_SIZE_TOPRIGHT:
-			edges = WLR_EDGE_TOP | WLR_EDGE_RIGHT;
-			break;
-		case _NET_WM_MOVERESIZE_SIZE_RIGHT:
-			edges = WLR_EDGE_RIGHT;
-			break;
-		case _NET_WM_MOVERESIZE_SIZE_BOTTOMRIGHT:
-			edges = WLR_EDGE_BOTTOM | WLR_EDGE_RIGHT;
-			break;
-		case _NET_WM_MOVERESIZE_SIZE_BOTTOM:
-			edges = WLR_EDGE_BOTTOM;
-			break;
-		case _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT:
-			edges = WLR_EDGE_BOTTOM | WLR_EDGE_LEFT;
-			break;
-		case _NET_WM_MOVERESIZE_SIZE_LEFT:
-			edges = WLR_EDGE_LEFT;
-			break;
-		default:
-			break;
+	case _NET_WM_MOVERESIZE_SIZE_TOPLEFT:
+		edges = WLR_EDGE_TOP | WLR_EDGE_LEFT;
+		break;
+	case _NET_WM_MOVERESIZE_SIZE_TOP:
+		edges = WLR_EDGE_TOP;
+		break;
+	case _NET_WM_MOVERESIZE_SIZE_TOPRIGHT:
+		edges = WLR_EDGE_TOP | WLR_EDGE_RIGHT;
+		break;
+	case _NET_WM_MOVERESIZE_SIZE_RIGHT:
+		edges = WLR_EDGE_RIGHT;
+		break;
+	case _NET_WM_MOVERESIZE_SIZE_BOTTOMRIGHT:
+		edges = WLR_EDGE_BOTTOM | WLR_EDGE_RIGHT;
+		break;
+	case _NET_WM_MOVERESIZE_SIZE_BOTTOM:
+		edges = WLR_EDGE_BOTTOM;
+		break;
+	case _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT:
+		edges = WLR_EDGE_BOTTOM | WLR_EDGE_LEFT;
+		break;
+	case _NET_WM_MOVERESIZE_SIZE_LEFT:
+		edges = WLR_EDGE_LEFT;
+		break;
+	default:
+		break;
 	}
 
 	return edges;
@@ -1138,25 +1138,25 @@ static void xwm_handle_net_wm_moveresize_message(struct wlr_xwm *xwm,
 	}
 }
 
-#define _NET_WM_STATE_REMOVE	0
-#define _NET_WM_STATE_ADD	1
-#define _NET_WM_STATE_TOGGLE	2
+#define _NET_WM_STATE_REMOVE 0
+#define _NET_WM_STATE_ADD 1
+#define _NET_WM_STATE_TOGGLE 2
 
 static bool update_state(int action, bool *state) {
 	int new_state, changed;
 
 	switch (action) {
-		case _NET_WM_STATE_REMOVE:
-			new_state = false;
-			break;
-		case _NET_WM_STATE_ADD:
-			new_state = true;
-			break;
-		case _NET_WM_STATE_TOGGLE:
-			new_state = !*state;
-			break;
-		default:
-			return false;
+	case _NET_WM_STATE_REMOVE:
+		new_state = false;
+		break;
+	case _NET_WM_STATE_ADD:
+		new_state = true;
+		break;
+	case _NET_WM_STATE_TOGGLE:
+		new_state = !*state;
+		break;
+	default:
+		return false;
 	}
 
 	changed = (*state != new_state);
