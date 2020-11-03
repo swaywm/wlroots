@@ -1187,7 +1187,7 @@ static void xwm_handle_net_wm_state_message(struct wlr_xwm *xwm,
 
 	uint32_t action = client_message->data.data32[0];
 	for (size_t i = 0; i < 2; ++i) {
-		uint32_t property = client_message->data.data32[1 + i];
+		xcb_atom_t property = client_message->data.data32[1 + i];
 
 		if (property == xwm->atoms[NET_WM_STATE_MODAL] &&
 				update_state(action, &xsurface->modal)) {
@@ -1204,6 +1204,11 @@ static void xwm_handle_net_wm_state_message(struct wlr_xwm *xwm,
 		} else if (property == xwm->atoms[NET_WM_STATE_HIDDEN] &&
 				update_state(action, &xsurface->minimized)) {
 			xsurface_set_net_wm_state(xsurface);
+		} else if (property != XCB_ATOM_NONE) {
+			char *prop_name = xwm_get_atom_name(xwm, property);
+			wlr_log(WLR_DEBUG, "Unhandled NET_WM_STATE property change "
+				"%"PRIu32" (%s)", property, prop_name ? prop_name : "(null)");
+			free(prop_name);
 		}
 	}
 	// client_message->data.data32[3] is the source indication
