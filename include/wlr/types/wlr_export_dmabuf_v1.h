@@ -29,12 +29,11 @@ struct wlr_export_dmabuf_frame_v1 {
 	struct wlr_export_dmabuf_manager_v1 *manager;
 	struct wl_list link; // wlr_export_dmabuf_manager_v1::frames
 
-	struct wlr_dmabuf_attributes attribs;
 	struct wlr_output *output;
 
 	bool cursor_locked;
 
-	struct wl_listener output_precommit;
+	struct wl_listener output_commit;
 };
 
 struct wlr_export_dmabuf_manager_v1 *wlr_export_dmabuf_manager_v1_create(
