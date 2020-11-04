@@ -607,6 +607,7 @@ bool wlr_output_commit(struct wlr_output *output) {
 	struct wlr_output_event_commit event = {
 		.output = output,
 		.committed = output->pending.committed,
+		.when = &now,
 	};
 	wlr_signal_emit_safe(&output->events.commit, &event);
 
