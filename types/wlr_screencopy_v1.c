@@ -278,6 +278,15 @@ static void frame_handle_output_commit(struct wl_listener *listener,
 	wl_list_remove(&frame->output_commit.link);
 	wl_list_init(&frame->output_commit.link);
 
+	// TODO: add support for copying regions with DMA-BUFs
+	if (frame->box.x != 0 || frame->box.y != 0 ||
+			output->width != frame->box.width ||
+			output->height != frame->box.height) {
+		zwlr_screencopy_frame_v1_send_failed(frame->resource);
+		frame_destroy(frame);
+		return;
+	}
+
 	struct wlr_dmabuf_attributes attr = { 0 };
 	bool ok = wlr_output_export_dmabuf(output, &attr);
 	ok = ok && wlr_renderer_blit_dmabuf(renderer,
