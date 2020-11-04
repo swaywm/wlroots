@@ -639,13 +639,15 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 		return false;
 	}
 
-	struct wlr_drm_plane *plane = crtc->primary;
-
-	if (plane->current_fb.type == WLR_DRM_FB_TYPE_NONE) {
+	struct wlr_drm_fb *fb = &crtc->primary->queued_fb;
+	if (fb->type == WLR_DRM_FB_TYPE_NONE) {
+		fb = &crtc->primary->current_fb;
+	}
+	if (fb->type == WLR_DRM_FB_TYPE_NONE) {
 		return false;
 	}
 
-	return export_drm_bo(plane->current_fb.bo, attribs);
+	return export_drm_bo(fb->bo, attribs);
 }
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
