@@ -84,7 +84,6 @@ struct wlr_xwayland {
 
 	struct wl_listener server_ready;
 	struct wl_listener server_destroy;
-	struct wl_listener client_destroy;
 	struct wl_listener seat_destroy;
 
 	void *data;
