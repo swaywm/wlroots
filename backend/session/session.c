@@ -170,6 +170,8 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 		goto error_mon;
 	}
 
+	session->display = disp;
+
 	session->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(disp, &session->display_destroy);
 
@@ -301,6 +303,36 @@ static size_t explicit_find_gpus(struct wlr_session *session,
 	return i;
 }
 
+static struct udev_enumerate *enumerate_drm_cards(struct udev *udev) {
+	struct udev_enumerate *en = udev_enumerate_new(udev);
+	if (!en) {
+		wlr_log(WLR_ERROR, "udev_enumerate_new failed");
+		return NULL;
+	}
+
+	udev_enumerate_add_match_subsystem(en, "drm");
+	udev_enumerate_add_match_sysname(en, "card[0-9]*");
+
+	if (udev_enumerate_scan_devices(en) != 0) {
+		wlr_log(WLR_ERROR, "udev_enumerate_scan_devices failed");
+		udev_enumerate_unref(en);
+		return NULL;
+	}
+
+	return en;
+}
+
+struct find_gpus_add_handler {
+	bool added;
+	struct wl_listener listener;
+};
+
+static void find_gpus_handle_add(struct wl_listener *listener, void *data) {
+	struct find_gpus_add_handler *handler =
+		wl_container_of(listener, handler, listener);
+	handler->added = true;
+}
+
 /* Tries to find the primary GPU by checking for the "boot_vga" attribute.
  * If it's not found, it returns the first valid GPU it finds.
  */
@@ -311,15 +343,38 @@ size_t wlr_session_find_gpus(struct wlr_session *session,
 		return explicit_find_gpus(session, ret_len, ret, explicit);
 	}
 
-	struct udev_enumerate *en = udev_enumerate_new(session->udev);
+	struct udev_enumerate *en = enumerate_drm_cards(session->udev);
 	if (!en) {
-		wlr_log(WLR_ERROR, "Failed to create udev enumeration");
 		return -1;
 	}
 
-	udev_enumerate_add_match_subsystem(en, "drm");
-	udev_enumerate_add_match_sysname(en, "card[0-9]*");
-	udev_enumerate_scan_devices(en);
+	if (udev_enumerate_get_list_entry(en) == NULL) {
+		udev_enumerate_unref(en);
+		wlr_log(WLR_INFO, "Waiting for a DRM card device");
+
+		struct find_gpus_add_handler handler = {0};
+		handler.listener.notify = find_gpus_handle_add;
+		wl_signal_add(&session->events.add_drm_card, &handler.listener);
+
+		struct wl_event_loop *event_loop =
+			wl_display_get_event_loop(session->display);
+		while (!handler.added) {
+			int ret = wl_event_loop_dispatch(event_loop, -1);
+			if (ret < 0) {
+				wlr_log_errno(WLR_ERROR, "Failed to wait for DRM card device: "
+					"wl_event_loop_dispatch failed");
+				udev_enumerate_unref(en);
+				return -1;
+			}
+		}
+
+		wl_list_remove(&handler.listener.link);
+
+		en = enumerate_drm_cards(session->udev);
+		if (!en) {
+			return -1;
+		}
+	}
 
 	struct udev_list_entry *entry;
 	size_t i = 0;

@@ -40,6 +40,7 @@ struct wlr_session {
 
 	struct wl_list devices;
 
+	struct wl_display *display;
 	struct wl_listener display_destroy;
 
 	struct {
