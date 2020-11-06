@@ -22,7 +22,8 @@
  * a DRM backend, other kinds of backends raise SIGABRT).
  */
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
-	struct wlr_session *session, int gpu_fd, struct wlr_backend *parent,
+	struct wlr_session *session, struct wlr_device *dev,
+	struct wlr_backend *parent,
 	wlr_renderer_create_func_t create_renderer_func);
 
 bool wlr_backend_is_drm(struct wlr_backend *backend);

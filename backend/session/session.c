@@ -55,7 +55,7 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 
 	wl_list_for_each(dev, &session->devices, link) {
 		if (dev->dev == devnum) {
-			wlr_signal_emit_safe(&dev->signal, session);
+			wlr_signal_emit_safe(&dev->events.change, NULL);
 			break;
 		}
 	}
@@ -169,10 +169,11 @@ void wlr_session_destroy(struct wlr_session *session) {
 	session->impl->destroy(session);
 }
 
-int wlr_session_open_file(struct wlr_session *session, const char *path) {
+struct wlr_device *wlr_session_open_file(struct wlr_session *session,
+		const char *path) {
 	int fd = session->impl->open(session, path);
 	if (fd < 0) {
-		return fd;
+		return NULL;
 	}
 
 	struct wlr_device *dev = malloc(sizeof(*dev));
@@ -189,44 +190,22 @@ int wlr_session_open_file(struct wlr_session *session, const char *path) {
 
 	dev->fd = fd;
 	dev->dev = st.st_rdev;
-	wl_signal_init(&dev->signal);
+	wl_signal_init(&dev->events.change);
 	wl_list_insert(&session->devices, &dev->link);
 
-	return fd;
+	return dev;
 
 error:
 	free(dev);
 	close(fd);
-	return -1;
-}
-
-static struct wlr_device *find_device(struct wlr_session *session, int fd) {
-	struct wlr_device *dev;
-
-	wl_list_for_each(dev, &session->devices, link) {
-		if (dev->fd == fd) {
-			return dev;
-		}
-	}
-
-	wlr_log(WLR_ERROR, "Tried to use fd %d not opened by session", fd);
-	assert(0);
 	return NULL;
 }
 
-void wlr_session_close_file(struct wlr_session *session, int fd) {
-	struct wlr_device *dev = find_device(session, fd);
-
-	session->impl->close(session, fd);
+void wlr_session_close_file(struct wlr_session *session,
+		struct wlr_device *dev) {
+	session->impl->close(session, dev->fd);
 	wl_list_remove(&dev->link);
 	free(dev);
-}
-
-void wlr_session_signal_add(struct wlr_session *session, int fd,
-		struct wl_listener *listener) {
-	struct wlr_device *dev = find_device(session, fd);
-
-	wl_signal_add(&dev->signal, listener);
 }
 
 bool wlr_session_change_vt(struct wlr_session *session, unsigned vt) {
@@ -240,32 +219,32 @@ bool wlr_session_change_vt(struct wlr_session *session, unsigned vt) {
 /* Tests if 'path' is KMS compatible by trying to open it.
  * It leaves the open device in *fd_out it it succeeds.
  */
-static int open_if_kms(struct wlr_session *restrict session,
+static struct wlr_device *open_if_kms(struct wlr_session *restrict session,
 		const char *restrict path) {
 	if (!path) {
-		return -1;
+		return NULL;
 	}
 
-	int fd = wlr_session_open_file(session, path);
-	if (fd < 0) {
-		return -1;
+	struct wlr_device *dev = wlr_session_open_file(session, path);
+	if (!dev) {
+		return NULL;
 	}
 
-	drmVersion *ver = drmGetVersion(fd);
+	drmVersion *ver = drmGetVersion(dev->fd);
 	if (!ver) {
-		goto out_fd;
+		goto out_dev;
 	}
 
 	drmFreeVersion(ver);
-	return fd;
+	return dev;
 
-out_fd:
-	wlr_session_close_file(session, fd);
-	return -1;
+out_dev:
+	wlr_session_close_file(session, dev);
+	return NULL;
 }
 
 static size_t explicit_find_gpus(struct wlr_session *session,
-		size_t ret_len, int ret[static ret_len], const char *str) {
+		size_t ret_len, struct wlr_device *ret[static ret_len], const char *str) {
 	char *gpus = strdup(str);
 	if (!gpus) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
@@ -281,7 +260,7 @@ static size_t explicit_find_gpus(struct wlr_session *session,
 		}
 
 		ret[i] = open_if_kms(session, ptr);
-		if (ret[i] < 0) {
+		if (!ret[i]) {
 			wlr_log(WLR_ERROR, "Unable to open %s as DRM device", ptr);
 		} else {
 			++i;
@@ -296,7 +275,7 @@ static size_t explicit_find_gpus(struct wlr_session *session,
  * If it's not found, it returns the first valid GPU it finds.
  */
 size_t wlr_session_find_gpus(struct wlr_session *session,
-		size_t ret_len, int *ret) {
+		size_t ret_len, struct wlr_device **ret) {
 	const char *explicit = getenv("WLR_DRM_DEVICES");
 	if (explicit) {
 		return explicit_find_gpus(session, ret_len, ret, explicit);
@@ -348,17 +327,18 @@ size_t wlr_session_find_gpus(struct wlr_session *session,
 			}
 		}
 
-		int fd = open_if_kms(session, udev_device_get_devnode(dev));
-		if (fd < 0) {
+		struct wlr_device *wlr_dev =
+			open_if_kms(session, udev_device_get_devnode(dev));
+		if (!wlr_dev) {
 			udev_device_unref(dev);
 			continue;
 		}
 
 		udev_device_unref(dev);
 
-		ret[i] = fd;
+		ret[i] = wlr_dev;
 		if (is_boot_vga) {
-			int tmp = ret[0];
+			struct wlr_device *tmp = ret[0];
 			ret[0] = ret[i];
 			ret[i] = tmp;
 		}

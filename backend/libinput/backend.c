@@ -17,12 +17,27 @@ static struct wlr_libinput_backend *get_libinput_backend_from_backend(
 static int libinput_open_restricted(const char *path,
 		int flags, void *_backend) {
 	struct wlr_libinput_backend *backend = _backend;
-	return wlr_session_open_file(backend->session, path);
+	struct wlr_device *dev = wlr_session_open_file(backend->session, path);
+	if (dev == NULL) {
+		return -1;
+	}
+	return dev->fd;
 }
 
 static void libinput_close_restricted(int fd, void *_backend) {
 	struct wlr_libinput_backend *backend = _backend;
-	wlr_session_close_file(backend->session, fd);
+
+	struct wlr_device *dev;
+	bool found = false;
+	wl_list_for_each(dev, &backend->session->devices, link) {
+		if (dev->fd == fd) {
+			found = true;
+			break;
+		}
+	}
+	if (found) {
+		wlr_session_close_file(backend->session, dev);
+	}
 }
 
 static const struct libinput_interface libinput_impl = {
