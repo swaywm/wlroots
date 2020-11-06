@@ -33,6 +33,19 @@ static const struct session_impl *impls[] = {
 	NULL,
 };
 
+static bool is_drm_card(const char *sysname) {
+	const char prefix[] = "card";
+	if (strncmp(sysname, prefix, strlen(prefix)) != 0) {
+		return false;
+	}
+	for (size_t i = strlen(prefix); sysname[i] != '\0'; i++) {
+		if (sysname[i] < '0' || sysname[i] > '9') {
+			return false;
+		}
+	}
+	return true;
+}
+
 static int udev_event(int fd, uint32_t mask, void *data) {
 	struct wlr_session *session = data;
 
@@ -41,18 +54,16 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 		return 1;
 	}
 
+	const char *sysname = udev_device_get_sysname(udev_dev);
 	const char *action = udev_device_get_action(udev_dev);
+	wlr_log(WLR_DEBUG, "udev event for %s (%s)", sysname, action);
 
-	wlr_log(WLR_DEBUG, "udev event for %s (%s)",
-		udev_device_get_sysname(udev_dev), action);
-
-	if (!action || strcmp(action, "change") != 0) {
+	if (!is_drm_card(sysname) || !action || strcmp(action, "change") != 0) {
 		goto out;
 	}
 
 	dev_t devnum = udev_device_get_devnum(udev_dev);
 	struct wlr_device *dev;
-
 	wl_list_for_each(dev, &session->devices, link) {
 		if (dev->dev == devnum) {
 			wlr_signal_emit_safe(&dev->events.change, NULL);
