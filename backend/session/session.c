@@ -55,19 +55,37 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 	}
 
 	const char *sysname = udev_device_get_sysname(udev_dev);
+	const char *devnode = udev_device_get_devnode(udev_dev);
 	const char *action = udev_device_get_action(udev_dev);
 	wlr_log(WLR_DEBUG, "udev event for %s (%s)", sysname, action);
 
-	if (!is_drm_card(sysname) || !action || strcmp(action, "change") != 0) {
+	if (!is_drm_card(sysname) || !action || !devnode) {
 		goto out;
 	}
 
-	dev_t devnum = udev_device_get_devnum(udev_dev);
-	struct wlr_device *dev;
-	wl_list_for_each(dev, &session->devices, link) {
-		if (dev->dev == devnum) {
-			wlr_signal_emit_safe(&dev->events.change, NULL);
-			break;
+	const char *seat = udev_device_get_property_value(udev_dev, "ID_SEAT");
+	if (!seat) {
+		seat = "seat0";
+	}
+	if (session->seat[0] != '\0' && strcmp(session->seat, seat) != 0) {
+		goto out;
+	}
+
+	if (strcmp(action, "add") == 0) {
+		wlr_log(WLR_DEBUG, "DRM device %s added", sysname);
+		struct wlr_session_add_event event = {
+			.path = devnode,
+		};
+		wlr_signal_emit_safe(&session->events.add_drm_card, &event);
+	} else if (strcmp(action, "change") == 0) {
+		dev_t devnum = udev_device_get_devnum(udev_dev);
+		struct wlr_device *dev;
+		wl_list_for_each(dev, &session->devices, link) {
+			if (dev->dev == devnum) {
+				wlr_log(WLR_DEBUG, "DRM device %s changed", sysname);
+				wlr_signal_emit_safe(&dev->events.change, NULL);
+				break;
+			}
 		}
 	}
 
@@ -84,6 +102,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 
 void session_init(struct wlr_session *session) {
 	wl_signal_init(&session->session_signal);
+	wl_signal_init(&session->events.add_drm_card);
 	wl_signal_init(&session->events.destroy);
 	wl_list_init(&session->devices);
 }
