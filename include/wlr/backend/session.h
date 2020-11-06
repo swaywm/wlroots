@@ -43,8 +43,13 @@ struct wlr_session {
 	struct wl_listener display_destroy;
 
 	struct {
+		struct wl_signal add_drm_card; // struct wlr_session_add_event
 		struct wl_signal destroy;
 	} events;
+};
+
+struct wlr_session_add_event {
+	const char *path;
 };
 
 /*
