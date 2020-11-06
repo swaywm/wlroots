@@ -24,7 +24,6 @@ struct wlr_session {
 	 * Signal for when the session becomes active/inactive.
 	 * It's called when we swap virtual terminal.
 	 */
-	struct wl_signal session_signal;
 	bool active;
 
 	/*
@@ -44,6 +43,7 @@ struct wlr_session {
 	struct wl_listener display_destroy;
 
 	struct {
+		struct wl_signal active;
 		struct wl_signal add_drm_card; // struct wlr_session_add_event
 		struct wl_signal destroy;
 	} events;

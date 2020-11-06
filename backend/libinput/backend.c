@@ -175,7 +175,7 @@ bool wlr_backend_is_libinput(struct wlr_backend *b) {
 static void session_signal(struct wl_listener *listener, void *data) {
 	struct wlr_libinput_backend *backend =
 		wl_container_of(listener, backend, session_signal);
-	struct wlr_session *session = data;
+	struct wlr_session *session = backend->session;
 
 	if (!backend->libinput_context) {
 		return;
@@ -219,7 +219,7 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 	backend->display = display;
 
 	backend->session_signal.notify = session_signal;
-	wl_signal_add(&session->session_signal, &backend->session_signal);
+	wl_signal_add(&session->events.active, &backend->session_signal);
 
 	backend->session_destroy.notify = handle_session_destroy;
 	wl_signal_add(&session->events.destroy, &backend->session_destroy);

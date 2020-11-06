@@ -306,7 +306,7 @@ static int pause_device(sd_bus_message *msg, void *userdata,
 	if (major == DRM_MAJOR && strcmp(type, "gone") != 0) {
 		assert(session->has_drm);
 		session->base.active = false;
-		wlr_signal_emit_safe(&session->base.session_signal, session);
+		wlr_signal_emit_safe(&session->base.events.active, NULL);
 	}
 
 	if (strcmp(type, "pause") == 0) {
@@ -348,7 +348,7 @@ static int resume_device(sd_bus_message *msg, void *userdata,
 
 		if (!session->base.active) {
 			session->base.active = true;
-			wlr_signal_emit_safe(&session->base.session_signal, session);
+			wlr_signal_emit_safe(&session->base.events.active, NULL);
 		}
 	}
 
@@ -407,7 +407,7 @@ static int session_properties_changed(sd_bus_message *msg, void *userdata,
 
 			if (session->base.active != active) {
 				session->base.active = active;
-				wlr_signal_emit_safe(&session->base.session_signal, session);
+				wlr_signal_emit_safe(&session->base.events.active, NULL);
 			}
 			return 0;
 		} else {
@@ -447,7 +447,7 @@ static int session_properties_changed(sd_bus_message *msg, void *userdata,
 
 			if (session->base.active != active) {
 				session->base.active = active;
-				wlr_signal_emit_safe(&session->base.session_signal, session);
+				wlr_signal_emit_safe(&session->base.events.active, NULL);
 			}
 			return 0;
 		}

@@ -101,7 +101,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 }
 
 void session_init(struct wlr_session *session) {
-	wl_signal_init(&session->session_signal);
+	wl_signal_init(&session->events.active);
 	wl_signal_init(&session->events.add_drm_card);
 	wl_signal_init(&session->events.destroy);
 	wl_list_init(&session->devices);
