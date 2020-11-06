@@ -259,6 +259,9 @@ void wlr_input_method_keyboard_grab_v2_set_keyboard(
 			handle_keyboard_destroy;
 		wl_signal_add(&keyboard->events.destroy,
 			&keyboard_grab->keyboard_destroy);
+
+		wlr_input_method_keyboard_grab_v2_send_modifiers(keyboard_grab,
+			&keyboard->modifiers);
 	}
 
 	keyboard_grab->keyboard = keyboard;
