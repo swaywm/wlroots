@@ -50,7 +50,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	finish_drm_resources(drm);
 	finish_drm_renderer(&drm->renderer);
-	wlr_session_close_file(drm->session, drm->fd);
+	wlr_session_close_file(drm->session, drm->dev);
 	wl_event_source_remove(drm->drm_event);
 	free(drm);
 }
@@ -128,13 +128,14 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 }
 
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
-		struct wlr_session *session, int gpu_fd, struct wlr_backend *parent,
+		struct wlr_session *session, struct wlr_device *dev,
+		struct wlr_backend *parent,
 		wlr_renderer_create_func_t create_renderer_func) {
-	assert(display && session && gpu_fd >= 0);
+	assert(display && session && dev);
 	assert(!parent || wlr_backend_is_drm(parent));
 
-	char *name = drmGetDeviceNameFromFd2(gpu_fd);
-	drmVersion *version = drmGetVersion(gpu_fd);
+	char *name = drmGetDeviceNameFromFd2(dev->fd);
+	drmVersion *version = drmGetVersion(dev->fd);
 	wlr_log(WLR_INFO, "Initializing DRM backend for %s (%s)", name, version->name);
 	free(name);
 	drmFreeVersion(version);
@@ -149,13 +150,14 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	drm->session = session;
 	wl_list_init(&drm->outputs);
 
-	drm->fd = gpu_fd;
+	drm->dev = dev;
+	drm->fd = dev->fd;
 	if (parent != NULL) {
 		drm->parent = get_drm_backend_from_backend(parent);
 	}
 
 	drm->drm_invalidated.notify = drm_invalidated;
-	wlr_session_signal_add(session, gpu_fd, &drm->drm_invalidated);
+	wl_signal_add(&dev->events.change, &drm->drm_invalidated);
 
 	drm->display = display;
 	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
@@ -195,7 +197,7 @@ error_event:
 	wl_list_remove(&drm->session_signal.link);
 	wl_event_source_remove(drm->drm_event);
 error_fd:
-	wlr_session_close_file(drm->session, drm->fd);
+	wlr_session_close_file(drm->session, dev);
 	free(drm);
 	return NULL;
 }

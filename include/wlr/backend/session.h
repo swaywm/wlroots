@@ -11,9 +11,11 @@ struct session_impl;
 struct wlr_device {
 	int fd;
 	dev_t dev;
-	struct wl_signal signal;
-
 	struct wl_list link;
+
+	struct {
+		struct wl_signal change;
+	} events;
 };
 
 struct wlr_session {
@@ -74,21 +76,21 @@ void wlr_session_destroy(struct wlr_session *session);
  *
  * Returns -errno on error.
  */
-int wlr_session_open_file(struct wlr_session *session, const char *path);
+struct wlr_device *wlr_session_open_file(struct wlr_session *session,
+	const char *path);
 
 /*
  * Closes a file previously opened with wlr_session_open_file.
  */
-void wlr_session_close_file(struct wlr_session *session, int fd);
+void wlr_session_close_file(struct wlr_session *session,
+	struct wlr_device *device);
 
-void wlr_session_signal_add(struct wlr_session *session, int fd,
-	struct wl_listener *listener);
 /*
  * Changes the virtual terminal.
  */
 bool wlr_session_change_vt(struct wlr_session *session, unsigned vt);
 
 size_t wlr_session_find_gpus(struct wlr_session *session,
-	size_t ret_len, int *ret);
+	size_t ret_len, struct wlr_device **ret);
 
 #endif
