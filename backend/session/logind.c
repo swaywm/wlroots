@@ -569,6 +569,8 @@ static bool get_display_session(char **session_id) {
 	char *xdg_session_id = getenv("XDG_SESSION_ID");
 
 	if (xdg_session_id) {
+		wlr_log(WLR_INFO, "Selecting session from XDG_SESSION_ID: %s", xdg_session_id);
+
 		// This just checks whether the supplied session ID is valid
 		if (sd_session_is_active(xdg_session_id) < 0) {
 			wlr_log(WLR_ERROR, "Invalid XDG_SESSION_ID: '%s'", xdg_session_id);
