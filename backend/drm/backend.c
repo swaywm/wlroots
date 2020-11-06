@@ -85,7 +85,7 @@ bool wlr_backend_is_drm(struct wlr_backend *b) {
 static void session_signal(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *drm =
 		wl_container_of(listener, drm, session_signal);
-	struct wlr_session *session = data;
+	struct wlr_session *session = drm->session;
 
 	if (session->active) {
 		wlr_log(WLR_INFO, "DRM fd resumed");
@@ -170,7 +170,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	}
 
 	drm->session_signal.notify = session_signal;
-	wl_signal_add(&session->session_signal, &drm->session_signal);
+	wl_signal_add(&session->events.active, &drm->session_signal);
 
 	if (!check_drm_features(drm)) {
 		goto error_event;

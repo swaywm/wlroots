@@ -35,13 +35,13 @@ struct libseat_session {
 static void handle_enable_seat(struct libseat *seat, void *data) {
 	struct libseat_session *session = data;
 	session->base.active = true;
-	wlr_signal_emit_safe(&session->base.session_signal, session);
+	wlr_signal_emit_safe(&session->base.events.active, NULL);
 }
 
 static void handle_disable_seat(struct libseat *seat, void *data) {
 	struct libseat_session *session = data;
 	session->base.active = false;
-	wlr_signal_emit_safe(&session->base.session_signal, session);
+	wlr_signal_emit_safe(&session->base.events.active, NULL);
 	libseat_disable_seat(session->seat);
 }
 
