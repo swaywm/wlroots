@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include <wayland-server-core.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/session/interface.h>
@@ -195,7 +196,8 @@ int wlr_session_open_file(struct wlr_session *session, const char *path) {
 
 error:
 	free(dev);
-	return fd;
+	close(fd);
+	return -1;
 }
 
 static struct wlr_device *find_device(struct wlr_session *session, int fd) {
