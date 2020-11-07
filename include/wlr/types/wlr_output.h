@@ -166,6 +166,8 @@ struct wlr_output {
 		struct wl_signal commit; // wlr_output_event_commit
 		// Emitted right after the buffer has been presented to the user
 		struct wl_signal present; // wlr_output_event_present
+		// Emitted after a client bound the wl_output global
+		struct wl_signal bind; // wlr_output_event_bind
 		struct wl_signal enable;
 		struct wl_signal mode;
 		struct wl_signal scale;
@@ -231,6 +233,11 @@ struct wlr_output_event_present {
 	// refresh may occur. Zero if unknown.
 	int refresh; // nsec
 	uint32_t flags; // enum wlr_output_present_flag
+};
+
+struct wlr_output_event_bind {
+	struct wlr_output *output;
+	struct wl_resource *resource;
 };
 
 struct wlr_surface;

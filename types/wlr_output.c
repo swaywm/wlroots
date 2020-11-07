@@ -93,6 +93,13 @@ static void output_bind(struct wl_client *wl_client, void *data,
 	send_current_mode(resource);
 	send_scale(resource);
 	send_done(resource);
+
+	struct wlr_output_event_bind evt = {
+		.output = output,
+		.resource = resource,
+	};
+
+	wlr_signal_emit_safe(&output->events.bind, &evt);
 }
 
 void wlr_output_create_global(struct wlr_output *output) {
@@ -333,6 +340,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.precommit);
 	wl_signal_init(&output->events.commit);
 	wl_signal_init(&output->events.present);
+	wl_signal_init(&output->events.bind);
 	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.mode);
 	wl_signal_init(&output->events.scale);
