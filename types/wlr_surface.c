@@ -616,8 +616,15 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 	free(subsurface);
 }
 
+static void surface_output_destroy(struct wlr_surface_output *surface_output);
+
 static void surface_handle_resource_destroy(struct wl_resource *resource) {
+	struct wlr_surface_output *surface_output, *tmp;
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
+
+	wl_list_for_each_safe(surface_output, tmp, &surface->current_outputs, link) {
+		surface_output_destroy(surface_output);
+	}
 
 	wlr_signal_emit_safe(&surface->events.destroy, surface);
 
@@ -676,6 +683,7 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
 	wl_signal_init(&surface->events.new_subsurface);
 	wl_list_init(&surface->subsurfaces);
 	wl_list_init(&surface->subsurface_pending_list);
+	wl_list_init(&surface->current_outputs);
 	pixman_region32_init(&surface->buffer_damage);
 	pixman_region32_init(&surface->opaque_region);
 	pixman_region32_init(&surface->input_region);
@@ -1091,10 +1099,59 @@ struct wlr_surface *wlr_surface_surface_at(struct wlr_surface *surface,
 	return NULL;
 }
 
+static void surface_output_destroy(struct wlr_surface_output *surface_output) {
+	wl_list_remove(&surface_output->bind.link);
+	wl_list_remove(&surface_output->destroy.link);
+	wl_list_remove(&surface_output->link);
+
+	free(surface_output);
+}
+
+static void surface_handle_output_bind(struct wl_listener *listener,
+		void *data) {
+	struct wlr_output_event_bind *evt = data;
+	struct wlr_surface_output *surface_output =
+		wl_container_of(listener, surface_output, bind);
+	struct wl_client *client = wl_resource_get_client(
+			surface_output->surface->resource);
+	if (client == wl_resource_get_client(evt->resource)) {
+		wl_surface_send_enter(surface_output->surface->resource, evt->resource);
+	}
+}
+
+static void surface_handle_output_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_surface_output *surface_output =
+		wl_container_of(listener, surface_output, destroy);
+	surface_output_destroy(surface_output);
+}
+
 void wlr_surface_send_enter(struct wlr_surface *surface,
 		struct wlr_output *output) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
+	struct wlr_surface_output *surface_output;
 	struct wl_resource *resource;
+
+	wl_list_for_each(surface_output, &surface->current_outputs, link) {
+		if (surface_output->output == output) {
+			return;
+		}
+	}
+
+	surface_output = calloc(1, sizeof(struct wlr_surface_output));
+	if (surface_output == NULL) {
+		return;
+	}
+	surface_output->bind.notify = surface_handle_output_bind;
+	surface_output->destroy.notify = surface_handle_output_destroy;
+
+	wl_signal_add(&output->events.bind, &surface_output->bind);
+	wl_signal_add(&output->events.destroy, &surface_output->destroy);
+
+	surface_output->surface = surface;
+	surface_output->output = output;
+	wl_list_insert(&surface->current_outputs, &surface_output->link);
+
 	wl_resource_for_each(resource, &output->resources) {
 		if (client == wl_resource_get_client(resource)) {
 			wl_surface_send_enter(surface->resource, resource);
@@ -1105,10 +1162,19 @@ void wlr_surface_send_enter(struct wlr_surface *surface,
 void wlr_surface_send_leave(struct wlr_surface *surface,
 		struct wlr_output *output) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
+	struct wlr_surface_output *surface_output, *tmp;
 	struct wl_resource *resource;
-	wl_resource_for_each(resource, &output->resources) {
-		if (client == wl_resource_get_client(resource)) {
-			wl_surface_send_leave(surface->resource, resource);
+
+	wl_list_for_each_safe(surface_output, tmp,
+			&surface->current_outputs, link) {
+		if (surface_output->output == output) {
+			surface_output_destroy(surface_output);
+			wl_resource_for_each(resource, &output->resources) {
+				if (client == wl_resource_get_client(resource)) {
+					wl_surface_send_leave(surface->resource, resource);
+				}
+			}
+			break;
 		}
 	}
 }
