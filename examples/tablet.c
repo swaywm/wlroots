@@ -14,6 +14,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_tablet_pad.h>
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/util/log.h>

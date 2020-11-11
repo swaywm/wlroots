@@ -11,6 +11,7 @@
 
 #include <stdint.h>
 #include <wayland-server-core.h>
+#include <wayland-server-protocol.h>
 #include <wlr/types/wlr_input_device.h>
 
 struct wlr_pointer_impl;
