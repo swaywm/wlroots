@@ -10,6 +10,7 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_keyboard.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 

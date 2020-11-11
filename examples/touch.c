@@ -14,7 +14,9 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_list.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_matrix.h>
+#include <wlr/types/wlr_touch.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "cat.h"
