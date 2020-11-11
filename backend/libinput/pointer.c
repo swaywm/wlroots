@@ -79,10 +79,10 @@ void handle_pointer_button(struct libinput_event *event,
 	wlr_event.button = libinput_event_pointer_get_button(pevent);
 	switch (libinput_event_pointer_get_button_state(pevent)) {
 	case LIBINPUT_BUTTON_STATE_PRESSED:
-		wlr_event.state = WLR_BUTTON_PRESSED;
+		wlr_event.state = WL_POINTER_BUTTON_STATE_PRESSED;
 		break;
 	case LIBINPUT_BUTTON_STATE_RELEASED:
-		wlr_event.state = WLR_BUTTON_RELEASED;
+		wlr_event.state = WL_POINTER_BUTTON_STATE_RELEASED;
 		break;
 	}
 	wlr_signal_emit_safe(&wlr_dev->pointer->events.button, &wlr_event);

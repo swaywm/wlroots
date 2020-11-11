@@ -370,10 +370,10 @@ void handle_tablet_tool_button(struct libinput_event *event,
 	wlr_event.button = libinput_event_tablet_tool_get_button(tevent);
 	switch (libinput_event_tablet_tool_get_button_state(tevent)) {
 	case LIBINPUT_BUTTON_STATE_RELEASED:
-		wlr_event.state = WLR_BUTTON_RELEASED;
+		wlr_event.state = ZWP_TABLET_TOOL_V2_BUTTON_STATE_RELEASED;
 		break;
 	case LIBINPUT_BUTTON_STATE_PRESSED:
-		wlr_event.state = WLR_BUTTON_PRESSED;
+		wlr_event.state = ZWP_TABLET_TOOL_V2_BUTTON_STATE_PRESSED;
 		break;
 	}
 	wlr_signal_emit_safe(&wlr_dev->tablet->events.button, &wlr_event);

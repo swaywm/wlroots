@@ -14,6 +14,8 @@
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_list.h>
 
+#include "tablet-unstable-v2-protocol.h"
+
 /*
  * Copy+Paste from libinput, but this should neither use libinput, nor
  * tablet-unstable-v2 headers, so we can't include them
@@ -139,7 +141,7 @@ struct wlr_event_tablet_tool_button {
 	struct wlr_tablet_tool *tool;
 	uint32_t time_msec;
 	uint32_t button;
-	enum wlr_button_state state;
+	enum zwp_tablet_tool_v2_button_state state;
 };
 
 #endif

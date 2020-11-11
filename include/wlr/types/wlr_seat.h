@@ -83,7 +83,7 @@ struct wlr_pointer_grab_interface {
 	void (*motion)(struct wlr_seat_pointer_grab *grab, uint32_t time_msec,
 			double sx, double sy);
 	uint32_t (*button)(struct wlr_seat_pointer_grab *grab, uint32_t time_msec,
-			uint32_t button, enum wlr_button_state state);
+			uint32_t button, enum wl_pointer_button_state state);
 	void (*axis)(struct wlr_seat_pointer_grab *grab, uint32_t time_msec,
 			enum wlr_axis_orientation orientation, double value,
 			int32_t value_discrete, enum wlr_axis_source source);
@@ -377,7 +377,7 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time_msec,
  * instead.
  */
 uint32_t wlr_seat_pointer_send_button(struct wlr_seat *wlr_seat,
-		uint32_t time_msec, uint32_t button, enum wlr_button_state state);
+		uint32_t time_msec, uint32_t button, enum wl_pointer_button_state state);
 
 /**
  * Send an axis event to the surface with pointer focus. This function does not
@@ -430,7 +430,7 @@ void wlr_seat_pointer_notify_motion(struct wlr_seat *wlr_seat,
  * pointer.
  */
 uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
-		uint32_t time_msec, uint32_t button, enum wlr_button_state state);
+		uint32_t time_msec, uint32_t button, enum wl_pointer_button_state state);
 
 /**
  * Notify the seat of an axis event. Defers to any grab of the pointer.

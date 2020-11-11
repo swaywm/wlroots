@@ -24,12 +24,14 @@ compositors = {
 	},
 	'pointer': {
 		'src': 'pointer.c',
+		'proto': ['tablet-unstable-v2'],
 	},
 	'touch': {
 		'src': ['touch.c', 'cat.c'],
 	},
 	'tablet': {
 		'src': 'tablet.c',
+		'proto': ['tablet-unstable-v2'],
 	},
 	'rotation': {
 		'src': ['rotation.c', 'cat.c'],

@@ -636,8 +636,7 @@ static void handle_tablet_tool_button(void *data,
 		.tool = &tool->wlr_tool,
 		.time_msec = get_current_time_msec(),
 		.button = button,
-		.state = state == ZWP_TABLET_TOOL_V2_BUTTON_STATE_RELEASED ?
-			WLR_BUTTON_RELEASED : WLR_BUTTON_PRESSED,
+		.state = state
 	};
 
 	wlr_signal_emit_safe(&tablet->events.button, &evt);

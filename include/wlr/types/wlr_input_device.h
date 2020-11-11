@@ -11,11 +11,6 @@
 
 #include <wayland-server-core.h>
 
-enum wlr_button_state {
-	WLR_BUTTON_RELEASED,
-	WLR_BUTTON_PRESSED,
-};
-
 enum wlr_input_device_type {
 	WLR_INPUT_DEVICE_KEYBOARD,
 	WLR_INPUT_DEVICE_POINTER,

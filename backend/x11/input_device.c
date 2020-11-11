@@ -31,7 +31,7 @@ static void send_key_event(struct wlr_x11_backend *x11, uint32_t key,
 }
 
 static void send_button_event(struct wlr_x11_output *output, uint32_t key,
-		enum wlr_button_state st, xcb_timestamp_t time) {
+		enum wl_pointer_button_state st, xcb_timestamp_t time) {
 	struct wlr_event_pointer_button ev = {
 		.device = &output->pointer_dev,
 		.time_msec = time,
@@ -150,15 +150,15 @@ void handle_x11_xinput_event(struct wlr_x11_backend *x11,
 
 		switch (ev->detail) {
 		case XCB_BUTTON_INDEX_1:
-			send_button_event(output, BTN_LEFT, WLR_BUTTON_PRESSED,
+			send_button_event(output, BTN_LEFT, WL_POINTER_BUTTON_STATE_PRESSED,
 				ev->time);
 			break;
 		case XCB_BUTTON_INDEX_2:
-			send_button_event(output, BTN_MIDDLE, WLR_BUTTON_PRESSED,
+			send_button_event(output, BTN_MIDDLE, WL_POINTER_BUTTON_STATE_PRESSED,
 				ev->time);
 			break;
 		case XCB_BUTTON_INDEX_3:
-			send_button_event(output, BTN_RIGHT, WLR_BUTTON_PRESSED,
+			send_button_event(output, BTN_RIGHT, WL_POINTER_BUTTON_STATE_PRESSED,
 				ev->time);
 			break;
 		case XCB_BUTTON_INDEX_4:
@@ -183,15 +183,15 @@ void handle_x11_xinput_event(struct wlr_x11_backend *x11,
 
 		switch (ev->detail) {
 		case XCB_BUTTON_INDEX_1:
-			send_button_event(output, BTN_LEFT, WLR_BUTTON_RELEASED,
+			send_button_event(output, BTN_LEFT, WL_POINTER_BUTTON_STATE_RELEASED,
 				ev->time);
 			break;
 		case XCB_BUTTON_INDEX_2:
-			send_button_event(output, BTN_MIDDLE, WLR_BUTTON_RELEASED,
+			send_button_event(output, BTN_MIDDLE, WL_POINTER_BUTTON_STATE_RELEASED,
 				ev->time);
 			break;
 		case XCB_BUTTON_INDEX_3:
-			send_button_event(output, BTN_RIGHT, WLR_BUTTON_RELEASED,
+			send_button_event(output, BTN_RIGHT, WL_POINTER_BUTTON_STATE_RELEASED,
 				ev->time);
 			break;
 		}

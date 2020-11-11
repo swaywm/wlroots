@@ -54,7 +54,7 @@ struct wlr_event_pointer_button {
 	struct wlr_input_device *device;
 	uint32_t time_msec;
 	uint32_t button;
-	enum wlr_button_state state;
+	enum wl_pointer_button_state state;
 };
 
 enum wlr_axis_source {

@@ -83,7 +83,7 @@ static void virtual_pointer_button(struct wl_client *client,
 		.device = wlr_dev,
 		.time_msec = time,
 		.button = button,
-		.state = state ? WLR_BUTTON_PRESSED : WLR_BUTTON_RELEASED
+		.state = state ? WL_POINTER_BUTTON_STATE_PRESSED : WL_POINTER_BUTTON_STATE_RELEASED
 	};
 	wlr_signal_emit_safe(&wlr_dev->pointer->events.button, &event);
 }

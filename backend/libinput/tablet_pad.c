@@ -115,10 +115,10 @@ void handle_tablet_pad_button(struct libinput_event *event,
 		libinput_event_tablet_pad_get_mode_group(pevent));
 	switch (libinput_event_tablet_pad_get_button_state(pevent)) {
 	case LIBINPUT_BUTTON_STATE_PRESSED:
-		wlr_event.state = WLR_BUTTON_PRESSED;
+		wlr_event.state = ZWP_TABLET_PAD_V2_BUTTON_STATE_PRESSED;
 		break;
 	case LIBINPUT_BUTTON_STATE_RELEASED:
-		wlr_event.state = WLR_BUTTON_RELEASED;
+		wlr_event.state = ZWP_TABLET_PAD_V2_BUTTON_STATE_RELEASED;
 		break;
 	}
 	wlr_signal_emit_safe(&wlr_dev->tablet_pad->events.button, &wlr_event);

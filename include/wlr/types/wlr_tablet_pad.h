@@ -14,6 +14,8 @@
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_list.h>
 
+#include "tablet-unstable-v2-protocol.h"
+
 /*
  * NOTE: the wlr tablet pad implementation does not currently support tablets
  * with more than one mode. I don't own any such hardware so I cannot test it
@@ -60,7 +62,7 @@ struct wlr_tablet_pad_group {
 struct wlr_event_tablet_pad_button {
 	uint32_t time_msec;
 	uint32_t button;
-	enum wlr_button_state state;
+	enum zwp_tablet_pad_v2_button_state state;
 	unsigned int mode;
 	unsigned int group;
 };
