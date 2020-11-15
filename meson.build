@@ -168,14 +168,14 @@ wlroots = declare_dependency(
 meson.override_dependency('wlroots', wlroots)
 
 summary({
-	'systemd': conf_data.get('WLR_HAS_SYSTEMD', 0),
-	'elogind': conf_data.get('WLR_HAS_ELOGIND', 0),
-	'libseat': conf_data.get('WLR_HAS_LIBSEAT', 0),
-	'xwayland': conf_data.get('WLR_HAS_XWAYLAND', 0),
-	'x11_backend': conf_data.get('WLR_HAS_X11_BACKEND', 0),
-	'xcb-icccm': conf_data.get('WLR_HAS_XCB_ICCCM', 0),
-	'xcb-errors': conf_data.get('WLR_HAS_XCB_ERRORS', 0),
-})
+	'systemd': conf_data.get('WLR_HAS_SYSTEMD', 0) == 1,
+	'elogind': conf_data.get('WLR_HAS_ELOGIND', 0) == 1,
+	'libseat': conf_data.get('WLR_HAS_LIBSEAT', 0) == 1,
+	'xwayland': conf_data.get('WLR_HAS_XWAYLAND', 0) == 1,
+	'x11_backend': conf_data.get('WLR_HAS_X11_BACKEND', 0) == 1,
+	'xcb-icccm': conf_data.get('WLR_HAS_XCB_ICCCM', 0) == 1,
+	'xcb-errors': conf_data.get('WLR_HAS_XCB_ERRORS', 0) == 1,
+}, bool_yn: true)
 
 if get_option('examples')
 	subdir('examples')
