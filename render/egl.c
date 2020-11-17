@@ -75,6 +75,8 @@ static const char *egl_error_str(EGLint error) {
 		return "EGL_BAD_CURRENT_SURFACE";
 	case EGL_BAD_DISPLAY:
 		return "EGL_BAD_DISPLAY";
+	case EGL_BAD_DEVICE_EXT:
+		return "EGL_BAD_DEVICE_EXT";
 	case EGL_BAD_SURFACE:
 		return "EGL_BAD_SURFACE";
 	case EGL_BAD_MATCH:
