@@ -86,8 +86,8 @@ void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
  * Get the shared-memory formats supporting import usage. Buffers allocated
  * with a format from this list may be imported via wlr_texture_from_pixels.
  */
-const enum wl_shm_format *wlr_renderer_get_formats(struct wlr_renderer *r,
-	size_t *len);
+const enum wl_shm_format *wlr_renderer_get_shm_texture_formats(
+	struct wlr_renderer *r, size_t *len);
 /**
  * Returns true if this wl_buffer is a wl_drm buffer.
  */

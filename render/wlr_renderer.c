@@ -17,7 +17,7 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->render_subtexture_with_matrix);
 	assert(impl->render_quad_with_matrix);
 	assert(impl->render_ellipse_with_matrix);
-	assert(impl->formats);
+	assert(impl->get_shm_texture_formats);
 	assert(impl->texture_from_pixels);
 	renderer->impl = impl;
 
@@ -144,9 +144,9 @@ void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
 	r->impl->render_ellipse_with_matrix(r, color, matrix);
 }
 
-const enum wl_shm_format *wlr_renderer_get_formats(
+const enum wl_shm_format *wlr_renderer_get_shm_texture_formats(
 		struct wlr_renderer *r, size_t *len) {
-	return r->impl->formats(r, len);
+	return r->impl->get_shm_texture_formats(r, len);
 }
 
 bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *r,
@@ -210,7 +210,8 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	}
 
 	size_t len;
-	const enum wl_shm_format *formats = wlr_renderer_get_formats(r, &len);
+	const enum wl_shm_format *formats =
+		wlr_renderer_get_shm_texture_formats(r, &len);
 	if (formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to initialize shm: cannot get formats");
 		return false;

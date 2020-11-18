@@ -396,7 +396,7 @@ static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
 	pop_gles2_debug(renderer);
 }
 
-static const enum wl_shm_format *gles2_renderer_formats(
+static const enum wl_shm_format *gles2_get_shm_texture_formats(
 		struct wlr_renderer *wlr_renderer, size_t *len) {
 	return get_gles2_wl_formats(len);
 }
@@ -705,7 +705,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.render_subtexture_with_matrix = gles2_render_subtexture_with_matrix,
 	.render_quad_with_matrix = gles2_render_quad_with_matrix,
 	.render_ellipse_with_matrix = gles2_render_ellipse_with_matrix,
-	.formats = gles2_renderer_formats,
+	.get_shm_texture_formats = gles2_get_shm_texture_formats,
 	.resource_is_wl_drm_buffer = gles2_resource_is_wl_drm_buffer,
 	.wl_drm_buffer_get_size = gles2_wl_drm_buffer_get_size,
 	.get_dmabuf_texture_formats = gles2_get_dmabuf_texture_formats,
