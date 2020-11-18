@@ -123,7 +123,7 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 	struct wlr_dmabuf_attributes *attributes, bool *external_only);
 
 /**
- * Get the available dmabuf formats
+ * Get DMA-BUF formats suitable for sampling usage.
  */
 const struct wlr_drm_format_set *wlr_egl_get_dmabuf_formats(struct wlr_egl *egl);
 

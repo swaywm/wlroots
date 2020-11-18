@@ -83,7 +83,8 @@ void wlr_render_ellipse(struct wlr_renderer *r, const struct wlr_box *box,
 void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
 	const float color[static 4], const float matrix[static 9]);
 /**
- * Returns a list of pixel formats supported by this renderer.
+ * Get the shared-memory formats supporting import usage. Buffers allocated
+ * with a format from this list may be imported via wlr_texture_from_pixels.
  */
 const enum wl_shm_format *wlr_renderer_get_formats(struct wlr_renderer *r,
 	size_t *len);
@@ -98,7 +99,8 @@ bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *renderer,
 void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *renderer,
 	struct wl_resource *buffer, int *width, int *height);
 /**
- * Get the available DMA-BUF formats.
+ * Get the DMA-BUF formats supporting sampling usage. Buffers allocated with
+ * a format from this list may be imported via wlr_texture_from_dmabuf.
  */
 const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_formats(
 	struct wlr_renderer *renderer);
