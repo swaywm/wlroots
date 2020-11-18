@@ -13,6 +13,7 @@
 #include "backend/headless.h"
 #include "render/drm_format_set.h"
 #include "render/gbm_allocator.h"
+#include "render/wlr_renderer.h"
 #include "util/signal.h"
 
 struct wlr_headless_backend *headless_backend_from_backend(
@@ -132,12 +133,11 @@ static bool backend_init(struct wlr_headless_backend *backend,
 	backend->allocator = &alloc->base;
 
 	const struct wlr_drm_format_set *formats =
-		wlr_renderer_get_dmabuf_formats(backend->renderer);
+		wlr_renderer_get_dmabuf_render_formats(backend->renderer);
 	if (formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to get available DMA-BUF formats from renderer");
 		return false;
 	}
-	// TODO: filter modifiers with external_only=false
 	const struct wlr_drm_format *format =
 		wlr_drm_format_set_get(formats, DRM_FORMAT_XRGB8888);
 	if (format == NULL) {
