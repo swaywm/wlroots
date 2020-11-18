@@ -429,10 +429,10 @@ static void gles2_wl_drm_buffer_get_size(struct wlr_renderer *wlr_renderer,
 		buffer, EGL_HEIGHT, height);
 }
 
-static const struct wlr_drm_format_set *gles2_get_dmabuf_formats(
+static const struct wlr_drm_format_set *gles2_get_dmabuf_texture_formats(
 		struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	return wlr_egl_get_dmabuf_formats(renderer->egl);
+	return wlr_egl_get_dmabuf_texture_formats(renderer->egl);
 }
 
 static const struct wlr_drm_format_set *gles2_get_dmabuf_render_formats(
@@ -708,7 +708,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.formats = gles2_renderer_formats,
 	.resource_is_wl_drm_buffer = gles2_resource_is_wl_drm_buffer,
 	.wl_drm_buffer_get_size = gles2_wl_drm_buffer_get_size,
-	.get_dmabuf_formats = gles2_get_dmabuf_formats,
+	.get_dmabuf_texture_formats = gles2_get_dmabuf_texture_formats,
 	.get_dmabuf_render_formats = gles2_get_dmabuf_render_formats,
 	.preferred_read_format = gles2_preferred_read_format,
 	.read_pixels = gles2_read_pixels,

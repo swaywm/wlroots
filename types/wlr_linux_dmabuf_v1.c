@@ -389,7 +389,7 @@ static void linux_dmabuf_send_formats(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
 		struct wl_resource *resource, uint32_t version) {
 	uint64_t modifier_invalid = DRM_FORMAT_MOD_INVALID;
 	const struct wlr_drm_format_set *formats =
-		wlr_renderer_get_dmabuf_formats(linux_dmabuf->renderer);
+		wlr_renderer_get_dmabuf_texture_formats(linux_dmabuf->renderer);
 	if (formats == NULL) {
 		return;
 	}

@@ -77,7 +77,7 @@ struct wlr_egl {
 
 	struct wl_display *wl_display;
 
-	struct wlr_drm_format_set dmabuf_formats;
+	struct wlr_drm_format_set dmabuf_texture_formats;
 	struct wlr_drm_format_set dmabuf_render_formats;
 	EGLBoolean **external_only_dmabuf_formats;
 };
@@ -126,7 +126,8 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 /**
  * Get DMA-BUF formats suitable for sampling usage.
  */
-const struct wlr_drm_format_set *wlr_egl_get_dmabuf_formats(struct wlr_egl *egl);
+const struct wlr_drm_format_set *wlr_egl_get_dmabuf_texture_formats(
+	struct wlr_egl *egl);
 /**
  * Get DMA-BUF formats suitable for rendering usage.
  */

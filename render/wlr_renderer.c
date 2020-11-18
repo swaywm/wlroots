@@ -165,12 +165,12 @@ void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *r,
 	return r->impl->wl_drm_buffer_get_size(r, buffer, width, height);
 }
 
-const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_formats(
+const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_texture_formats(
 		struct wlr_renderer *r) {
-	if (!r->impl->get_dmabuf_formats) {
+	if (!r->impl->get_dmabuf_texture_formats) {
 		return NULL;
 	}
-	return r->impl->get_dmabuf_formats(r);
+	return r->impl->get_dmabuf_texture_formats(r);
 }
 
 const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_render_formats(
