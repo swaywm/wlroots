@@ -401,11 +401,6 @@ static const enum wl_shm_format *gles2_renderer_formats(
 	return get_gles2_wl_formats(len);
 }
 
-static bool gles2_format_supported(struct wlr_renderer *wlr_renderer,
-		enum wl_shm_format wl_fmt) {
-	return get_gles2_format_from_wl(wl_fmt) != NULL;
-}
-
 static bool gles2_resource_is_wl_drm_buffer(struct wlr_renderer *wlr_renderer,
 		struct wl_resource *resource) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
@@ -705,7 +700,6 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.render_quad_with_matrix = gles2_render_quad_with_matrix,
 	.render_ellipse_with_matrix = gles2_render_ellipse_with_matrix,
 	.formats = gles2_renderer_formats,
-	.format_supported = gles2_format_supported,
 	.resource_is_wl_drm_buffer = gles2_resource_is_wl_drm_buffer,
 	.wl_drm_buffer_get_size = gles2_wl_drm_buffer_get_size,
 	.get_dmabuf_formats = gles2_get_dmabuf_formats,

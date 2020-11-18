@@ -18,7 +18,6 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->render_quad_with_matrix);
 	assert(impl->render_ellipse_with_matrix);
 	assert(impl->formats);
-	assert(impl->format_supported);
 	assert(impl->texture_from_pixels);
 	renderer->impl = impl;
 
@@ -193,11 +192,6 @@ bool wlr_renderer_blit_dmabuf(struct wlr_renderer *r,
 		return false;
 	}
 	return r->impl->blit_dmabuf(r, dst, src);
-}
-
-bool wlr_renderer_format_supported(struct wlr_renderer *r,
-		enum wl_shm_format fmt) {
-	return r->impl->format_supported(r, fmt);
 }
 
 bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
