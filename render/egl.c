@@ -158,10 +158,16 @@ static void init_dmabuf_formats(struct wlr_egl *egl) {
 
 		if (modifiers_len == 0) {
 			wlr_drm_format_set_add(&egl->dmabuf_formats, fmt, DRM_FORMAT_MOD_INVALID);
+			wlr_drm_format_set_add(&egl->dmabuf_render_formats, fmt,
+				DRM_FORMAT_MOD_INVALID);
 		}
 
 		for (int j = 0; j < modifiers_len; j++) {
 			wlr_drm_format_set_add(&egl->dmabuf_formats, fmt, modifiers[j]);
+			if (!external_only[j]) {
+				wlr_drm_format_set_add(&egl->dmabuf_render_formats, fmt,
+					modifiers[j]);
+			}
 		}
 
 		free(modifiers);
@@ -397,6 +403,7 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 	}
 	free(egl->external_only_dmabuf_formats);
 
+	wlr_drm_format_set_finish(&egl->dmabuf_render_formats);
 	wlr_drm_format_set_finish(&egl->dmabuf_formats);
 
 	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -807,6 +814,11 @@ static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
 
 const struct wlr_drm_format_set *wlr_egl_get_dmabuf_formats(struct wlr_egl *egl) {
 	return &egl->dmabuf_formats;
+}
+
+const struct wlr_drm_format_set *wlr_egl_get_dmabuf_render_formats(
+		struct wlr_egl *egl) {
+	return &egl->dmabuf_render_formats;
 }
 
 bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
