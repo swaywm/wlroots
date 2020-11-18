@@ -1,14 +1,19 @@
 #ifndef BACKEND_X11_H
 #define BACKEND_X11_H
 
+#include <wlr/config.h>
+
 #include <stdbool.h>
 
 #include <X11/Xlib-xcb.h>
 #include <wayland-server-core.h>
 #include <xcb/xcb.h>
 
+#if WLR_HAS_XCB_ERRORS
+#include <xcb/xcb_errors.h>
+#endif
+
 #include <wlr/backend/x11.h>
-#include <wlr/config.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_output.h>
@@ -80,6 +85,10 @@ struct wlr_x11_backend {
 
 	// The time we last received an event
 	xcb_timestamp_t time;
+
+#if WLR_HAS_XCB_ERRORS
+	xcb_errors_context_t *errors_context;
+#endif
 
 	uint8_t xinput_opcode;
 
