@@ -1282,8 +1282,8 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 	struct wlr_drm_connector *new_outputs[res->count_connectors + 1];
 
 	for (int i = 0; i < res->count_connectors; ++i) {
-		drmModeConnector *drm_conn = drmModeGetConnector(drm->fd,
-			res->connectors[i]);
+		drmModeConnector *drm_conn =
+			drmModeGetConnectorCurrent(drm->fd, res->connectors[i]);
 		if (!drm_conn) {
 			wlr_log_errno(WLR_ERROR, "Failed to get DRM connector");
 			continue;
