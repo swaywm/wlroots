@@ -157,13 +157,15 @@ static void init_dmabuf_formats(struct wlr_egl *egl) {
 		}
 
 		if (modifiers_len == 0) {
-			wlr_drm_format_set_add(&egl->dmabuf_formats, fmt, DRM_FORMAT_MOD_INVALID);
+			wlr_drm_format_set_add(&egl->dmabuf_texture_formats, fmt,
+				DRM_FORMAT_MOD_INVALID);
 			wlr_drm_format_set_add(&egl->dmabuf_render_formats, fmt,
 				DRM_FORMAT_MOD_INVALID);
 		}
 
 		for (int j = 0; j < modifiers_len; j++) {
-			wlr_drm_format_set_add(&egl->dmabuf_formats, fmt, modifiers[j]);
+			wlr_drm_format_set_add(&egl->dmabuf_texture_formats, fmt,
+				modifiers[j]);
 			if (!external_only[j]) {
 				wlr_drm_format_set_add(&egl->dmabuf_render_formats, fmt,
 					modifiers[j]);
@@ -398,13 +400,13 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 		return;
 	}
 
-	for (size_t i = 0; i < egl->dmabuf_formats.len; i++) {
+	for (size_t i = 0; i < egl->dmabuf_texture_formats.len; i++) {
 		free(egl->external_only_dmabuf_formats[i]);
 	}
 	free(egl->external_only_dmabuf_formats);
 
 	wlr_drm_format_set_finish(&egl->dmabuf_render_formats);
-	wlr_drm_format_set_finish(&egl->dmabuf_formats);
+	wlr_drm_format_set_finish(&egl->dmabuf_texture_formats);
 
 	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	if (egl->wl_display) {
@@ -605,8 +607,8 @@ EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
 
 static bool dmabuf_format_is_external_only(struct wlr_egl *egl,
 		uint32_t format, uint64_t modifier) {
-	for (size_t i = 0; i < egl->dmabuf_formats.len; i++) {
-		struct wlr_drm_format *fmt = egl->dmabuf_formats.formats[i];
+	for (size_t i = 0; i < egl->dmabuf_texture_formats.len; i++) {
+		struct wlr_drm_format *fmt = egl->dmabuf_texture_formats.formats[i];
 		if (fmt->format == format) {
 			if (egl->external_only_dmabuf_formats[i] == NULL) {
 				break;
@@ -812,8 +814,9 @@ static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
 	return num;
 }
 
-const struct wlr_drm_format_set *wlr_egl_get_dmabuf_formats(struct wlr_egl *egl) {
-	return &egl->dmabuf_formats;
+const struct wlr_drm_format_set *wlr_egl_get_dmabuf_texture_formats(
+		struct wlr_egl *egl) {
+	return &egl->dmabuf_texture_formats;
 }
 
 const struct wlr_drm_format_set *wlr_egl_get_dmabuf_render_formats(

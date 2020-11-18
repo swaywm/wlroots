@@ -102,7 +102,7 @@ void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *renderer,
  * Get the DMA-BUF formats supporting sampling usage. Buffers allocated with
  * a format from this list may be imported via wlr_texture_from_dmabuf.
  */
-const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_formats(
+const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_texture_formats(
 	struct wlr_renderer *renderer);
 /**
  * Reads out of pixels of the currently bound surface into data. `stride` is in
