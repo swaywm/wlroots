@@ -52,6 +52,8 @@ struct wlr_renderer_impl {
 		struct wl_resource *buffer, int *width, int *height);
 	const struct wlr_drm_format_set *(*get_dmabuf_formats)(
 		struct wlr_renderer *renderer);
+	const struct wlr_drm_format_set *(*get_dmabuf_render_formats)(
+		struct wlr_renderer *renderer);
 	enum wl_shm_format (*preferred_read_format)(struct wlr_renderer *renderer);
 	bool (*read_pixels)(struct wlr_renderer *renderer, enum wl_shm_format fmt,
 		uint32_t *flags, uint32_t stride, uint32_t width, uint32_t height,
