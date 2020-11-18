@@ -38,6 +38,8 @@ struct wlr_x11_output *get_x11_output_from_window_id(
 	return NULL;
 }
 
+static void handle_x11_error(struct wlr_x11_backend *x11, xcb_value_error_t *ev);
+
 static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_generic_event_t *event) {
 	switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
@@ -76,6 +78,12 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		if (ev->extension == x11->xinput_opcode) {
 			handle_x11_xinput_event(x11, ev);
 		}
+		break;
+	}
+	case 0: {
+		xcb_value_error_t *ev = (xcb_value_error_t *)event;
+		handle_x11_error(x11, ev);
+		break;
 	}
 	}
 }
@@ -139,6 +147,10 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wlr_renderer_destroy(x11->renderer);
 	wlr_egl_finish(&x11->egl);
+
+#if WLR_HAS_XCB_ERRORS
+	xcb_errors_context_free(x11->errors_context);
+#endif
 
 	if (x11->xlib_conn) {
 		XCloseDisplay(x11->xlib_conn);
@@ -296,6 +308,13 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
+#if WLR_HAS_XCB_ERRORS
+	if (xcb_errors_context_new(x11->xcb, &x11->errors_context) != 0) {
+		wlr_log(WLR_ERROR, "Failed to create error context");
+		return false;
+	}
+#endif
+
 	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
 		&input_device_impl, "X11 keyboard", 0, 0);
 	wlr_keyboard_init(&x11->keyboard, &keyboard_impl);
@@ -313,4 +332,41 @@ error_display:
 error_x11:
 	free(x11);
 	return NULL;
+}
+
+static void handle_x11_error(struct wlr_x11_backend *x11, xcb_value_error_t *ev) {
+#if WLR_HAS_XCB_ERRORS
+	const char *major_name = xcb_errors_get_name_for_major_code(
+		x11->errors_context, ev->major_opcode);
+	if (!major_name) {
+		wlr_log(WLR_DEBUG, "X11 error happened, but could not get major name");
+		goto log_raw;
+	}
+
+	const char *minor_name = xcb_errors_get_name_for_minor_code(
+		x11->errors_context, ev->major_opcode, ev->minor_opcode);
+
+	const char *extension;
+	const char *error_name = xcb_errors_get_name_for_error(x11->errors_context,
+		ev->error_code, &extension);
+	if (!error_name) {
+		wlr_log(WLR_DEBUG, "X11 error happened, but could not get error name");
+		goto log_raw;
+	}
+
+	wlr_log(WLR_ERROR, "X11 error: op %s (%s), code %s (%s), "
+		"sequence %"PRIu16", value %"PRIu32,
+		major_name, minor_name ? minor_name : "no minor",
+		error_name, extension ? extension : "no extension",
+		ev->sequence, ev->bad_value);
+
+	return;
+
+log_raw:
+#endif
+
+	wlr_log(WLR_ERROR, "X11 error: op %"PRIu8":%"PRIu16", code %"PRIu8", "
+		"sequence %"PRIu16", value %"PRIu32,
+		ev->major_opcode, ev->minor_opcode, ev->error_code,
+		ev->sequence, ev->bad_value);
 }
