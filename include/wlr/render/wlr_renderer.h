@@ -121,11 +121,6 @@ bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
 bool wlr_renderer_blit_dmabuf(struct wlr_renderer *r,
 	struct wlr_dmabuf_attributes *dst, struct wlr_dmabuf_attributes *src);
 /**
- * Checks if a format is supported.
- */
-bool wlr_renderer_format_supported(struct wlr_renderer *r,
-	enum wl_shm_format fmt);
-/**
  * Creates necessary shm and invokes the initialization of the implementation.
  *
  * Returns false on failure.
