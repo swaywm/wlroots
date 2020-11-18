@@ -217,13 +217,22 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 		return false;
 	}
 
+	bool argb8888 = false, xrgb8888 = false;
 	for (size_t i = 0; i < len; ++i) {
-		// These formats are already added by default
-		if (formats[i] != WL_SHM_FORMAT_ARGB8888 &&
-				formats[i] != WL_SHM_FORMAT_XRGB8888) {
+		// ARGB8888 and XRGB8888 must be supported and are implicitly
+		// advertised by wl_display_init_shm
+		switch (formats[i]) {
+		case WL_SHM_FORMAT_ARGB8888:
+			argb8888 = true;
+			break;
+		case WL_SHM_FORMAT_XRGB8888:
+			xrgb8888 = true;
+			break;
+		default:
 			wl_display_add_shm_format(wl_display, formats[i]);
 		}
 	}
+	assert(argb8888 && xrgb8888);
 
 	if (r->impl->init_wl_display) {
 		if (!r->impl->init_wl_display(r, wl_display)) {
