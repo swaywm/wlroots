@@ -8,6 +8,7 @@
 #include <X11/Xlib-xcb.h>
 #include <wayland-server-core.h>
 #include <xcb/xcb.h>
+#include <xcb/present.h>
 
 #if WLR_HAS_XCB_ERRORS
 #include <xcb/xcb_errors.h>
@@ -34,7 +35,9 @@ struct wlr_x11_output {
 	struct wl_list link; // wlr_x11_backend::outputs
 
 	xcb_window_t win;
-	EGLSurface surf;
+
+	struct wlr_swapchain *swapchain;
+	struct wlr_buffer *back_buffer;
 
 	struct wlr_pointer pointer;
 	struct wlr_input_device pointer_dev;
@@ -45,6 +48,8 @@ struct wlr_x11_output {
 
 	struct wl_event_source *frame_timer;
 	int frame_delay;
+
+	struct wl_list buffers; // wlr_x11_buffer::link
 
 	bool cursor_hidden;
 };
@@ -63,6 +68,10 @@ struct wlr_x11_backend {
 	Display *xlib_conn;
 	xcb_connection_t *xcb;
 	xcb_screen_t *screen;
+	xcb_depth_t *depth;
+	xcb_visualid_t visualid;
+	xcb_colormap_t colormap;
+	xcb_present_event_t present_event_id;
 
 	size_t requested_outputs;
 	size_t last_output_num;
@@ -73,6 +82,9 @@ struct wlr_x11_backend {
 
 	struct wlr_egl egl;
 	struct wlr_renderer *renderer;
+	const struct wlr_x11_format *x11_format;
+	struct wlr_drm_format *drm_format;
+	struct wlr_allocator *allocator;
 	struct wl_event_source *event_source;
 
 	struct {
@@ -90,9 +102,22 @@ struct wlr_x11_backend {
 	xcb_errors_context_t *errors_context;
 #endif
 
+	uint8_t present_opcode;
 	uint8_t xinput_opcode;
 
 	struct wl_listener display_destroy;
+};
+
+struct wlr_x11_buffer {
+	struct wlr_x11_backend *x11;
+	struct wlr_buffer *buffer;
+	xcb_pixmap_t pixmap;
+	struct wl_list link; // wlr_x11_output::buffers
+};
+
+struct wlr_x11_format {
+	uint32_t drm;
+	uint8_t depth, bpp;
 };
 
 struct wlr_x11_backend *get_x11_backend_from_backend(
@@ -112,5 +137,7 @@ void update_x11_pointer_position(struct wlr_x11_output *output,
 
 void handle_x11_configure_notify(struct wlr_x11_output *output,
 	xcb_configure_notify_event_t *event);
+void handle_x11_present_event(struct wlr_x11_backend *x11,
+	xcb_ge_generic_event_t *event);
 
 #endif

@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <drm_fourcc.h>
+#include <xcb/dri3.h>
+#include <xcb/present.h>
 #include <xcb/xcb.h>
 #include <xcb/xinput.h>
 
@@ -13,6 +16,8 @@
 #include <wlr/util/log.h>
 
 #include "backend/x11.h"
+#include "render/swapchain.h"
+#include "render/wlr_renderer.h"
 #include "util/signal.h"
 
 static int signal_frame(void *data) {
@@ -85,7 +90,8 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 	wl_list_remove(&output->link);
 	wl_event_source_remove(output->frame_timer);
-	wlr_egl_destroy_surface(&x11->egl, output->surf);
+	wlr_buffer_unlock(output->back_buffer);
+	wlr_swapchain_destroy(output->swapchain);
 	xcb_destroy_window(x11->xcb, output->win);
 	xcb_flush(x11->xcb);
 	free(output);
@@ -96,7 +102,20 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
 	struct wlr_x11_backend *x11 = output->x11;
 
-	return wlr_egl_make_current(&x11->egl, output->surf, buffer_age);
+	wlr_buffer_unlock(output->back_buffer);
+	output->back_buffer = wlr_swapchain_acquire(output->swapchain, buffer_age);
+	if (!output->back_buffer) {
+		return false;
+	}
+
+	if (!wlr_egl_make_current(&x11->egl, EGL_NO_SURFACE, NULL)) {
+		return false;
+	}
+	if (!wlr_renderer_bind_buffer(x11->renderer, output->back_buffer)) {
+		return false;
+	}
+
+	return true;
 }
 
 static bool output_test(struct wlr_output *wlr_output) {
@@ -110,6 +129,125 @@ static bool output_test(struct wlr_output *wlr_output) {
 	}
 
 	return true;
+}
+
+static struct wlr_x11_buffer *import_x11_buffer(struct wlr_x11_output *output,
+		struct wlr_buffer *wlr_buffer) {
+	struct wlr_x11_backend *x11 = output->x11;
+
+	struct wlr_dmabuf_attributes attrs = {0};
+	if (!wlr_buffer_get_dmabuf(wlr_buffer, &attrs)) {
+		return NULL;
+	}
+
+	if (attrs.format != x11->x11_format->drm) {
+		// The pixmap's depth must match the window's depth, otherwise Present
+		// will throw a Match error
+		return NULL;
+	}
+
+	// xcb closes the FDs after sending them, so we need to dup them here
+	struct wlr_dmabuf_attributes dup_attrs = {0};
+	if (!wlr_dmabuf_attributes_copy(&dup_attrs, &attrs)) {
+		return NULL;
+	}
+
+	const struct wlr_x11_format *x11_fmt = x11->x11_format;
+	xcb_pixmap_t pixmap = xcb_generate_id(x11->xcb);
+	xcb_dri3_pixmap_from_buffers(x11->xcb, pixmap, output->win,
+		attrs.n_planes, attrs.width, attrs.height, attrs.stride[0],
+		attrs.offset[0], attrs.stride[1], attrs.offset[1], attrs.stride[2],
+		attrs.offset[2], attrs.stride[3], attrs.offset[3], x11_fmt->depth,
+		x11_fmt->bpp, attrs.modifier, dup_attrs.fd);
+
+	struct wlr_x11_buffer *buffer = calloc(1, sizeof(struct wlr_x11_buffer));
+	if (!buffer) {
+		xcb_free_pixmap(x11->xcb, pixmap);
+		return NULL;
+	}
+	buffer->buffer = wlr_buffer_lock(wlr_buffer);
+	buffer->pixmap = pixmap;
+	buffer->x11 = x11;
+	wl_list_insert(&output->buffers, &buffer->link);
+	return buffer;
+}
+
+static void destroy_x11_buffer(struct wlr_x11_buffer *buffer) {
+	if (!buffer) {
+		return;
+	}
+	wl_list_remove(&buffer->link);
+	xcb_free_pixmap(buffer->x11->xcb, buffer->pixmap);
+	wlr_buffer_unlock(buffer->buffer);
+	free(buffer);
+}
+
+static bool output_commit_buffer(struct wlr_x11_output *output) {
+	struct wlr_x11_backend *x11 = output->x11;
+
+	assert(output->back_buffer != NULL);
+
+	wlr_renderer_bind_buffer(x11->renderer, NULL);
+	wlr_egl_unset_current(&x11->egl);
+
+	struct wlr_x11_buffer *x11_buffer =
+		import_x11_buffer(output, output->back_buffer);
+	if (!x11_buffer) {
+		goto error;
+	}
+
+	xcb_xfixes_region_t region = XCB_NONE;
+	if (output->wlr_output.pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
+		pixman_region32_t *damage = &output->wlr_output.pending.damage;
+
+		int rects_len = 0;
+		pixman_box32_t *rects = pixman_region32_rectangles(damage, &rects_len);
+
+		xcb_rectangle_t *xcb_rects = calloc(rects_len, sizeof(xcb_rectangle_t));
+		if (!xcb_rects) {
+			goto error;
+		}
+
+		for (int i = 0; i < rects_len; i++) {
+			pixman_box32_t *box = &rects[i];
+			xcb_rects[i] = (struct xcb_rectangle_t){
+				.x = box->x1,
+				.y = box->y1,
+				.width = box->x2 - box->x1,
+				.height = box->y2 - box->y1,
+			};
+		}
+
+		xcb_xfixes_region_t region = xcb_generate_id(x11->xcb);
+		xcb_xfixes_create_region(x11->xcb, region, rects_len, xcb_rects);
+
+		free(xcb_rects);
+	}
+
+	uint32_t serial = output->wlr_output.commit_seq;
+	uint32_t options = 0;
+	xcb_present_pixmap(x11->xcb, output->win, x11_buffer->pixmap, serial,
+		0, region, 0, 0, XCB_NONE, XCB_NONE, XCB_NONE, options, 0, 0, 0,
+		0, NULL);
+
+	if (region != XCB_NONE) {
+		xcb_xfixes_destroy_region(x11->xcb, region);
+	}
+
+	wlr_buffer_unlock(output->back_buffer);
+	output->back_buffer = NULL;
+
+	wlr_swapchain_set_buffer_submitted(output->swapchain, x11_buffer->buffer);
+
+	wlr_output_send_present(&output->wlr_output, NULL);
+
+	return true;
+
+error:
+	destroy_x11_buffer(x11_buffer);
+	wlr_buffer_unlock(output->back_buffer);
+	output->back_buffer = NULL;
+	return false;
 }
 
 static bool output_commit(struct wlr_output *wlr_output) {
@@ -145,24 +283,21 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	}
 
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
-		pixman_region32_t *damage = NULL;
-		if (wlr_output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
-			damage = &wlr_output->pending.damage;
-		}
-
-		if (!wlr_egl_swap_buffers(&x11->egl, output->surf, damage)) {
+		if (!output_commit_buffer(output)) {
 			return false;
 		}
-
-		wlr_output_send_present(wlr_output, NULL);
 	}
+
+	xcb_flush(x11->xcb);
 
 	return true;
 }
 
 static void output_rollback_render(struct wlr_output *wlr_output) {
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
-	wlr_egl_unset_current(&output->x11->egl);
+	struct wlr_x11_backend *x11 = output->x11;
+	wlr_renderer_bind_buffer(x11->renderer, NULL);
+	wlr_egl_unset_current(&x11->egl);
 }
 
 static const struct wlr_output_impl output_impl = {
@@ -186,12 +321,21 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 		return NULL;
 	}
 	output->x11 = x11;
+	wl_list_init(&output->buffers);
 
 	struct wlr_output *wlr_output = &output->wlr_output;
 	wlr_output_init(wlr_output, &x11->backend, &output_impl, x11->wl_display);
 
 	wlr_output->width = 1024;
 	wlr_output->height = 768;
+
+	output->swapchain = wlr_swapchain_create(x11->allocator,
+		wlr_output->width, wlr_output->height, x11->drm_format);
+	if (!output->swapchain) {
+		wlr_log(WLR_ERROR, "Failed to create swapchain");
+		free(output);
+		return NULL;
+	}
 
 	output_set_refresh(&output->wlr_output, 0);
 
@@ -204,14 +348,18 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 		"X11 output %zd", x11->last_output_num);
 	wlr_output_set_description(wlr_output, description);
 
-	uint32_t mask = XCB_CW_EVENT_MASK;
+	// The X11 protocol requires us to set a colormap and border pixel if the
+	// depth doesn't match the root window's
+	uint32_t mask = XCB_CW_BORDER_PIXEL | XCB_CW_EVENT_MASK | XCB_CW_COLORMAP;
 	uint32_t values[] = {
-		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY
+		0,
+		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY,
+		x11->colormap,
 	};
 	output->win = xcb_generate_id(x11->xcb);
-	xcb_create_window(x11->xcb, XCB_COPY_FROM_PARENT, output->win,
-		x11->screen->root, 0, 0, wlr_output->width, wlr_output->height, 1,
-		XCB_WINDOW_CLASS_INPUT_OUTPUT, x11->screen->root_visual, mask, values);
+	xcb_create_window(x11->xcb, x11->depth->depth, output->win,
+		x11->screen->root, 0, 0, wlr_output->width, wlr_output->height, 0,
+		XCB_WINDOW_CLASS_INPUT_OUTPUT, x11->visualid, mask, values);
 
 	struct {
 		xcb_input_event_mask_t head;
@@ -227,16 +375,14 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 			XCB_INPUT_XI_EVENT_MASK_LEAVE |
 			XCB_INPUT_XI_EVENT_MASK_TOUCH_BEGIN |
 			XCB_INPUT_XI_EVENT_MASK_TOUCH_END |
-			XCB_INPUT_XI_EVENT_MASK_TOUCH_UPDATE,
+			XCB_INPUT_XI_EVENT_MASK_TOUCH_UPDATE |
+			XCB_PRESENT_EVENT_MASK_IDLE_NOTIFY,
 	};
 	xcb_input_xi_select_events(x11->xcb, output->win, 1, &xinput_mask.head);
 
-	output->surf = wlr_egl_create_surface(&x11->egl, &output->win);
-	if (!output->surf) {
-		wlr_log(WLR_ERROR, "Failed to create EGL surface");
-		free(output);
-		return NULL;
-	}
+	uint32_t present_mask = XCB_PRESENT_EVENT_MASK_IDLE_NOTIFY;
+	xcb_present_select_input(x11->xcb, x11->present_event_id, output->win,
+		present_mask);
 
 	xcb_change_property(x11->xcb, XCB_PROP_MODE_REPLACE, output->win,
 		x11->atoms.wm_protocols, XCB_ATOM_ATOM, 32, 1,
@@ -278,17 +424,30 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 void handle_x11_configure_notify(struct wlr_x11_output *output,
 		xcb_configure_notify_event_t *ev) {
 	// ignore events that set an invalid size:
-	if (ev->width > 0 && ev->height > 0) {
-		wlr_output_update_custom_mode(&output->wlr_output, ev->width,
-			ev->height, output->wlr_output.refresh);
-
-		// Move the pointer to its new location
-		update_x11_pointer_position(output, output->x11->time);
-	} else {
+	if (ev->width == 0 || ev->height == 0) {
 		wlr_log(WLR_DEBUG,
 			"Ignoring X11 configure event for height=%d, width=%d",
 			ev->width, ev->height);
+		return;
 	}
+
+	if (output->swapchain->width != ev->width ||
+			output->swapchain->height != ev->height) {
+		struct wlr_swapchain *swapchain = wlr_swapchain_create(
+			output->x11->allocator, ev->width, ev->height,
+			output->x11->drm_format);
+		if (!swapchain) {
+			return;
+		}
+		wlr_swapchain_destroy(output->swapchain);
+		output->swapchain = swapchain;
+	}
+
+	wlr_output_update_custom_mode(&output->wlr_output, ev->width,
+		ev->height, output->wlr_output.refresh);
+
+	// Move the pointer to its new location
+	update_x11_pointer_position(output, output->x11->time);
 }
 
 bool wlr_output_is_x11(struct wlr_output *wlr_output) {
@@ -309,4 +468,43 @@ void wlr_x11_output_set_title(struct wlr_output *output, const char *title) {
 	xcb_change_property(x11_output->x11->xcb, XCB_PROP_MODE_REPLACE, x11_output->win,
 		x11_output->x11->atoms.net_wm_name, x11_output->x11->atoms.utf8_string, 8,
 		strlen(title), title);
+}
+
+static struct wlr_x11_buffer *get_x11_buffer(struct wlr_x11_output *output,
+		xcb_pixmap_t pixmap) {
+	struct wlr_x11_buffer *buffer;
+	wl_list_for_each(buffer, &output->buffers, link) {
+		if (buffer->pixmap == pixmap) {
+			return buffer;
+		}
+	}
+	return NULL;
+}
+
+void handle_x11_present_event(struct wlr_x11_backend *x11,
+		xcb_ge_generic_event_t *event) {
+	switch (event->event_type) {
+	case XCB_PRESENT_EVENT_IDLE_NOTIFY:;
+		xcb_present_idle_notify_event_t *idle_notify =
+			(xcb_present_idle_notify_event_t *)event;
+
+		struct wlr_x11_output *output =
+			get_x11_output_from_window_id(x11, idle_notify->window);
+		if (!output) {
+			wlr_log(WLR_DEBUG, "Got PresentIdleNotify event for unknown window");
+			return;
+		}
+
+		struct wlr_x11_buffer *buffer =
+			get_x11_buffer(output, idle_notify->pixmap);
+		if (!buffer) {
+			wlr_log(WLR_DEBUG, "Got PresentIdleNotify event for unknown buffer");
+			return;
+		}
+
+		destroy_x11_buffer(buffer);
+		break;
+	default:
+		wlr_log(WLR_DEBUG, "Unhandled Present event %"PRIu16, event->event_type);
+	}
 }
