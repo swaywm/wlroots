@@ -609,7 +609,7 @@ static void drm_connector_rollback_render(struct wlr_output *output) {
 
 size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc) {
-	if (crtc->props.gamma_lut_size == 0) {
+	if (crtc->props.gamma_lut_size == 0 || drm->iface == &legacy_iface) {
 		return (size_t)crtc->legacy_crtc->gamma_size;
 	}
 
