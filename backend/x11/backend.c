@@ -39,6 +39,8 @@ struct wlr_x11_output *get_x11_output_from_window_id(
 }
 
 static void handle_x11_error(struct wlr_x11_backend *x11, xcb_value_error_t *ev);
+static void handle_x11_unknown_event(struct wlr_x11_backend *x11,
+	xcb_generic_event_t *ev);
 
 static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_generic_event_t *event) {
@@ -77,6 +79,8 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		xcb_ge_generic_event_t *ev = (xcb_ge_generic_event_t *)event;
 		if (ev->extension == x11->xinput_opcode) {
 			handle_x11_xinput_event(x11, ev);
+		} else {
+			handle_x11_unknown_event(x11, event);
 		}
 		break;
 	}
@@ -85,6 +89,9 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		handle_x11_error(x11, ev);
 		break;
 	}
+	default:
+		handle_x11_unknown_event(x11, event);
+		break;
 	}
 }
 
@@ -369,4 +376,22 @@ log_raw:
 		"sequence %"PRIu16", value %"PRIu32,
 		ev->major_opcode, ev->minor_opcode, ev->error_code,
 		ev->sequence, ev->bad_value);
+}
+
+static void handle_x11_unknown_event(struct wlr_x11_backend *x11,
+		xcb_generic_event_t *ev) {
+#if WLR_HAS_XCB_ERRORS
+	const char *extension;
+	const char *event_name = xcb_errors_get_name_for_xcb_event(
+		x11->errors_context, ev, &extension);
+	if (!event_name) {
+		wlr_log(WLR_DEBUG, "No name for unhandled event: %u",
+			ev->response_type);
+		return;
+	}
+
+	wlr_log(WLR_DEBUG, "Unhandled X11 event: %s (%u)", event_name, ev->response_type);
+#else
+	wlr_log(WLR_DEBUG, "Unhandled X11 event: %u", ev->response_type);
+#endif
 }
