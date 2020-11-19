@@ -72,6 +72,9 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 			if (output != NULL) {
 				wlr_output_destroy(&output->wlr_output);
 			}
+		} else {
+			wlr_log(WLR_DEBUG, "Unhandled client message %"PRIu32,
+				ev->data.data32[0]);
 		}
 		break;
 	}
