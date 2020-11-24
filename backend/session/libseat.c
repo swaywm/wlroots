@@ -203,7 +203,7 @@ static void libseat_session_close_device(struct wlr_session *base, int fd) {
 
 static bool libseat_change_vt(struct wlr_session *base, unsigned vt) {
 	struct libseat_session *session = libseat_session_from_session(base);
-	return libseat_switch_session(session->seat, vt);
+	return libseat_switch_session(session->seat, vt) == 0;
 }
 
 const struct session_impl session_libseat = {
