@@ -77,7 +77,7 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 
 static bool init_drm_surface(struct wlr_drm_surface *surf,
 		struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
-		uint32_t format, const struct wlr_drm_format_set *set, uint32_t flags) {
+		const struct wlr_drm_format *drm_format, uint32_t flags) {
 	if (surf->width == width && surf->height == height) {
 		return true;
 	}
@@ -91,21 +91,13 @@ static bool init_drm_surface(struct wlr_drm_surface *surf,
 	wlr_swapchain_destroy(surf->swapchain);
 	surf->swapchain = NULL;
 
-	const struct wlr_drm_format *drm_format = NULL;
-	const struct wlr_drm_format format_no_modifiers = { .format = format };
-	if (set != NULL) {
-		drm_format = wlr_drm_format_set_get(set, format);
-	} else {
-		drm_format = &format_no_modifiers;
-	}
-
 	struct wlr_drm_format *format_linear = NULL;
 	if (flags & GBM_BO_USE_LINEAR) {
 		format_linear = calloc(1, sizeof(struct wlr_drm_format) + sizeof(uint64_t));
 		if (format_linear == NULL) {
 			return false;
 		}
-		format_linear->format = format;
+		format_linear->format = drm_format->format;
 		format_linear->len = 1;
 		format_linear->modifiers[0] = DRM_FORMAT_MOD_LINEAR;
 		drm_format = format_linear;
@@ -253,25 +245,28 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		return false;
 	}
 
-	struct wlr_drm_format_set *format_set =
-		with_modifiers ? &plane->formats : NULL;
+	const struct wlr_drm_format *drm_format = NULL;
+	const struct wlr_drm_format format_no_modifiers = { .format = format };
+	if (with_modifiers) {
+		drm_format = wlr_drm_format_set_get(&plane->formats, format);
+	} else {
+		drm_format = &format_no_modifiers;
+	}
 
 	drm_plane_finish_surface(plane);
 
 	if (!drm->parent) {
 		return init_drm_surface(&plane->surf, &drm->renderer, width, height,
-			format, format_set, flags | GBM_BO_USE_SCANOUT);
+			drm_format, flags | GBM_BO_USE_SCANOUT);
 	}
 
 	if (!init_drm_surface(&plane->surf, &drm->parent->renderer,
-			width, height, format, NULL,
-			flags | GBM_BO_USE_LINEAR)) {
+			width, height, drm_format, flags | GBM_BO_USE_LINEAR)) {
 		return false;
 	}
 
 	if (!init_drm_surface(&plane->mgpu_surf, &drm->renderer,
-			width, height, format, format_set,
-			flags | GBM_BO_USE_SCANOUT)) {
+			width, height, drm_format, flags | GBM_BO_USE_SCANOUT)) {
 		finish_drm_surface(&plane->surf);
 		return false;
 	}
