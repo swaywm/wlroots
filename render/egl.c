@@ -854,6 +854,62 @@ bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface) {
 	return eglDestroySurface(egl->display, surface);
 }
 
+static bool device_has_name(const drmDevice *device, const char *name) {
+	for (size_t i = 0; i < DRM_NODE_MAX; i++) {
+		if (!(device->available_nodes & (1 << i))) {
+			continue;
+		}
+		if (strcmp(device->nodes[i], name) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static char *get_render_name(const char *name) {
+	uint32_t flags = 0;
+	int devices_len = drmGetDevices2(flags, NULL, 0);
+	if (devices_len < 0) {
+		wlr_log(WLR_ERROR, "drmGetDevices2 failed");
+		return NULL;
+	}
+	drmDevice **devices = calloc(devices_len, sizeof(drmDevice *));
+	if (devices == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return NULL;
+	}
+	devices_len = drmGetDevices2(flags, devices, devices_len);
+	if (devices_len < 0) {
+		free(devices);
+		wlr_log(WLR_ERROR, "drmGetDevices2 failed");
+		return NULL;
+	}
+
+	const drmDevice *match = NULL;
+	for (int i = 0; i < devices_len; i++) {
+		if (device_has_name(devices[i], name)) {
+			match = devices[i];
+			break;
+		}
+	}
+
+	char *render_name = NULL;
+	if (match == NULL) {
+		wlr_log(WLR_ERROR, "Cannot find DRM device %s", name);
+	} else if (!(match->available_nodes & (1 << DRM_NODE_RENDER))) {
+		wlr_log(WLR_ERROR, "DRM device %s has no render node", name);
+	} else {
+		render_name = strdup(match->nodes[DRM_NODE_RENDER]);
+	}
+
+	for (int i = 0; i < devices_len; i++) {
+		drmFreeDevice(&devices[i]);
+	}
+	free(devices);
+
+	return render_name;
+}
+
 int wlr_egl_dup_drm_fd(struct wlr_egl *egl) {
 	if (egl->device == EGL_NO_DEVICE_EXT || !egl->exts.device_drm_ext) {
 		return -1;
@@ -867,25 +923,21 @@ int wlr_egl_dup_drm_fd(struct wlr_egl *egl) {
 		return -1;
 	}
 
-	int primary_fd = open(primary_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
-	if (primary_fd < 0) {
-		wlr_log_errno(WLR_ERROR, "Failed to open primary DRM device");
-		return -1;
-	}
-
-	char *render_name = drmGetRenderDeviceNameFromFd(primary_fd);
+	char *render_name = get_render_name(primary_name);
 	if (render_name == NULL) {
-		wlr_log_errno(WLR_ERROR, "drmGetRenderDeviceNameFromFd failed");
-		close(primary_fd);
+		wlr_log(WLR_ERROR, "Can't find render node name for device %s",
+			primary_name);
 		return -1;
 	}
-	close(primary_fd);
 
 	int render_fd = open(render_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
 	if (render_fd < 0) {
-		wlr_log_errno(WLR_ERROR, "Failed to open render DRM device");
+		wlr_log_errno(WLR_ERROR, "Failed to open DRM render node %s",
+			render_name);
+		free(render_name);
 		return -1;
 	}
+	free(render_name);
 
 	return render_fd;
 }
