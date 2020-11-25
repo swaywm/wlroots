@@ -137,3 +137,39 @@ struct wlr_drm_format *wlr_drm_format_dup(const struct wlr_drm_format *format) {
 	memcpy(duped_format, format, format_size);
 	return duped_format;
 }
+
+struct wlr_drm_format *wlr_drm_format_intersect(
+		const struct wlr_drm_format *a, const struct wlr_drm_format *b) {
+	assert(a->format == b->format);
+
+	size_t format_cap = a->len < b->len ? a->len : b->len;
+	size_t format_size = sizeof(struct wlr_drm_format) +
+		format_cap * sizeof(a->modifiers[0]);
+	struct wlr_drm_format *format = calloc(1, format_size);
+	if (format == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return NULL;
+	}
+	format->format = a->format;
+	format->cap = format_cap;
+
+	for (size_t i = 0; i < a->len; i++) {
+		for (size_t j = 0; j < b->len; j++) {
+			if (a->modifiers[i] == b->modifiers[j]) {
+				assert(format->len < format->cap);
+				format->modifiers[format->len] = a->modifiers[i];
+				format->len++;
+				break;
+			}
+		}
+	}
+
+	// If both formats support modifiers, but the intersection is empty, then
+	// the formats aren't compatible with each other
+	if (format->len == 0 && a->len > 0 && b->len > 0) {
+		free(format);
+		return NULL;
+	}
+
+	return format;
+}
