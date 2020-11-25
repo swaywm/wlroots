@@ -316,7 +316,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}
 
 	wl->renderer = create_renderer_func(&wl->egl, EGL_PLATFORM_WAYLAND_EXT,
-		wl->remote_display, config_attribs, WL_SHM_FORMAT_ARGB8888);
+		wl->remote_display, config_attribs, 0);
 
 	if (!wl->renderer) {
 		wlr_log(WLR_ERROR, "Could not create renderer");
