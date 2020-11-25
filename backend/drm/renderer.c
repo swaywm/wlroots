@@ -12,6 +12,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "backend/drm/drm.h"
+#include "render/drm_format_set.h"
 #include "render/gbm_allocator.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
@@ -239,39 +240,61 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 	if (!wlr_drm_format_set_has(&plane->formats, format, DRM_FORMAT_MOD_INVALID)) {
 		format = strip_alpha_channel(format);
 	}
-	if (!wlr_drm_format_set_has(&plane->formats, format, DRM_FORMAT_MOD_INVALID)) {
+	const struct wlr_drm_format *plane_format =
+		wlr_drm_format_set_get(&plane->formats, format);
+	if (plane_format == NULL) {
 		wlr_log(WLR_ERROR, "Plane %"PRIu32" doesn't support format 0x%"PRIX32,
 			plane->id, format);
 		return false;
 	}
 
-	const struct wlr_drm_format *drm_format = NULL;
-	const struct wlr_drm_format format_no_modifiers = { .format = format };
+	const struct wlr_drm_format_set *render_formats =
+		wlr_renderer_get_dmabuf_render_formats(drm->renderer.wlr_rend);
+	if (render_formats == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get render formats");
+		return false;
+	}
+	const struct wlr_drm_format *render_format =
+		wlr_drm_format_set_get(render_formats, format);
+	if (render_format == NULL) {
+		wlr_log(WLR_ERROR, "Renderer doesn't support format 0x%"PRIX32,
+			format);
+		return false;
+	}
+
+	struct wlr_drm_format *drm_format = NULL;
 	if (with_modifiers) {
-		drm_format = wlr_drm_format_set_get(&plane->formats, format);
+		drm_format = wlr_drm_format_intersect(plane_format, render_format);
+		if (drm_format == NULL) {
+			wlr_log(WLR_ERROR,
+				"Failed to intersect plane and render formats 0x%"PRIX32,
+				format);
+			return false;
+		}
 	} else {
-		drm_format = &format_no_modifiers;
+		const struct wlr_drm_format format_no_modifiers = { .format = format };
+		drm_format = wlr_drm_format_dup(&format_no_modifiers);
 	}
 
 	drm_plane_finish_surface(plane);
 
+	bool ok = true;
 	if (!drm->parent) {
-		return init_drm_surface(&plane->surf, &drm->renderer, width, height,
+		ok = init_drm_surface(&plane->surf, &drm->renderer, width, height,
 			drm_format, flags | GBM_BO_USE_SCANOUT);
+	} else {
+		ok = init_drm_surface(&plane->surf, &drm->parent->renderer,
+			width, height, drm_format, flags | GBM_BO_USE_LINEAR);
+		if (ok && !init_drm_surface(&plane->mgpu_surf, &drm->renderer,
+				width, height, drm_format, flags | GBM_BO_USE_SCANOUT)) {
+			finish_drm_surface(&plane->surf);
+			ok = false;
+		}
 	}
 
-	if (!init_drm_surface(&plane->surf, &drm->parent->renderer,
-			width, height, drm_format, flags | GBM_BO_USE_LINEAR)) {
-		return false;
-	}
+	free(drm_format);
 
-	if (!init_drm_surface(&plane->mgpu_surf, &drm->renderer,
-			width, height, drm_format, flags | GBM_BO_USE_SCANOUT)) {
-		finish_drm_surface(&plane->surf);
-		return false;
-	}
-
-	return true;
+	return ok;
 }
 
 void drm_fb_clear(struct wlr_drm_fb *fb) {
