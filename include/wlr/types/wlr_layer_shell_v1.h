@@ -49,7 +49,7 @@ struct wlr_layer_surface_v1_state {
 	struct {
 		uint32_t top, right, bottom, left;
 	} margin;
-	bool keyboard_interactive;
+	enum zwlr_layer_surface_v1_keyboard_interactivity keyboard_interactive;
 	uint32_t desired_width, desired_height;
 	uint32_t actual_width, actual_height;
 	enum zwlr_layer_shell_v1_layer layer;

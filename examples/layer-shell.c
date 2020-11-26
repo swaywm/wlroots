@@ -50,7 +50,8 @@ static int32_t margin_top = 0;
 static double alpha = 1.0;
 static bool run_display = true;
 static bool animate = false;
-static bool keyboard_interactive = false;
+static enum zwlr_layer_surface_v1_keyboard_interactivity keyboard_interactive =
+	ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE;
 static double frame = 0;
 static int cur_x = -1, cur_y = -1;
 static int buttons = 0;
@@ -453,8 +454,8 @@ static void handle_global(void *data, struct wl_registry *registry,
 				&wl_seat_interface, 1);
 		wl_seat_add_listener(seat, &seat_listener, NULL);
 	} else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
-		layer_shell = wl_registry_bind(
-				registry, name, &zwlr_layer_shell_v1_interface, 1);
+		layer_shell = wl_registry_bind(registry, name,
+			&zwlr_layer_shell_v1_interface, version < 4 ? version : 4);
 	} else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
 		xdg_wm_base = wl_registry_bind(
 				registry, name, &xdg_wm_base_interface, 1);
@@ -478,7 +479,7 @@ int main(int argc, char **argv) {
 	int32_t margin_right = 0, margin_bottom = 0, margin_left = 0;
 	bool found;
 	int c;
-	while ((c = getopt(argc, argv, "knw:h:o:l:a:x:m:t:")) != -1) {
+	while ((c = getopt(argc, argv, "k:nw:h:o:l:a:x:m:t:")) != -1) {
 		switch (c) {
 		case 'o':
 			output = atoi(optarg);
@@ -558,9 +559,29 @@ int main(int argc, char **argv) {
 		case 'n':
 			animate = true;
 			break;
-		case 'k':
-			keyboard_interactive = true;
+		case 'k': {
+			const struct {
+				const char *name;
+				enum zwlr_layer_surface_v1_keyboard_interactivity value;
+			} kb_int[] = {
+				{ "none", ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE },
+				{ "exclusive", ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE },
+				{ "on_demand", ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND }
+			};
+			found = false;
+			for (size_t i = 0; i < sizeof(kb_int) / sizeof(kb_int[0]); ++i) {
+				if (strcmp(optarg, kb_int[i].name) == 0) {
+					keyboard_interactive = kb_int[i].value;
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				fprintf(stderr, "invalid keyboard interactivity setting %s\n", optarg);
+				return 1;
+			}
 			break;
+		}
 		default:
 			break;
 		}

@@ -11,7 +11,7 @@
 #include "util/signal.h"
 #include "wlr-layer-shell-unstable-v1-protocol.h"
 
-#define LAYER_SHELL_VERSION 3
+#define LAYER_SHELL_VERSION 4
 
 static void resource_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -158,7 +158,18 @@ static void layer_surface_handle_set_keyboard_interactivity(
 	if (!surface) {
 		return;
 	}
-	surface->client_pending.keyboard_interactive = !!interactive;
+
+	if (wl_resource_get_version(resource) < ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND_SINCE_VERSION) {
+		surface->client_pending.keyboard_interactive = !!interactive;
+	} else {
+		if (interactive > ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND) {
+			wl_resource_post_error(resource,
+				ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_KEYBOARD_INTERACTIVITY,
+				"wrong keyboard interactivity value: %" PRIu32, interactive);
+		} else {
+			surface->client_pending.keyboard_interactive = interactive;
+		}
+	}
 }
 
 static void layer_surface_handle_get_popup(struct wl_client *client,
