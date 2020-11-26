@@ -565,25 +565,6 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 
 	wl_display_roundtrip(output->backend->remote_display);
 
-	// start rendering loop per callbacks by rendering first frame
-	if (!wlr_egl_make_current(&output->backend->egl, output->egl_surface,
-			NULL)) {
-		goto error;
-	}
-
-	wlr_renderer_begin(backend->renderer, wlr_output->width, wlr_output->height);
-	wlr_renderer_clear(backend->renderer, (float[]){ 1.0, 1.0, 1.0, 1.0 });
-	wlr_renderer_end(backend->renderer);
-
-	output->frame_callback = wl_surface_frame(output->surface);
-	wl_callback_add_listener(output->frame_callback, &frame_listener, output);
-
-	if (!wlr_egl_swap_buffers(&output->backend->egl, output->egl_surface,
-			NULL)) {
-		goto error;
-	}
-	wlr_output->frame_pending = true;
-
 	wl_list_insert(&backend->outputs, &output->link);
 	wlr_output_update_enabled(wlr_output, true);
 
@@ -595,6 +576,9 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 			create_wl_pointer(seat, output);
 		}
 	}
+
+	// Start the rendering loop by requesting the compositor to render a frame
+	wlr_output_schedule_frame(wlr_output);
 
 	return wlr_output;
 
