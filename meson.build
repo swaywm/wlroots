@@ -97,7 +97,6 @@ endif
 
 wayland_server = dependency('wayland-server', version: '>=1.18')
 wayland_client = dependency('wayland-client')
-wayland_egl = dependency('wayland-egl')
 wayland_protos = dependency('wayland-protocols', version: '>=1.17')
 egl = dependency('egl')
 glesv2 = dependency('glesv2')
@@ -114,7 +113,6 @@ wlr_files = []
 wlr_deps = [
 	wayland_server,
 	wayland_client,
-	wayland_egl,
 	wayland_protos,
 	egl,
 	glesv2,

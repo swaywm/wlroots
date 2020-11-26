@@ -1,4 +1,5 @@
 threads = dependency('threads')
+wayland_egl = dependency('wayland-egl')
 wayland_cursor = dependency('wayland-cursor')
 libpng = dependency('libpng', required: false, disabler: true)
 # These versions correspond to ffmpeg 4.0
@@ -54,7 +55,7 @@ clients = {
 	},
 	'idle-inhibit': {
 		'src': 'idle-inhibit.c',
-		'dep': wlroots,
+		'dep': [wayland_egl, wlroots],
 		'proto': [
 			'idle-inhibit-unstable-v1',
 			'xdg-shell',
@@ -62,7 +63,7 @@ clients = {
 	},
 	'keyboard-shortcuts-inhibit': {
 		'src': 'keyboard-shortcuts-inhibit.c',
-		'dep': [wayland_cursor, wlroots],
+		'dep': [wayland_egl, wayland_cursor, wlroots],
 		'proto': [
 			'keyboard-shortcuts-inhibit-unstable-v1',
 			'xdg-shell',
@@ -70,7 +71,7 @@ clients = {
 	},
 	'layer-shell': {
 		'src': 'layer-shell.c',
-		'dep': [wayland_cursor, wlroots],
+		'dep': [wayland_egl, wayland_cursor, wlroots],
 		'proto': [
 			'wlr-layer-shell-unstable-v1',
 			'xdg-shell',
@@ -78,7 +79,7 @@ clients = {
 	},
 	'input-inhibitor': {
 		'src': 'input-inhibitor.c',
-		'dep': [wayland_cursor, wlroots],
+		'dep': [wayland_egl, wayland_cursor, wlroots],
 		'proto': [
 			'wlr-input-inhibitor-unstable-v1',
 			'xdg-shell',
@@ -96,7 +97,7 @@ clients = {
 	},
 	'pointer-constraints': {
 		'src': 'pointer-constraints.c',
-		'dep': wlroots,
+		'dep': [wayland_egl, wlroots],
 		'proto': [
 			'pointer-constraints-unstable-v1',
 			'xdg-shell',
@@ -104,7 +105,7 @@ clients = {
 	},
 	'relative-pointer': {
 		'src': 'relative-pointer-unstable-v1.c',
-		'dep': wlroots,
+		'dep': [wayland_egl, wlroots],
 		'proto': [
 			'pointer-constraints-unstable-v1',
 			'relative-pointer-unstable-v1',
@@ -137,7 +138,7 @@ clients = {
 	},
 	'toplevel-decoration': {
 		'src': 'toplevel-decoration.c',
-		'dep': wlroots,
+		'dep': [wayland_egl, wlroots],
 		'proto': [
 			'xdg-decoration-unstable-v1',
 			'xdg-shell',
@@ -145,7 +146,7 @@ clients = {
 	},
 	'input-method': {
 		'src': 'input-method.c',
-		'dep': libepoll,
+		'dep': [wayland_egl, libepoll],
 		'proto': [
 			'input-method-unstable-v2',
 			'text-input-unstable-v3',
@@ -154,7 +155,7 @@ clients = {
 	},
 	'text-input': {
 		'src': 'text-input.c',
-		'dep': [wayland_cursor, wlroots],
+		'dep': [wayland_egl, wayland_cursor, wlroots],
 		'proto': [
 			'text-input-unstable-v3',
 			'xdg-shell',
