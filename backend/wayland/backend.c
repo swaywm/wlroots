@@ -2,6 +2,7 @@
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <wlr/config.h>
 
@@ -16,7 +17,10 @@
 #include <wlr/util/log.h>
 
 #include "backend/wayland.h"
+#include "render/drm_format_set.h"
+#include "render/gbm_allocator.h"
 #include "util/signal.h"
+
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
 #include "pointer-gestures-unstable-v1-client-protocol.h"
 #include "presentation-time-client-protocol.h"
@@ -277,7 +281,8 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}
 
 	wl_registry_add_listener(wl->registry, &registry_listener, wl);
-	wl_display_roundtrip(wl->remote_display);
+	wl_display_roundtrip(wl->remote_display); // get globals
+	wl_display_roundtrip(wl->remote_display); // get linux-dmabuf formats
 
 	if (!wl->compositor) {
 		wlr_log(WLR_ERROR,
@@ -317,11 +322,41 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 
 	wl->renderer = create_renderer_func(&wl->egl, EGL_PLATFORM_WAYLAND_EXT,
 		wl->remote_display, config_attribs, 0);
-
 	if (!wl->renderer) {
 		wlr_log(WLR_ERROR, "Could not create renderer");
 		goto error_event;
 	}
+
+	// TODO: get FD from linux-dmabuf hints instead
+	int drm_fd = wlr_renderer_get_drm_fd(wl->renderer);
+	if (drm_fd < 0) {
+		wlr_log(WLR_ERROR, "Failed to get DRM device FD from renderer");
+		goto error_event;
+	}
+
+	drm_fd = dup(drm_fd);
+	if (drm_fd < 0) {
+		wlr_log_errno(WLR_ERROR, "dup failed");
+		goto error_event;
+	}
+
+	struct wlr_gbm_allocator *alloc = wlr_gbm_allocator_create(drm_fd);
+	if (alloc == NULL) {
+		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
+		goto error_event;
+	}
+	wl->allocator = &alloc->base;
+
+	uint32_t fmt = DRM_FORMAT_ARGB8888;
+	const struct wlr_drm_format *remote_format =
+		wlr_drm_format_set_get(&wl->linux_dmabuf_v1_formats, fmt);
+	if (remote_format == NULL) {
+		wlr_log(WLR_ERROR, "Remote compositor doesn't support ARGB8888 "
+			"via linux-dmabuf-unstable-v1");
+		goto error_event;
+	}
+	// TODO: intersect with render formats
+	wl->format = wlr_drm_format_dup(remote_format);
 
 	wl->local_display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &wl->local_display_destroy);

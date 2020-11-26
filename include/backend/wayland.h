@@ -25,6 +25,8 @@ struct wlr_wl_backend {
 	struct wl_list outputs;
 	struct wlr_egl egl;
 	struct wlr_renderer *renderer;
+	struct wlr_drm_format *format;
+	struct wlr_allocator *allocator;
 	size_t requested_outputs;
 	size_t last_output_num;
 	struct wl_listener local_display_destroy;
@@ -67,9 +69,10 @@ struct wlr_wl_output {
 	struct xdg_surface *xdg_surface;
 	struct xdg_toplevel *xdg_toplevel;
 	struct zxdg_toplevel_decoration_v1 *zxdg_toplevel_decoration_v1;
-	struct wl_egl_window *egl_window;
-	EGLSurface egl_surface;
 	struct wl_list presentation_feedbacks;
+
+	struct wlr_swapchain *swapchain;
+	struct wlr_buffer *back_buffer;
 
 	uint32_t enter_serial;
 

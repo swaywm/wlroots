@@ -15,7 +15,10 @@
 #include <wlr/util/log.h>
 
 #include "backend/wayland.h"
+#include "render/swapchain.h"
+#include "render/wlr_renderer.h"
 #include "util/signal.h"
+
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
 #include "presentation-time-client-protocol.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
@@ -94,17 +97,40 @@ static const struct wp_presentation_feedback_listener
 static bool output_set_custom_mode(struct wlr_output *wlr_output,
 		int32_t width, int32_t height, int32_t refresh) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
-	wl_egl_window_resize(output->egl_window, width, height, 0, 0);
+
+	if (wlr_output->width != width || wlr_output->height != height) {
+		struct wlr_swapchain *swapchain = wlr_swapchain_create(
+			output->backend->allocator, width, height, output->backend->format);
+		if (swapchain == NULL) {
+			return false;
+		}
+		wlr_swapchain_destroy(output->swapchain);
+		output->swapchain = swapchain;
+	}
+
 	wlr_output_update_custom_mode(&output->wlr_output, width, height, 0);
 	return true;
 }
 
 static bool output_attach_render(struct wlr_output *wlr_output,
 		int *buffer_age) {
-	struct wlr_wl_output *output =
-		get_wl_output_from_output(wlr_output);
-	return wlr_egl_make_current(&output->backend->egl, output->egl_surface,
-		buffer_age);
+	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
+
+	wlr_buffer_unlock(output->back_buffer);
+	output->back_buffer = wlr_swapchain_acquire(output->swapchain, buffer_age);
+	if (!output->back_buffer) {
+		return false;
+	}
+
+	if (!wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL)) {
+		return false;
+	}
+	if (!wlr_renderer_bind_buffer(output->backend->renderer,
+			output->back_buffer)) {
+		return false;
+	}
+
+	return true;
 }
 
 static void destroy_wl_buffer(struct wlr_wl_buffer *buffer) {
@@ -246,38 +272,48 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		output->frame_callback = wl_surface_frame(output->surface);
 		wl_callback_add_listener(output->frame_callback, &frame_listener, output);
 
+		struct wlr_buffer *wlr_buffer = NULL;
 		switch (wlr_output->pending.buffer_type) {
 		case WLR_OUTPUT_STATE_BUFFER_RENDER:
-			if (!wlr_egl_swap_buffers(&output->backend->egl,
-					output->egl_surface, damage)) {
-				return false;
-			}
+			assert(output->back_buffer != NULL);
+			wlr_buffer = output->back_buffer;
+
+			wlr_renderer_bind_buffer(output->backend->renderer, NULL);
+			wlr_egl_unset_current(&output->backend->egl);
 			break;
 		case WLR_OUTPUT_STATE_BUFFER_SCANOUT:;
-			struct wlr_wl_buffer *buffer =
-				create_wl_buffer(output->backend, wlr_output->pending.buffer);
-			if (buffer == NULL) {
-				return false;
-			}
-
-			wl_surface_attach(output->surface, buffer->wl_buffer, 0, 0);
-
-			if (damage == NULL) {
-				wl_surface_damage_buffer(output->surface,
-					0, 0, INT32_MAX, INT32_MAX);
-			} else {
-				int rects_len;
-				pixman_box32_t *rects =
-					pixman_region32_rectangles(damage, &rects_len);
-				for (int i = 0; i < rects_len; i++) {
-					pixman_box32_t *r = &rects[i];
-					wl_surface_damage_buffer(output->surface, r->x1, r->y1,
-						r->x2 - r->x1, r->y2 - r->y1);
-				}
-			}
-			wl_surface_commit(output->surface);
+			wlr_buffer = wlr_output->pending.buffer;
 			break;
 		}
+
+		struct wlr_wl_buffer *buffer =
+			create_wl_buffer(output->backend, wlr_buffer);
+		if (buffer == NULL) {
+			return false;
+		}
+
+		wl_surface_attach(output->surface, buffer->wl_buffer, 0, 0);
+
+		if (damage == NULL) {
+			wl_surface_damage_buffer(output->surface,
+				0, 0, INT32_MAX, INT32_MAX);
+		} else {
+			int rects_len;
+			pixman_box32_t *rects =
+				pixman_region32_rectangles(damage, &rects_len);
+			for (int i = 0; i < rects_len; i++) {
+				pixman_box32_t *r = &rects[i];
+				wl_surface_damage_buffer(output->surface, r->x1, r->y1,
+					r->x2 - r->x1, r->y2 - r->y1);
+			}
+		}
+
+		wl_surface_commit(output->surface);
+
+		wlr_buffer_unlock(output->back_buffer);
+		output->back_buffer = NULL;
+
+		wlr_swapchain_set_buffer_submitted(output->swapchain, wlr_buffer);
 
 		if (wp_feedback != NULL) {
 			struct wlr_wl_presentation_feedback *feedback =
@@ -302,8 +338,8 @@ static bool output_commit(struct wlr_output *wlr_output) {
 }
 
 static void output_rollback_render(struct wlr_output *wlr_output) {
-	struct wlr_wl_output *output =
-		get_wl_output_from_output(wlr_output);
+	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
+	wlr_renderer_bind_buffer(output->backend->renderer, NULL);
 	wlr_egl_unset_current(&output->backend->egl);
 }
 
@@ -407,8 +443,8 @@ static void output_destroy(struct wlr_output *wlr_output) {
 		presentation_feedback_destroy(feedback);
 	}
 
-	wlr_egl_destroy_surface(&output->backend->egl, output->egl_surface);
-	wl_egl_window_destroy(output->egl_window);
+	wlr_buffer_unlock(output->back_buffer);
+	wlr_swapchain_destroy(output->swapchain);
 	if (output->zxdg_toplevel_decoration_v1) {
 		zxdg_toplevel_decoration_v1_destroy(output->zxdg_toplevel_decoration_v1);
 	}
@@ -558,10 +594,11 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 			&xdg_toplevel_listener, output);
 	wl_surface_commit(output->surface);
 
-	output->egl_window = wl_egl_window_create(output->surface,
-			wlr_output->width, wlr_output->height);
-	output->egl_surface = wlr_egl_create_surface(&backend->egl,
-		output->egl_window);
+	output->swapchain = wlr_swapchain_create(output->backend->allocator,
+		wlr_output->width, wlr_output->height, output->backend->format);
+	if (output->swapchain == NULL) {
+		goto error;
+	}
 
 	wl_display_roundtrip(output->backend->remote_display);
 
