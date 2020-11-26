@@ -377,19 +377,30 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		width = width * wlr_output->scale / scale;
 		height = height * wlr_output->scale / scale;
 
-		output->cursor.width = width;
-		output->cursor.height = height;
-
-		if (output->cursor.egl_window == NULL) {
-			output->cursor.egl_window =
-				wl_egl_window_create(surface, width, height);
+		if (output->cursor.swapchain == NULL ||
+				output->cursor.swapchain->width != width ||
+				output->cursor.swapchain->height != height) {
+			wlr_swapchain_destroy(output->cursor.swapchain);
+			output->cursor.swapchain = wlr_swapchain_create(
+				output->backend->allocator, width, height,
+				output->backend->format);
+			if (output->cursor.swapchain == NULL) {
+				return false;
+			}
 		}
-		wl_egl_window_resize(output->cursor.egl_window, width, height, 0, 0);
 
-		EGLSurface egl_surface =
-			wlr_egl_create_surface(&backend->egl, output->cursor.egl_window);
+		struct wlr_buffer *wlr_buffer =
+			wlr_swapchain_acquire(output->cursor.swapchain, NULL);
+		if (wlr_buffer == NULL) {
+			return false;
+		}
 
-		wlr_egl_make_current(&backend->egl, egl_surface, NULL);
+		if (!wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL)) {
+			return false;
+		}
+		if (!wlr_renderer_bind_buffer(output->backend->renderer, wlr_buffer)) {
+			return false;
+		}
 
 		struct wlr_box cursor_box = {
 			.width = width,
@@ -407,8 +418,23 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		wlr_render_texture_with_matrix(backend->renderer, texture, matrix, 1.0);
 		wlr_renderer_end(backend->renderer);
 
-		wlr_egl_swap_buffers(&backend->egl, egl_surface, NULL);
-		wlr_egl_destroy_surface(&backend->egl, egl_surface);
+		wlr_renderer_bind_buffer(output->backend->renderer, NULL);
+		wlr_egl_unset_current(&output->backend->egl);
+
+		struct wlr_wl_buffer *buffer =
+			create_wl_buffer(output->backend, wlr_buffer);
+		if (buffer == NULL) {
+			return false;
+		}
+
+		wl_surface_attach(surface, buffer->wl_buffer, 0, 0);
+		wl_surface_damage_buffer(surface, 0, 0, INT32_MAX, INT32_MAX);
+		wl_surface_commit(surface);
+
+		wlr_buffer_unlock(wlr_buffer);
+
+		output->cursor.width = width;
+		output->cursor.height = height;
 	} else {
 		wl_surface_attach(surface, NULL, 0, 0);
 		wl_surface_commit(surface);
@@ -426,9 +452,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 	wl_list_remove(&output->link);
 
-	if (output->cursor.egl_window != NULL) {
-		wl_egl_window_destroy(output->cursor.egl_window);
-	}
+	wlr_swapchain_destroy(output->cursor.swapchain);
 	if (output->cursor.surface) {
 		wl_surface_destroy(output->cursor.surface);
 	}

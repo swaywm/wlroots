@@ -4,9 +4,7 @@
 #include <stdbool.h>
 
 #include <wayland-client.h>
-#include <wayland-egl.h>
 #include <wayland-server-core.h>
-#include <wayland-util.h>
 
 #include <wlr/backend/wayland.h>
 #include <wlr/render/egl.h>
@@ -79,7 +77,7 @@ struct wlr_wl_output {
 	struct {
 		struct wlr_wl_pointer *pointer;
 		struct wl_surface *surface;
-		struct wl_egl_window *egl_window;
+		struct wlr_swapchain *swapchain;
 		int32_t hotspot_x, hotspot_y;
 		int32_t width, height;
 	} cursor;
