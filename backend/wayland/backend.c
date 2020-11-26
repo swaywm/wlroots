@@ -19,6 +19,7 @@
 #include "backend/wayland.h"
 #include "render/drm_format_set.h"
 #include "render/gbm_allocator.h"
+#include "render/wlr_renderer.h"
 #include "util/signal.h"
 
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
@@ -351,12 +352,30 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	const struct wlr_drm_format *remote_format =
 		wlr_drm_format_set_get(&wl->linux_dmabuf_v1_formats, fmt);
 	if (remote_format == NULL) {
-		wlr_log(WLR_ERROR, "Remote compositor doesn't support ARGB8888 "
-			"via linux-dmabuf-unstable-v1");
+		wlr_log(WLR_ERROR, "Remote compositor doesn't support format "
+			"0x%"PRIX32" via linux-dmabuf-unstable-v1", fmt);
 		goto error_event;
 	}
-	// TODO: intersect with render formats
-	wl->format = wlr_drm_format_dup(remote_format);
+
+	const struct wlr_drm_format_set *render_formats =
+		wlr_renderer_get_dmabuf_render_formats(wl->renderer);
+	if (render_formats == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get available DMA-BUF formats from renderer");
+		return false;
+	}
+	const struct wlr_drm_format *render_format =
+		wlr_drm_format_set_get(render_formats, fmt);
+	if (render_format == NULL) {
+		wlr_log(WLR_ERROR, "Renderer doesn't support DRM format 0x%"PRIX32, fmt);
+		return false;
+	}
+
+	wl->format = wlr_drm_format_intersect(remote_format, render_format);
+	if (wl->format == NULL) {
+		wlr_log(WLR_ERROR, "Failed to intersect remote and render modifiers "
+			"for format 0x%"PRIX32, fmt);
+		return false;
+	}
 
 	wl->local_display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &wl->local_display_destroy);
