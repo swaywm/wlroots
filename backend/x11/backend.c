@@ -180,6 +180,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&x11->display_destroy.link);
 
 	wlr_renderer_destroy(x11->renderer);
+	wlr_drm_format_set_finish(&x11->dri3_formats);
 	wlr_egl_finish(&x11->egl);
 	free(x11->drm_format);
 
@@ -234,6 +235,56 @@ static xcb_visualid_t pick_visualid(xcb_depth_t *depth) {
 		}
 	}
 	return 0;
+}
+
+static bool query_dri3_modifiers(struct wlr_x11_backend *x11,
+		const struct wlr_x11_format *format) {
+	// Query the root window's supported modifiers, because we only care about
+	// screen_modifiers for now
+	xcb_dri3_get_supported_modifiers_cookie_t modifiers_cookie =
+		xcb_dri3_get_supported_modifiers(x11->xcb, x11->screen->root,
+		format->depth, format->bpp);
+	xcb_dri3_get_supported_modifiers_reply_t *modifiers_reply =
+		xcb_dri3_get_supported_modifiers_reply(x11->xcb, modifiers_cookie,
+		NULL);
+	if (!modifiers_reply) {
+		wlr_log(WLR_ERROR, "Failed to get DMA-BUF modifiers supported by "
+			"the X11 server for the format 0x%"PRIX32, format->drm);
+		return false;
+	}
+
+	// If modifiers aren't supported, DRI3 will return an empty list
+	const uint64_t *modifiers =
+		xcb_dri3_get_supported_modifiers_screen_modifiers(modifiers_reply);
+	int modifiers_len =
+		xcb_dri3_get_supported_modifiers_screen_modifiers_length(modifiers_reply);
+	for (int i = 0; i < modifiers_len; i++) {
+		wlr_drm_format_set_add(&x11->dri3_formats, format->drm, modifiers[i]);
+	}
+
+	free(modifiers_reply);
+	return true;
+}
+
+static bool query_dri3_formats(struct wlr_x11_backend *x11) {
+	xcb_depth_iterator_t iter = xcb_screen_allowed_depths_iterator(x11->screen);
+	while (iter.rem > 0) {
+		uint8_t depth = iter.data->depth;
+
+		const struct wlr_x11_format *format = x11_format_from_depth(depth);
+		if (format != NULL) {
+			wlr_drm_format_set_add(&x11->dri3_formats, format->drm,
+				DRM_FORMAT_MOD_INVALID);
+
+			if (!query_dri3_modifiers(x11, format)) {
+				return false;
+			}
+		}
+
+		xcb_depth_next(&iter);
+	}
+
+	return true;
 }
 
 struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
@@ -452,21 +503,39 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 	x11->allocator = &alloc->base;
 
-	const struct wlr_drm_format_set *formats =
+	const struct wlr_drm_format_set *render_formats =
 		wlr_renderer_get_dmabuf_render_formats(x11->renderer);
-	if (formats == NULL) {
+	if (render_formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to get available DMA-BUF formats from renderer");
 		return false;
 	}
-	const struct wlr_drm_format *format =
-		wlr_drm_format_set_get(formats, x11->x11_format->drm);
-	if (format == NULL) {
+	const struct wlr_drm_format *render_format =
+		wlr_drm_format_set_get(render_formats, x11->x11_format->drm);
+	if (render_format == NULL) {
 		wlr_log(WLR_ERROR, "Renderer doesn't support DRM format 0x%"PRIX32,
 			x11->x11_format->drm);
 		return false;
 	}
-	// TODO intersect modifiers with DRI3GetSupportedModifiers
-	x11->drm_format = wlr_drm_format_dup(format);
+
+	if (!query_dri3_formats(x11)) {
+		wlr_log(WLR_ERROR, "Failed to query supported DRI3 formats");
+		return false;
+	}
+
+	const struct wlr_drm_format *dri3_format =
+		wlr_drm_format_set_get(render_formats, x11->x11_format->drm);
+	if (dri3_format == NULL) {
+		wlr_log(WLR_ERROR, "X11 server doesn't support DRM format 0x%"PRIX32,
+			x11->x11_format->drm);
+		return false;
+	}
+
+	x11->drm_format = wlr_drm_format_intersect(dri3_format, render_format);
+	if (x11->drm_format == NULL) {
+		wlr_log(WLR_ERROR, "Failed to intersect DRI3 and render modifiers for "
+			"format 0x%"PRIX32, x11->x11_format->drm);
+		return false;
+	}
 
 #if WLR_HAS_XCB_ERRORS
 	if (xcb_errors_context_new(x11->xcb, &x11->errors_context) != 0) {

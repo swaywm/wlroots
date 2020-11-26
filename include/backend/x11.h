@@ -20,6 +20,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/interfaces/wlr_touch.h>
+#include <wlr/render/drm_format_set.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/wlr_renderer.h>
 
@@ -82,6 +83,7 @@ struct wlr_x11_backend {
 
 	struct wlr_egl egl;
 	struct wlr_renderer *renderer;
+	struct wlr_drm_format_set dri3_formats;
 	const struct wlr_x11_format *x11_format;
 	struct wlr_drm_format *drm_format;
 	struct wlr_allocator *allocator;
