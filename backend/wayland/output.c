@@ -582,6 +582,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 			NULL)) {
 		goto error;
 	}
+	wlr_output->frame_pending = true;
 
 	wl_list_insert(&backend->outputs, &output->link);
 	wlr_output_update_enabled(wlr_output, true);
