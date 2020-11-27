@@ -252,6 +252,14 @@ void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
 void wlr_xwayland_surface_activate(struct wlr_xwayland_surface *surface,
 	bool activated);
 
+/**
+ * Restack surface relative to sibling.
+ * If sibling is NULL, then the surface is moved to the top or the bottom
+ * of the stack (depending on the mode).
+ */
+void wlr_xwayland_surface_restack(struct wlr_xwayland_surface *surface,
+	struct wlr_xwayland_surface *sibling, enum xcb_stack_mode_t mode);
+
 void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *surface,
 	int16_t x, int16_t y, uint16_t width, uint16_t height);
 
