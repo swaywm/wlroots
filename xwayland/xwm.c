@@ -1548,6 +1548,23 @@ void wlr_xwayland_surface_activate(struct wlr_xwayland_surface *xsurface,
 	}
 }
 
+void wlr_xwayland_surface_restack(struct wlr_xwayland_surface *surface,
+		struct wlr_xwayland_surface *sibling, enum xcb_stack_mode_t mode) {
+	struct wlr_xwm *xwm = surface->xwm;
+	uint32_t values[2];
+	size_t idx = 0;
+	uint32_t flags = XCB_CONFIG_WINDOW_STACK_MODE;
+
+	if (sibling != NULL) {
+		values[idx++] = sibling->window_id;
+		flags |= XCB_CONFIG_WINDOW_SIBLING;
+	}
+	values[idx++] = mode;
+
+	xcb_configure_window(xwm->xcb_conn, surface->window_id, flags, values);
+	xcb_flush(xwm->xcb_conn);
+}
+
 void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *xsurface,
 		int16_t x, int16_t y, uint16_t width, uint16_t height) {
 	xsurface->x = x;
