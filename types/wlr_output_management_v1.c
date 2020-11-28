@@ -118,6 +118,9 @@ struct wlr_output_configuration_head_v1 *
 		struct wlr_output_configuration_v1 *config, struct wlr_output *output) {
 	struct wlr_output_configuration_head_v1 *config_head =
 		config_head_create(config, output);
+	if (config_head == NULL) {
+		return NULL;
+	}
 	config_head->state.enabled = output->enabled;
 	config_head->state.mode = output->current_mode;
 	config_head->state.custom_mode.width = output->width;
