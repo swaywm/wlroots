@@ -28,7 +28,6 @@ union wlr_drm_connector_props {
 union wlr_drm_crtc_props {
 	struct {
 		// Neither of these are guaranteed to exist
-		uint32_t rotation;
 		uint32_t scaling_mode;
 		uint32_t vrr_enabled;
 		uint32_t gamma_lut;
