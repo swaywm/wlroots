@@ -35,7 +35,6 @@ static const struct prop_info crtc_info[] = {
 	{ "GAMMA_LUT_SIZE", INDEX(gamma_lut_size) },
 	{ "MODE_ID", INDEX(mode_id) },
 	{ "VRR_ENABLED", INDEX(vrr_enabled) },
-	{ "scaling mode", INDEX(scaling_mode) },
 #undef INDEX
 };
 
