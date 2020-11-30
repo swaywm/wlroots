@@ -79,7 +79,6 @@ struct wlr_egl {
 
 	struct wlr_drm_format_set dmabuf_texture_formats;
 	struct wlr_drm_format_set dmabuf_render_formats;
-	EGLBoolean **external_only_dmabuf_formats;
 };
 
 // TODO: Allocate and return a wlr_egl
