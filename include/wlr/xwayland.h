@@ -22,7 +22,7 @@ struct wlr_xwayland_cursor;
 struct wlr_xwayland_server {
 	pid_t pid;
 	struct wl_client *client;
-	struct wl_event_source *sigusr1_source;
+	struct wl_event_source *pipe_source;
 	int wm_fd[2], wl_fd[2];
 
 	time_t server_start;
@@ -236,9 +236,6 @@ void wlr_xwayland_server_destroy(struct wlr_xwayland_server *server);
  *
  * The server supports a lazy mode in which Xwayland is only started when a
  * client tries to connect.
- *
- * Note: wlr_xwayland will setup a global SIGUSR1 handler on the compositor
- * process.
  */
 struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 	struct wlr_compositor *compositor, bool lazy);

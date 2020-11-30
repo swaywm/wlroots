@@ -57,6 +57,7 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 	}
 
 	/* Make Xwayland signal us when it's ready */
+	/* TODO: can we use -displayfd instead? */
 	signal(SIGUSR1, SIG_IGN);
 
 	char *argv[] = {
@@ -139,8 +140,8 @@ static void server_finish_process(struct wlr_xwayland_server *server) {
 		wl_list_remove(&server->client_destroy.link);
 		wl_client_destroy(server->client);
 	}
-	if (server->sigusr1_source) {
-		wl_event_source_remove(server->sigusr1_source);
+	if (server->pipe_source) {
+		wl_event_source_remove(server->pipe_source);
 	}
 
 	safe_close(server->wl_fd[0]);
@@ -184,8 +185,8 @@ static void handle_client_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xwayland_server *server =
 		wl_container_of(listener, server, client_destroy);
 
-	if (server->sigusr1_source) {
-		// Xwayland failed to start, let the sigusr1 handler deal with it
+	if (server->pipe_source) {
+		// Xwayland failed to start, let the readiness handler deal with it
 		return;
 	}
 
@@ -219,7 +220,21 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_xwayland_server_destroy(server);
 }
 
-static int xserver_handle_ready(int signal_number, void *data) {
+static int xserver_handle_ready(int fd, uint32_t mask, void *data) {
+	// There are three ways in which we can end up here, from server_start:
+	// 1. the second fork failed
+	// 2. the exec failed
+	// 3. Xwayland sent a SIGUSR1
+	//
+	// All three cases result in a write to the pipe, which triggers us.
+	//
+	// For the first two cases, the first fork will exit with
+	// EXIT_FAILURE, notifying us that startup failed.
+	//
+	// For the third case, the first fork will exit with EXIT_SUCCESS
+	// and we'll know that Xwayland started successfully.
+
+	close(fd);
 	struct wlr_xwayland_server *server = data;
 
 	int stat_val = -1;
@@ -236,8 +251,8 @@ static int xserver_handle_ready(int signal_number, void *data) {
 	}
 	wlr_log(WLR_DEBUG, "Xserver is ready");
 
-	wl_event_source_remove(server->sigusr1_source);
-	server->sigusr1_source = NULL;
+	wl_event_source_remove(server->pipe_source);
+	server->pipe_source = NULL;
 
 	struct wlr_xwayland_server_ready_event event = {
 		.server = server,
@@ -310,19 +325,33 @@ static bool server_start(struct wlr_xwayland_server *server) {
 	server->client_destroy.notify = handle_client_destroy;
 	wl_client_add_destroy_listener(server->client, &server->client_destroy);
 
+	int p[2];
+	if (pipe(p) == -1) {
+		wlr_log_errno(WLR_ERROR, "pipe failed");
+		server_finish_process(server);
+		return false;
+	}
+	if (!set_cloexec(p[1], true) || !set_cloexec(p[0], true)) {
+		wlr_log(WLR_ERROR, "Failed to set CLOEXEC on FD");
+		server_finish_process(server);
+		return false;
+	}
+
 	struct wl_event_loop *loop = wl_display_get_event_loop(server->wl_display);
-	server->sigusr1_source = wl_event_loop_add_signal(loop, SIGUSR1,
-		xserver_handle_ready, server);
+	server->pipe_source = wl_event_loop_add_fd(loop, p[0],
+		WL_EVENT_READABLE, xserver_handle_ready, server);
 
 	server->pid = fork();
 	if (server->pid < 0) {
 		wlr_log_errno(WLR_ERROR, "fork failed");
+		close(p[0]);
+		close(p[1]);
 		server_finish_process(server);
 		return false;
 	} else if (server->pid == 0) {
 		/* Double-fork, but we need to forward SIGUSR1 once Xserver(1)
 		 * is ready, or error if there was one. */
-		pid_t ppid = getppid();
+		close(p[0]);
 		sigset_t sigset;
 		sigemptyset(&sigset);
 		sigaddset(&sigset, SIGUSR1);
@@ -332,6 +361,7 @@ static bool server_start(struct wlr_xwayland_server *server) {
 		pid_t pid = fork();
 		if (pid < 0) {
 			wlr_log_errno(WLR_ERROR, "second fork failed");
+			(void)!write(p[1], "\n", 1);
 			_exit(EXIT_FAILURE);
 		} else if (pid == 0) {
 			exec_xwayland(server);
@@ -339,8 +369,16 @@ static bool server_start(struct wlr_xwayland_server *server) {
 
 		int sig;
 		sigwait(&sigset, &sig);
-		kill(ppid, SIGUSR1);
-		wlr_log(WLR_DEBUG, "sent SIGUSR1 to process %d", ppid);
+		if (write(p[1], "\n", 1) < 1) {
+			// Note: if this write failed and we've leaked the write
+			// end of the pipe (due to a race between another thread
+			// exec'ing and our call to fcntl), then our handler will
+			// never wake up and never notice this failure. Hopefully
+			// that combination of events is extremely unlikely. This
+			// applies to the other write, too.
+			wlr_log_errno(WLR_ERROR, "write to pipe failed");
+			_exit(EXIT_FAILURE);
+		}
 		if (sig == SIGCHLD) {
 			waitpid(pid, NULL, 0);
 			_exit(EXIT_FAILURE);
@@ -351,6 +389,7 @@ static bool server_start(struct wlr_xwayland_server *server) {
 
 	/* close child fds */
 	/* remain managing x sockets for lazy start */
+	close(p[1]);
 	close(server->wl_fd[1]);
 	safe_close(server->wm_fd[1]);
 	server->wl_fd[1] = server->wm_fd[1] = -1;
