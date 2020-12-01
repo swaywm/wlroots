@@ -16,6 +16,7 @@
 #include <wlr/backend/wayland.h>
 #include <wlr/config.h>
 #include <wlr/util/log.h>
+#include "backend/backend.h"
 #include "backend/multi.h"
 
 #if WLR_HAS_X11_BACKEND
@@ -69,6 +70,13 @@ clockid_t wlr_backend_get_presentation_clock(struct wlr_backend *backend) {
 		return backend->impl->get_presentation_clock(backend);
 	}
 	return CLOCK_MONOTONIC;
+}
+
+int backend_get_drm_fd(struct wlr_backend *backend) {
+	if (!backend->impl->get_drm_fd) {
+		return -1;
+	}
+	return backend->impl->get_drm_fd(backend);
 }
 
 static size_t parse_outputs_env(const char *name) {
