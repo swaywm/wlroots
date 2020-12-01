@@ -70,8 +70,6 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 
 	wlr_backend_finish(wlr_backend);
 
-	free(backend->format);
-
 	close(backend->drm_fd);
 	free(backend);
 }
@@ -145,20 +143,6 @@ static bool backend_init(struct wlr_headless_backend *backend,
 		wlr_log(WLR_ERROR, "Failed to create allocator");
 		return false;
 	}
-
-	const struct wlr_drm_format_set *formats =
-		wlr_renderer_get_render_formats(renderer);
-	if (formats == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get available DMA-BUF formats from renderer");
-		return false;
-	}
-	const struct wlr_drm_format *format =
-		wlr_drm_format_set_get(formats, DRM_FORMAT_XRGB8888);
-	if (format == NULL) {
-		wlr_log(WLR_ERROR, "Renderer doesn't support XRGB8888");
-		return false;
-	}
-	backend->format = wlr_drm_format_dup(format);
 
 	backend->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &backend->display_destroy);
