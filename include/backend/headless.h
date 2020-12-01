@@ -9,7 +9,6 @@
 struct wlr_headless_backend {
 	struct wlr_backend backend;
 	int drm_fd;
-	struct wlr_drm_format *format;
 	struct wl_display *display;
 	struct wl_list outputs;
 	size_t last_output_num;
@@ -26,8 +25,7 @@ struct wlr_headless_output {
 	struct wlr_headless_backend *backend;
 	struct wl_list link;
 
-	struct wlr_swapchain *swapchain;
-	struct wlr_buffer *back_buffer, *front_buffer;
+	struct wlr_buffer *front_buffer;
 
 	struct wl_event_source *frame_timer;
 	int frame_delay; // ms
