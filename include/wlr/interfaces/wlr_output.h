@@ -94,6 +94,15 @@ struct wlr_output_impl {
 	 * size for the cursor may fail.
 	 */
 	void (*get_cursor_size)(struct wlr_output *output, int *width, int *height);
+	/**
+	 * Get the list of DMA-BUF formats suitable for the primary buffer,
+	 * assuming a buffer with the specified capabilities.
+	 *
+	 * If unimplemented, the primary buffer has no format constraint. If NULL
+	 * is returned, no format is suitable.
+	 */
+	const struct wlr_drm_format_set *(*get_primary_formats)(
+		struct wlr_output *output, uint32_t buffer_caps);
 };
 
 /**
