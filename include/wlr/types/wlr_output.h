@@ -185,6 +185,9 @@ struct wlr_output {
 	struct wlr_buffer *cursor_front_buffer;
 	int software_cursor_locks; // number of locks forcing software cursors
 
+	struct wlr_swapchain *swapchain;
+	struct wlr_buffer *back_buffer;
+
 	struct wl_listener display_destroy;
 
 	void *data;
