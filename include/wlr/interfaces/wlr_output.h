@@ -17,8 +17,7 @@
 /**
  * A backend implementation of wlr_output.
  *
- * The functions commit, attach_render and rollback_render are mandatory. Other
- * functions are optional.
+ * The commit function is mandatory. Other functions are optional.
  */
 struct wlr_output_impl {
 	/**

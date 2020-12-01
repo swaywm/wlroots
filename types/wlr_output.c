@@ -232,6 +232,13 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 
 	output->refresh = refresh;
 
+	if (output->swapchain != NULL &&
+			(output->swapchain->width != output->width ||
+			output->swapchain->height != output->height)) {
+		wlr_swapchain_destroy(output->swapchain);
+		output->swapchain = NULL;
+	}
+
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->resources) {
 		send_current_mode(resource);
@@ -336,7 +343,10 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl, struct wl_display *display) {
-	assert(impl->attach_render && impl->rollback_render && impl->commit);
+	assert(impl->commit);
+	if (impl->attach_render || impl->rollback_render) {
+		assert(impl->attach_render && impl->rollback_render);
+	}
 	if (impl->set_cursor || impl->move_cursor) {
 		assert(impl->set_cursor && impl->move_cursor);
 	}
@@ -373,6 +383,8 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_display_add_destroy_listener(display, &output->display_destroy);
 }
 
+static void output_clear_back_buffer(struct wlr_output *output);
+
 void wlr_output_destroy(struct wlr_output *output) {
 	if (!output) {
 		return;
@@ -380,6 +392,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 
 	wl_list_remove(&output->display_destroy.link);
 	wlr_output_destroy_global(output);
+	output_clear_back_buffer(output);
 
 	wlr_signal_emit_safe(&output->events.destroy, output);
 
@@ -392,6 +405,8 @@ void wlr_output_destroy(struct wlr_output *output) {
 
 	wlr_swapchain_destroy(output->cursor_swapchain);
 	wlr_buffer_unlock(output->cursor_front_buffer);
+
+	wlr_swapchain_destroy(output->swapchain);
 
 	if (output->idle_frame != NULL) {
 		wl_event_source_remove(output->idle_frame);
@@ -457,14 +472,106 @@ static void output_state_clear_buffer(struct wlr_output_state *state) {
 	state->committed &= ~WLR_OUTPUT_STATE_BUFFER;
 }
 
-bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age) {
-	if (!output->impl->attach_render(output, buffer_age)) {
+static struct wlr_drm_format *output_pick_format(struct wlr_output *output,
+		const struct wlr_drm_format_set *display_formats);
+
+static bool output_create_swapchain(struct wlr_output *output) {
+	if (output->swapchain != NULL) {
+		return true;
+	}
+
+	struct wlr_allocator *allocator = backend_get_allocator(output->backend);
+	if (allocator == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get backend allocator");
 		return false;
 	}
 
-	output_state_clear_buffer(&output->pending);
-	output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
-	output->pending.buffer_type = WLR_OUTPUT_STATE_BUFFER_RENDER;
+	const struct wlr_drm_format_set *display_formats = NULL;
+	if (output->impl->get_primary_formats) {
+		display_formats =
+			output->impl->get_primary_formats(output, allocator->buffer_caps);
+		if (display_formats == NULL) {
+			wlr_log(WLR_ERROR, "Failed to get primary display formats");
+			return false;
+		}
+	}
+
+	struct wlr_drm_format *format = output_pick_format(output, display_formats);
+	if (format == NULL) {
+		wlr_log(WLR_ERROR, "Failed to pick primary buffer format for output '%s'",
+			output->name);
+		return false;
+	}
+	wlr_log(WLR_DEBUG, "Choosing primary buffer format 0x%"PRIX32" for output '%s'",
+		format->format, output->name);
+
+	output->swapchain = wlr_swapchain_create(allocator, output->width,
+		output->height, format);
+	free(format);
+	if (output->swapchain == NULL) {
+		wlr_log(WLR_ERROR, "Failed to create output swapchain");
+		return false;
+	}
+
+	return true;
+}
+
+static bool output_attach_back_buffer(struct wlr_output *output,
+		int *buffer_age) {
+	assert(output->back_buffer == NULL);
+
+	if (!output_create_swapchain(output)) {
+		return false;
+	}
+
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	assert(renderer != NULL);
+
+	struct wlr_buffer *buffer =
+		wlr_swapchain_acquire(output->swapchain, buffer_age);
+	if (buffer == NULL) {
+		return false;
+	}
+
+	if (!wlr_renderer_bind_buffer(renderer, buffer)) {
+		wlr_buffer_unlock(buffer);
+		return false;
+	}
+
+	output->back_buffer = buffer;
+	return true;
+}
+
+static void output_clear_back_buffer(struct wlr_output *output) {
+	if (output->back_buffer == NULL) {
+		return;
+	}
+
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	assert(renderer != NULL);
+
+	wlr_renderer_bind_buffer(renderer, NULL);
+
+	wlr_buffer_unlock(output->back_buffer);
+	output->back_buffer = NULL;
+}
+
+bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age) {
+	if (output->impl->attach_render) {
+		if (!output->impl->attach_render(output, buffer_age)) {
+			return false;
+		}
+
+		output_state_clear_buffer(&output->pending);
+		output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
+		output->pending.buffer_type = WLR_OUTPUT_STATE_BUFFER_RENDER;
+	} else {
+		if (!output_attach_back_buffer(output, buffer_age)) {
+			return false;
+		}
+		wlr_output_attach_buffer(output, output->back_buffer);
+	}
+
 	return true;
 }
 
@@ -474,11 +581,24 @@ uint32_t wlr_output_preferred_read_format(struct wlr_output *output) {
 		return DRM_FORMAT_INVALID;
 	}
 
-	if (!output->impl->attach_render(output, NULL)) {
-		return DRM_FORMAT_INVALID;
+	if (output->impl->attach_render) {
+		if (!output->impl->attach_render(output, NULL)) {
+			return false;
+		}
+	} else {
+		if (!output_attach_back_buffer(output, NULL)) {
+			return false;
+		}
 	}
+
 	uint32_t fmt = renderer->impl->preferred_read_format(renderer);
-	output->impl->rollback_render(output);
+
+	if (output->impl->rollback_render) {
+		output->impl->rollback_render(output);
+	} else {
+		output_clear_back_buffer(output);
+	}
+
 	return fmt;
 }
 
@@ -529,7 +649,8 @@ static bool output_basic_test(struct wlr_output *output) {
 			return false;
 		}
 
-		if (output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
+		if (output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT &&
+				output->back_buffer == NULL) {
 			if (output->attach_render_locks > 0) {
 				wlr_log(WLR_DEBUG, "Direct scan-out disabled by lock");
 				return false;
@@ -660,6 +781,12 @@ bool wlr_output_commit(struct wlr_output *output) {
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		output->frame_pending = true;
 		output->needs_frame = false;
+
+		if (output->back_buffer != NULL) {
+			wlr_swapchain_set_buffer_submitted(output->swapchain,
+				output->back_buffer);
+			output_clear_back_buffer(output);
+		}
 	}
 
 	uint32_t committed = output->pending.committed;
@@ -681,6 +808,7 @@ void wlr_output_rollback(struct wlr_output *output) {
 			output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_RENDER) {
 		output->impl->rollback_render(output);
 	}
+	output_clear_back_buffer(output);
 
 	output_state_clear(&output->pending);
 }
