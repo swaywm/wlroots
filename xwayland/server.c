@@ -61,7 +61,7 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 
 	char *argv[] = {
 		"Xwayland", NULL /* display, e.g. :1 */,
-		"-rootless", "-terminate",
+		"-rootless", "-terminate", "-core",
 		"-listen", NULL /* x_fd[0] */,
 		"-listen", NULL /* x_fd[1] */,
 		"-wm", NULL /* wm_fd[1] */,
@@ -89,7 +89,7 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 	snprintf(wayland_socket_str, sizeof(wayland_socket_str), "%d", server->wl_fd[1]);
 	setenv("WAYLAND_SOCKET", wayland_socket_str, true);
 
-	wlr_log(WLR_INFO, "WAYLAND_SOCKET=%d Xwayland :%d -rootless -terminate -listen %d -listen %d -wm %d",
+	wlr_log(WLR_INFO, "WAYLAND_SOCKET=%d Xwayland :%d -rootless -terminate -core -listen %d -listen %d -wm %d",
 		server->wl_fd[1], server->display, server->x_fd[0],
 		server->x_fd[1], server->wm_fd[1]);
 
