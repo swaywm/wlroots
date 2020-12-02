@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <errno.h>
+#include <drm_fourcc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -236,6 +237,35 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	if (!init_drm_renderer(drm, &drm->renderer)) {
 		wlr_log(WLR_ERROR, "Failed to initialize renderer");
 		goto error_event;
+	}
+
+	if (drm->parent) {
+		// We'll perform a multi-GPU copy for all submitted buffers, we need
+		// to be able to texture from them
+		struct wlr_renderer *renderer = drm->renderer.wlr_rend;
+		const struct wlr_drm_format_set *texture_formats =
+			wlr_renderer_get_dmabuf_texture_formats(renderer);
+		if (texture_formats == NULL) {
+			wlr_log(WLR_ERROR, "Failed to query renderer texture formats");
+			goto error_event;
+		}
+
+		for (size_t i = 0; i < texture_formats->len; i++) {
+			const struct wlr_drm_format *fmt = texture_formats->formats[i];
+			if (fmt->len == 0) {
+				// Modifiers aren't supported. The implicit modifier changes
+				// from a GPU to the other, so we can only accept linear
+				// buffers
+				wlr_drm_format_set_add(&drm->mgpu_formats, fmt->format,
+					DRM_FORMAT_MOD_LINEAR);
+				continue;
+			}
+
+			for (size_t j = 0; j < fmt->len; j++) {
+				wlr_drm_format_set_add(&drm->mgpu_formats, fmt->format,
+					fmt->modifiers[j]);
+			}
+		}
 	}
 
 	drm->session_destroy.notify = handle_session_destroy;

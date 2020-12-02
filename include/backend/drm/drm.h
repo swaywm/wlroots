@@ -87,6 +87,10 @@ struct wlr_drm_backend {
 
 	struct wlr_drm_renderer renderer;
 	struct wlr_session *session;
+
+	uint64_t cursor_width, cursor_height;
+
+	struct wlr_drm_format_set mgpu_formats;
 };
 
 enum wlr_drm_connector_state {

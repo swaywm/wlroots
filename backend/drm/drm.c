@@ -26,9 +26,17 @@
 #include "backend/drm/util.h"
 #include "render/pixel_format.h"
 #include "render/swapchain.h"
+#include "types/wlr_buffer.h"
 #include "util/signal.h"
 
 bool check_drm_features(struct wlr_drm_backend *drm) {
+	if (drmGetCap(drm->fd, DRM_CAP_CURSOR_WIDTH, &drm->cursor_width)) {
+		drm->cursor_width = 64;
+	}
+	if (drmGetCap(drm->fd, DRM_CAP_CURSOR_HEIGHT, &drm->cursor_height)) {
+		drm->cursor_height = 64;
+	}
+
 	uint64_t cap;
 	if (drmGetCap(drm->fd, DRM_CAP_PRIME, &cap) ||
 			!(cap & DRM_PRIME_CAP_IMPORT)) {
@@ -1004,6 +1012,32 @@ static void drm_connector_destroy_output(struct wlr_output *output) {
 	memset(&conn->output, 0, sizeof(struct wlr_output));
 }
 
+static const struct wlr_drm_format_set *drm_connector_get_cursor_formats(
+		struct wlr_output *output, uint32_t buffer_caps) {
+	if (!(buffer_caps & WLR_BUFFER_CAP_DMABUF)) {
+		return NULL;
+	}
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+	if (!conn->crtc) {
+		return false;
+	}
+	struct wlr_drm_plane *plane = conn->crtc->cursor;
+	if (!plane) {
+		return false;
+	}
+	if (conn->backend->parent) {
+		return &conn->backend->mgpu_formats;
+	}
+	return &plane->formats;
+}
+
+static void drm_connector_get_cursor_size(struct wlr_output *output,
+		int *width, int *height) {
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	*width = (int)drm->cursor_width;
+	*height = (int)drm->cursor_height;
+}
+
 static const struct wlr_output_impl output_impl = {
 	.set_cursor = drm_connector_set_cursor,
 	.move_cursor = drm_connector_move_cursor,
@@ -1014,6 +1048,8 @@ static const struct wlr_output_impl output_impl = {
 	.rollback_render = drm_connector_rollback_render,
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.export_dmabuf = drm_connector_export_dmabuf,
+	.get_cursor_formats = drm_connector_get_cursor_formats,
+	.get_cursor_size = drm_connector_get_cursor_size,
 };
 
 bool wlr_output_is_drm(struct wlr_output *output) {
