@@ -87,6 +87,20 @@ struct wlr_output_impl {
 	 */
 	bool (*export_dmabuf)(struct wlr_output *output,
 		struct wlr_dmabuf_attributes *attribs);
+	/**
+	 * Get the list of formats suitable for the cursor, assuming a buffer with
+	 * the specified capabilities.
+	 *
+	 * If unimplemented, the cursor buffer has no format constraint. If NULL is
+	 * returned, no format is suitable.
+	 */
+	const struct wlr_drm_format_set *(*get_cursor_formats)(
+		struct wlr_output *output, uint32_t buffer_caps);
+	/**
+	 * Get the size suitable for the cursor buffer. Attempts to use a different
+	 * size for the cursor may fail.
+	 */
+	void (*get_cursor_size)(struct wlr_output *output, int *width, int *height);
 };
 
 /**
