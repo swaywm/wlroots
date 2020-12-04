@@ -34,9 +34,10 @@ struct wlr_drm_plane {
 
 	struct wlr_drm_format_set formats;
 
-	// Only used by cursor
+	// Only used by cursor plane
 	bool cursor_enabled;
-	int32_t cursor_hotspot_x, cursor_hotspot_y;
+	int cursor_width, cursor_height;
+	int cursor_hotspot_x, cursor_hotspot_y;
 
 	union wlr_drm_plane_props props;
 };

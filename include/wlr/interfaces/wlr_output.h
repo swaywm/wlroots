@@ -24,22 +24,15 @@ struct wlr_output_impl {
 	/**
 	 * Set the output cursor plane image.
 	 *
-	 * The parameters describe the image texture, its scale and its transform.
-	 * If the scale and transform doesn't match the output's, the backend is
-	 * responsible for scaling and transforming the texture appropriately.
-	 * If texture is NULL, the cursor should be hidden.
+	 * If buffer is NULL, the cursor should be hidden.
 	 *
 	 * The hotspot indicates the offset that needs to be applied to the
 	 * top-left corner of the image to match the cursor position. In other
 	 * words, the image should be displayed at (x - hotspot_x, y - hotspot_y).
 	 * The hotspot is given in the texture's coordinate space.
-	 *
-	 * If update_texture is true, all parameters need to be taken into account.
-	 * If update_texture is false, only the hotspot is to be updated.
 	 */
-	bool (*set_cursor)(struct wlr_output *output, struct wlr_texture *texture,
-		float scale, enum wl_output_transform transform,
-		int32_t hotspot_x, int32_t hotspot_y, bool update_texture);
+	bool (*set_cursor)(struct wlr_output *output, struct wlr_buffer *buffer,
+		int hotspot_x, int hotspot_y);
 	/**
 	 * Set the output cursor plane position.
 	 *

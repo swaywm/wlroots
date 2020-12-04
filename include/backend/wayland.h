@@ -83,9 +83,7 @@ struct wlr_wl_output {
 	struct {
 		struct wlr_wl_pointer *pointer;
 		struct wl_surface *surface;
-		struct wlr_swapchain *swapchain;
 		int32_t hotspot_x, hotspot_y;
-		int32_t width, height;
 	} cursor;
 };
 
