@@ -77,11 +77,22 @@ static clockid_t backend_get_presentation_clock(struct wlr_backend *backend) {
 	return drm->clock;
 }
 
+static int backend_get_drm_fd(struct wlr_backend *backend) {
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
+
+	if (drm->parent) {
+		return drm->parent->fd;
+	} else {
+		return drm->fd;
+	}
+}
+
 static struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.get_presentation_clock = backend_get_presentation_clock,
+	.get_drm_fd = backend_get_drm_fd,
 };
 
 bool wlr_backend_is_drm(struct wlr_backend *b) {
