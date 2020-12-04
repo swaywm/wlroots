@@ -296,6 +296,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wlr_renderer_destroy(wl->renderer);
 	wlr_allocator_destroy(wl->allocator);
+	close(wl->drm_fd);
 
 	wlr_drm_format_set_finish(&wl->linux_dmabuf_v1_formats);
 
@@ -333,10 +334,16 @@ static struct wlr_renderer *backend_get_renderer(struct wlr_backend *backend) {
 	return wl->renderer;
 }
 
+static int backend_get_drm_fd(struct wlr_backend *backend) {
+	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
+	return wl->drm_fd;
+}
+
 static struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
+	.get_drm_fd = backend_get_drm_fd,
 };
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {
@@ -410,18 +417,24 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	wl_event_source_check(wl->remote_display_src);
 
 	wlr_log(WLR_DEBUG, "Opening DRM render node %s", wl->drm_render_name);
-	int drm_fd = open(wl->drm_render_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
-	if (drm_fd < 0) {
+	wl->drm_fd = open(wl->drm_render_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+	if (wl->drm_fd < 0) {
 		wlr_log_errno(WLR_ERROR, "Failed to open DRM render node %s",
 			wl->drm_render_name);
-		goto error_registry;
+		goto error_remote_display_src;
+	}
+
+	int drm_fd = fcntl(wl->drm_fd, F_DUPFD_CLOEXEC, 0);
+	if (drm_fd < 0) {
+		wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+		goto error_drm_fd;
 	}
 
 	struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
 	if (gbm_alloc == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
 		close(drm_fd);
-		goto error_registry;
+		goto error_drm_fd;
 	}
 	wl->allocator = &gbm_alloc->base;
 
@@ -429,7 +442,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		gbm_alloc->gbm_device);
 	if (wl->renderer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
-		goto error_registry;
+		goto error_allocator;
 	}
 
 	uint32_t fmt = DRM_FORMAT_ARGB8888;
@@ -438,27 +451,27 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	if (remote_format == NULL) {
 		wlr_log(WLR_ERROR, "Remote compositor doesn't support format "
 			"0x%"PRIX32" via linux-dmabuf-unstable-v1", fmt);
-		goto error_event;
+		goto error_renderer;
 	}
 
 	const struct wlr_drm_format_set *render_formats =
 		wlr_renderer_get_dmabuf_render_formats(wl->renderer);
 	if (render_formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to get available DMA-BUF formats from renderer");
-		return false;
+		goto error_renderer;
 	}
 	const struct wlr_drm_format *render_format =
 		wlr_drm_format_set_get(render_formats, fmt);
 	if (render_format == NULL) {
 		wlr_log(WLR_ERROR, "Renderer doesn't support DRM format 0x%"PRIX32, fmt);
-		return false;
+		goto error_renderer;
 	}
 
 	wl->format = wlr_drm_format_intersect(remote_format, render_format);
 	if (wl->format == NULL) {
 		wlr_log(WLR_ERROR, "Failed to intersect remote and render modifiers "
 			"for format 0x%"PRIX32, fmt);
-		return false;
+		goto error_renderer;
 	}
 
 	wl->local_display_destroy.notify = handle_display_destroy;
@@ -466,7 +479,13 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 
 	return &wl->backend;
 
-error_event:
+error_renderer:
+	wlr_renderer_destroy(wl->renderer);
+error_allocator:
+	wlr_allocator_destroy(wl->allocator);
+error_drm_fd:
+	close(wl->drm_fd);
+error_remote_display_src:
 	wl_event_source_remove(wl->remote_display_src);
 error_registry:
 	free(wl->drm_render_name);
