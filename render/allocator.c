@@ -10,6 +10,9 @@ void wlr_allocator_init(struct wlr_allocator *alloc,
 }
 
 void wlr_allocator_destroy(struct wlr_allocator *alloc) {
+	if (alloc == NULL) {
+		return;
+	}
 	wl_signal_emit(&alloc->events.destroy, NULL);
 	alloc->impl->destroy(alloc);
 }
