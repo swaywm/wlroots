@@ -136,6 +136,13 @@ static bool add_plane(struct wlr_drm_backend *drm,
 		}
 
 		drmModeFreePropertyBlob(blob);
+	} else if (type == DRM_PLANE_TYPE_CURSOR) {
+		// Force a LINEAR layout for the cursor if the driver doesn't support
+		// modifiers
+		for (size_t i = 0; i < p->formats.len; ++i) {
+			wlr_drm_format_set_add(&p->formats, p->formats.formats[i]->format,
+				DRM_FORMAT_MOD_LINEAR);
+		}
 	}
 
 	switch (type) {
