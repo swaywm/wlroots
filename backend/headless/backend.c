@@ -165,22 +165,12 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
 		return NULL;
 	}
 
-	static const EGLint config_attribs[] = {
-		EGL_SURFACE_TYPE, 0,
-		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-		EGL_BLUE_SIZE, 1,
-		EGL_GREEN_SIZE, 1,
-		EGL_RED_SIZE, 1,
-		EGL_NONE,
-	};
-
 	if (!create_renderer_func) {
 		create_renderer_func = wlr_renderer_autocreate;
 	}
 
 	struct wlr_renderer *renderer = create_renderer_func(&backend->priv_egl,
-		EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY,
-		(EGLint*)config_attribs, 0);
+		EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY, NULL, 0);
 	if (!renderer) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
 		free(backend);
