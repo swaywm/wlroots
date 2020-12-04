@@ -268,7 +268,11 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
 	memcpy(&all_config_attribs[config_attribs_len], gles2_config_attribs,
 		sizeof(gles2_config_attribs));
 
-	if (!wlr_egl_init(egl, platform, remote_display, all_config_attribs,
+	if (config_attribs != NULL) {
+		config_attribs = all_config_attribs;
+	}
+
+	if (!wlr_egl_init(egl, platform, remote_display, config_attribs,
 			visual_id)) {
 		wlr_log(WLR_ERROR, "Could not initialize EGL");
 		return NULL;
