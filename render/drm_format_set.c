@@ -152,6 +152,16 @@ struct wlr_drm_format *wlr_drm_format_intersect(
 		const struct wlr_drm_format *a, const struct wlr_drm_format *b) {
 	assert(a->format == b->format);
 
+	// Special case: if a format only supports LINEAR and the other doesn't
+	// support any modifier, force LINEAR. This will force the allocator to
+	// create a buffer with a LINEAR layout instead of an implicit modifier.
+	if (a->len == 0 && b->len == 1 && b->modifiers[0] == DRM_FORMAT_MOD_LINEAR) {
+		return wlr_drm_format_dup(b);
+	}
+	if (b->len == 0 && a->len == 1 && a->modifiers[0] == DRM_FORMAT_MOD_LINEAR) {
+		return wlr_drm_format_dup(a);
+	}
+
 	size_t format_cap = a->len < b->len ? a->len : b->len;
 	size_t format_size = sizeof(struct wlr_drm_format) +
 		format_cap * sizeof(a->modifiers[0]);
