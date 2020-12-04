@@ -62,7 +62,7 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 	gbm_device_destroy(renderer->gbm);
 }
 
-static bool init_drm_surface(struct wlr_drm_surface *surf,
+bool init_drm_surface(struct wlr_drm_surface *surf,
 		struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
 		const struct wlr_drm_format *drm_format) {
 	if (surf->width == width && surf->height == height) {
@@ -126,7 +126,7 @@ void drm_surface_unset_current(struct wlr_drm_surface *surf) {
 	surf->back_buffer = NULL;
 }
 
-static struct wlr_buffer *drm_surface_blit(struct wlr_drm_surface *surf,
+struct wlr_buffer *drm_surface_blit(struct wlr_drm_surface *surf,
 		struct wlr_buffer *buffer) {
 	struct wlr_renderer *renderer = surf->renderer->wlr_rend;
 
@@ -191,7 +191,7 @@ static struct wlr_drm_format *create_linear_format(uint32_t format) {
 	return fmt;
 }
 
-static struct wlr_drm_format *drm_plane_pick_render_format(
+struct wlr_drm_format *drm_plane_pick_render_format(
 		struct wlr_drm_plane *plane, struct wlr_drm_renderer *renderer) {
 	const struct wlr_drm_format_set *render_formats =
 		wlr_renderer_get_render_formats(renderer->wlr_rend);

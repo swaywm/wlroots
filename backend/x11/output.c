@@ -420,82 +420,37 @@ static void update_x11_output_cursor(struct wlr_x11_output *output,
 }
 
 static bool output_cursor_to_picture(struct wlr_x11_output *output,
-		struct wlr_texture *texture, enum wl_output_transform transform,
-		int width, int height) {
+		struct wlr_buffer *buffer) {
 	struct wlr_x11_backend *x11 = output->x11;
-	struct wlr_allocator *allocator = backend_get_allocator(&x11->backend);
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(&x11->backend);
-	int depth = 32;
-	int stride = width * 4;
 
 	if (output->cursor.pic != XCB_NONE) {
 		xcb_render_free_picture(x11->xcb, output->cursor.pic);
 	}
 	output->cursor.pic = XCB_NONE;
 
-	if (texture == NULL) {
+	if (buffer == NULL) {
 		return true;
 	}
 
-	if (output->cursor.swapchain == NULL ||
-			output->cursor.swapchain->width != width ||
-			output->cursor.swapchain->height != height) {
-		wlr_swapchain_destroy(output->cursor.swapchain);
-		output->cursor.swapchain = wlr_swapchain_create(allocator,
-			width, height, x11->drm_format);
-		if (output->cursor.swapchain == NULL) {
-			return false;
-		}
-	}
+	int depth = 32;
+	int stride = buffer->width * 4;
 
-	struct wlr_buffer *wlr_buffer =
-		wlr_swapchain_acquire(output->cursor.swapchain, NULL);
-	if (wlr_buffer == NULL) {
+	if (!wlr_renderer_bind_buffer(renderer, buffer)) {
 		return false;
 	}
 
-	if (!wlr_renderer_bind_buffer(renderer, wlr_buffer)) {
-		return false;
-	}
-
-	uint8_t *data = malloc(width * height * 4);
+	uint8_t *data = malloc(buffer->height * stride);
 	if (data == NULL) {
 		return false;
 	}
 
-	struct wlr_box cursor_box = {
-		.width = width,
-		.height = height,
-	};
-
-	float output_matrix[9];
-	wlr_matrix_identity(output_matrix);
-	if (output->wlr_output.transform != WL_OUTPUT_TRANSFORM_NORMAL) {
-		struct wlr_box tr_size = { .width = width, .height = height };
-		wlr_box_transform(&tr_size, &tr_size, output->wlr_output.transform, 0, 0);
-
-		wlr_matrix_translate(output_matrix, width / 2.0, height / 2.0);
-		wlr_matrix_transform(output_matrix, output->wlr_output.transform);
-		wlr_matrix_translate(output_matrix,
-			- tr_size.width / 2.0, - tr_size.height / 2.0);
-	}
-
-	float matrix[9];
-	wlr_matrix_project_box(matrix, &cursor_box, transform, 0, output_matrix);
-
-	wlr_renderer_begin(renderer, width, height);
-	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
-	wlr_render_texture_with_matrix(renderer, texture, matrix, 1.0);
-	wlr_renderer_end(renderer);
-
 	bool result = wlr_renderer_read_pixels(
 		renderer, DRM_FORMAT_ARGB8888, NULL,
-		width * 4, width, height, 0, 0, 0, 0,
+		stride, buffer->width, buffer->height, 0, 0, 0, 0,
 		data);
 
 	wlr_renderer_bind_buffer(renderer, NULL);
-
-	wlr_buffer_unlock(wlr_buffer);
 
 	if (!result) {
 		free(data);
@@ -504,7 +459,7 @@ static bool output_cursor_to_picture(struct wlr_x11_output *output,
 
 	xcb_pixmap_t pix = xcb_generate_id(x11->xcb);
 	xcb_create_pixmap(x11->xcb, depth, pix, output->win,
-		width, height);
+		buffer->width, buffer->height);
 
 	output->cursor.pic = xcb_generate_id(x11->xcb);
 	xcb_render_create_picture(x11->xcb, output->cursor.pic,
@@ -514,9 +469,8 @@ static bool output_cursor_to_picture(struct wlr_x11_output *output,
 	xcb_create_gc(x11->xcb, gc, pix, 0, NULL);
 
 	xcb_put_image(x11->xcb, XCB_IMAGE_FORMAT_Z_PIXMAP,
-		pix, gc, width, height, 0, 0, 0, depth,
-		stride * height * sizeof(uint8_t),
-		data);
+		pix, gc, buffer->width, buffer->height, 0, 0, 0, depth,
+		stride * buffer->height * sizeof(uint8_t), data);
 	free(data);
 	xcb_free_gc(x11->xcb, gc);
 	xcb_free_pixmap(x11->xcb, pix);
@@ -525,55 +479,32 @@ static bool output_cursor_to_picture(struct wlr_x11_output *output,
 }
 
 static bool output_set_cursor(struct wlr_output *wlr_output,
-		struct wlr_texture *texture, float scale,
-		enum wl_output_transform transform,
-		int32_t hotspot_x, int32_t hotspot_y, bool update_texture) {
+		struct wlr_buffer *buffer, int32_t hotspot_x, int32_t hotspot_y) {
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
 	struct wlr_x11_backend *x11 = output->x11;
-	int width = 0, height = 0;
 
 	if (x11->argb32 == XCB_NONE) {
 		return false;
 	}
 
-	if (texture != NULL) {
-		width = texture->width * wlr_output->scale / scale;
-		height = texture->height * wlr_output->scale / scale;
-
+	if (buffer != NULL) {
 		if (hotspot_x < 0) {
 			hotspot_x = 0;
 		}
-		if ((uint32_t)hotspot_x > texture->width) {
-			hotspot_x = texture->width;
+		if (hotspot_x > buffer->width) {
+			hotspot_x = buffer->width;
 		}
 		if (hotspot_y < 0) {
 			hotspot_y = 0;
 		}
-		if ((uint32_t)hotspot_y > texture->height) {
-			hotspot_y = texture->height;
+		if (hotspot_y > buffer->height) {
+			hotspot_y = buffer->height;
 		}
 	}
 
-	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
-	wlr_box_transform(&hotspot, &hotspot,
-		wlr_output_transform_invert(wlr_output->transform),
-		width, height);
+	bool success = output_cursor_to_picture(output, buffer);
 
-	if (!update_texture) {
-		// This means we previously had a failure of some sort.
-		if (texture != NULL && output->cursor.pic == XCB_NONE) {
-			return false;
-		}
-
-		// Update hotspot without changing cursor image
-		update_x11_output_cursor(output, hotspot.x, hotspot.y);
-		return true;
-	}
-
-	bool success = output_cursor_to_picture(output, texture, transform,
-		width, height);
-
-	update_x11_output_cursor(output, hotspot.x, hotspot.y);
+	update_x11_output_cursor(output, hotspot_x, hotspot_y);
 
 	return success;
 }

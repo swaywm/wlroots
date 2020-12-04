@@ -406,28 +406,12 @@ static void output_rollback_render(struct wlr_output *wlr_output) {
 }
 
 static bool output_set_cursor(struct wlr_output *wlr_output,
-		struct wlr_texture *texture, float scale,
-		enum wl_output_transform transform,
-		int32_t hotspot_x, int32_t hotspot_y, bool update_texture) {
+		struct wlr_buffer *wlr_buffer, int hotspot_x, int hotspot_y) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
 	struct wlr_wl_backend *backend = output->backend;
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(&backend->backend);
-	struct wlr_allocator *allocator = backend_get_allocator(&backend->backend);
 
-	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
-	wlr_box_transform(&hotspot, &hotspot,
-		wlr_output_transform_invert(wlr_output->transform),
-		output->cursor.width, output->cursor.height);
-
-	// TODO: use output->wlr_output.transform to transform pixels and hotpot
-	output->cursor.hotspot_x = hotspot.x;
-	output->cursor.hotspot_y = hotspot.y;
-
-	if (!update_texture) {
-		// Update hotspot without changing cursor image
-		update_wl_output_cursor(output);
-		return true;
-	}
+	output->cursor.hotspot_x = hotspot_x;
+	output->cursor.hotspot_y = hotspot_y;
 
 	if (output->cursor.surface == NULL) {
 		output->cursor.surface =
@@ -435,58 +419,7 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 	}
 	struct wl_surface *surface = output->cursor.surface;
 
-	if (texture != NULL) {
-		int width = texture->width * wlr_output->scale / scale;
-		int height = texture->height * wlr_output->scale / scale;
-
-		if (output->cursor.swapchain == NULL ||
-				output->cursor.swapchain->width != width ||
-				output->cursor.swapchain->height != height) {
-			wlr_swapchain_destroy(output->cursor.swapchain);
-			output->cursor.swapchain = wlr_swapchain_create(allocator,
-				width, height, output->backend->format);
-			if (output->cursor.swapchain == NULL) {
-				return false;
-			}
-		}
-
-		struct wlr_buffer *wlr_buffer =
-			wlr_swapchain_acquire(output->cursor.swapchain, NULL);
-		if (wlr_buffer == NULL) {
-			return false;
-		}
-
-		if (!wlr_renderer_bind_buffer(renderer, wlr_buffer)) {
-			return false;
-		}
-
-		struct wlr_box cursor_box = {
-			.width = width,
-			.height = height,
-		};
-
-		float output_matrix[9];
-		wlr_matrix_identity(output_matrix);
-		if (wlr_output->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
-			struct wlr_box tr_size = { .width = width, .height = height };
-			wlr_box_transform(&tr_size, &tr_size, wlr_output->transform, 0, 0);
-
-			wlr_matrix_translate(output_matrix, width / 2.0, height / 2.0);
-			wlr_matrix_transform(output_matrix, wlr_output->transform);
-			wlr_matrix_translate(output_matrix,
-				- tr_size.width / 2.0, - tr_size.height / 2.0);
-		}
-
-		float matrix[9];
-		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, output_matrix);
-
-		wlr_renderer_begin(renderer, width, height);
-		wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
-		wlr_render_texture_with_matrix(renderer, texture, matrix, 1.0);
-		wlr_renderer_end(renderer);
-
-		wlr_renderer_bind_buffer(renderer, NULL);
-
+	if (wlr_buffer != NULL) {
 		struct wlr_wl_buffer *buffer =
 			get_or_create_wl_buffer(output->backend, wlr_buffer);
 		if (buffer == NULL) {
@@ -496,11 +429,6 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		wl_surface_attach(surface, buffer->wl_buffer, 0, 0);
 		wl_surface_damage_buffer(surface, 0, 0, INT32_MAX, INT32_MAX);
 		wl_surface_commit(surface);
-
-		wlr_buffer_unlock(wlr_buffer);
-
-		output->cursor.width = width;
-		output->cursor.height = height;
 	} else {
 		wl_surface_attach(surface, NULL, 0, 0);
 		wl_surface_commit(surface);
@@ -530,7 +458,6 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 	wl_list_remove(&output->link);
 
-	wlr_swapchain_destroy(output->cursor.swapchain);
 	if (output->cursor.surface) {
 		wl_surface_destroy(output->cursor.surface);
 	}

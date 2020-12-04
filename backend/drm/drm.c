@@ -25,7 +25,9 @@
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
 #include "render/pixel_format.h"
+#include "render/drm_format_set.h"
 #include "render/swapchain.h"
+#include "render/wlr_renderer.h"
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
 
@@ -329,7 +331,7 @@ static bool drm_connector_attach_render(struct wlr_output *output,
 static void drm_plane_set_committed(struct wlr_drm_plane *plane) {
 	drm_fb_move(&plane->queued_fb, &plane->pending_fb);
 
-	if (plane->queued_fb) {
+	if (plane->queued_fb && plane->surf.swapchain) {
 		wlr_swapchain_set_buffer_submitted(plane->surf.swapchain,
 			plane->queued_fb->wlr_buf);
 	}
@@ -834,9 +836,7 @@ struct wlr_output_mode *wlr_drm_connector_add_mode(struct wlr_output *output,
 }
 
 static bool drm_connector_set_cursor(struct wlr_output *output,
-		struct wlr_texture *texture, float scale,
-		enum wl_output_transform transform,
-		int32_t hotspot_x, int32_t hotspot_y, bool update_texture) {
+		struct wlr_buffer *buffer, int hotspot_x, int hotspot_y) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
@@ -850,90 +850,59 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		return false;
 	}
 
-	if (!plane->surf.swapchain) {
-		int ret;
-		uint64_t w, h;
-		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_WIDTH, &w);
-		w = ret ? 64 : w;
-		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_HEIGHT, &h);
-		h = ret ? 64 : h;
-
-		if (!drm_plane_init_surface(plane, drm, w, h, true)) {
-			wlr_drm_conn_log(conn, WLR_ERROR, "Cannot allocate cursor resources");
-			return false;
-		}
-	}
-
-	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
-	wlr_box_transform(&hotspot, &hotspot,
-		wlr_output_transform_invert(output->transform),
-		plane->surf.width, plane->surf.height);
-
-	if (plane->cursor_hotspot_x != hotspot.x ||
-			plane->cursor_hotspot_y != hotspot.y) {
+	if (plane->cursor_hotspot_x != hotspot_x ||
+			plane->cursor_hotspot_y != hotspot_y) {
 		// Update cursor hotspot
-		conn->cursor_x -= hotspot.x - plane->cursor_hotspot_x;
-		conn->cursor_y -= hotspot.y - plane->cursor_hotspot_y;
-		plane->cursor_hotspot_x = hotspot.x;
-		plane->cursor_hotspot_y = hotspot.y;
+		conn->cursor_x -= hotspot_x - plane->cursor_hotspot_x;
+		conn->cursor_y -= hotspot_y - plane->cursor_hotspot_y;
+		plane->cursor_hotspot_x = hotspot_x;
+		plane->cursor_hotspot_y = hotspot_y;
 
 		wlr_output_update_needs_frame(output);
 	}
 
-	if (!update_texture) {
-		// Don't update cursor image
-		return true;
-	}
-
 	plane->cursor_enabled = false;
-	if (texture != NULL) {
-		int width = texture->width * output->scale / scale;
-		int height = texture->height * output->scale / scale;
-
-		if (width > (int)plane->surf.width || height > (int)plane->surf.height) {
-			wlr_drm_conn_log(conn, WLR_ERROR, "Cursor too large (max %dx%d)",
-				(int)plane->surf.width, (int)plane->surf.height);
+	if (buffer != NULL) {
+		if ((uint64_t)buffer->width != drm->cursor_width ||
+				(uint64_t)buffer->height != drm->cursor_height) {
+			wlr_drm_conn_log(conn, WLR_DEBUG, "Cursor buffer size mismatch");
 			return false;
 		}
 
-		if (!drm_surface_make_current(&plane->surf, NULL)) {
-			return false;
+		struct wlr_buffer *local_buf;
+		if (drm->parent) {
+			struct wlr_drm_format *format =
+				drm_plane_pick_render_format(plane, &drm->renderer);
+			if (format == NULL) {
+				wlr_log(WLR_ERROR, "Failed to pick cursor plane format");
+				return false;
+			}
+
+			bool ok = init_drm_surface(&plane->mgpu_surf, &drm->renderer,
+				buffer->width, buffer->height, format);
+			free(format);
+			if (!ok) {
+				return false;
+			}
+
+			local_buf = drm_surface_blit(&plane->mgpu_surf, buffer);
+			if (local_buf == NULL) {
+				return false;
+			}
+		} else {
+			local_buf = wlr_buffer_lock(buffer);
 		}
 
-		struct wlr_renderer *rend = plane->surf.renderer->wlr_rend;
-
-		struct wlr_box cursor_box = { .width = width, .height = height };
-
-		float output_matrix[9];
-		wlr_matrix_identity(output_matrix);
-		if (output->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
-			struct wlr_box tr_size = {
-				.width = plane->surf.width,
-				.height = plane->surf.height,
-			};
-			wlr_box_transform(&tr_size, &tr_size, output->transform, 0, 0);
-
-			wlr_matrix_translate(output_matrix, plane->surf.width / 2.0,
-					plane->surf.height / 2.0);
-			wlr_matrix_transform(output_matrix, output->transform);
-			wlr_matrix_translate(output_matrix, - tr_size.width / 2.0,
-					- tr_size.height / 2.0);
-		}
-
-		float matrix[9];
-		wlr_matrix_project_box(matrix, &cursor_box, transform, 0,
-				output_matrix);
-
-		wlr_renderer_begin(rend, plane->surf.width, plane->surf.height);
-		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });
-		wlr_render_texture_with_matrix(rend, texture, matrix, 1.0);
-		wlr_renderer_end(rend);
-
-		if (!drm_plane_lock_surface(plane, drm)) {
+		bool ok = drm_fb_import(&plane->pending_fb, drm, local_buf,
+			&plane->formats);
+		wlr_buffer_unlock(local_buf);
+		if (!ok) {
 			return false;
 		}
 
 		plane->cursor_enabled = true;
+		plane->cursor_width = buffer->width;
+		plane->cursor_height = buffer->height;
 	}
 
 	wlr_output_update_needs_frame(output);
@@ -977,8 +946,8 @@ bool drm_connector_is_cursor_visible(struct wlr_drm_connector *conn) {
 	return plane->cursor_enabled &&
 		conn->cursor_x < conn->output.width &&
 		conn->cursor_y < conn->output.height &&
-		conn->cursor_x + (int)plane->surf.width >= 0 &&
-		conn->cursor_y + (int)plane->surf.height >= 0;
+		conn->cursor_x + plane->cursor_width >= 0 &&
+		conn->cursor_y + plane->cursor_height >= 0;
 }
 
 static void dealloc_crtc(struct wlr_drm_connector *conn);

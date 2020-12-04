@@ -43,6 +43,9 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 	struct wlr_drm_renderer *renderer);
 void finish_drm_renderer(struct wlr_drm_renderer *renderer);
 
+bool init_drm_surface(struct wlr_drm_surface *surf,
+	struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
+	const struct wlr_drm_format *drm_format);
 bool drm_surface_make_current(struct wlr_drm_surface *surf, int *buffer_age);
 void drm_surface_unset_current(struct wlr_drm_surface *surf);
 
@@ -53,8 +56,12 @@ void drm_fb_destroy(struct wlr_drm_fb *fb);
 void drm_fb_clear(struct wlr_drm_fb **fb);
 void drm_fb_move(struct wlr_drm_fb **new, struct wlr_drm_fb **old);
 
+struct wlr_buffer *drm_surface_blit(struct wlr_drm_surface *surf,
+	struct wlr_buffer *buffer);
 bool drm_surface_render_black_frame(struct wlr_drm_surface *surf);
 
+struct wlr_drm_format *drm_plane_pick_render_format(
+		struct wlr_drm_plane *plane, struct wlr_drm_renderer *renderer);
 bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
 		bool with_modifiers);
