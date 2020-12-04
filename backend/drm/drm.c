@@ -1008,10 +1008,8 @@ static bool drm_connector_move_cursor(struct wlr_output *output,
 		wlr_output_transform_invert(output->transform);
 	wlr_box_transform(&box, &box, transform, width, height);
 
-	if (plane != NULL) {
-		box.x -= plane->cursor_hotspot_x;
-		box.y -= plane->cursor_hotspot_y;
-	}
+	box.x -= plane->cursor_hotspot_x;
+	box.y -= plane->cursor_hotspot_y;
 
 	conn->cursor_x = box.x;
 	conn->cursor_y = box.y;
