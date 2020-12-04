@@ -319,9 +319,19 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 			check_egl_ext(device_exts_str, "EGL_EXT_device_drm");
 	}
 
-	if (!egl_get_config(egl->display, config_attribs, &egl->config, visual_id)) {
-		wlr_log(WLR_ERROR, "Failed to get EGL config");
-		goto error;
+	if (config_attribs != NULL) {
+		if (!egl_get_config(egl->display, config_attribs, &egl->config, visual_id)) {
+			wlr_log(WLR_ERROR, "Failed to get EGL config");
+			goto error;
+		}
+	} else {
+		if (!check_egl_ext(display_exts_str, "EGL_KHR_no_config_context") &&
+				!check_egl_ext(display_exts_str, "EGL_MESA_configless_context")) {
+			wlr_log(WLR_ERROR, "EGL_KHR_no_config_context or "
+				"EGL_MESA_configless_context not supported");
+			goto error;
+		}
+		egl->config = EGL_NO_CONFIG_KHR;
 	}
 
 	wlr_log(WLR_INFO, "Using EGL %d.%d", (int)major, (int)minor);
