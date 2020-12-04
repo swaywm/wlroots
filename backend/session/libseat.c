@@ -97,6 +97,9 @@ static struct wlr_session *libseat_session_create(struct wl_display *disp) {
 	libseat_set_log_handler(log_libseat);
 	libseat_set_log_level(LIBSEAT_LOG_LEVEL_ERROR);
 
+	// libseat will take care of updating the logind state if necessary
+	setenv("XDG_SESSION_TYPE", "wayland", 1);
+
 	session->seat = libseat_open_seat(&seat_listener, session);
 	if (session->seat == NULL) {
 		wlr_log_errno(WLR_ERROR, "Unable to create seat");
