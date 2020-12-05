@@ -819,6 +819,26 @@ static bool manager_update_head(struct wlr_output_manager_v1 *manager,
 		state |= HEAD_STATE_SCALE;
 	}
 
+	// If  a mode was added to wlr_output.modes we need to add the new mode
+	// to the wlr_output_head
+	struct wlr_output_mode *mode;
+	wl_list_for_each(mode, &head->state.output->modes, link) {
+		bool found = false;
+		struct wl_resource *mode_resource;
+		wl_resource_for_each(mode_resource, &head->mode_resources) {
+			if (mode_from_resource(mode_resource) == mode) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			struct wl_resource *resource;
+			wl_resource_for_each(resource, &head->resources) {
+				head_send_mode(head, resource, mode);
+			}
+		}
+	}
+
 	if (state != 0) {
 		*current = *next;
 
