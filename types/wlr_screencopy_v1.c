@@ -51,15 +51,14 @@ static void screencopy_damage_accumulate(struct screencopy_damage *damage) {
 	int width, height;
 	wlr_output_transformed_resolution(output, &width, &height);
 
-	// If the compositor did not submit damage but did submit a buffer,
-	if (!(output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) &&
-			(output->pending.committed & WLR_OUTPUT_STATE_BUFFER)) {
-		// damage everything
-		pixman_region32_union_rect(region, region, 0, 0, width, height);
-	} else {
-		// otherwise copy over the current damage
+	if (output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
+		// If the compositor submitted damage, copy it over
 		pixman_region32_union(region, region, &output->pending.damage);
 		pixman_region32_intersect_rect(region, region, 0, 0, width, height);
+	} else if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+		// If the compositor did not submit damage but did submit a buffer
+		// damage everything
+		pixman_region32_union_rect(region, region, 0, 0, width, height);
 	}
 
 	damage->last_commit_seq = output->commit_seq;
