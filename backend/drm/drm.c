@@ -1615,10 +1615,6 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		conn->output.enabled = false;
 		conn->output.width = conn->output.height = conn->output.refresh = 0;
 
-		memset(&conn->output.make, 0, sizeof(conn->output.make));
-		memset(&conn->output.model, 0, sizeof(conn->output.model));
-		memset(&conn->output.serial, 0, sizeof(conn->output.serial));
-
 		if (conn->output.idle_frame != NULL) {
 			wl_event_source_remove(conn->output.idle_frame);
 			conn->output.idle_frame = NULL;
@@ -1635,6 +1631,10 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
 		conn->desired_mode = NULL;
 		conn->pageflip_pending = false;
 		wlr_signal_emit_safe(&conn->output.events.destroy, &conn->output);
+
+		memset(&conn->output.make, 0, sizeof(conn->output.make));
+		memset(&conn->output.model, 0, sizeof(conn->output.model));
+		memset(&conn->output.serial, 0, sizeof(conn->output.serial));
 		break;
 	case WLR_DRM_CONN_DISCONNECTED:
 		break;
