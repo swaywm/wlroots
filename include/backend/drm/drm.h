@@ -63,13 +63,6 @@ struct wlr_drm_crtc {
 	struct wlr_drm_plane *primary;
 	struct wlr_drm_plane *cursor;
 
-	/*
-	 * We don't support overlay planes yet, but we keep track of them to
-	 * give to DRM lease clients.
-	 */
-	size_t num_overlays;
-	uint32_t *overlays;
-
 	union wlr_drm_crtc_props props;
 };
 
