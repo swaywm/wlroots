@@ -197,16 +197,19 @@ static bool init_planes(struct wlr_drm_backend *drm) {
 			goto error;
 		}
 
+		// We don't really care about overlay planes, as we don't support them
+		// yet.
+		if (type == DRM_PLANE_TYPE_OVERLAY) {
+			drmModeFreePlane(plane);
+			continue;
+		}
+
 		/*
 		 * This is a very naive implementation of the plane matching
 		 * logic. Primary and cursor planes should only work on a
 		 * single CRTC, and this should be perfectly adequate, but
 		 * overlay planes can potentially work with multiple CRTCs,
 		 * meaning this could return inefficient/skewed results.
-		 *
-		 * However, we don't really care about overlay planes, as we
-		 * don't support them yet. We only bother to keep basic
-		 * tracking of them for DRM lease clients.
 		 *
 		 * possible_crtcs is a bitmask of crtcs, where each bit is an
 		 * index into drmModeRes.crtcs. So if bit 0 is set (ffs starts
@@ -218,18 +221,6 @@ static bool init_planes(struct wlr_drm_backend *drm) {
 		assert(crtc_bit >= 0 && (size_t)crtc_bit < drm->num_crtcs);
 
 		struct wlr_drm_crtc *crtc = &drm->crtcs[crtc_bit];
-
-		if (type == DRM_PLANE_TYPE_OVERLAY) {
-			uint32_t *tmp = realloc(crtc->overlays,
-				sizeof(*crtc->overlays) * (crtc->num_overlays + 1));
-			if (tmp) {
-				crtc->overlays = tmp;
-				crtc->overlays[crtc->num_overlays++] = id;
-			}
-			drmModeFreePlane(plane);
-			continue;
-		}
-
 		if (!add_plane(drm, crtc, plane, type, &props)) {
 			drmModeFreePlane(plane);
 			goto error;
@@ -314,7 +305,6 @@ void finish_drm_resources(struct wlr_drm_backend *drm) {
 			wlr_drm_format_set_finish(&crtc->cursor->formats);
 			free(crtc->cursor);
 		}
-		free(crtc->overlays);
 	}
 
 	free(drm->crtcs);
