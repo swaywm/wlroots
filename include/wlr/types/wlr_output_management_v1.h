@@ -50,12 +50,12 @@ struct wlr_output_head_v1_state {
 	bool enabled;
 	struct wlr_output_mode *mode;
 	struct {
-		int width, height;
-		int refresh;
+		int32_t width, height;
+		int32_t refresh;
 	} custom_mode;
 	int32_t x, y;
 	enum wl_output_transform transform;
-	double scale;
+	float scale;
 };
 
 struct wlr_output_head_v1 {
