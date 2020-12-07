@@ -322,12 +322,15 @@ void drm_fb_clear(struct wlr_drm_fb *fb) {
 bool drm_fb_lock_surface(struct wlr_drm_fb *fb, struct wlr_drm_surface *surf) {
 	assert(surf->back_buffer != NULL);
 
-	if (!drm_fb_import_wlr(fb, surf->renderer, surf->back_buffer, NULL)) {
-		return false;
-	}
+	struct wlr_buffer *buffer = wlr_buffer_lock(surf->back_buffer);
 
+	// Unset the current EGL context ASAP, because other operations may require
+	// making another context current.
 	drm_surface_unset_current(surf);
-	return true;
+
+	bool ok = drm_fb_import_wlr(fb, surf->renderer, buffer, NULL);
+	wlr_buffer_unlock(buffer);
+	return ok;
 }
 
 bool drm_fb_import_wlr(struct wlr_drm_fb *fb, struct wlr_drm_renderer *renderer,
