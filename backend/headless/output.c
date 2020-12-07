@@ -91,17 +91,27 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	}
 
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
-		assert(output->back_buffer != NULL);
+		struct wlr_buffer *buffer = NULL;
+		switch (wlr_output->pending.buffer_type) {
+		case WLR_OUTPUT_STATE_BUFFER_RENDER:
+			assert(output->back_buffer != NULL);
 
-		wlr_renderer_bind_buffer(output->backend->renderer, NULL);
-		wlr_egl_unset_current(output->backend->egl);
+			wlr_renderer_bind_buffer(output->backend->renderer, NULL);
+			wlr_egl_unset_current(output->backend->egl);
+
+			buffer = output->back_buffer;
+			output->back_buffer = NULL;
+			break;
+		case WLR_OUTPUT_STATE_BUFFER_SCANOUT:
+			buffer = wlr_buffer_lock(wlr_output->pending.buffer);
+			break;
+		}
+		assert(buffer != NULL);
 
 		wlr_buffer_unlock(output->front_buffer);
-		output->front_buffer = output->back_buffer;
-		output->back_buffer = NULL;
+		output->front_buffer = buffer;
 
-		wlr_swapchain_set_buffer_submitted(output->swapchain,
-			output->front_buffer);
+		wlr_swapchain_set_buffer_submitted(output->swapchain, buffer);
 
 		wlr_output_send_present(wlr_output, NULL);
 	}
