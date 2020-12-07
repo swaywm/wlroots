@@ -349,8 +349,7 @@ bool wlr_output_preferred_read_format(struct wlr_output *output,
  * the screen that has changed since the last frame.
  *
  * Compositors implementing damage tracking should call this function with the
- * damaged region in output-buffer-local coordinates (ie. scaled and
- * transformed).
+ * damaged region in output-buffer-local coordinates.
  *
  * This region is not to be confused with the renderer's buffer damage, ie. the
  * region compositors need to repaint. Compositors usually need to repaint more
