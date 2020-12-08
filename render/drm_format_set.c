@@ -128,6 +128,7 @@ bool wlr_drm_format_set_add(struct wlr_drm_format_set *set, uint32_t format,
 }
 
 struct wlr_drm_format *wlr_drm_format_dup(const struct wlr_drm_format *format) {
+	assert(format->len <= format->cap);
 	size_t format_size = sizeof(struct wlr_drm_format) +
 		format->cap * sizeof(format->modifiers[0]);
 	struct wlr_drm_format *duped_format = malloc(format_size);
