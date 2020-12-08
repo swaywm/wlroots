@@ -100,6 +100,7 @@ static bool init_drm_surface(struct wlr_drm_surface *surf,
 		}
 		format_linear->format = drm_format->format;
 		format_linear->len = 1;
+		format_linear->cap = 1;
 		format_linear->modifiers[0] = DRM_FORMAT_MOD_LINEAR;
 		drm_format = format_linear;
 	}
