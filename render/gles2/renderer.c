@@ -453,7 +453,12 @@ static enum wl_shm_format gles2_preferred_read_format(
 	pop_gles2_debug(renderer);
 
 	EGLint alpha_size = -1;
-	if (renderer->egl->config != EGL_NO_CONFIG_KHR) {
+	if (renderer->current_buffer != NULL) {
+		glBindRenderbuffer(GL_RENDERBUFFER, renderer->current_buffer->rbo);
+		glGetRenderbufferParameteriv(GL_RENDERBUFFER,
+			GL_RENDERBUFFER_ALPHA_SIZE, &alpha_size);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+	} else if (renderer->egl->config != EGL_NO_CONFIG_KHR) {
 		eglGetConfigAttrib(renderer->egl->display, renderer->egl->config,
 			EGL_ALPHA_SIZE, &alpha_size);
 	}
