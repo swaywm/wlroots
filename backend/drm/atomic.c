@@ -33,7 +33,7 @@ static bool atomic_commit(struct atomic *atom,
 	int ret = drmModeAtomicCommit(drm->fd, atom->req, flags, drm);
 	if (ret) {
 		wlr_log_errno(WLR_ERROR, "%s: Atomic %s failed (%s)",
-			conn->output.name,
+			conn->name,
 			(flags & DRM_MODE_ATOMIC_TEST_ONLY) ? "test" : "commit",
 			(flags & DRM_MODE_ATOMIC_ALLOW_MODESET) ? "modeset" : "pageflip");
 		return false;

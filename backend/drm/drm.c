@@ -1087,8 +1087,7 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 		connectors[i] = conn;
 
 		wlr_log(WLR_DEBUG, "  '%s' crtc=%d state=%d desired_enabled=%d",
-			conn->output.name,
-			conn->crtc ? (int)(conn->crtc - drm->crtcs) : -1,
+			conn->name, conn->crtc ? (int)(conn->crtc - drm->crtcs) : -1,
 			conn->state, conn->desired_enabled);
 
 		if (conn->crtc) {
@@ -1146,9 +1145,7 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 		bool prev_enabled = conn->crtc;
 
 		wlr_log(WLR_DEBUG, "  '%s' crtc=%zd state=%d desired_enabled=%d",
-			conn->output.name,
-			connector_match[i],
-			conn->state, conn->desired_enabled);
+			conn->name, connector_match[i], conn->state, conn->desired_enabled);
 
 		// We don't need to change anything.
 		if (prev_enabled && connector_match[i] == conn->crtc - drm->crtcs) {
@@ -1265,7 +1262,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			wlr_conn->state = WLR_DRM_CONN_DISCONNECTED;
 			wlr_conn->id = drm_conn->connector_id;
 
-			snprintf(wlr_conn->output.name, sizeof(wlr_conn->output.name),
+			snprintf(wlr_conn->name, sizeof(wlr_conn->name),
 				"%s-%"PRIu32, conn_get_name(drm_conn->connector_type),
 				drm_conn->connector_type_id);
 
@@ -1274,7 +1271,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			}
 
 			wl_list_insert(drm->outputs.prev, &wlr_conn->link);
-			wlr_log(WLR_INFO, "Found connector '%s'", wlr_conn->output.name);
+			wlr_log(WLR_INFO, "Found connector '%s'", wlr_conn->name);
 		} else {
 			seen[index] = true;
 		}
@@ -1310,9 +1307,12 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 
 		if (wlr_conn->state == WLR_DRM_CONN_DISCONNECTED &&
 				drm_conn->connection == DRM_MODE_CONNECTED) {
-			wlr_log(WLR_INFO, "'%s' connected", wlr_conn->output.name);
+			wlr_log(WLR_INFO, "'%s' connected", wlr_conn->name);
 			wlr_log(WLR_DEBUG, "Current CRTC: %d",
 				wlr_conn->crtc ? (int)wlr_conn->crtc->id : -1);
+
+			strncpy(wlr_conn->output.name, wlr_conn->name,
+				sizeof(wlr_conn->output.name) - 1);
 
 			wlr_conn->output.phys_width = drm_conn->mmWidth;
 			wlr_conn->output.phys_height = drm_conn->mmHeight;
@@ -1379,7 +1379,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		} else if ((wlr_conn->state == WLR_DRM_CONN_CONNECTED ||
 				wlr_conn->state == WLR_DRM_CONN_NEEDS_MODESET) &&
 				drm_conn->connection != DRM_MODE_CONNECTED) {
-			wlr_log(WLR_INFO, "'%s' disconnected", wlr_conn->output.name);
+			wlr_log(WLR_INFO, "'%s' disconnected", wlr_conn->name);
 
 			drm_connector_cleanup(wlr_conn);
 		}
@@ -1400,7 +1400,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			continue;
 		}
 
-		wlr_log(WLR_INFO, "'%s' disappeared", conn->output.name);
+		wlr_log(WLR_INFO, "'%s' disappeared", conn->name);
 		drm_connector_cleanup(conn);
 
 		wlr_output_destroy(&conn->output);

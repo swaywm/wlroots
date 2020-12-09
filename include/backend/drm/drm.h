@@ -157,8 +157,8 @@ size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane);
 
 #define wlr_drm_conn_log(conn, verb, fmt, ...) \
-	wlr_log(verb, "connector %s: " fmt, conn->output.name, ##__VA_ARGS__)
+	wlr_log(verb, "connector %s: " fmt, conn->name, ##__VA_ARGS__)
 #define wlr_drm_conn_log_errno(conn, verb, fmt, ...) \
-	wlr_log_errno(verb, "connector %s: " fmt, conn->output.name, ##__VA_ARGS__)
+	wlr_log_errno(verb, "connector %s: " fmt, conn->name, ##__VA_ARGS__)
 
 #endif
