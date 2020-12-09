@@ -363,8 +363,8 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 	// we'll wait for all queued page-flips to complete, so we don't need this
 	// safeguard.
 	if (conn->pageflip_pending && !crtc->pending_modeset) {
-		wlr_log(WLR_ERROR, "Failed to page-flip output '%s': "
-			"a page-flip is already pending", conn->output.name);
+		wlr_drm_conn_log(conn, WLR_ERROR, "Failed to page-flip output: "
+			"a page-flip is already pending");
 		return false;
 	}
 
@@ -445,7 +445,8 @@ static bool drm_connector_test(struct wlr_output *output) {
 			output->pending.enabled) {
 		if (output->current_mode == NULL &&
 				!(output->pending.committed & WLR_OUTPUT_STATE_MODE)) {
-			wlr_log(WLR_DEBUG, "Can't enable an output without a mode");
+			wlr_drm_conn_log(conn, WLR_DEBUG,
+				"Can't enable an output without a mode");
 			return false;
 		}
 	}
@@ -492,7 +493,7 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 	switch (output->pending.buffer_type) {
 	case WLR_OUTPUT_STATE_BUFFER_RENDER:
 		if (!drm_fb_lock_surface(&plane->pending_fb, &plane->surf)) {
-			wlr_log(WLR_ERROR, "drm_fb_lock_surface failed");
+			wlr_drm_conn_log(conn, WLR_ERROR, "drm_fb_lock_surface failed");
 			return false;
 		}
 		break;
@@ -527,13 +528,13 @@ bool drm_connector_supports_vrr(struct wlr_drm_connector *conn) {
 	if (conn->props.vrr_capable == 0 ||
 			!get_drm_prop(drm->fd, conn->id, conn->props.vrr_capable,
 			&vrr_capable) || !vrr_capable) {
-		wlr_log(WLR_DEBUG, "Failed to enable adaptive sync: "
-			"connector '%s' doesn't support VRR", conn->output.name);
+		wlr_drm_conn_log(conn, WLR_DEBUG, "Failed to enable adaptive sync: "
+			"connector doesn't support VRR");
 		return false;
 	}
 
 	if (crtc->props.vrr_enabled == 0) {
-		wlr_log(WLR_DEBUG, "Failed to enable adaptive sync: "
+		wlr_drm_conn_log(conn, WLR_DEBUG, "Failed to enable adaptive sync: "
 			"CRTC %"PRIu32" doesn't support VRR", crtc->id);
 		return false;
 	}
@@ -663,8 +664,7 @@ struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
 static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
-		wlr_log(WLR_ERROR, "Page-flip failed on connector '%s': no CRTC",
-			conn->output.name);
+		wlr_drm_conn_log(conn, WLR_ERROR, "Page-flip failed: no CRTC");
 		return false;
 	}
 
@@ -691,13 +691,12 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 		return false;
 	}
 
-	wlr_log(WLR_DEBUG, "Initializing renderer on connector '%s'",
-		conn->output.name);
+	wlr_drm_conn_log(conn, WLR_DEBUG, "Initializing renderer");
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
-		wlr_log(WLR_ERROR, "Failed to initialize renderer on connector '%s': "
-			"no CRTC", conn->output.name);
+		wlr_drm_conn_log(conn, WLR_ERROR,
+			"Failed to initialize renderer: no CRTC");
 		return false;
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
@@ -713,7 +712,7 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	bool modifiers = true;
 	const char *no_modifiers = getenv("WLR_DRM_NO_MODIFIERS");
 	if (no_modifiers != NULL && strcmp(no_modifiers, "1") == 0) {
-		wlr_log(WLR_DEBUG,
+		wlr_drm_conn_log(conn, WLR_DEBUG,
 			"WLR_DRM_NO_MODIFIERS set, initializing planes without modifiers");
 		modifiers = false;
 	}
@@ -721,15 +720,15 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	if (!drm_plane_init_surface(plane, drm, width, height, format, false, modifiers) ||
 			!drm_connector_pageflip_renderer(conn)) {
 		if (!modifiers) {
-			wlr_log(WLR_ERROR, "Failed to initialize renderer "
-				"on connector '%s': initial page-flip failed",
-				conn->output.name);
+			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer:"
+				"initial page-flip failed");
 			return false;
 		}
 
 		// If page-flipping with modifiers enabled doesn't work, retry without
 		// modifiers
-		wlr_log(WLR_INFO, "Page-flip failed with primary FB modifiers enabled, "
+		wlr_drm_conn_log(conn, WLR_INFO,
+			"Page-flip failed with primary FB modifiers enabled, "
 			"retrying without modifiers");
 		modifiers = false;
 
@@ -742,9 +741,8 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 			return false;
 		}
 		if (!drm_connector_pageflip_renderer(conn)) {
-			wlr_log(WLR_ERROR, "Failed to initialize renderer "
-				"on connector '%s': initial page-flip failed",
-				conn->output.name);
+			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer:"
+				"initial page-flip failed");
 			return false;
 		}
 	}
@@ -762,8 +760,8 @@ static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
 		if (conn->state == WLR_DRM_CONN_NEEDS_MODESET &&
 				conn->crtc != NULL && conn->desired_mode != NULL &&
 				conn->desired_enabled) {
-			wlr_log(WLR_DEBUG, "Output %s has a desired mode and a CRTC, "
-				"attempting a modeset", conn->output.name);
+			wlr_drm_conn_log(conn, WLR_DEBUG,
+				"Output has a desired mode and a CRTC, attempting a modeset");
 			drm_connector_set_mode(conn, conn->desired_mode);
 		}
 	}
@@ -794,7 +792,8 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 
 	if (conn->state != WLR_DRM_CONN_CONNECTED
 			&& conn->state != WLR_DRM_CONN_NEEDS_MODESET) {
-		wlr_log(WLR_ERROR, "Cannot modeset a disconnected output");
+		wlr_drm_conn_log(conn, WLR_ERROR,
+			"Cannot modeset a disconnected output");
 		return false;
 	}
 
@@ -803,18 +802,19 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 		realloc_crtcs(drm);
 	}
 	if (conn->crtc == NULL) {
-		wlr_log(WLR_ERROR, "Cannot modeset '%s': no CRTC for this connector",
-			conn->output.name);
+		wlr_drm_conn_log(conn, WLR_ERROR,
+			"Cannot perform modeset: no CRTC for this connector");
 		return false;
 	}
 
-	wlr_log(WLR_INFO, "Modesetting '%s' with '%" PRId32 "x%" PRId32 "@%" PRId32 "mHz'",
-		conn->output.name, wlr_mode->width, wlr_mode->height,
-		wlr_mode->refresh);
+	wlr_drm_conn_log(conn, WLR_INFO,
+		"Modesetting with '%" PRId32 "x%" PRId32 "@%" PRId32 "mHz'",
+		wlr_mode->width, wlr_mode->height, wlr_mode->refresh);
 
 	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)wlr_mode;
 	if (!drm_connector_init_renderer(conn, mode)) {
-		wlr_log(WLR_ERROR, "Failed to initialize renderer for plane");
+		wlr_drm_conn_log(conn, WLR_ERROR,
+			"Failed to initialize renderer for plane");
 		return false;
 	}
 
@@ -857,7 +857,7 @@ struct wlr_output_mode *wlr_drm_connector_add_mode(struct wlr_output *output,
 	mode->wlr_mode.height = mode->drm_mode.vdisplay;
 	mode->wlr_mode.refresh = calculate_refresh_rate(modeinfo);
 
-	wlr_log(WLR_INFO, "Registered custom mode "
+	wlr_drm_conn_log(conn, WLR_INFO, "Registered custom mode "
 			"%"PRId32"x%"PRId32"@%"PRId32,
 			mode->wlr_mode.width, mode->wlr_mode.height,
 			mode->wlr_mode.refresh);
@@ -893,7 +893,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 
 		if (!drm_plane_init_surface(plane, drm, w, h,
 				DRM_FORMAT_ARGB8888, true, false)) {
-			wlr_log(WLR_ERROR, "Cannot allocate cursor resources");
+			wlr_drm_conn_log(conn, WLR_ERROR, "Cannot allocate cursor resources");
 			return false;
 		}
 	}
@@ -931,7 +931,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		height = height * output->scale / scale;
 
 		if (width > (int)plane->surf.width || height > (int)plane->surf.height) {
-			wlr_log(WLR_ERROR, "Cursor too large (max %dx%d)",
+			wlr_drm_conn_log(conn, WLR_ERROR, "Cursor too large (max %dx%d)",
 				(int)plane->surf.width, (int)plane->surf.height);
 			return false;
 		}
@@ -1043,8 +1043,8 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 		return;
 	}
 
-	wlr_log(WLR_DEBUG, "De-allocating CRTC %zu for output '%s'",
-		conn->crtc - drm->crtcs, conn->output.name);
+	wlr_drm_conn_log(conn, WLR_DEBUG, "De-allocating CRTC %zu",
+		conn->crtc - drm->crtcs);
 
 	conn->crtc->pending_modeset = true;
 	conn->crtc->pending.active = false;
@@ -1159,8 +1159,7 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 
 		if (connector_match[i] == -1) {
 			if (prev_enabled) {
-				wlr_log(WLR_DEBUG, "Output has %s lost its CRTC",
-					conn->output.name);
+				wlr_drm_conn_log(conn, WLR_DEBUG, "Output has lost its CRTC");
 				conn->state = WLR_DRM_CONN_NEEDS_MODESET;
 				wlr_output_update_enabled(&conn->output, false);
 				conn->desired_mode = conn->output.current_mode;
@@ -1179,8 +1178,7 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 		struct wlr_drm_mode *mode =
 			(struct wlr_drm_mode *)conn->output.current_mode;
 		if (!drm_connector_init_renderer(conn, mode)) {
-			wlr_log(WLR_ERROR, "Failed to initialize renderer on output %s",
-				conn->output.name);
+			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer");
 			wlr_output_update_enabled(&conn->output, false);
 			continue;
 		}
@@ -1298,14 +1296,14 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			uint64_t link_status;
 			if (!get_drm_prop(drm->fd, wlr_conn->id,
 					wlr_conn->props.link_status, &link_status)) {
-				wlr_log(WLR_ERROR, "Failed to get link status for '%s'",
-					wlr_conn->output.name);
+				wlr_drm_conn_log(wlr_conn, WLR_ERROR,
+					"Failed to get link status prop");
 				continue;
 			}
 
 			if (link_status == DRM_MODE_LINK_STATUS_BAD) {
 				// We need to reload our list of modes and force a modeset
-				wlr_log(WLR_INFO, "Bad link for '%s'", wlr_conn->output.name);
+				wlr_drm_conn_log(wlr_conn, WLR_INFO, "Bad link detected");
 				drm_connector_cleanup(wlr_conn);
 			}
 		}
@@ -1368,8 +1366,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 
 			wlr_conn->possible_crtc = get_possible_crtcs(drm->fd, res, drm_conn);
 			if (wlr_conn->possible_crtc == 0) {
-				wlr_log(WLR_ERROR, "No CRTC possible for connector '%s'",
-					wlr_conn->output.name);
+				wlr_drm_conn_log(wlr_conn, WLR_ERROR, "No CRTC possible");
 			}
 
 			// TODO: this results in connectors being enabled without a mode
@@ -1414,8 +1411,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 	for (size_t i = 0; i < new_outputs_len; ++i) {
 		struct wlr_drm_connector *conn = new_outputs[i];
 
-		wlr_log(WLR_INFO, "Requesting modeset for '%s'",
-			conn->output.name);
+		wlr_drm_conn_log(conn, WLR_INFO, "Requesting modeset");
 		wlr_signal_emit_safe(&drm->backend.events.new_output,
 			&conn->output);
 	}
@@ -1440,7 +1436,7 @@ static void page_flip_handler(int fd, unsigned seq,
 		}
 	}
 	if (!conn) {
-		wlr_log(WLR_DEBUG, "No connector for crtc_id %u", crtc_id);
+		wlr_log(WLR_DEBUG, "No connector for CRTC %u", crtc_id);
 		return;
 	}
 
