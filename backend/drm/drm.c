@@ -767,8 +767,6 @@ static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
 	}
 }
 
-static void drm_connector_cleanup(struct wlr_drm_connector *conn);
-
 bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 		struct wlr_output_mode *wlr_mode) {
 	struct wlr_drm_backend *drm = conn->backend;
@@ -1004,18 +1002,38 @@ bool drm_connector_is_cursor_visible(struct wlr_drm_connector *conn) {
 		conn->cursor_y + (int)plane->surf.height >= 0;
 }
 
-static void drm_connector_destroy(struct wlr_output *output) {
+static void dealloc_crtc(struct wlr_drm_connector *conn);
+
+/**
+ * Destroy the compositor-facing part of a connector.
+ *
+ * The connector isn't destroyed when disconnected. Only the compositor-facing
+ * wlr_output interface is cleaned up.
+ */
+static void drm_connector_destroy_output(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	drm_connector_cleanup(conn);
-	drmModeFreeCrtc(conn->old_crtc);
-	wl_list_remove(&conn->link);
-	free(conn);
+
+	dealloc_crtc(conn);
+
+	conn->state = WLR_DRM_CONN_DISCONNECTED;
+	conn->desired_enabled = false;
+	conn->desired_mode = NULL;
+	conn->possible_crtc = 0;
+	conn->pageflip_pending = false;
+
+	struct wlr_drm_mode *mode, *mode_tmp;
+	wl_list_for_each_safe(mode, mode_tmp, &conn->output.modes, wlr_mode.link) {
+		wl_list_remove(&mode->wlr_mode.link);
+		free(mode);
+	}
+
+	memset(&conn->output, 0, sizeof(struct wlr_output));
 }
 
 static const struct wlr_output_impl output_impl = {
 	.set_cursor = drm_connector_set_cursor,
 	.move_cursor = drm_connector_move_cursor,
-	.destroy = drm_connector_destroy,
+	.destroy = drm_connector_destroy_output,
 	.attach_render = drm_connector_attach_render,
 	.test = drm_connector_test,
 	.commit = drm_connector_commit,
@@ -1202,6 +1220,8 @@ static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
 	return possible_crtcs;
 }
 
+static void disconnect_drm_connector(struct wlr_drm_connector *conn);
+
 void scan_drm_connectors(struct wlr_drm_backend *drm) {
 	/*
 	 * This GPU is not really a modesetting device.
@@ -1255,8 +1275,6 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				drmModeFreeConnector(drm_conn);
 				continue;
 			}
-			wlr_output_init(&wlr_conn->output, &drm->backend, &output_impl,
-				drm->display);
 
 			wlr_conn->backend = drm;
 			wlr_conn->state = WLR_DRM_CONN_DISCONNECTED;
@@ -1301,7 +1319,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			if (link_status == DRM_MODE_LINK_STATUS_BAD) {
 				// We need to reload our list of modes and force a modeset
 				wlr_drm_conn_log(wlr_conn, WLR_INFO, "Bad link detected");
-				drm_connector_cleanup(wlr_conn);
+				disconnect_drm_connector(wlr_conn);
 			}
 		}
 
@@ -1310,6 +1328,9 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			wlr_log(WLR_INFO, "'%s' connected", wlr_conn->name);
 			wlr_log(WLR_DEBUG, "Current CRTC: %d",
 				wlr_conn->crtc ? (int)wlr_conn->crtc->id : -1);
+
+			wlr_output_init(&wlr_conn->output, &drm->backend, &output_impl,
+				drm->display);
 
 			strncpy(wlr_conn->output.name, wlr_conn->name,
 				sizeof(wlr_conn->output.name) - 1);
@@ -1380,8 +1401,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				wlr_conn->state == WLR_DRM_CONN_NEEDS_MODESET) &&
 				drm_conn->connection != DRM_MODE_CONNECTED) {
 			wlr_log(WLR_INFO, "'%s' disconnected", wlr_conn->name);
-
-			drm_connector_cleanup(wlr_conn);
+			disconnect_drm_connector(wlr_conn);
 		}
 
 		drmModeFreeEncoder(curr_enc);
@@ -1401,9 +1421,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		}
 
 		wlr_log(WLR_INFO, "'%s' disappeared", conn->name);
-		drm_connector_cleanup(conn);
-
-		wlr_output_destroy(&conn->output);
+		disconnect_drm_connector(conn);
 	}
 
 	realloc_crtcs(drm);
@@ -1536,49 +1554,20 @@ void restore_drm_outputs(struct wlr_drm_backend *drm) {
 	}
 }
 
-static void drm_connector_cleanup(struct wlr_drm_connector *conn) {
-	if (!conn) {
+static void disconnect_drm_connector(struct wlr_drm_connector *conn) {
+	if (conn->state == WLR_DRM_CONN_DISCONNECTED) {
 		return;
 	}
 
-	switch (conn->state) {
-	case WLR_DRM_CONN_CONNECTED:
-	case WLR_DRM_CONN_CLEANUP:
-		conn->output.current_mode = NULL;
-		conn->desired_mode = NULL;
-		struct wlr_drm_mode *mode, *tmp;
-		wl_list_for_each_safe(mode, tmp, &conn->output.modes, wlr_mode.link) {
-			wl_list_remove(&mode->wlr_mode.link);
-			free(mode);
-		}
+	// This will cleanup the compositor-facing wlr_output, but won't destroy
+	// our wlr_drm_connector.
+	wlr_output_destroy(&conn->output);
+}
 
-		conn->output.enabled = false;
-		conn->output.width = conn->output.height = conn->output.refresh = 0;
+void destroy_drm_connector(struct wlr_drm_connector *conn) {
+	disconnect_drm_connector(conn);
 
-		if (conn->output.idle_frame != NULL) {
-			wl_event_source_remove(conn->output.idle_frame);
-			conn->output.idle_frame = NULL;
-		}
-		conn->output.needs_frame = false;
-		conn->output.frame_pending = false;
-
-		/* Fallthrough */
-	case WLR_DRM_CONN_NEEDS_MODESET:
-		wlr_log(WLR_INFO, "Emitting destruction signal for '%s'",
-			conn->output.name);
-		dealloc_crtc(conn);
-		conn->possible_crtc = 0;
-		conn->desired_mode = NULL;
-		conn->pageflip_pending = false;
-		wlr_signal_emit_safe(&conn->output.events.destroy, &conn->output);
-
-		memset(&conn->output.make, 0, sizeof(conn->output.make));
-		memset(&conn->output.model, 0, sizeof(conn->output.model));
-		memset(&conn->output.serial, 0, sizeof(conn->output.serial));
-		break;
-	case WLR_DRM_CONN_DISCONNECTED:
-		break;
-	}
-
-	conn->state = WLR_DRM_CONN_DISCONNECTED;
+	drmModeFreeCrtc(conn->old_crtc);
+	wl_list_remove(&conn->link);
+	free(conn);
 }
