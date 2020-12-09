@@ -17,8 +17,6 @@ struct wlr_drm_renderer {
 	struct gbm_device *gbm;
 	struct wlr_egl egl;
 
-	uint32_t gbm_format;
-
 	struct wlr_renderer *wlr_rend;
 	struct wlr_gbm_allocator *allocator;
 };
