@@ -712,7 +712,7 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 
 	int width = mode->wlr_mode.width;
 	int height = mode->wlr_mode.height;
-	uint32_t format = drm->renderer.gbm_format;
+	uint32_t format = DRM_FORMAT_ARGB8888;
 
 	bool modifiers = true;
 	const char *no_modifiers = getenv("WLR_DRM_NO_MODIFIERS");
