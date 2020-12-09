@@ -111,6 +111,7 @@ struct wlr_drm_mode {
 struct wlr_drm_connector {
 	struct wlr_output output;
 
+	struct wlr_drm_backend *backend;
 	enum wlr_drm_connector_state state;
 	struct wlr_output_mode *desired_mode;
 	bool desired_enabled;

@@ -25,8 +25,7 @@ static void atomic_begin(struct atomic *atom) {
 
 static bool atomic_commit(struct atomic *atom,
 		struct wlr_drm_connector *conn, uint32_t flags) {
-	struct wlr_drm_backend *drm =
-		get_drm_backend_from_backend(conn->output.backend);
+	struct wlr_drm_backend *drm = conn->backend;
 	if (atom->failed) {
 		return false;
 	}

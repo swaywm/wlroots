@@ -335,8 +335,7 @@ static void drm_plane_set_committed(struct wlr_drm_plane *plane) {
 }
 
 static bool drm_crtc_commit(struct wlr_drm_connector *conn, uint32_t flags) {
-	struct wlr_drm_backend *drm =
-		get_drm_backend_from_backend(conn->output.backend);
+	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	bool ok = drm->iface->crtc_commit(drm, conn, flags);
 	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
@@ -396,8 +395,7 @@ static uint32_t strip_alpha_channel(uint32_t format) {
 
 static bool test_buffer(struct wlr_drm_connector *conn,
 		struct wlr_buffer *wlr_buffer) {
-	struct wlr_output *output = &conn->output;
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	struct wlr_drm_backend *drm = conn->backend;
 
 	if (!drm->session->active) {
 		return false;
@@ -482,7 +480,7 @@ static struct wlr_output_mode *drm_connector_get_pending_mode(
 
 static bool drm_connector_commit_buffer(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	struct wlr_drm_backend *drm = conn->backend;
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
@@ -518,8 +516,7 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 }
 
 bool drm_connector_supports_vrr(struct wlr_drm_connector *conn) {
-	struct wlr_drm_backend *drm =
-		get_drm_backend_from_backend(conn->output.backend);
+	struct wlr_drm_backend *drm = conn->backend;
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
@@ -546,7 +543,7 @@ bool drm_connector_supports_vrr(struct wlr_drm_connector *conn) {
 
 static bool drm_connector_commit(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	struct wlr_drm_backend *drm = conn->backend;
 
 	if (!drm_connector_test(output)) {
 		return false;
@@ -618,7 +615,7 @@ size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 
 static size_t drm_connector_get_gamma_size(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
 	if (crtc == NULL) {
@@ -631,7 +628,7 @@ static size_t drm_connector_get_gamma_size(struct wlr_output *output) {
 static bool drm_connector_export_dmabuf(struct wlr_output *output,
 		struct wlr_dmabuf_attributes *attribs) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
 	if (!drm->session->active) {
@@ -687,8 +684,7 @@ static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn) {
 
 static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 		struct wlr_drm_mode *mode) {
-	struct wlr_drm_backend *drm =
-		get_drm_backend_from_backend(conn->output.backend);
+	struct wlr_drm_backend *drm = conn->backend;
 
 	if (conn->state != WLR_DRM_CONN_CONNECTED &&
 			conn->state != WLR_DRM_CONN_NEEDS_MODESET) {
@@ -777,8 +773,7 @@ static void drm_connector_cleanup(struct wlr_drm_connector *conn);
 
 bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 		struct wlr_output_mode *wlr_mode) {
-	struct wlr_drm_backend *drm =
-		get_drm_backend_from_backend(conn->output.backend);
+	struct wlr_drm_backend *drm = conn->backend;
 
 	conn->desired_enabled = wlr_mode != NULL;
 	conn->desired_mode = wlr_mode;
@@ -876,7 +871,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		enum wl_output_transform transform,
 		int32_t hotspot_x, int32_t hotspot_y, bool update_texture) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(output->backend);
+	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
 	if (!crtc) {
@@ -1056,8 +1051,7 @@ static const int32_t subpixel_map[] = {
 };
 
 static void dealloc_crtc(struct wlr_drm_connector *conn) {
-	struct wlr_drm_backend *drm =
-		get_drm_backend_from_backend(conn->output.backend);
+	struct wlr_drm_backend *drm = conn->backend;
 	if (conn->crtc == NULL) {
 		return;
 	}
@@ -1282,6 +1276,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			wlr_output_init(&wlr_conn->output, &drm->backend, &output_impl,
 				drm->display);
 
+			wlr_conn->backend = drm;
 			wlr_conn->state = WLR_DRM_CONN_DISCONNECTED;
 			wlr_conn->id = drm_conn->connector_id;
 
