@@ -61,7 +61,7 @@ struct gbm_bo *drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm
 
 bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
-		uint32_t format, uint32_t flags, bool with_modifiers);
+		uint32_t format, bool force_linear, bool with_modifiers);
 void drm_plane_finish_surface(struct wlr_drm_plane *plane);
 
 #endif

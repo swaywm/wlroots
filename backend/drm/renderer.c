@@ -66,7 +66,7 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 
 static bool init_drm_surface(struct wlr_drm_surface *surf,
 		struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
-		const struct wlr_drm_format *drm_format, uint32_t flags) {
+		const struct wlr_drm_format *drm_format) {
 	if (surf->width == width && surf->height == height) {
 		return true;
 	}
@@ -80,22 +80,8 @@ static bool init_drm_surface(struct wlr_drm_surface *surf,
 	wlr_swapchain_destroy(surf->swapchain);
 	surf->swapchain = NULL;
 
-	struct wlr_drm_format *format_linear = NULL;
-	if (flags & GBM_BO_USE_LINEAR) {
-		format_linear = calloc(1, sizeof(struct wlr_drm_format) + sizeof(uint64_t));
-		if (format_linear == NULL) {
-			return false;
-		}
-		format_linear->format = drm_format->format;
-		format_linear->len = 1;
-		format_linear->cap = 1;
-		format_linear->modifiers[0] = DRM_FORMAT_MOD_LINEAR;
-		drm_format = format_linear;
-	}
-
 	surf->swapchain = wlr_swapchain_create(&renderer->allocator->base,
 		width, height, drm_format);
-	free(format_linear);
 	if (surf->swapchain == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create swapchain");
 		memset(surf, 0, sizeof(*surf));
@@ -225,7 +211,7 @@ static uint32_t strip_alpha_channel(uint32_t format) {
 
 bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
-		uint32_t format, uint32_t flags, bool with_modifiers) {
+		uint32_t format, bool force_linear, bool with_modifiers) {
 	if (!wlr_drm_format_set_has(&plane->formats, format, DRM_FORMAT_MOD_INVALID)) {
 		format = strip_alpha_channel(format);
 	}
@@ -265,22 +251,39 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		drm_format = wlr_drm_format_dup(&format_no_modifiers);
 	}
 
+	struct wlr_drm_format *drm_format_linear =
+		calloc(1, sizeof(struct wlr_drm_format) + sizeof(uint64_t));
+	if (drm_format_linear == NULL) {
+		free(drm_format);
+		return false;
+	}
+	drm_format_linear->format = drm_format->format;
+	drm_format_linear->len = 1;
+	drm_format_linear->cap = 1;
+	drm_format_linear->modifiers[0] = DRM_FORMAT_MOD_LINEAR;
+
+	if (force_linear) {
+		free(drm_format);
+		drm_format = wlr_drm_format_dup(drm_format_linear);
+	}
+
 	drm_plane_finish_surface(plane);
 
 	bool ok = true;
 	if (!drm->parent) {
-		ok = init_drm_surface(&plane->surf, &drm->renderer, width, height,
-			drm_format, flags | GBM_BO_USE_SCANOUT);
+		ok = init_drm_surface(&plane->surf, &drm->renderer,
+			width, height, drm_format);
 	} else {
 		ok = init_drm_surface(&plane->surf, &drm->parent->renderer,
-			width, height, drm_format, flags | GBM_BO_USE_LINEAR);
+			width, height, drm_format_linear);
 		if (ok && !init_drm_surface(&plane->mgpu_surf, &drm->renderer,
-				width, height, drm_format, flags | GBM_BO_USE_SCANOUT)) {
+				width, height, drm_format)) {
 			finish_drm_surface(&plane->surf);
 			ok = false;
 		}
 	}
 
+	free(drm_format_linear);
 	free(drm_format);
 
 	return ok;
