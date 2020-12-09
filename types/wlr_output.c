@@ -518,6 +518,7 @@ static bool output_basic_test(struct wlr_output *output) {
 
 		if (output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
 			if (output->attach_render_locks > 0) {
+				wlr_log(WLR_DEBUG, "Direct scan-out disabled by lock");
 				return false;
 			}
 
@@ -527,6 +528,8 @@ static bool output_basic_test(struct wlr_output *output) {
 			wl_list_for_each(cursor, &output->cursors, link) {
 				if (cursor->enabled && cursor->visible &&
 						cursor != output->hardware_cursor) {
+					wlr_log(WLR_DEBUG,
+						"Direct scan-out disabled by software cursor");
 					return false;
 				}
 			}
@@ -537,6 +540,7 @@ static bool output_basic_test(struct wlr_output *output) {
 			output_pending_resolution(output, &pending_width, &pending_height);
 			if (output->pending.buffer->width != pending_width ||
 					output->pending.buffer->height != pending_height) {
+				wlr_log(WLR_DEBUG, "Direct scan-out buffer size mismatch");
 				return false;
 			}
 		}
@@ -576,7 +580,7 @@ bool wlr_output_test(struct wlr_output *output) {
 
 bool wlr_output_commit(struct wlr_output *output) {
 	if (!output_basic_test(output)) {
-		wlr_log(WLR_ERROR, "Basic output test failed");
+		wlr_log(WLR_ERROR, "Basic output test failed for %s", output->name);
 		return false;
 	}
 
