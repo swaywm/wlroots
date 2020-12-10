@@ -1209,8 +1209,8 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 }
 
 static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
-		drmModeConnector *conn, bool is_mst) {
-	uint32_t ret = 0;
+		drmModeConnector *conn) {
+	uint32_t possible_crtcs = 0;
 
 	for (int i = 0; i < conn->count_encoders; ++i) {
 		drmModeEncoder *enc = drmModeGetEncoder(fd, conn->encoders[i]);
@@ -1218,33 +1218,12 @@ static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
 			continue;
 		}
 
-		ret |= enc->possible_crtcs;
+		possible_crtcs |= enc->possible_crtcs;
 
 		drmModeFreeEncoder(enc);
 	}
 
-	// Sometimes DP MST connectors report no encoders, so we'll loop though
-	// all of the encoders of the MST type instead.
-	// TODO: See if there is a better solution.
-
-	if (!is_mst || ret) {
-		return ret;
-	}
-
-	for (int i = 0; i < res->count_encoders; ++i) {
-		drmModeEncoder *enc = drmModeGetEncoder(fd, res->encoders[i]);
-		if (!enc) {
-			continue;
-		}
-
-		if (enc->encoder_type == DRM_MODE_ENCODER_DPMST) {
-			ret |= enc->possible_crtcs;
-		}
-
-		drmModeFreeEncoder(enc);
-	}
-
-	return ret;
+	return possible_crtcs;
 }
 
 void scan_drm_connectors(struct wlr_drm_backend *drm) {
@@ -1405,17 +1384,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
 			}
 
-			size_t path_len;
-			bool is_mst = false;
-			char *path = get_drm_prop_blob(drm->fd, wlr_conn->id,
-				wlr_conn->props.path, &path_len);
-			if (path && path_len > 4 && strncmp(path, "mst:", 4) == 0) {
-				is_mst = true;
-			}
-			free(path);
-
-			wlr_conn->possible_crtc = get_possible_crtcs(drm->fd, res, drm_conn,
-				is_mst);
+			wlr_conn->possible_crtc = get_possible_crtcs(drm->fd, res, drm_conn);
 			if (wlr_conn->possible_crtc == 0) {
 				wlr_log(WLR_ERROR, "No CRTC possible for connector '%s'",
 					wlr_conn->output.name);
