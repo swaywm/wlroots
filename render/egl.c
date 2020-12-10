@@ -166,6 +166,7 @@ static void init_dmabuf_formats(struct wlr_egl *egl) {
 		}
 
 		free(modifiers);
+		free(external_only);
 	}
 
 	char *str_formats = malloc(formats_len * 5 + 1);
@@ -783,6 +784,7 @@ static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
 			*modifiers, *external_only, &num)) {
 		wlr_log(WLR_ERROR, "Failed to query dmabuf modifiers");
 		free(*modifiers);
+		free(*external_only);
 		return -1;
 	}
 	return num;
