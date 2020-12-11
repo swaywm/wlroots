@@ -1208,24 +1208,6 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 	}
 }
 
-static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
-		drmModeConnector *conn) {
-	uint32_t possible_crtcs = 0;
-
-	for (int i = 0; i < conn->count_encoders; ++i) {
-		drmModeEncoder *enc = drmModeGetEncoder(fd, conn->encoders[i]);
-		if (!enc) {
-			continue;
-		}
-
-		possible_crtcs |= enc->possible_crtcs;
-
-		drmModeFreeEncoder(enc);
-	}
-
-	return possible_crtcs;
-}
-
 void scan_drm_connectors(struct wlr_drm_backend *drm) {
 	/*
 	 * This GPU is not really a modesetting device.
@@ -1384,7 +1366,12 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
 			}
 
-			wlr_conn->possible_crtc = get_possible_crtcs(drm->fd, res, drm_conn);
+			if (drmModeGetConnectorPossibleCrtcs(drm->fd, wlr_conn->id,
+					&wlr_conn->possible_crtc) != 0) {
+				wlr_log(WLR_ERROR,
+					"Failed to retrieve possible CRTCs for connector '%s'",
+					wlr_conn->output.name);
+			}
 			if (wlr_conn->possible_crtc == 0) {
 				wlr_log(WLR_ERROR, "No CRTC possible for connector '%s'",
 					wlr_conn->output.name);
