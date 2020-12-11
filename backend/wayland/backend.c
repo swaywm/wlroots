@@ -210,6 +210,11 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wlr_drm_format_set_finish(&wl->linux_dmabuf_v1_formats);
 
+	struct wlr_wl_buffer *buffer, *tmp_buffer;
+	wl_list_for_each_safe(buffer, tmp_buffer, &wl->buffers, link) {
+		destroy_wl_buffer(buffer);
+	}
+
 	destroy_wl_seats(wl);
 	if (wl->zxdg_decoration_manager_v1) {
 		zxdg_decoration_manager_v1_destroy(wl->zxdg_decoration_manager_v1);
@@ -270,6 +275,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	wl_list_init(&wl->devices);
 	wl_list_init(&wl->outputs);
 	wl_list_init(&wl->seats);
+	wl_list_init(&wl->buffers);
 
 	wl->remote_display = wl_display_connect(remote);
 	if (!wl->remote_display) {

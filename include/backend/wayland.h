@@ -25,9 +25,11 @@ struct wlr_wl_backend {
 	struct wlr_renderer *renderer;
 	struct wlr_drm_format *format;
 	struct wlr_allocator *allocator;
+	struct wl_list buffers; // wlr_wl_buffer.link
 	size_t requested_outputs;
 	size_t last_output_num;
 	struct wl_listener local_display_destroy;
+
 	/* remote state */
 	struct wl_display *remote_display;
 	struct wl_event_source *remote_display_src;
@@ -47,6 +49,9 @@ struct wlr_wl_backend {
 struct wlr_wl_buffer {
 	struct wlr_buffer *buffer;
 	struct wl_buffer *wl_buffer;
+	bool released;
+	struct wl_list link; // wlr_wl_backend.buffers
+	struct wl_listener buffer_destroy;
 };
 
 struct wlr_wl_presentation_feedback {
@@ -130,6 +135,7 @@ struct wlr_wl_input_device *create_wl_input_device(
 	struct wlr_wl_seat *seat, enum wlr_input_device_type type);
 bool create_wl_seat(struct wl_seat *wl_seat, struct wlr_wl_backend *wl);
 void destroy_wl_seats(struct wlr_wl_backend *wl);
+void destroy_wl_buffer(struct wlr_wl_buffer *buffer);
 
 extern const struct wl_seat_listener seat_listener;
 
