@@ -133,23 +133,32 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 	return true;
 }
 
-static void destroy_wl_buffer(struct wlr_wl_buffer *buffer) {
+void destroy_wl_buffer(struct wlr_wl_buffer *buffer) {
 	if (buffer == NULL) {
 		return;
 	}
+	wl_list_remove(&buffer->buffer_destroy.link);
+	wl_list_remove(&buffer->link);
 	wl_buffer_destroy(buffer->wl_buffer);
-	wlr_buffer_unlock(buffer->buffer);
 	free(buffer);
 }
 
 static void buffer_handle_release(void *data, struct wl_buffer *wl_buffer) {
 	struct wlr_wl_buffer *buffer = data;
-	destroy_wl_buffer(buffer);
+	buffer->released = true;
+	wlr_buffer_unlock(buffer->buffer); // might free buffer
 }
 
 static const struct wl_buffer_listener buffer_listener = {
 	.release = buffer_handle_release,
 };
+
+static void buffer_handle_buffer_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_wl_buffer *buffer =
+		wl_container_of(listener, buffer, buffer_destroy);
+	destroy_wl_buffer(buffer);
+}
 
 static bool test_buffer(struct wlr_wl_backend *wl,
 		struct wlr_buffer *wlr_buffer) {
@@ -207,10 +216,31 @@ static struct wlr_wl_buffer *create_wl_buffer(struct wlr_wl_backend *wl,
 	}
 	buffer->wl_buffer = wl_buffer;
 	buffer->buffer = wlr_buffer_lock(wlr_buffer);
+	wl_list_insert(&wl->buffers, &buffer->link);
 
 	wl_buffer_add_listener(wl_buffer, &buffer_listener, buffer);
 
+	buffer->buffer_destroy.notify = buffer_handle_buffer_destroy;
+	wl_signal_add(&wlr_buffer->events.destroy, &buffer->buffer_destroy);
+
 	return buffer;
+}
+
+static struct wlr_wl_buffer *get_or_create_wl_buffer(struct wlr_wl_backend *wl,
+		struct wlr_buffer *wlr_buffer) {
+	struct wlr_wl_buffer *buffer;
+	wl_list_for_each(buffer, &wl->buffers, link) {
+		// We can only re-use a wlr_wl_buffer if the parent compositor has
+		// released it, because wl_buffer.release is per-wl_buffer, not per
+		// wl_surface.commit.
+		if (buffer->buffer == wlr_buffer && buffer->released) {
+			buffer->released = false;
+			wlr_buffer_lock(buffer->buffer);
+			return buffer;
+		}
+	}
+
+	return create_wl_buffer(wl, wlr_buffer);
 }
 
 static bool output_test(struct wlr_output *wlr_output) {
@@ -287,7 +317,7 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		}
 
 		struct wlr_wl_buffer *buffer =
-			create_wl_buffer(output->backend, wlr_buffer);
+			get_or_create_wl_buffer(output->backend, wlr_buffer);
 		if (buffer == NULL) {
 			return false;
 		}
