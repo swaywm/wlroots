@@ -132,7 +132,24 @@ static bool output_test(struct wlr_output *wlr_output) {
 	return true;
 }
 
-static struct wlr_x11_buffer *import_x11_buffer(struct wlr_x11_output *output,
+static void destroy_x11_buffer(struct wlr_x11_buffer *buffer) {
+	if (!buffer) {
+		return;
+	}
+	wl_list_remove(&buffer->buffer_destroy.link);
+	wl_list_remove(&buffer->link);
+	xcb_free_pixmap(buffer->x11->xcb, buffer->pixmap);
+	free(buffer);
+}
+
+static void buffer_handle_buffer_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_x11_buffer *buffer =
+		wl_container_of(listener, buffer, buffer_destroy);
+	destroy_x11_buffer(buffer);
+}
+
+static struct wlr_x11_buffer *create_x11_buffer(struct wlr_x11_output *output,
 		struct wlr_buffer *wlr_buffer) {
 	struct wlr_x11_backend *x11 = output->x11;
 
@@ -170,17 +187,24 @@ static struct wlr_x11_buffer *import_x11_buffer(struct wlr_x11_output *output,
 	buffer->pixmap = pixmap;
 	buffer->x11 = x11;
 	wl_list_insert(&output->buffers, &buffer->link);
+
+	buffer->buffer_destroy.notify = buffer_handle_buffer_destroy;
+	wl_signal_add(&wlr_buffer->events.destroy, &buffer->buffer_destroy);
+
 	return buffer;
 }
 
-static void destroy_x11_buffer(struct wlr_x11_buffer *buffer) {
-	if (!buffer) {
-		return;
+static struct wlr_x11_buffer *get_or_create_x11_buffer(
+		struct wlr_x11_output *output, struct wlr_buffer *wlr_buffer) {
+	struct wlr_x11_buffer *buffer;
+	wl_list_for_each(buffer, &output->buffers, link) {
+		if (buffer->buffer == wlr_buffer) {
+			wlr_buffer_lock(buffer->buffer);
+			return buffer;
+		}
 	}
-	wl_list_remove(&buffer->link);
-	xcb_free_pixmap(buffer->x11->xcb, buffer->pixmap);
-	wlr_buffer_unlock(buffer->buffer);
-	free(buffer);
+
+	return create_x11_buffer(output, wlr_buffer);
 }
 
 static bool output_commit_buffer(struct wlr_x11_output *output) {
@@ -192,7 +216,7 @@ static bool output_commit_buffer(struct wlr_x11_output *output) {
 	wlr_egl_unset_current(&x11->egl);
 
 	struct wlr_x11_buffer *x11_buffer =
-		import_x11_buffer(output, output->back_buffer);
+		get_or_create_x11_buffer(output, output->back_buffer);
 	if (!x11_buffer) {
 		goto error;
 	}
@@ -502,7 +526,7 @@ void handle_x11_present_event(struct wlr_x11_backend *x11,
 			return;
 		}
 
-		destroy_x11_buffer(buffer);
+		wlr_buffer_unlock(buffer->buffer); // may destroy buffer
 		break;
 	case XCB_PRESENT_COMPLETE_NOTIFY:;
 		xcb_present_complete_notify_event_t *complete_notify =
