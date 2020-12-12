@@ -180,8 +180,9 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&x11->display_destroy.link);
 
 	wlr_renderer_destroy(x11->renderer);
-	wlr_drm_format_set_finish(&x11->dri3_formats);
 	wlr_egl_finish(&x11->egl);
+	wlr_allocator_destroy(x11->allocator);
+	wlr_drm_format_set_finish(&x11->dri3_formats);
 	free(x11->drm_format);
 
 #if WLR_HAS_XCB_ERRORS
@@ -235,6 +236,39 @@ static xcb_visualid_t pick_visualid(xcb_depth_t *depth) {
 		}
 	}
 	return 0;
+}
+
+static int query_dri3_drm_fd(struct wlr_x11_backend *x11) {
+	xcb_dri3_open_cookie_t open_cookie =
+		xcb_dri3_open(x11->xcb, x11->screen->root, 0);
+	xcb_dri3_open_reply_t *open_reply =
+		xcb_dri3_open_reply(x11->xcb, open_cookie, NULL);
+	if (open_reply == NULL) {
+		return -1;
+	}
+
+	int *open_fds = xcb_dri3_open_reply_fds(x11->xcb, open_reply);
+	if (open_fds == NULL) {
+		free(open_reply);
+		return -1;
+	}
+
+	assert(open_reply->nfd == 1);
+	int drm_fd = open_fds[0];
+
+	free(open_reply);
+
+	int flags = fcntl(drm_fd, F_GETFD);
+	if (flags < 0) {
+		close(drm_fd);
+		return -1;
+	}
+	if (fcntl(drm_fd, F_SETFD, flags | FD_CLOEXEC) < 0) {
+		close(drm_fd);
+		return -1;
+	}
+
+	return drm_fd;
 }
 
 static bool query_dri3_modifiers(struct wlr_x11_backend *x11,
@@ -437,71 +471,57 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	x11->screen = xcb_setup_roots_iterator(xcb_get_setup(x11->xcb)).data;
 	if (!x11->screen) {
 		wlr_log(WLR_ERROR, "Failed to get X11 screen");
-		goto error_display;
+		goto error_event;
 	}
 
 	x11->depth = get_depth(x11->screen, 32);
 	if (!x11->depth) {
 		wlr_log(WLR_ERROR, "Failed to get 32-bit depth for X11 screen");
-		goto error_display;
+		goto error_event;
 	}
 
 	x11->visualid = pick_visualid(x11->depth);
 	if (!x11->visualid) {
 		wlr_log(WLR_ERROR, "Failed to pick X11 visual");
-		goto error_display;
+		goto error_event;
 	}
 
 	x11->x11_format = x11_format_from_depth(x11->depth->depth);
 	if (!x11->x11_format) {
 		wlr_log(WLR_ERROR, "Unsupported depth %"PRIu8, x11->depth->depth);
-		goto error_display;
+		goto error_event;
 	}
 
 	x11->colormap = xcb_generate_id(x11->xcb);
 	xcb_create_colormap(x11->xcb, XCB_COLORMAP_ALLOC_NONE, x11->colormap,
 		x11->screen->root, x11->visualid);
 
+	// DRI3 may return a render node (Xwayland) or an authenticated primary
+	// node (plain Glamor).
+	int drm_fd = query_dri3_drm_fd(x11);
+	if (drm_fd < 0) {
+		wlr_log(WLR_ERROR, "Failed to query DRI3 DRM FD");
+		goto error_event;
+	}
+
+	struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
+	if (gbm_alloc == NULL) {
+		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
+		close(drm_fd);
+		goto error_event;
+	}
+	x11->allocator = &gbm_alloc->base;
+
 	if (!create_renderer_func) {
 		create_renderer_func = wlr_renderer_autocreate;
 	}
 
-	static EGLint config_attribs[] = {
-		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-		EGL_RED_SIZE, 1,
-		EGL_GREEN_SIZE, 1,
-		EGL_BLUE_SIZE, 1,
-		EGL_ALPHA_SIZE, 1,
-		EGL_NONE,
-	};
-
-	x11->renderer = create_renderer_func(&x11->egl, EGL_PLATFORM_X11_KHR,
-		x11->xlib_conn, config_attribs, x11->screen->root_visual);
+	x11->renderer = create_renderer_func(&x11->egl, EGL_PLATFORM_GBM_KHR,
+		gbm_alloc->gbm_device, NULL, 0);
 	if (x11->renderer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
 		goto error_event;
 	}
-
-	// TODO: we can use DRI3Open instead
-	int drm_fd = wlr_renderer_get_drm_fd(x11->renderer);
-	if (fd < 0) {
-		wlr_log(WLR_ERROR, "Failed to get DRM device FD from renderer");
-		return false;
-	}
-
-	drm_fd = fcntl(drm_fd, F_DUPFD_CLOEXEC, 0);
-	if (drm_fd < 0) {
-		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
-		return false;
-	}
-
-	struct wlr_gbm_allocator *alloc = wlr_gbm_allocator_create(drm_fd);
-	if (alloc == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
-		return false;
-	}
-	x11->allocator = &alloc->base;
 
 	const struct wlr_drm_format_set *render_formats =
 		wlr_renderer_get_dmabuf_render_formats(x11->renderer);
