@@ -3,6 +3,8 @@
 
 #include <wlr/render/drm_format_set.h>
 
+struct wlr_drm_format *wlr_drm_format_create(uint32_t format);
+bool wlr_drm_format_add(struct wlr_drm_format **fmt_ptr, uint64_t modifier);
 struct wlr_drm_format *wlr_drm_format_dup(const struct wlr_drm_format *format);
 /**
  * Intersect modifiers for two DRM formats.
