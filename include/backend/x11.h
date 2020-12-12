@@ -115,6 +115,7 @@ struct wlr_x11_buffer {
 	struct wlr_buffer *buffer;
 	xcb_pixmap_t pixmap;
 	struct wl_list link; // wlr_x11_output::buffers
+	struct wl_listener buffer_destroy;
 };
 
 struct wlr_x11_format {
