@@ -82,12 +82,19 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output,
 	return true;
 }
 
+static void destroy_x11_buffer(struct wlr_x11_buffer *buffer);
+
 static void output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
 	struct wlr_x11_backend *x11 = output->x11;
 
 	wlr_input_device_destroy(&output->pointer_dev);
 	wlr_input_device_destroy(&output->touch_dev);
+
+	struct wlr_x11_buffer *buffer, *buffer_tmp;
+	wl_list_for_each_safe(buffer, buffer_tmp, &output->buffers, link) {
+		destroy_x11_buffer(buffer);
+	}
 
 	wl_list_remove(&output->link);
 	wl_event_source_remove(output->frame_timer);
