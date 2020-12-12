@@ -247,20 +247,19 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 			return false;
 		}
 	} else {
-		const struct wlr_drm_format format_no_modifiers = { .format = format };
-		drm_format = wlr_drm_format_dup(&format_no_modifiers);
+		drm_format = wlr_drm_format_create(format);
 	}
 
-	struct wlr_drm_format *drm_format_linear =
-		calloc(1, sizeof(struct wlr_drm_format) + sizeof(uint64_t));
+	struct wlr_drm_format *drm_format_linear = wlr_drm_format_create(format);
 	if (drm_format_linear == NULL) {
 		free(drm_format);
 		return false;
 	}
-	drm_format_linear->format = drm_format->format;
-	drm_format_linear->len = 1;
-	drm_format_linear->cap = 1;
-	drm_format_linear->modifiers[0] = DRM_FORMAT_MOD_LINEAR;
+	if (!wlr_drm_format_add(&drm_format_linear, DRM_FORMAT_MOD_LINEAR)) {
+		free(drm_format_linear);
+		free(drm_format);
+		return false;
+	}
 
 	if (force_linear) {
 		free(drm_format);
