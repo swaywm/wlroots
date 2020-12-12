@@ -60,52 +60,18 @@ bool wlr_drm_format_set_has(const struct wlr_drm_format_set *set,
 bool wlr_drm_format_set_add(struct wlr_drm_format_set *set, uint32_t format,
 		uint64_t modifier) {
 	assert(format != DRM_FORMAT_INVALID);
+
 	struct wlr_drm_format **ptr = format_set_get_ref(set, format);
-
 	if (ptr) {
-		struct wlr_drm_format *fmt = *ptr;
-
-		if (modifier == DRM_FORMAT_MOD_INVALID) {
-			return true;
-		}
-
-		for (size_t i = 0; i < fmt->len; ++i) {
-			if (fmt->modifiers[i] == modifier) {
-				return true;
-			}
-		}
-
-		if (fmt->len == fmt->cap) {
-			size_t cap = fmt->cap ? fmt->cap * 2 : 4;
-
-			fmt = realloc(fmt, sizeof(*fmt) + sizeof(fmt->modifiers[0]) * cap);
-			if (!fmt) {
-				wlr_log_errno(WLR_ERROR, "Allocation failed");
-				return false;
-			}
-
-			fmt->cap = cap;
-			*ptr = fmt;
-		}
-
-		fmt->modifiers[fmt->len++] = modifier;
-		return true;
+		return wlr_drm_format_add(ptr, modifier);
 	}
 
-	size_t cap = modifier != DRM_FORMAT_MOD_INVALID ? 4 : 0;
-
-	struct wlr_drm_format *fmt =
-		calloc(1, sizeof(*fmt) + sizeof(fmt->modifiers[0]) * cap);
+	struct wlr_drm_format *fmt = wlr_drm_format_create(format);
 	if (!fmt) {
-		wlr_log_errno(WLR_ERROR, "Allocation failed");
 		return false;
 	}
-
-	fmt->format = format;
-	if (cap) {
-		fmt->cap = cap;
-		fmt->len = 1;
-		fmt->modifiers[0] = modifier;
+	if (!wlr_drm_format_add(&fmt, modifier)) {
+		return false;
 	}
 
 	if (set->len == set->cap) {
@@ -124,6 +90,49 @@ bool wlr_drm_format_set_add(struct wlr_drm_format_set *set, uint32_t format,
 	}
 
 	set->formats[set->len++] = fmt;
+	return true;
+}
+
+struct wlr_drm_format *wlr_drm_format_create(uint32_t format) {
+	size_t cap = 4;
+	struct wlr_drm_format *fmt =
+		calloc(1, sizeof(*fmt) + sizeof(fmt->modifiers[0]) * cap);
+	if (!fmt) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return NULL;
+	}
+	fmt->format = format;
+	fmt->cap = cap;
+	return fmt;
+}
+
+bool wlr_drm_format_add(struct wlr_drm_format **fmt_ptr, uint64_t modifier) {
+	struct wlr_drm_format *fmt = *fmt_ptr;
+
+	if (modifier == DRM_FORMAT_MOD_INVALID) {
+		return true;
+	}
+
+	for (size_t i = 0; i < fmt->len; ++i) {
+		if (fmt->modifiers[i] == modifier) {
+			return true;
+		}
+	}
+
+	if (fmt->len == fmt->cap) {
+		size_t cap = fmt->cap ? fmt->cap * 2 : 4;
+
+		fmt = realloc(fmt, sizeof(*fmt) + sizeof(fmt->modifiers[0]) * cap);
+		if (!fmt) {
+			wlr_log_errno(WLR_ERROR, "Allocation failed");
+			return false;
+		}
+
+		fmt->cap = cap;
+		*fmt_ptr = fmt;
+	}
+
+	fmt->modifiers[fmt->len++] = modifier;
 	return true;
 }
 
