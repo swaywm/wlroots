@@ -26,8 +26,6 @@
 
 #define XCB_EVENT_RESPONSE_TYPE_MASK 0x7f
 
-#define X11_DEFAULT_REFRESH (60 * 1000) // 60 Hz
-
 struct wlr_x11_backend;
 
 struct wlr_x11_output {
@@ -47,12 +45,10 @@ struct wlr_x11_output {
 	struct wlr_input_device touch_dev;
 	struct wl_list touchpoints; // wlr_x11_touchpoint::link
 
-	struct wl_event_source *frame_timer;
-	int frame_delay;
-
 	struct wl_list buffers; // wlr_x11_buffer::link
 
 	bool cursor_hidden;
+	uint64_t last_msc;
 };
 
 struct wlr_x11_touchpoint {
