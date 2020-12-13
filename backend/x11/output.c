@@ -375,8 +375,7 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 			XCB_INPUT_XI_EVENT_MASK_LEAVE |
 			XCB_INPUT_XI_EVENT_MASK_TOUCH_BEGIN |
 			XCB_INPUT_XI_EVENT_MASK_TOUCH_END |
-			XCB_INPUT_XI_EVENT_MASK_TOUCH_UPDATE |
-			XCB_PRESENT_EVENT_MASK_IDLE_NOTIFY,
+			XCB_INPUT_XI_EVENT_MASK_TOUCH_UPDATE,
 	};
 	xcb_input_xi_select_events(x11->xcb, output->win, 1, &xinput_mask.head);
 
