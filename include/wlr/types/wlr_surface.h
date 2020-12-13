@@ -220,7 +220,8 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 		struct wl_list *resource_list);
 
 /**
- * Get the root of the subsurface tree for this surface.
+ * Get the root of the subsurface tree for this surface. Can return NULL if
+ * a surface in the tree has been destroyed.
  */
 struct wlr_surface *wlr_surface_get_root_surface(struct wlr_surface *surface);
 

@@ -1061,6 +1061,9 @@ struct wlr_surface *wlr_surface_get_root_surface(struct wlr_surface *surface) {
 		if (subsurface == NULL) {
 			break;
 		}
+		if (subsurface->parent == NULL) {
+			return NULL;
+		}
 		surface = subsurface->parent;
 	}
 	return surface;
