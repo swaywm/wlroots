@@ -21,13 +21,6 @@
 #include "util/signal.h"
 #include "util/time.h"
 
-static int signal_frame(void *data) {
-	struct wlr_x11_output *output = data;
-	wlr_output_send_frame(&output->wlr_output);
-	wl_event_source_timer_update(output->frame_timer, output->frame_delay);
-	return 0;
-}
-
 static void parse_xcb_setup(struct wlr_output *output,
 		xcb_connection_t *xcb) {
 	const xcb_setup_t *xcb_setup = xcb_get_setup(xcb);
@@ -49,14 +42,8 @@ static struct wlr_x11_output *get_x11_output_from_output(
 static void output_set_refresh(struct wlr_output *wlr_output, int32_t refresh) {
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
 
-	if (refresh <= 0) {
-		refresh = X11_DEFAULT_REFRESH;
-	}
-
 	wlr_output_update_custom_mode(&output->wlr_output, wlr_output->width,
-		wlr_output->height, refresh);
-
-	output->frame_delay = 1000000 / refresh;
+		wlr_output->height, 0);
 }
 
 static bool output_set_custom_mode(struct wlr_output *wlr_output,
@@ -97,7 +84,6 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	}
 
 	wl_list_remove(&output->link);
-	wl_event_source_remove(output->frame_timer);
 	wlr_buffer_unlock(output->back_buffer);
 	wlr_swapchain_destroy(output->swapchain);
 	xcb_destroy_window(x11->xcb, output->win);
@@ -258,9 +244,10 @@ static bool output_commit_buffer(struct wlr_x11_output *output) {
 
 	uint32_t serial = output->wlr_output.commit_seq;
 	uint32_t options = 0;
+	uint64_t target_msc = output->last_msc ? output->last_msc + 1 : 0;
 	xcb_present_pixmap(x11->xcb, output->win, x11_buffer->pixmap, serial,
-		0, region, 0, 0, XCB_NONE, XCB_NONE, XCB_NONE, options, 0, 0, 0,
-		0, NULL);
+		0, region, 0, 0, XCB_NONE, XCB_NONE, XCB_NONE, options, target_msc,
+		0, 0, 0, NULL);
 
 	if (region != XCB_NONE) {
 		xcb_xfixes_destroy_region(x11->xcb, region);
@@ -423,12 +410,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	xcb_map_window(x11->xcb, output->win);
 	xcb_flush(x11->xcb);
 
-	struct wl_event_loop *ev = wl_display_get_event_loop(x11->wl_display);
-	output->frame_timer = wl_event_loop_add_timer(ev, signal_frame, output);
-
 	wl_list_insert(&x11->outputs, &output->link);
 
-	wl_event_source_timer_update(output->frame_timer, output->frame_delay);
 	wlr_output_update_enabled(wlr_output, true);
 
 	wlr_input_device_init(&output->pointer_dev, WLR_INPUT_DEVICE_POINTER,
@@ -447,6 +430,9 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	wlr_signal_emit_safe(&x11->backend.events.new_output, wlr_output);
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &output->pointer_dev);
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &output->touch_dev);
+
+	// Start the rendering loop by requesting the compositor to render a frame
+	wlr_output_schedule_frame(wlr_output);
 
 	return wlr_output;
 }
@@ -474,7 +460,7 @@ void handle_x11_configure_notify(struct wlr_x11_output *output,
 	}
 
 	wlr_output_update_custom_mode(&output->wlr_output, ev->width,
-		ev->height, output->wlr_output.refresh);
+		ev->height, 0);
 
 	// Move the pointer to its new location
 	update_x11_pointer_position(output, output->x11->time);
@@ -545,6 +531,8 @@ void handle_x11_present_event(struct wlr_x11_backend *x11,
 			return;
 		}
 
+		output->last_msc = complete_notify->msc;
+
 		struct timespec t;
 		timespec_from_nsec(&t, complete_notify->ust * 1000);
 
@@ -561,6 +549,8 @@ void handle_x11_present_event(struct wlr_x11_backend *x11,
 			.flags = flags,
 		};
 		wlr_output_send_present(&output->wlr_output, &present_event);
+
+		wlr_output_send_frame(&output->wlr_output);
 		break;
 	default:
 		wlr_log(WLR_DEBUG, "Unhandled Present event %"PRIu16, event->event_type);
