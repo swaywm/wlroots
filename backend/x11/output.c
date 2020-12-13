@@ -19,6 +19,7 @@
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
 #include "util/signal.h"
+#include "util/time.h"
 
 static int signal_frame(void *data) {
 	struct wlr_x11_output *output = data;
@@ -239,8 +240,6 @@ static bool output_commit_buffer(struct wlr_x11_output *output) {
 
 	wlr_swapchain_set_buffer_submitted(output->swapchain, x11_buffer->buffer);
 
-	wlr_output_send_present(&output->wlr_output, NULL);
-
 	return true;
 
 error:
@@ -379,7 +378,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	};
 	xcb_input_xi_select_events(x11->xcb, output->win, 1, &xinput_mask.head);
 
-	uint32_t present_mask = XCB_PRESENT_EVENT_MASK_IDLE_NOTIFY;
+	uint32_t present_mask = XCB_PRESENT_EVENT_MASK_IDLE_NOTIFY |
+		XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY;
 	xcb_present_select_input(x11->xcb, x11->present_event_id, output->win,
 		present_mask);
 
@@ -482,13 +482,14 @@ static struct wlr_x11_buffer *get_x11_buffer(struct wlr_x11_output *output,
 
 void handle_x11_present_event(struct wlr_x11_backend *x11,
 		xcb_ge_generic_event_t *event) {
+	struct wlr_x11_output *output;
+
 	switch (event->event_type) {
 	case XCB_PRESENT_EVENT_IDLE_NOTIFY:;
 		xcb_present_idle_notify_event_t *idle_notify =
 			(xcb_present_idle_notify_event_t *)event;
 
-		struct wlr_x11_output *output =
-			get_x11_output_from_window_id(x11, idle_notify->window);
+		output = get_x11_output_from_window_id(x11, idle_notify->window);
 		if (!output) {
 			wlr_log(WLR_DEBUG, "Got PresentIdleNotify event for unknown window");
 			return;
@@ -502,6 +503,33 @@ void handle_x11_present_event(struct wlr_x11_backend *x11,
 		}
 
 		destroy_x11_buffer(buffer);
+		break;
+	case XCB_PRESENT_COMPLETE_NOTIFY:;
+		xcb_present_complete_notify_event_t *complete_notify =
+			(xcb_present_complete_notify_event_t *)event;
+
+		output = get_x11_output_from_window_id(x11, complete_notify->window);
+		if (!output) {
+			wlr_log(WLR_DEBUG, "Got PresentCompleteNotify event for unknown window");
+			return;
+		}
+
+		struct timespec t;
+		timespec_from_nsec(&t, complete_notify->ust * 1000);
+
+		uint32_t flags = 0;
+		if (complete_notify->mode == XCB_PRESENT_COMPLETE_MODE_FLIP) {
+			flags |= WLR_OUTPUT_PRESENT_ZERO_COPY;
+		}
+
+		struct wlr_output_event_present present_event = {
+			.output = &output->wlr_output,
+			.commit_seq = complete_notify->serial,
+			.when = &t,
+			.seq = complete_notify->msc,
+			.flags = flags,
+		};
+		wlr_output_send_present(&output->wlr_output, &present_event);
 		break;
 	default:
 		wlr_log(WLR_DEBUG, "Unhandled Present event %"PRIu16, event->event_type);
