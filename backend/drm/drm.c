@@ -641,14 +641,21 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 	}
 
 	struct wlr_drm_fb *fb = &crtc->primary->queued_fb;
-	if (fb->bo == NULL) {
+	if (fb->wlr_buf == NULL) {
 		fb = &crtc->primary->current_fb;
 	}
-	if (fb->bo == NULL) {
+	if (fb->wlr_buf == NULL) {
 		return false;
 	}
 
-	return export_drm_bo(fb->bo, attribs);
+	// export_dmabuf gives ownership of the DMA-BUF to the caller, so we need
+	// to dup it
+	struct wlr_dmabuf_attributes buf_attribs = {0};
+	if (!wlr_buffer_get_dmabuf(fb->wlr_buf, &buf_attribs)) {
+		return false;
+	}
+
+	return wlr_dmabuf_attributes_copy(attribs, &buf_attribs);
 }
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
