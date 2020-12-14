@@ -169,33 +169,6 @@ bool export_drm_bo(struct gbm_bo *bo, struct wlr_dmabuf_attributes *attribs) {
 	return true;
 }
 
-static void free_tex(struct gbm_bo *bo, void *data) {
-	struct wlr_texture *tex = data;
-	wlr_texture_destroy(tex);
-}
-
-static struct wlr_texture *get_tex_for_bo(struct wlr_drm_renderer *renderer,
-		struct gbm_bo *bo) {
-	struct wlr_texture *tex = gbm_bo_get_user_data(bo);
-	if (tex) {
-		return tex;
-	}
-
-	struct wlr_dmabuf_attributes attribs;
-	if (!export_drm_bo(bo, &attribs)) {
-		return NULL;
-	}
-
-	tex = wlr_texture_from_dmabuf(renderer->wlr_rend, &attribs);
-	if (tex) {
-		gbm_bo_set_user_data(bo, tex, free_tex);
-	}
-
-	wlr_dmabuf_attributes_finish(&attribs);
-
-	return tex;
-}
-
 void drm_plane_finish_surface(struct wlr_drm_plane *plane) {
 	if (!plane) {
 		return;
@@ -434,19 +407,26 @@ struct gbm_bo *drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm
 
 	/* Perform copy across GPUs */
 
-	struct wlr_texture *tex = get_tex_for_bo(mgpu->renderer, fb->bo);
-	if (!tex) {
+	struct wlr_renderer *renderer = mgpu->renderer->wlr_rend;
+
+	struct wlr_dmabuf_attributes attribs = {0};
+	if (!wlr_buffer_get_dmabuf(fb->wlr_buf, &attribs)) {
+		return NULL;
+	}
+
+	struct wlr_texture *tex = wlr_texture_from_dmabuf(renderer, &attribs);
+	if (tex == NULL) {
 		return NULL;
 	}
 
 	if (!drm_surface_make_current(mgpu, NULL)) {
+		wlr_texture_destroy(tex);
 		return NULL;
 	}
 
 	float mat[9];
 	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_NORMAL);
 
-	struct wlr_renderer *renderer = mgpu->renderer->wlr_rend;
 	wlr_renderer_begin(renderer, mgpu->width, mgpu->height);
 	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 	wlr_render_texture_with_matrix(renderer, tex, mat, 1.0f);
@@ -457,8 +437,12 @@ struct gbm_bo *drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm
 		.wlr_buf = fb->mgpu_wlr_buf,
 	};
 	if (!drm_fb_lock_surface(&mgpu_fb, mgpu)) {
+		wlr_texture_destroy(tex);
 		return false;
 	}
+
+	wlr_texture_destroy(tex);
+
 	fb->mgpu_bo = mgpu_fb.bo;
 	fb->mgpu_wlr_buf = mgpu_fb.wlr_buf;
 	fb->mgpu_surf = mgpu;
