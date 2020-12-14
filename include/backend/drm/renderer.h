@@ -46,7 +46,6 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer);
 
 bool drm_surface_make_current(struct wlr_drm_surface *surf, int *buffer_age);
 void drm_surface_unset_current(struct wlr_drm_surface *surf);
-bool export_drm_bo(struct gbm_bo *bo, struct wlr_dmabuf_attributes *attribs);
 
 void drm_fb_clear(struct wlr_drm_fb *fb);
 bool drm_fb_lock_surface(struct wlr_drm_fb *fb, struct wlr_drm_surface *surf);

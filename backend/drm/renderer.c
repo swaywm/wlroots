@@ -141,34 +141,6 @@ void drm_surface_unset_current(struct wlr_drm_surface *surf) {
 	surf->back_buffer = NULL;
 }
 
-bool export_drm_bo(struct gbm_bo *bo, struct wlr_dmabuf_attributes *attribs) {
-	memset(attribs, 0, sizeof(struct wlr_dmabuf_attributes));
-
-	attribs->n_planes = gbm_bo_get_plane_count(bo);
-	if (attribs->n_planes > WLR_DMABUF_MAX_PLANES) {
-		return false;
-	}
-
-	attribs->width = gbm_bo_get_width(bo);
-	attribs->height = gbm_bo_get_height(bo);
-	attribs->format = gbm_bo_get_format(bo);
-	attribs->modifier = gbm_bo_get_modifier(bo);
-
-	for (int i = 0; i < attribs->n_planes; ++i) {
-		attribs->offset[i] = gbm_bo_get_offset(bo, i);
-		attribs->stride[i] = gbm_bo_get_stride_for_plane(bo, i);
-		attribs->fd[i] = gbm_bo_get_fd(bo);
-		if (attribs->fd[i] < 0) {
-			for (int j = 0; j < i; ++j) {
-				close(attribs->fd[j]);
-			}
-			return false;
-		}
-	}
-
-	return true;
-}
-
 void drm_plane_finish_surface(struct wlr_drm_plane *plane) {
 	if (!plane) {
 		return;
