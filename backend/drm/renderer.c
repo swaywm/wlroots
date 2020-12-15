@@ -1,5 +1,7 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <drm_fourcc.h>
+#include <fcntl.h>
 #include <gbm.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -37,9 +39,16 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		goto error_gbm;
 	}
 
-	renderer->allocator = wlr_gbm_allocator_create(drm->fd);
+	int alloc_fd = fcntl(drm->fd, F_DUPFD_CLOEXEC, 0);
+	if (alloc_fd < 0) {
+		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+		goto error_wlr_rend;
+	}
+
+	renderer->allocator = wlr_gbm_allocator_create(alloc_fd);
 	if (renderer->allocator == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create allocator");
+		close(alloc_fd);
 		goto error_wlr_rend;
 	}
 
