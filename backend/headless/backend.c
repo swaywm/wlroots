@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <drm_fourcc.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <wlr/interfaces/wlr_input_device.h>
@@ -113,19 +114,19 @@ static bool backend_init(struct wlr_headless_backend *backend,
 	backend->renderer = renderer;
 	backend->egl = wlr_gles2_renderer_get_egl(renderer);
 
-	int fd = wlr_renderer_get_drm_fd(renderer);
-	if (fd < 0) {
+	int drm_fd = wlr_renderer_get_drm_fd(renderer);
+	if (drm_fd < 0) {
 		wlr_log(WLR_ERROR, "Failed to get DRM device FD from renderer");
 		return false;
 	}
 
-	fd = dup(fd);
-	if (fd < 0) {
-		wlr_log_errno(WLR_ERROR, "dup failed");
+	drm_fd = fcntl(drm_fd, F_DUPFD_CLOEXEC, 0);
+	if (drm_fd < 0) {
+		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
 		return false;
 	}
 
-	struct wlr_gbm_allocator *alloc = wlr_gbm_allocator_create(fd);
+	struct wlr_gbm_allocator *alloc = wlr_gbm_allocator_create(drm_fd);
 	if (alloc == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
 		return false;

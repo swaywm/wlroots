@@ -1,6 +1,6 @@
-#define _POSIX_C_SOURCE 200112L
-
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -490,9 +490,9 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		return false;
 	}
 
-	drm_fd = dup(drm_fd);
-	if (fd < 0) {
-		wlr_log_errno(WLR_ERROR, "dup failed");
+	drm_fd = fcntl(drm_fd, F_DUPFD_CLOEXEC, 0);
+	if (drm_fd < 0) {
+		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
 		return false;
 	}
 
