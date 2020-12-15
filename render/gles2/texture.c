@@ -55,7 +55,6 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 		get_gles2_format_from_wl(texture->wl_format);
 	assert(fmt);
 
-	// TODO: what if the unpack subimage extension isn't supported?
 	push_gles2_debug(texture->renderer);
 
 	glBindTexture(GL_TEXTURE_2D, texture->tex);

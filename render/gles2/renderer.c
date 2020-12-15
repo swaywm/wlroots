@@ -893,6 +893,11 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 		free(renderer);
 		return NULL;
 	}
+	if (!check_gl_ext(exts_str, "GL_EXT_unpack_subimage")) {
+		wlr_log(WLR_ERROR, "GL_EXT_unpack_subimage not supported");
+		free(renderer);
+		return NULL;
+	}
 
 	renderer->exts.read_format_bgra_ext =
 		check_gl_ext(exts_str, "GL_EXT_read_format_bgra");
