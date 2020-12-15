@@ -146,6 +146,12 @@ static struct wlr_buffer *drm_surface_blit(struct wlr_drm_surface *surf,
 		struct wlr_buffer *buffer) {
 	struct wlr_renderer *renderer = surf->renderer->wlr_rend;
 
+	if (surf->width != (uint32_t)buffer->width ||
+			surf->height != (uint32_t)buffer->height) {
+		wlr_log(WLR_ERROR, "Surface size doesn't match buffer size");
+		return NULL;
+	}
+
 	struct wlr_dmabuf_attributes attribs = {0};
 	if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
 		return NULL;
