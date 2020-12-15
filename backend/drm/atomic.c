@@ -135,12 +135,7 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
 	uint32_t id = plane->id;
 	const union wlr_drm_plane_props *props = &plane->props;
 	struct wlr_drm_fb *fb = plane_get_next_fb(plane);
-	struct gbm_bo *bo = drm_fb_acquire(fb, drm, &plane->mgpu_surf);
-	if (!bo) {
-		goto error;
-	}
-
-	uint32_t fb_id = get_fb_for_bo(bo, drm->addfb2_modifiers);
+	uint32_t fb_id = drm_fb_acquire(fb, drm, &plane->mgpu_surf);
 	if (!fb_id) {
 		goto error;
 	}
