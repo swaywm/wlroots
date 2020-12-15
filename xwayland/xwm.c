@@ -1165,7 +1165,7 @@ static bool update_state(int action, bool *state) {
 	return changed;
 }
 
-static inline bool xsurface_is_maximized(
+static bool xsurface_is_maximized(
 		struct wlr_xwayland_surface *xsurface) {
 	return xsurface->maximized_horz && xsurface->maximized_vert;
 }
