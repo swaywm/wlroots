@@ -959,19 +959,6 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		plane->cursor_enabled = true;
 	}
 
-	if (plane->cursor_enabled) {
-		drm_fb_acquire(&plane->pending_fb, drm, &plane->mgpu_surf);
-		/* Workaround for nouveau buffers created with GBM_BO_USER_LINEAR are
-		 * placed in NOUVEAU_GEM_DOMAIN_GART. When the bo is attached to the
-		 * cursor plane it is moved to NOUVEAU_GEM_DOMAIN_VRAM. However, this
-		 * does not wait for the render operations to complete, leaving an
-		 * empty surface. See
-		 * https://gitlab.freedesktop.org/xorg/driver/xf86-video-nouveau/issues/480
-		 * The render operations can be waited for using:
-		 */
-		glFinish();
-	}
-
 	wlr_output_update_needs_frame(output);
 	return true;
 }
