@@ -14,6 +14,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "backend/drm/drm.h"
+#include "backend/drm/util.h"
 #include "render/drm_format_set.h"
 #include "render/gbm_allocator.h"
 #include "render/swapchain.h"
@@ -248,6 +249,14 @@ void drm_fb_clear(struct wlr_drm_fb *fb) {
 		return;
 	}
 
+	struct gbm_device *gbm = gbm_bo_get_device(fb->bo);
+	if (fb->mgpu_bo) {
+		gbm = gbm_bo_get_device(fb->mgpu_bo);
+	}
+	if (drmModeRmFB(gbm_device_get_fd(gbm), fb->id) != 0) {
+		wlr_log(WLR_ERROR, "drmModeRmFB failed");
+	}
+
 	gbm_bo_destroy(fb->bo);
 	wlr_buffer_unlock(fb->wlr_buf);
 
@@ -362,19 +371,20 @@ bool drm_surface_render_black_frame(struct wlr_drm_surface *surf) {
 	return true;
 }
 
-struct gbm_bo *drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
+uint32_t drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
 		struct wlr_drm_surface *mgpu) {
+	if (fb->id) {
+		return fb->id;
+	}
+
 	if (!fb->bo) {
 		wlr_log(WLR_ERROR, "Tried to acquire an FB with a NULL BO");
-		return NULL;
+		return 0;
 	}
 
 	if (!drm->parent) {
-		return fb->bo;
-	}
-
-	if (fb->mgpu_bo) {
-		return fb->mgpu_bo;
+		fb->id = get_fb_for_bo(fb->bo, drm->addfb2_modifiers);
+		return fb->id;
 	}
 
 	/* Perform copy across GPUs */
@@ -383,17 +393,17 @@ struct gbm_bo *drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm
 
 	struct wlr_dmabuf_attributes attribs = {0};
 	if (!wlr_buffer_get_dmabuf(fb->wlr_buf, &attribs)) {
-		return NULL;
+		return 0;
 	}
 
 	struct wlr_texture *tex = wlr_texture_from_dmabuf(renderer, &attribs);
 	if (tex == NULL) {
-		return NULL;
+		return 0;
 	}
 
 	if (!drm_surface_make_current(mgpu, NULL)) {
 		wlr_texture_destroy(tex);
-		return NULL;
+		return 0;
 	}
 
 	float mat[9];
@@ -410,7 +420,7 @@ struct gbm_bo *drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm
 	};
 	if (!drm_fb_lock_surface(&mgpu_fb, mgpu)) {
 		wlr_texture_destroy(tex);
-		return false;
+		return 0;
 	}
 
 	wlr_texture_destroy(tex);
@@ -418,5 +428,7 @@ struct gbm_bo *drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm
 	fb->mgpu_bo = mgpu_fb.bo;
 	fb->mgpu_wlr_buf = mgpu_fb.wlr_buf;
 	fb->mgpu_surf = mgpu;
-	return fb->mgpu_bo;
+
+	fb->id = get_fb_for_bo(fb->mgpu_bo, drm->addfb2_modifiers);
+	return fb->id;
 }

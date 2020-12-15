@@ -38,6 +38,8 @@ struct wlr_drm_fb {
 	struct wlr_drm_surface *mgpu_surf;
 	struct gbm_bo *mgpu_bo;
 	struct wlr_buffer *mgpu_wlr_buf;
+
+	uint32_t id;
 };
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
@@ -55,7 +57,7 @@ bool drm_fb_import_wlr(struct wlr_drm_fb *fb, struct wlr_drm_renderer *renderer,
 void drm_fb_move(struct wlr_drm_fb *new, struct wlr_drm_fb *old);
 
 bool drm_surface_render_black_frame(struct wlr_drm_surface *surf);
-struct gbm_bo *drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
+uint32_t drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
 		struct wlr_drm_surface *mgpu);
 
 bool drm_plane_init_surface(struct wlr_drm_plane *plane,

@@ -17,12 +17,7 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 	uint32_t fb_id = 0;
 	if (crtc->pending.active) {
 		struct wlr_drm_fb *fb = plane_get_next_fb(crtc->primary);
-		struct gbm_bo *bo = drm_fb_acquire(fb, drm, &crtc->primary->mgpu_surf);
-		if (!bo) {
-			return false;
-		}
-
-		fb_id = get_fb_for_bo(bo, drm->addfb2_modifiers);
+		uint32_t fb_id = drm_fb_acquire(fb, drm, &crtc->primary->mgpu_surf);
 		if (!fb_id) {
 			return false;
 		}
@@ -79,12 +74,15 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 
 	if (cursor != NULL && drm_connector_is_cursor_visible(conn)) {
 		struct wlr_drm_fb *cursor_fb = plane_get_next_fb(cursor);
-		struct gbm_bo *cursor_bo =
-			drm_fb_acquire(cursor_fb, drm, &cursor->mgpu_surf);
-		if (!cursor_bo) {
+		if (drm_fb_acquire(cursor_fb, drm, &cursor->mgpu_surf) == 0) {
 			wlr_drm_conn_log_errno(conn, WLR_DEBUG,
 				"Failed to acquire cursor FB");
 			return false;
+		}
+
+		struct gbm_bo *cursor_bo = cursor_fb->bo;
+		if (cursor_fb->mgpu_bo) {
+			cursor_bo = cursor_fb->mgpu_bo;
 		}
 
 		if (drmModeSetCursor(drm->fd, crtc->id,
