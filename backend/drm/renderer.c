@@ -22,7 +22,8 @@
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer, wlr_renderer_create_func_t create_renderer_func) {
-	// TODO: get rid of renderer->gbm
+	renderer->backend = drm;
+
 	renderer->gbm = gbm_create_device(drm->fd);
 	if (!renderer->gbm) {
 		wlr_log(WLR_ERROR, "Failed to create GBM device");
@@ -53,7 +54,6 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		goto error_wlr_rend;
 	}
 
-	renderer->fd = drm->fd;
 	return true;
 
 error_wlr_rend:
@@ -141,6 +141,44 @@ void drm_surface_unset_current(struct wlr_drm_surface *surf) {
 	wlr_buffer_unlock(surf->back_buffer);
 	surf->back_buffer = NULL;
 }
+
+static struct wlr_buffer *drm_surface_blit(struct wlr_drm_surface *surf,
+		struct wlr_buffer *buffer) {
+	struct wlr_renderer *renderer = surf->renderer->wlr_rend;
+
+	struct wlr_dmabuf_attributes attribs = {0};
+	if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
+		return NULL;
+	}
+
+	struct wlr_texture *tex = wlr_texture_from_dmabuf(renderer, &attribs);
+	if (tex == NULL) {
+		return NULL;
+	}
+
+	if (!drm_surface_make_current(surf, NULL)) {
+		wlr_texture_destroy(tex);
+		return NULL;
+	}
+
+	float mat[9];
+	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_NORMAL);
+
+	wlr_renderer_begin(renderer, surf->width, surf->height);
+	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
+	wlr_render_texture_with_matrix(renderer, tex, mat, 1.0f);
+	wlr_renderer_end(renderer);
+
+	assert(surf->back_buffer != NULL);
+	struct wlr_buffer *out = wlr_buffer_lock(surf->back_buffer);
+
+	drm_surface_unset_current(surf);
+
+	wlr_texture_destroy(tex);
+
+	return out;
+}
+
 
 void drm_plane_finish_surface(struct wlr_drm_plane *plane) {
 	if (!plane) {
@@ -250,30 +288,19 @@ void drm_fb_clear(struct wlr_drm_fb *fb) {
 	}
 
 	struct gbm_device *gbm = gbm_bo_get_device(fb->bo);
-	if (fb->mgpu_bo) {
-		gbm = gbm_bo_get_device(fb->mgpu_bo);
-	}
 	if (drmModeRmFB(gbm_device_get_fd(gbm), fb->id) != 0) {
 		wlr_log(WLR_ERROR, "drmModeRmFB failed");
 	}
 
 	gbm_bo_destroy(fb->bo);
 	wlr_buffer_unlock(fb->wlr_buf);
+	wlr_buffer_unlock(fb->mgpu_wlr_buf);
 
-	fb->wlr_buf = NULL;
-	fb->bo = NULL;
-
-	if (fb->mgpu_bo) {
-		assert(fb->mgpu_surf);
-		gbm_bo_destroy(fb->mgpu_bo);
-		wlr_buffer_unlock(fb->mgpu_wlr_buf);
-		fb->mgpu_bo = NULL;
-		fb->mgpu_wlr_buf = NULL;
-		fb->mgpu_surf = NULL;
-	}
+	memset(fb, 0, sizeof(*fb));
 }
 
-bool drm_fb_lock_surface(struct wlr_drm_fb *fb, struct wlr_drm_surface *surf) {
+bool drm_fb_lock_surface(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
+		struct wlr_drm_surface *surf, struct wlr_drm_surface *mgpu) {
 	assert(surf->back_buffer != NULL);
 
 	struct wlr_buffer *buffer = wlr_buffer_lock(surf->back_buffer);
@@ -282,18 +309,70 @@ bool drm_fb_lock_surface(struct wlr_drm_fb *fb, struct wlr_drm_surface *surf) {
 	// making another context current.
 	drm_surface_unset_current(surf);
 
-	bool ok = drm_fb_import_wlr(fb, surf->renderer, buffer, NULL);
+	bool ok = drm_fb_import(fb, drm, buffer, mgpu, NULL);
 	wlr_buffer_unlock(buffer);
 	return ok;
 }
 
-bool drm_fb_import_wlr(struct wlr_drm_fb *fb, struct wlr_drm_renderer *renderer,
-		struct wlr_buffer *buf, struct wlr_drm_format_set *set) {
+static struct gbm_bo *get_bo_for_dmabuf(struct gbm_device *gbm,
+		struct wlr_dmabuf_attributes *attribs) {
+	if (attribs->modifier != DRM_FORMAT_MOD_INVALID ||
+			attribs->n_planes > 1 || attribs->offset[0] != 0) {
+		struct gbm_import_fd_modifier_data data = {
+			.width = attribs->width,
+			.height = attribs->height,
+			.format = attribs->format,
+			.num_fds = attribs->n_planes,
+			.modifier = attribs->modifier,
+		};
+
+		if ((size_t)attribs->n_planes > sizeof(data.fds) / sizeof(data.fds[0])) {
+			return false;
+		}
+
+		for (size_t i = 0; i < (size_t)attribs->n_planes; ++i) {
+			data.fds[i] = attribs->fd[i];
+			data.strides[i] = attribs->stride[i];
+			data.offsets[i] = attribs->offset[i];
+		}
+
+		return gbm_bo_import(gbm, GBM_BO_IMPORT_FD_MODIFIER,
+			&data, GBM_BO_USE_SCANOUT);
+	} else {
+		struct gbm_import_fd_data data = {
+			.fd = attribs->fd[0],
+			.width = attribs->width,
+			.height = attribs->height,
+			.stride = attribs->stride[0],
+			.format = attribs->format,
+		};
+
+		return gbm_bo_import(gbm, GBM_BO_IMPORT_FD, &data, GBM_BO_USE_SCANOUT);
+	}
+}
+
+bool drm_fb_import(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
+		struct wlr_buffer *buf, struct wlr_drm_surface *mgpu,
+		struct wlr_drm_format_set *set) {
 	drm_fb_clear(fb);
+
+	fb->wlr_buf = wlr_buffer_lock(buf);
+
+	if (drm->parent && mgpu) {
+		// Perform a copy across GPUs
+		fb->mgpu_wlr_buf = drm_surface_blit(mgpu, buf);
+		if (!fb->mgpu_wlr_buf) {
+			wlr_log(WLR_ERROR, "Failed to blit buffer across GPUs");
+			goto error_mgpu_wlr_buf;
+		}
+
+		buf = fb->mgpu_wlr_buf;
+	}
 
 	struct wlr_dmabuf_attributes attribs;
 	if (!wlr_buffer_get_dmabuf(buf, &attribs)) {
-		return false;
+		wlr_log(WLR_ERROR, "Failed to get DMA-BUF from buffer");
+		goto error_get_dmabuf;
 	}
 
 	if (set && !wlr_drm_format_set_has(set, attribs.format, attribs.modifier)) {
@@ -303,52 +382,34 @@ bool drm_fb_import_wlr(struct wlr_drm_fb *fb, struct wlr_drm_renderer *renderer,
 		if (wlr_drm_format_set_has(set, format, attribs.modifier)) {
 			attribs.format = format;
 		} else {
-			return false;
+			wlr_log(WLR_ERROR, "Buffer format 0x%"PRIX32" cannot be scanned out",
+				attribs.format);
+			goto error_get_dmabuf;
 		}
 	}
 
-	if (attribs.modifier != DRM_FORMAT_MOD_INVALID ||
-			attribs.n_planes > 1 || attribs.offset[0] != 0) {
-		struct gbm_import_fd_modifier_data data = {
-			.width = attribs.width,
-			.height = attribs.height,
-			.format = attribs.format,
-			.num_fds = attribs.n_planes,
-			.modifier = attribs.modifier,
-		};
-
-		if ((size_t)attribs.n_planes > sizeof(data.fds) / sizeof(data.fds[0])) {
-			return false;
-		}
-
-		for (size_t i = 0; i < (size_t)attribs.n_planes; ++i) {
-			data.fds[i] = attribs.fd[i];
-			data.strides[i] = attribs.stride[i];
-			data.offsets[i] = attribs.offset[i];
-		}
-
-		fb->bo = gbm_bo_import(renderer->gbm, GBM_BO_IMPORT_FD_MODIFIER,
-			&data, GBM_BO_USE_SCANOUT);
-	} else {
-		struct gbm_import_fd_data data = {
-			.fd = attribs.fd[0],
-			.width = attribs.width,
-			.height = attribs.height,
-			.stride = attribs.stride[0],
-			.format = attribs.format,
-		};
-
-		fb->bo = gbm_bo_import(renderer->gbm, GBM_BO_IMPORT_FD,
-			&data, GBM_BO_USE_SCANOUT);
-	}
-
+	fb->bo = get_bo_for_dmabuf(drm->renderer.gbm, &attribs);
 	if (!fb->bo) {
-		return false;
+		wlr_log(WLR_ERROR, "Failed to import DMA-BUF in GBM");
+		goto error_get_dmabuf;
 	}
 
-	fb->wlr_buf = wlr_buffer_lock(buf);
+	fb->id = get_fb_for_bo(fb->bo, drm->addfb2_modifiers);
+	if (!fb->id) {
+		wlr_log(WLR_ERROR, "Failed to import GBM BO in KMS");
+		goto error_get_fb_for_bo;
+	}
 
 	return true;
+
+error_get_fb_for_bo:
+	gbm_bo_destroy(fb->bo);
+error_get_dmabuf:
+	wlr_buffer_unlock(fb->mgpu_wlr_buf);
+error_mgpu_wlr_buf:
+	wlr_buffer_unlock(fb->wlr_buf);
+	memset(fb, 0, sizeof(*fb));
+	return false;
 }
 
 void drm_fb_move(struct wlr_drm_fb *new, struct wlr_drm_fb *old) {
@@ -369,66 +430,4 @@ bool drm_surface_render_black_frame(struct wlr_drm_surface *surf) {
 	wlr_renderer_end(renderer);
 
 	return true;
-}
-
-uint32_t drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
-		struct wlr_drm_surface *mgpu) {
-	if (fb->id) {
-		return fb->id;
-	}
-
-	if (!fb->bo) {
-		wlr_log(WLR_ERROR, "Tried to acquire an FB with a NULL BO");
-		return 0;
-	}
-
-	if (!drm->parent) {
-		fb->id = get_fb_for_bo(fb->bo, drm->addfb2_modifiers);
-		return fb->id;
-	}
-
-	/* Perform copy across GPUs */
-
-	struct wlr_renderer *renderer = mgpu->renderer->wlr_rend;
-
-	struct wlr_dmabuf_attributes attribs = {0};
-	if (!wlr_buffer_get_dmabuf(fb->wlr_buf, &attribs)) {
-		return 0;
-	}
-
-	struct wlr_texture *tex = wlr_texture_from_dmabuf(renderer, &attribs);
-	if (tex == NULL) {
-		return 0;
-	}
-
-	if (!drm_surface_make_current(mgpu, NULL)) {
-		wlr_texture_destroy(tex);
-		return 0;
-	}
-
-	float mat[9];
-	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_NORMAL);
-
-	wlr_renderer_begin(renderer, mgpu->width, mgpu->height);
-	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
-	wlr_render_texture_with_matrix(renderer, tex, mat, 1.0f);
-	wlr_renderer_end(renderer);
-
-	struct wlr_drm_fb mgpu_fb = {
-		.bo = fb->mgpu_bo,
-		.wlr_buf = fb->mgpu_wlr_buf,
-	};
-	if (!drm_fb_lock_surface(&mgpu_fb, mgpu)) {
-		wlr_texture_destroy(tex);
-		return 0;
-	}
-
-	wlr_texture_destroy(tex);
-
-	fb->mgpu_bo = mgpu_fb.bo;
-	fb->mgpu_wlr_buf = mgpu_fb.wlr_buf;
-	fb->mgpu_surf = mgpu;
-
-	fb->id = get_fb_for_bo(fb->mgpu_bo, drm->addfb2_modifiers);
-	return fb->id;
 }

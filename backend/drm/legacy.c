@@ -17,10 +17,12 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 	uint32_t fb_id = 0;
 	if (crtc->pending.active) {
 		struct wlr_drm_fb *fb = plane_get_next_fb(crtc->primary);
-		uint32_t fb_id = drm_fb_acquire(fb, drm, &crtc->primary->mgpu_surf);
-		if (!fb_id) {
+		if (!fb->id) {
+			wlr_log(WLR_ERROR, "%s: failed to acquire primary FB",
+				conn->output.name);
 			return false;
 		}
+		fb_id = fb->id;
 	}
 
 	if (crtc->pending_modeset) {
@@ -74,19 +76,14 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 
 	if (cursor != NULL && drm_connector_is_cursor_visible(conn)) {
 		struct wlr_drm_fb *cursor_fb = plane_get_next_fb(cursor);
-		if (drm_fb_acquire(cursor_fb, drm, &cursor->mgpu_surf) == 0) {
+		if (!cursor_fb->bo) {
 			wlr_drm_conn_log_errno(conn, WLR_DEBUG,
 				"Failed to acquire cursor FB");
 			return false;
 		}
 
-		struct gbm_bo *cursor_bo = cursor_fb->bo;
-		if (cursor_fb->mgpu_bo) {
-			cursor_bo = cursor_fb->mgpu_bo;
-		}
-
 		if (drmModeSetCursor(drm->fd, crtc->id,
-				gbm_bo_get_handle(cursor_bo).u32,
+				gbm_bo_get_handle(cursor_fb->bo).u32,
 				cursor->surf.width, cursor->surf.height)) {
 			wlr_drm_conn_log_errno(conn, WLR_DEBUG, "drmModeSetCursor failed");
 			return false;
