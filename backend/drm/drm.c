@@ -492,7 +492,8 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 	assert(output->pending.committed & WLR_OUTPUT_STATE_BUFFER);
 	switch (output->pending.buffer_type) {
 	case WLR_OUTPUT_STATE_BUFFER_RENDER:
-		if (!drm_fb_lock_surface(&plane->pending_fb, &plane->surf)) {
+		if (!drm_fb_lock_surface(&plane->pending_fb, drm, &plane->surf,
+				&plane->mgpu_surf)) {
 			wlr_drm_conn_log(conn, WLR_ERROR, "drm_fb_lock_surface failed");
 			return false;
 		}
@@ -502,7 +503,7 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 		if (!test_buffer(conn, output->pending.buffer)) {
 			return false;
 		}
-		if (!drm_fb_import_wlr(&plane->pending_fb, &drm->renderer, buffer,
+		if (!drm_fb_import(&plane->pending_fb, drm, buffer, NULL,
 				&crtc->primary->formats)) {
 			return false;
 		}
@@ -669,6 +670,7 @@ struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
 }
 
 static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn) {
+	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
 		wlr_drm_conn_log(conn, WLR_ERROR, "Page-flip failed: no CRTC");
@@ -681,7 +683,8 @@ static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn) {
 		if (!drm_surface_render_black_frame(&plane->surf)) {
 			return false;
 		}
-		if (!drm_fb_lock_surface(&plane->pending_fb, &plane->surf)) {
+		if (!drm_fb_lock_surface(&plane->pending_fb, drm, &plane->surf,
+				&plane->mgpu_surf)) {
 			return false;
 		}
 	}
@@ -957,7 +960,8 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		wlr_render_texture_with_matrix(rend, texture, matrix, 1.0);
 		wlr_renderer_end(rend);
 
-		if (!drm_fb_lock_surface(&plane->pending_fb, &plane->surf)) {
+		if (!drm_fb_lock_surface(&plane->pending_fb, drm, &plane->surf,
+				&plane->mgpu_surf)) {
 			return false;
 		}
 

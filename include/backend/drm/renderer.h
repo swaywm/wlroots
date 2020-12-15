@@ -13,7 +13,7 @@ struct wlr_drm_plane;
 struct wlr_buffer;
 
 struct wlr_drm_renderer {
-	int fd;
+	struct wlr_drm_backend *backend;
 	struct gbm_device *gbm;
 	struct wlr_egl egl;
 
@@ -32,13 +32,11 @@ struct wlr_drm_surface {
 };
 
 struct wlr_drm_fb {
-	struct gbm_bo *bo;
 	struct wlr_buffer *wlr_buf;
 
-	struct wlr_drm_surface *mgpu_surf;
-	struct gbm_bo *mgpu_bo;
 	struct wlr_buffer *mgpu_wlr_buf;
 
+	struct gbm_bo *bo;
 	uint32_t id;
 };
 
@@ -50,15 +48,15 @@ bool drm_surface_make_current(struct wlr_drm_surface *surf, int *buffer_age);
 void drm_surface_unset_current(struct wlr_drm_surface *surf);
 
 void drm_fb_clear(struct wlr_drm_fb *fb);
-bool drm_fb_lock_surface(struct wlr_drm_fb *fb, struct wlr_drm_surface *surf);
-bool drm_fb_import_wlr(struct wlr_drm_fb *fb, struct wlr_drm_renderer *renderer,
-		struct wlr_buffer *buf, struct wlr_drm_format_set *set);
+bool drm_fb_lock_surface(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
+		struct wlr_drm_surface *surf, struct wlr_drm_surface *mgpu);
+bool drm_fb_import(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
+		struct wlr_buffer *buf, struct wlr_drm_surface *mgpu,
+		struct wlr_drm_format_set *set);
 
 void drm_fb_move(struct wlr_drm_fb *new, struct wlr_drm_fb *old);
 
 bool drm_surface_render_black_frame(struct wlr_drm_surface *surf);
-uint32_t drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
-		struct wlr_drm_surface *mgpu);
 
 bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
