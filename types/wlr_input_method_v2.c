@@ -17,6 +17,9 @@
 static const struct zwp_input_method_v2_interface input_method_impl;
 static const struct zwp_input_method_keyboard_grab_v2_interface keyboard_grab_impl;
 
+static void popup_surface_destroy(
+	struct wlr_input_popup_surface_v2 *popup_surface);
+
 static struct wlr_input_method_v2 *input_method_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource,
@@ -33,6 +36,11 @@ static struct wlr_input_method_keyboard_grab_v2 *keyboard_grab_from_resource(
 }
 
 static void input_method_destroy(struct wlr_input_method_v2 *input_method) {
+	struct wlr_input_popup_surface_v2 *popup_surface, *tmp;
+	wl_list_for_each_safe(
+			popup_surface, tmp, &input_method->popup_surfaces, link) {
+		popup_surface_destroy(popup_surface);
+	}
 	wlr_signal_emit_safe(&input_method->events.destroy, input_method);
 	wl_list_remove(wl_resource_get_link(input_method->resource));
 	wl_list_remove(&input_method->seat_client_destroy.link);
@@ -108,10 +116,134 @@ static void im_delete_surrounding_text(struct wl_client *client,
 	input_method->pending.delete.after_length = after_length;
 }
 
+struct wlr_input_popup_surface_v2 *wlr_input_popup_surface_v2_from_wlr_surface(
+		struct wlr_surface *surface) {
+	assert(wlr_surface_is_input_popup_surface_v2(surface));
+	return (struct wlr_input_popup_surface_v2 *)surface->role_data;
+}
+
+void wlr_input_popup_surface_v2_send_text_input_rectangle(
+		struct wlr_input_popup_surface_v2 *popup_surface,
+		struct wlr_box *sbox) {
+	zwp_input_popup_surface_v2_send_text_input_rectangle(
+		popup_surface->resource, sbox->x, sbox->y, sbox->width, sbox->height);
+}
+
+static void popup_surface_set_mapped(
+		struct wlr_input_popup_surface_v2 *popup_surface, bool mapped) {
+	if (mapped && !popup_surface->mapped) {
+		popup_surface->mapped = true;
+		wlr_signal_emit_safe(&popup_surface->events.map, popup_surface);
+	} else if (!mapped && popup_surface->mapped) {
+		wlr_signal_emit_safe(&popup_surface->events.unmap, popup_surface);
+		popup_surface->mapped = false;
+	}
+}
+
+static void popup_surface_surface_role_commit(struct wlr_surface *surface) {
+	struct wlr_input_popup_surface_v2 *popup_surface = surface->role_data;
+	if (popup_surface == NULL) {
+		return;
+	}
+	popup_surface_set_mapped(popup_surface, wlr_surface_has_buffer(surface)
+		&& popup_surface->input_method->client_active);
+}
+
+static const struct wlr_surface_role input_popup_surface_v2_role = {
+	.name = "zwp_input_popup_surface_v2",
+	.commit = popup_surface_surface_role_commit,
+};
+
+bool wlr_surface_is_input_popup_surface_v2(struct wlr_surface *surface) {
+	return surface->role == &input_popup_surface_v2_role;
+}
+
+static void popup_surface_destroy(
+		struct wlr_input_popup_surface_v2 *popup_surface) {
+	popup_surface_set_mapped(popup_surface, false);
+	wlr_signal_emit_safe(&popup_surface->events.destroy, NULL);
+	wl_list_remove(&popup_surface->surface_destroy.link);
+	wl_list_remove(&popup_surface->link);
+	wl_resource_set_user_data(popup_surface->resource, NULL);
+	free(popup_surface);
+}
+
+static void popup_surface_handle_surface_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_input_popup_surface_v2 *popup_surface =
+		wl_container_of(listener, popup_surface, surface_destroy);
+	popup_surface_destroy(popup_surface);
+}
+
+static void popup_resource_destroy(struct wl_resource *resource) {
+	struct wlr_input_popup_surface_v2 *popup_surface =
+		wl_resource_get_user_data(resource);
+	if (popup_surface == NULL) {
+		return;
+	}
+	popup_surface_destroy(popup_surface);
+}
+
+static void popup_destroy(struct wl_client *client,
+		struct wl_resource *resource) {
+	wl_resource_destroy(resource);
+}
+
+static const struct zwp_input_popup_surface_v2_interface input_popup_impl = {
+	.destroy = popup_destroy,
+};
+
 static void im_get_input_popup_surface(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
-		struct wl_resource *surface) {
-	wlr_log(WLR_INFO, "Stub: zwp_input_method_v2::get_input_popup_surface");
+		struct wl_resource *surface_resource) {
+	struct wlr_input_method_v2 *input_method =
+		input_method_from_resource(resource);
+	if (!input_method) {
+		return;
+	}
+
+	struct wl_resource *popup_resource = wl_resource_create(
+		client, &zwp_input_popup_surface_v2_interface,
+		wl_resource_get_version(resource), id);
+	if (!popup_resource) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+
+	struct wlr_input_popup_surface_v2 *popup_surface =
+		calloc(1, sizeof(struct wlr_input_popup_surface_v2));
+	if (!popup_surface) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+	wl_resource_set_implementation(popup_resource, &input_popup_impl,
+		popup_surface, popup_resource_destroy);
+
+	struct wlr_surface *surface = wlr_surface_from_resource(surface_resource);
+	if (!wlr_surface_set_role(surface, &input_popup_surface_v2_role,
+			popup_surface, resource, ZWP_INPUT_METHOD_V2_ERROR_ROLE)) {
+		free(popup_surface);
+		return;
+	}
+
+	popup_surface->resource = popup_resource;
+	popup_surface->input_method = input_method;
+	popup_surface->surface = surface;
+	wl_signal_add(&popup_surface->surface->events.destroy,
+		&popup_surface->surface_destroy);
+	popup_surface->surface_destroy.notify =
+		popup_surface_handle_surface_destroy;
+
+	wl_signal_init(&popup_surface->events.map);
+	wl_signal_init(&popup_surface->events.unmap);
+	wl_signal_init(&popup_surface->events.destroy);
+
+	popup_surface_set_mapped(popup_surface,
+		wlr_surface_has_buffer(popup_surface->surface)
+			&& popup_surface->input_method->client_active);
+
+	wl_list_insert(&input_method->popup_surfaces, &popup_surface->link);
+	wlr_signal_emit_safe(&input_method->events.new_popup_surface, popup_surface);
 }
 
 void wlr_input_method_keyboard_grab_v2_destroy(
@@ -351,6 +483,12 @@ void wlr_input_method_v2_send_done(struct wlr_input_method_v2 *input_method) {
 	zwp_input_method_v2_send_done(input_method->resource);
 	input_method->client_active = input_method->active;
 	input_method->current_serial++;
+	struct wlr_input_popup_surface_v2 *popup_surface;
+	wl_list_for_each(popup_surface, &input_method->popup_surfaces, link) {
+		popup_surface_set_mapped(popup_surface,
+			wlr_surface_has_buffer(popup_surface->surface) &&
+			input_method->client_active);
+	}
 }
 
 void wlr_input_method_v2_send_unavailable(
@@ -390,7 +528,9 @@ static void manager_get_input_method(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return;
 	}
+	wl_list_init(&input_method->popup_surfaces);
 	wl_signal_init(&input_method->events.commit);
+	wl_signal_init(&input_method->events.new_popup_surface);
 	wl_signal_init(&input_method->events.grab_keyboard);
 	wl_signal_init(&input_method->events.destroy);
 	int version = wl_resource_get_version(resource);
