@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
+#include <wlr/util/box.h>
 
 struct wlr_input_method_v2_preedit_string {
 	char *text;
@@ -42,6 +43,7 @@ struct wlr_input_method_v2 {
 	bool client_active; // state known to the client
 	uint32_t current_serial; // received in last commit call
 
+	struct wl_list popup_surfaces;
 	struct wlr_input_method_keyboard_grab_v2 *keyboard_grab;
 
 	struct wl_list link;
@@ -50,9 +52,29 @@ struct wlr_input_method_v2 {
 
 	struct {
 		struct wl_signal commit; // (struct wlr_input_method_v2*)
+		struct wl_signal new_popup_surface; // (struct wlr_input_popup_surface_v2*)
 		struct wl_signal grab_keyboard; // (struct wlr_input_method_keyboard_grab_v2*)
 		struct wl_signal destroy; // (struct wlr_input_method_v2*)
 	} events;
+};
+
+struct wlr_input_popup_surface_v2 {
+	struct wl_resource *resource;
+	struct wlr_input_method_v2 *input_method;
+	struct wl_list link;
+	bool mapped;
+
+	struct wlr_surface *surface;
+
+	struct wl_listener surface_destroy;
+
+	struct {
+		struct wl_signal map;
+		struct wl_signal unmap;
+		struct wl_signal destroy;
+	} events;
+
+	void *data;
 };
 
 struct wlr_input_method_keyboard_grab_v2 {
@@ -99,6 +121,12 @@ void wlr_input_method_v2_send_text_change_cause(
 void wlr_input_method_v2_send_done(struct wlr_input_method_v2 *input_method);
 void wlr_input_method_v2_send_unavailable(
 	struct wlr_input_method_v2 *input_method);
+
+bool wlr_surface_is_input_popup_surface_v2(struct wlr_surface *surface);
+struct wlr_input_popup_surface_v2 *wlr_input_popup_surface_v2_from_wlr_surface(
+	struct wlr_surface *surface);
+void wlr_input_popup_surface_v2_send_text_input_rectangle(
+    struct wlr_input_popup_surface_v2 *popup_surface, struct wlr_box *sbox);
 
 void wlr_input_method_keyboard_grab_v2_send_key(
 	struct wlr_input_method_keyboard_grab_v2 *keyboard_grab,
