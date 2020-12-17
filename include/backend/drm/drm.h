@@ -75,6 +75,7 @@ struct wlr_drm_backend {
 	bool addfb2_modifiers;
 
 	int fd;
+	char *name;
 	struct wlr_device *dev;
 
 	size_t num_crtcs;

@@ -50,6 +50,8 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	finish_drm_resources(drm);
 	finish_drm_renderer(&drm->renderer);
+
+	free(drm->name);
 	wlr_session_close_file(drm->session, drm->dev);
 	wl_event_source_remove(drm->drm_event);
 	free(drm);
@@ -108,9 +110,7 @@ static void drm_invalidated(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *drm =
 		wl_container_of(listener, drm, drm_invalidated);
 
-	char *name = drmGetDeviceNameFromFd2(drm->fd);
-	wlr_log(WLR_DEBUG, "%s invalidated", name);
-	free(name);
+	wlr_log(WLR_DEBUG, "%s invalidated", drm->name);
 
 	scan_drm_connectors(drm);
 }
@@ -137,7 +137,6 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	char *name = drmGetDeviceNameFromFd2(dev->fd);
 	drmVersion *version = drmGetVersion(dev->fd);
 	wlr_log(WLR_INFO, "Initializing DRM backend for %s (%s)", name, version->name);
-	free(name);
 	drmFreeVersion(version);
 
 	struct wlr_drm_backend *drm = calloc(1, sizeof(struct wlr_drm_backend));
@@ -152,6 +151,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 	drm->dev = dev;
 	drm->fd = dev->fd;
+	drm->name = name;
 	if (parent != NULL) {
 		drm->parent = get_drm_backend_from_backend(parent);
 	}
