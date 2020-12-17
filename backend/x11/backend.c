@@ -523,7 +523,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 
 	const struct wlr_drm_format *dri3_format =
-		wlr_drm_format_set_get(render_formats, x11->x11_format->drm);
+		wlr_drm_format_set_get(&x11->dri3_formats, x11->x11_format->drm);
 	if (dri3_format == NULL) {
 		wlr_log(WLR_ERROR, "X11 server doesn't support DRM format 0x%"PRIX32,
 			x11->x11_format->drm);
