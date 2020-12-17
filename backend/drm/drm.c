@@ -1216,7 +1216,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		return;
 	}
 
-	wlr_log(WLR_INFO, "Scanning DRM connectors");
+	wlr_log(WLR_INFO, "Scanning DRM connectors on %s", drm->name);
 
 	drmModeRes *res = drmModeGetResources(drm->fd);
 	if (!res) {
