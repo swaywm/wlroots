@@ -32,7 +32,6 @@ struct wlr_drm_plane {
 	/* Buffer currently displayed on screen */
 	struct wlr_drm_fb current_fb;
 
-	uint32_t drm_format; // ARGB8888 or XRGB8888
 	struct wlr_drm_format_set formats;
 
 	// Only used by cursor
