@@ -850,18 +850,18 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		return false;
 	}
 
-	if (plane->cursor_hotspot_x != hotspot_x ||
-			plane->cursor_hotspot_y != hotspot_y) {
+	if (conn->cursor_hotspot_x != hotspot_x ||
+			conn->cursor_hotspot_y != hotspot_y) {
 		// Update cursor hotspot
-		conn->cursor_x -= hotspot_x - plane->cursor_hotspot_x;
-		conn->cursor_y -= hotspot_y - plane->cursor_hotspot_y;
-		plane->cursor_hotspot_x = hotspot_x;
-		plane->cursor_hotspot_y = hotspot_y;
+		conn->cursor_x -= hotspot_x - conn->cursor_hotspot_x;
+		conn->cursor_y -= hotspot_y - conn->cursor_hotspot_y;
+		conn->cursor_hotspot_x = hotspot_x;
+		conn->cursor_hotspot_y = hotspot_y;
 
 		wlr_output_update_needs_frame(output);
 	}
 
-	plane->cursor_enabled = false;
+	conn->cursor_enabled = false;
 	if (buffer != NULL) {
 		if ((uint64_t)buffer->width != drm->cursor_width ||
 				(uint64_t)buffer->height != drm->cursor_height) {
@@ -900,9 +900,9 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			return false;
 		}
 
-		plane->cursor_enabled = true;
-		plane->cursor_width = buffer->width;
-		plane->cursor_height = buffer->height;
+		conn->cursor_enabled = true;
+		conn->cursor_width = buffer->width;
+		conn->cursor_height = buffer->height;
 	}
 
 	wlr_output_update_needs_frame(output);
@@ -929,8 +929,8 @@ static bool drm_connector_move_cursor(struct wlr_output *output,
 		wlr_output_transform_invert(output->transform);
 	wlr_box_transform(&box, &box, transform, width, height);
 
-	box.x -= plane->cursor_hotspot_x;
-	box.y -= plane->cursor_hotspot_y;
+	box.x -= conn->cursor_hotspot_x;
+	box.y -= conn->cursor_hotspot_y;
 
 	conn->cursor_x = box.x;
 	conn->cursor_y = box.y;
@@ -940,14 +940,11 @@ static bool drm_connector_move_cursor(struct wlr_output *output,
 }
 
 bool drm_connector_is_cursor_visible(struct wlr_drm_connector *conn) {
-	assert(conn->crtc != NULL && conn->crtc->cursor != NULL);
-	struct wlr_drm_plane *plane = conn->crtc->cursor;
-
-	return plane->cursor_enabled &&
+	return conn->cursor_enabled &&
 		conn->cursor_x < conn->output.width &&
 		conn->cursor_y < conn->output.height &&
-		conn->cursor_x + plane->cursor_width >= 0 &&
-		conn->cursor_y + plane->cursor_height >= 0;
+		conn->cursor_x + conn->cursor_width >= 0 &&
+		conn->cursor_y + conn->cursor_height >= 0;
 }
 
 static void dealloc_crtc(struct wlr_drm_connector *conn);
@@ -1095,10 +1092,8 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 
 	drm_plane_finish_surface(conn->crtc->primary);
 	drm_plane_finish_surface(conn->crtc->cursor);
-	if (conn->crtc->cursor != NULL) {
-		conn->crtc->cursor->cursor_enabled = false;
-	}
 
+	conn->cursor_enabled = false;
 	conn->crtc = NULL;
 }
 
