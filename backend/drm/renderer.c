@@ -208,6 +208,18 @@ static uint32_t strip_alpha_channel(uint32_t format) {
 	}
 }
 
+static struct wlr_drm_format *create_linear_format(uint32_t format) {
+	struct wlr_drm_format *fmt = wlr_drm_format_create(format);
+	if (fmt == NULL) {
+		return NULL;
+	}
+	if (!wlr_drm_format_add(&fmt, DRM_FORMAT_MOD_LINEAR)) {
+		free(fmt);
+		return NULL;
+	}
+	return fmt;
+}
+
 bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
 		uint32_t format, bool force_linear, bool with_modifiers) {
@@ -249,13 +261,8 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		drm_format = wlr_drm_format_create(format);
 	}
 
-	struct wlr_drm_format *drm_format_linear = wlr_drm_format_create(format);
+	struct wlr_drm_format *drm_format_linear = create_linear_format(format);
 	if (drm_format_linear == NULL) {
-		free(drm_format);
-		return false;
-	}
-	if (!wlr_drm_format_add(&drm_format_linear, DRM_FORMAT_MOD_LINEAR)) {
-		free(drm_format_linear);
 		free(drm_format);
 		return false;
 	}
