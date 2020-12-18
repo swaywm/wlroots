@@ -716,7 +716,7 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	uint32_t format = DRM_FORMAT_ARGB8888;
 
 	bool modifiers = drm->addfb2_modifiers;
-	if (!drm_plane_init_surface(plane, drm, width, height, format, false, modifiers) ||
+	if (!drm_plane_init_surface(plane, drm, width, height, format, modifiers) ||
 			!drm_connector_pageflip_renderer(conn)) {
 		if (!modifiers) {
 			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer:"
@@ -736,7 +736,7 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 		crtc->pending.mode = mode;
 
 		if (!drm_plane_init_surface(plane, drm, width, height, format,
-				false, modifiers)) {
+				modifiers)) {
 			return false;
 		}
 		if (!drm_connector_pageflip_renderer(conn)) {
@@ -889,7 +889,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		h = ret ? 64 : h;
 
 		if (!drm_plane_init_surface(plane, drm, w, h,
-				DRM_FORMAT_ARGB8888, true, false)) {
+				DRM_FORMAT_ARGB8888, false)) {
 			wlr_drm_conn_log(conn, WLR_ERROR, "Cannot allocate cursor resources");
 			return false;
 		}
