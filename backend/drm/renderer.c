@@ -222,7 +222,7 @@ static struct wlr_drm_format *create_linear_format(uint32_t format) {
 
 bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
-		uint32_t format, bool force_linear, bool with_modifiers) {
+		uint32_t format, bool with_modifiers) {
 	if (!wlr_drm_format_set_has(&plane->formats, format, DRM_FORMAT_MOD_INVALID)) {
 		format = strip_alpha_channel(format);
 	}
@@ -248,28 +248,20 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		return false;
 	}
 
-	struct wlr_drm_format *drm_format = NULL;
-	if (with_modifiers) {
-		drm_format = wlr_drm_format_intersect(plane_format, render_format);
-		if (drm_format == NULL) {
-			wlr_log(WLR_ERROR,
-				"Failed to intersect plane and render formats 0x%"PRIX32,
-				format);
-			return false;
-		}
-	} else {
-		drm_format = wlr_drm_format_create(format);
+	struct wlr_drm_format *format_implicit_modifier = NULL;
+	if (!with_modifiers) {
+		format_implicit_modifier = wlr_drm_format_create(format);
+		render_format = format_implicit_modifier;
 	}
 
-	struct wlr_drm_format *drm_format_linear = create_linear_format(format);
-	if (drm_format_linear == NULL) {
-		free(drm_format);
+	struct wlr_drm_format *drm_format =
+		wlr_drm_format_intersect(plane_format, render_format);
+	if (drm_format == NULL) {
+		wlr_log(WLR_ERROR,
+			"Failed to intersect plane and render formats 0x%"PRIX32,
+			format);
+		free(format_implicit_modifier);
 		return false;
-	}
-
-	if (force_linear) {
-		free(drm_format);
-		drm_format = wlr_drm_format_dup(drm_format_linear);
 	}
 
 	drm_plane_finish_surface(plane);
@@ -279,8 +271,17 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		ok = init_drm_surface(&plane->surf, &drm->renderer,
 			width, height, drm_format);
 	} else {
+		struct wlr_drm_format *drm_format_linear = create_linear_format(format);
+		if (drm_format_linear == NULL) {
+			free(drm_format);
+			free(format_implicit_modifier);
+			return false;
+		}
+
 		ok = init_drm_surface(&plane->surf, &drm->parent->renderer,
 			width, height, drm_format_linear);
+		free(drm_format_linear);
+
 		if (ok && !init_drm_surface(&plane->mgpu_surf, &drm->renderer,
 				width, height, drm_format)) {
 			finish_drm_surface(&plane->surf);
@@ -288,8 +289,8 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		}
 	}
 
-	free(drm_format_linear);
 	free(drm_format);
+	free(format_implicit_modifier);
 
 	return ok;
 }
