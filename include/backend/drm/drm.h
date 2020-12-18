@@ -34,11 +34,6 @@ struct wlr_drm_plane {
 
 	struct wlr_drm_format_set formats;
 
-	// Only used by cursor plane
-	bool cursor_enabled;
-	int cursor_width, cursor_height;
-	int cursor_hotspot_x, cursor_hotspot_y;
-
 	union wlr_drm_plane_props props;
 };
 
@@ -123,7 +118,10 @@ struct wlr_drm_connector {
 
 	union wlr_drm_connector_props props;
 
-	int32_t cursor_x, cursor_y;
+	bool cursor_enabled;
+	int cursor_x, cursor_y;
+	int cursor_width, cursor_height;
+	int cursor_hotspot_x, cursor_hotspot_y;
 
 	drmModeCrtc *old_crtc;
 
