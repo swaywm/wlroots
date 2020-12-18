@@ -139,13 +139,16 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
 		goto error;
 	}
 
+	uint32_t width = gbm_bo_get_width(fb->bo);
+	uint32_t height = gbm_bo_get_height(fb->bo);
+
 	// The src_* properties are in 16.16 fixed point
 	atomic_add(atom, id, props->src_x, 0);
 	atomic_add(atom, id, props->src_y, 0);
-	atomic_add(atom, id, props->src_w, (uint64_t)plane->surf.width << 16);
-	atomic_add(atom, id, props->src_h, (uint64_t)plane->surf.height << 16);
-	atomic_add(atom, id, props->crtc_w, plane->surf.width);
-	atomic_add(atom, id, props->crtc_h, plane->surf.height);
+	atomic_add(atom, id, props->src_w, (uint64_t)width << 16);
+	atomic_add(atom, id, props->src_h, (uint64_t)height << 16);
+	atomic_add(atom, id, props->crtc_w, width);
+	atomic_add(atom, id, props->crtc_h, height);
 	atomic_add(atom, id, props->fb_id, fb->id);
 	atomic_add(atom, id, props->crtc_id, crtc_id);
 	atomic_add(atom, id, props->crtc_x, (uint64_t)x);

@@ -81,9 +81,11 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 			return false;
 		}
 
-		if (drmModeSetCursor(drm->fd, crtc->id,
-				gbm_bo_get_handle(cursor_fb->bo).u32,
-				cursor->surf.width, cursor->surf.height)) {
+		uint32_t cursor_handle = gbm_bo_get_handle(cursor_fb->bo).u32;
+		uint32_t cursor_width = gbm_bo_get_width(cursor_fb->bo);
+		uint32_t cursor_height = gbm_bo_get_height(cursor_fb->bo);
+		if (drmModeSetCursor(drm->fd, crtc->id, cursor_handle,
+				cursor_width, cursor_height)) {
 			wlr_drm_conn_log_errno(conn, WLR_DEBUG, "drmModeSetCursor failed");
 			return false;
 		}
