@@ -164,6 +164,7 @@ static void server_finish_display(struct wlr_xwayland_server *server) {
 	}
 
 	wl_list_remove(&server->display_destroy.link);
+	wl_list_init(&server->display_destroy.link);
 
 	if (server->display == -1) {
 		return;
