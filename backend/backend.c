@@ -87,9 +87,8 @@ static size_t parse_outputs_env(const char *name) {
 	return outputs;
 }
 
-static struct wlr_backend *attempt_wl_backend(struct wl_display *display,
-		wlr_renderer_create_func_t create_renderer_func) {
-	struct wlr_backend *backend = wlr_wl_backend_create(display, NULL, create_renderer_func);
+static struct wlr_backend *attempt_wl_backend(struct wl_display *display) {
+	struct wlr_backend *backend = wlr_wl_backend_create(display, NULL);
 	if (backend == NULL) {
 		return NULL;
 	}
@@ -104,8 +103,8 @@ static struct wlr_backend *attempt_wl_backend(struct wl_display *display,
 
 #if WLR_HAS_X11_BACKEND
 static struct wlr_backend *attempt_x11_backend(struct wl_display *display,
-		const char *x11_display, wlr_renderer_create_func_t create_renderer_func) {
-	struct wlr_backend *backend = wlr_x11_backend_create(display, x11_display, create_renderer_func);
+		const char *x11_display) {
+	struct wlr_backend *backend = wlr_x11_backend_create(display, x11_display);
 	if (backend == NULL) {
 		return NULL;
 	}
@@ -120,8 +119,8 @@ static struct wlr_backend *attempt_x11_backend(struct wl_display *display,
 #endif
 
 static struct wlr_backend *attempt_headless_backend(
-		struct wl_display *display, wlr_renderer_create_func_t create_renderer_func) {
-	struct wlr_backend *backend = wlr_headless_backend_create(display, create_renderer_func);
+		struct wl_display *display) {
+	struct wlr_backend *backend = wlr_headless_backend_create(display);
 	if (backend == NULL) {
 		return NULL;
 	}
@@ -149,8 +148,7 @@ static struct wlr_backend *attempt_noop_backend(struct wl_display *display) {
 }
 
 static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
-		struct wlr_backend *backend, struct wlr_session *session,
-		wlr_renderer_create_func_t create_renderer_func) {
+		struct wlr_backend *backend, struct wlr_session *session) {
 	struct wlr_device *gpus[8];
 	size_t num_gpus = wlr_session_find_gpus(session, 8, gpus);
 	struct wlr_backend *primary_drm = NULL;
@@ -158,7 +156,7 @@ static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 
 	for (size_t i = 0; i < num_gpus; ++i) {
 		struct wlr_backend *drm = wlr_drm_backend_create(display, session,
-			gpus[i], primary_drm, create_renderer_func);
+			gpus[i], primary_drm);
 		if (!drm) {
 			wlr_log(WLR_ERROR, "Failed to create DRM backend");
 			continue;
@@ -176,15 +174,15 @@ static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 
 static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
 		struct wlr_backend *backend, struct wlr_session **session,
-		const char *name, wlr_renderer_create_func_t create_renderer_func) {
+		const char *name) {
 	if (strcmp(name, "wayland") == 0) {
-		return attempt_wl_backend(display, create_renderer_func);
+		return attempt_wl_backend(display);
 #if WLR_HAS_X11_BACKEND
 	} else if (strcmp(name, "x11") == 0) {
-		return attempt_x11_backend(display, NULL, create_renderer_func);
+		return attempt_x11_backend(display, NULL);
 #endif
 	} else if (strcmp(name, "headless") == 0) {
-		return attempt_headless_backend(display, create_renderer_func);
+		return attempt_headless_backend(display);
 	} else if (strcmp(name, "noop") == 0) {
 		return attempt_noop_backend(display);
 	} else if (strcmp(name, "drm") == 0 || strcmp(name, "libinput") == 0) {
@@ -200,7 +198,7 @@ static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
 		if (strcmp(name, "libinput") == 0) {
 			return wlr_libinput_backend_create(display, *session);
 		} else {
-			return attempt_drm_backend(display, backend, *session, create_renderer_func);
+			return attempt_drm_backend(display, backend, *session);
 		}
 	}
 
@@ -208,8 +206,7 @@ static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
 	return NULL;
 }
 
-struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
-		wlr_renderer_create_func_t create_renderer_func) {
+struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 	struct wlr_backend *backend = wlr_multi_backend_create(display);
 	struct wlr_multi_backend *multi = (struct wlr_multi_backend *)backend;
 	if (!backend) {
@@ -230,7 +227,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		char *name = strtok_r(names, ",", &saveptr);
 		while (name != NULL) {
 			struct wlr_backend *subbackend = attempt_backend_by_name(display,
-				backend, &multi->session, name, create_renderer_func);
+				backend, &multi->session, name);
 			if (subbackend == NULL) {
 				wlr_log(WLR_ERROR, "failed to start backend '%s'", name);
 				wlr_session_destroy(multi->session);
@@ -255,8 +252,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	}
 
 	if (getenv("WAYLAND_DISPLAY") || getenv("WAYLAND_SOCKET")) {
-		struct wlr_backend *wl_backend = attempt_wl_backend(display,
-			create_renderer_func);
+		struct wlr_backend *wl_backend = attempt_wl_backend(display);
 		if (!wl_backend) {
 			goto error;
 		}
@@ -269,7 +265,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	const char *x11_display = getenv("DISPLAY");
 	if (x11_display) {
 		struct wlr_backend *x11_backend =
-			attempt_x11_backend(display, x11_display, create_renderer_func);
+			attempt_x11_backend(display, x11_display);
 		if (!x11_backend) {
 			goto error;
 		}
@@ -297,8 +293,8 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 	}
 	wlr_multi_backend_add(backend, libinput);
 
-	struct wlr_backend *primary_drm = attempt_drm_backend(display, backend,
-		multi->session, create_renderer_func);
+	struct wlr_backend *primary_drm =
+		attempt_drm_backend(display, backend, multi->session);
 	if (!primary_drm) {
 		wlr_log(WLR_ERROR, "Failed to open any DRM device");
 		wlr_backend_destroy(libinput);

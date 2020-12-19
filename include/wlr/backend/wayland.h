@@ -16,7 +16,7 @@
  * default)
  */
 struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
-		const char *remote, wlr_renderer_create_func_t create_renderer_func);
+		const char *remote);
 
 /**
  * Returns the remote wl_display used by the Wayland backend.

@@ -184,8 +184,7 @@ out:
 	return fd;
 }
 
-struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
-		wlr_renderer_create_func_t create_renderer_func) {
+struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 	wlr_log(WLR_INFO, "Creating headless backend");
 
 	int drm_fd = open_drm_render_node();
@@ -207,11 +206,7 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
 		goto error_backend;
 	}
 
-	if (!create_renderer_func) {
-		create_renderer_func = wlr_renderer_autocreate;
-	}
-
-	struct wlr_renderer *renderer = create_renderer_func(&backend->priv_egl,
+	struct wlr_renderer *renderer = wlr_renderer_autocreate(&backend->priv_egl,
 		EGL_PLATFORM_GBM_KHR, gbm_alloc->gbm_device, NULL, 0);
 	if (!renderer) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");

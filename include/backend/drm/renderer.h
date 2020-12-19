@@ -41,7 +41,7 @@ struct wlr_drm_fb {
 };
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
-	struct wlr_drm_renderer *renderer, wlr_renderer_create_func_t create_render);
+	struct wlr_drm_renderer *renderer);
 void finish_drm_renderer(struct wlr_drm_renderer *renderer);
 
 bool drm_surface_make_current(struct wlr_drm_surface *surf, int *buffer_age);

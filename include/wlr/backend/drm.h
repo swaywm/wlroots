@@ -23,8 +23,7 @@
  */
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	struct wlr_session *session, struct wlr_device *dev,
-	struct wlr_backend *parent,
-	wlr_renderer_create_func_t create_renderer_func);
+	struct wlr_backend *parent);
 
 bool wlr_backend_is_drm(struct wlr_backend *backend);
 bool wlr_output_is_drm(struct wlr_output *output);

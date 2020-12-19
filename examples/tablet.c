@@ -356,7 +356,7 @@ int main(int argc, char *argv[]) {
 	};
 	wl_list_init(&state.tablet_pads);
 	wl_list_init(&state.tablet_tools);
-	struct wlr_backend *wlr = wlr_backend_autocreate(display, NULL);
+	struct wlr_backend *wlr = wlr_backend_autocreate(display);
 	if (!wlr) {
 		exit(1);
 	}

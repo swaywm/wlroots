@@ -17,7 +17,7 @@
  * to NULL for the default behaviour of XOpenDisplay.
  */
 struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
-	const char *x11_display, wlr_renderer_create_func_t create_renderer_func);
+	const char *x11_display);
 
 /**
  * Adds a new output to this backend. You may remove outputs by destroying them.

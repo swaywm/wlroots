@@ -28,20 +28,12 @@ struct wlr_backend {
 	} events;
 };
 
-typedef struct wlr_renderer *(*wlr_renderer_create_func_t)(struct wlr_egl *egl, EGLenum platform,
-	void *remote_display, EGLint *config_attribs, EGLint visual_id);
 /**
  * Automatically initializes the most suitable backend given the environment.
  * Will always return a multibackend. The backend is created but not started.
  * Returns NULL on failure.
- *
- * The compositor can request to initialize the backend's renderer by setting
- * the create_render_func. The callback must initialize the given wlr_egl and
- * return a valid wlr_renderer, or NULL if it has failed to initiaze it.
- * Pass NULL as create_renderer_func to use the backend's default renderer.
  */
-struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
-	wlr_renderer_create_func_t create_renderer_func);
+struct wlr_backend *wlr_backend_autocreate(struct wl_display *display);
 /**
  * Start the backend. This may signal new_input or new_output immediately, but
  * may also wait until the display's event loop begins. Returns false on

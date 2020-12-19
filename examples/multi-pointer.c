@@ -271,7 +271,7 @@ int main(int argc, char *argv[]) {
 		.clear_color = { 0.25f, 0.25f, 0.25f, 1 },
 		.display = display,
 	};
-	struct wlr_backend *wlr = wlr_backend_autocreate(display, NULL);
+	struct wlr_backend *wlr = wlr_backend_autocreate(display);
 	if (!wlr) {
 		exit(1);
 	}

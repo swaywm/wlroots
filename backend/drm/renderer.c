@@ -21,7 +21,7 @@
 #include "render/wlr_renderer.h"
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
-		struct wlr_drm_renderer *renderer, wlr_renderer_create_func_t create_renderer_func) {
+		struct wlr_drm_renderer *renderer) {
 	renderer->backend = drm;
 
 	renderer->gbm = gbm_create_device(drm->fd);
@@ -30,11 +30,7 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		return false;
 	}
 
-	if (!create_renderer_func) {
-		create_renderer_func = wlr_renderer_autocreate;
-	}
-
-	renderer->wlr_rend = create_renderer_func(&renderer->egl,
+	renderer->wlr_rend = wlr_renderer_autocreate(&renderer->egl,
 		EGL_PLATFORM_GBM_KHR, renderer->gbm, NULL, 0);
 	if (!renderer->wlr_rend) {
 		wlr_log(WLR_ERROR, "Failed to create EGL/WLR renderer");
