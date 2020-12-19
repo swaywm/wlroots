@@ -198,6 +198,8 @@ static void backend_destroy(struct wlr_backend *backend) {
 	}
 	wl_list_remove(&x11->display_destroy.link);
 
+	wlr_drm_format_set_finish(&x11->primary_dri3_formats);
+	wlr_drm_format_set_finish(&x11->primary_shm_formats);
 	wlr_drm_format_set_finish(&x11->dri3_formats);
 	wlr_drm_format_set_finish(&x11->shm_formats);
 	free(x11->drm_format);
@@ -656,6 +658,26 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		wlr_log(WLR_ERROR, "Failed to intersect X11 and render modifiers for "
 			"format 0x%"PRIX32, x11->x11_format->drm);
 		return false;
+	}
+
+	// Windows can only display buffers with the depth they were created with
+	// TODO: look into changing the window's depth at runtime
+	const struct wlr_drm_format *dri3_format =
+		wlr_drm_format_set_get(&x11->dri3_formats, x11->x11_format->drm);
+	if (x11->have_dri3 && dri3_format != NULL) {
+		wlr_drm_format_set_add(&x11->primary_dri3_formats,
+			dri3_format->format, DRM_FORMAT_MOD_INVALID);
+		for (size_t i = 0; i < dri3_format->len; i++) {
+			wlr_drm_format_set_add(&x11->primary_dri3_formats,
+				dri3_format->format, dri3_format->modifiers[i]);
+		}
+	}
+
+	const struct wlr_drm_format *shm_format =
+		wlr_drm_format_set_get(&x11->shm_formats, x11->x11_format->drm);
+	if (x11->have_shm && shm_format != NULL) {
+		wlr_drm_format_set_add(&x11->primary_shm_formats,
+			shm_format->format, DRM_FORMAT_MOD_INVALID);
 	}
 
 #if HAS_XCB_ERRORS

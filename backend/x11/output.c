@@ -23,6 +23,7 @@
 #include "backend/x11.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
+#include "types/wlr_buffer.h"
 #include "util/signal.h"
 #include "util/time.h"
 
@@ -514,6 +515,19 @@ static bool output_move_cursor(struct wlr_output *_output, int x, int y) {
 	return true;
 }
 
+static const struct wlr_drm_format_set *output_get_primary_formats(
+		struct wlr_output *wlr_output, uint32_t buffer_caps) {
+	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
+	struct wlr_x11_backend *x11 = output->x11;
+
+	if (x11->have_dri3 && (buffer_caps & WLR_BUFFER_CAP_DMABUF)) {
+		return &output->x11->primary_dri3_formats;
+	} else if (x11->have_shm && (buffer_caps & WLR_BUFFER_CAP_SHM)) {
+		return &output->x11->primary_shm_formats;
+	}
+	return NULL;
+}
+
 static const struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
@@ -522,6 +536,7 @@ static const struct wlr_output_impl output_impl = {
 	.rollback_render = output_rollback_render,
 	.set_cursor = output_set_cursor,
 	.move_cursor = output_move_cursor,
+	.get_primary_formats = output_get_primary_formats,
 };
 
 struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
