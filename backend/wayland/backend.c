@@ -452,48 +452,6 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		goto error_drm_fd;
 	}
 
-	const struct wlr_drm_format_set *remote_formats;
-	if ((allocator->buffer_caps & WLR_BUFFER_CAP_DMABUF) && wl->zwp_linux_dmabuf_v1) {
-		remote_formats = &wl->linux_dmabuf_v1_formats;
-	} else if ((allocator->buffer_caps & WLR_BUFFER_CAP_SHM) && wl->shm) {
-		remote_formats = &wl->shm_formats;
-	}  else {
-		wlr_log(WLR_ERROR,
-				"Failed to get remote formats (DRI3 and SHM unavailable)");
-		goto error_drm_fd;
-	}
-
-	const struct wlr_drm_format_set *render_formats =
-		wlr_renderer_get_render_formats(renderer);
-	if (render_formats == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get available render-capable formats");
-		goto error_drm_fd;
-	}
-
-	uint32_t fmt = DRM_FORMAT_ARGB8888;
-
-	const struct wlr_drm_format *remote_format =
-		wlr_drm_format_set_get(remote_formats, fmt);
-	if (remote_format == NULL) {
-		wlr_log(WLR_ERROR, "Remote compositor doesn't support DRM format "
-			"0x%"PRIX32, fmt);
-		goto error_drm_fd;
-	}
-
-	const struct wlr_drm_format *render_format =
-		wlr_drm_format_set_get(render_formats, fmt);
-	if (render_format == NULL) {
-		wlr_log(WLR_ERROR, "Renderer doesn't support DRM format 0x%"PRIX32, fmt);
-		goto error_drm_fd;
-	}
-
-	wl->format = wlr_drm_format_intersect(remote_format, render_format);
-	if (wl->format == NULL) {
-		wlr_log(WLR_ERROR, "Failed to intersect remote and render modifiers "
-			"for format 0x%"PRIX32, fmt);
-		goto error_drm_fd;
-	}
-
 	wl->local_display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &wl->local_display_destroy);
 
