@@ -27,14 +27,12 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_pointer.h>
-#include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 
 #include "backend/backend.h"
 #include "backend/x11.h"
 #include "render/allocator.h"
 #include "render/drm_format_set.h"
-#include "render/wlr_renderer.h"
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
 
@@ -202,7 +200,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wlr_drm_format_set_finish(&x11->primary_shm_formats);
 	wlr_drm_format_set_finish(&x11->dri3_formats);
 	wlr_drm_format_set_finish(&x11->shm_formats);
-	free(x11->drm_format);
 
 #if HAS_XCB_ERRORS
 	xcb_errors_context_free(x11->errors_context);
@@ -618,46 +615,6 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	struct wlr_allocator *allocator = backend_get_allocator(&x11->backend);
 	if (renderer == NULL || allocator == NULL) {
 		goto error_event;
-	}
-
-	const struct wlr_drm_format_set *pixmap_formats;
-	if (x11->have_dri3 && (allocator->buffer_caps & WLR_BUFFER_CAP_DMABUF)) {
-		pixmap_formats = &x11->dri3_formats;
-	} else if (x11->have_shm && (allocator->buffer_caps & WLR_BUFFER_CAP_SHM)) {
-		pixmap_formats = &x11->shm_formats;
-	} else {
-		wlr_log(WLR_ERROR,
-				"Failed to create allocator (DRI3 and SHM unavailable)");
-		goto error_event;
-	}
-
-	const struct wlr_drm_format_set *render_formats =
-		wlr_renderer_get_render_formats(renderer);
-	if (render_formats == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get available DRM formats from renderer");
-		return false;
-	}
-	const struct wlr_drm_format *render_format =
-		wlr_drm_format_set_get(render_formats, x11->x11_format->drm);
-	if (render_format == NULL) {
-		wlr_log(WLR_ERROR, "Renderer doesn't support DRM format 0x%"PRIX32,
-			x11->x11_format->drm);
-		return false;
-	}
-
-	const struct wlr_drm_format *pixmap_format = wlr_drm_format_set_get(
-		pixmap_formats, x11->x11_format->drm);
-	if (pixmap_format == NULL) {
-		wlr_log(WLR_ERROR, "X11 server doesn't support DRM format 0x%"PRIX32,
-			x11->x11_format->drm);
-		return false;
-	}
-
-	x11->drm_format = wlr_drm_format_intersect(pixmap_format, render_format);
-	if (x11->drm_format == NULL) {
-		wlr_log(WLR_ERROR, "Failed to intersect X11 and render modifiers for "
-			"format 0x%"PRIX32, x11->x11_format->drm);
-		return false;
 	}
 
 	// Windows can only display buffers with the depth they were created with

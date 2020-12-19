@@ -21,7 +21,6 @@
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/interfaces/wlr_touch.h>
 #include <wlr/render/drm_format_set.h>
-#include <wlr/render/wlr_renderer.h>
 
 #define XCB_EVENT_RESPONSE_TYPE_MASK 0x7f
 
@@ -34,9 +33,6 @@ struct wlr_x11_output {
 
 	xcb_window_t win;
 	xcb_present_event_t present_event_id;
-
-	struct wlr_swapchain *swapchain;
-	struct wlr_buffer *back_buffer;
 
 	struct wlr_pointer pointer;
 	struct wlr_input_device pointer_dev;
@@ -93,7 +89,6 @@ struct wlr_x11_backend {
 	const struct wlr_x11_format *x11_format;
 	struct wlr_drm_format_set primary_dri3_formats;
 	struct wlr_drm_format_set primary_shm_formats;
-	struct wlr_drm_format *drm_format;
 	struct wl_event_source *event_source;
 
 	struct {
