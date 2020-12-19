@@ -439,7 +439,7 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 	return true;
 }
 
-static const struct wlr_drm_format_set *output_get_cursor_formats(
+static const struct wlr_drm_format_set *output_get_formats(
 		struct wlr_output *wlr_output, uint32_t buffer_caps) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
 	if (buffer_caps & WLR_BUFFER_CAP_DMABUF) {
@@ -508,7 +508,8 @@ static const struct wlr_output_impl output_impl = {
 	.rollback_render = output_rollback_render,
 	.set_cursor = output_set_cursor,
 	.move_cursor = output_move_cursor,
-	.get_cursor_formats = output_get_cursor_formats,
+	.get_cursor_formats = output_get_formats,
+	.get_primary_formats = output_get_formats,
 };
 
 bool wlr_output_is_wl(struct wlr_output *wlr_output) {
