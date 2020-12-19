@@ -188,6 +188,8 @@ static void backend_destroy(struct wlr_backend *backend) {
 	xcb_errors_context_free(x11->errors_context);
 #endif
 
+	close(x11->drm_fd);
+
 	if (x11->xlib_conn) {
 		XCloseDisplay(x11->xlib_conn);
 	}
@@ -200,10 +202,16 @@ static struct wlr_renderer *backend_get_renderer(
 	return x11->renderer;
 }
 
+static int backend_get_drm_fd(struct wlr_backend *backend) {
+	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
+	return x11->drm_fd;
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
+	.get_drm_fd = backend_get_drm_fd,
 };
 
 bool wlr_backend_is_x11(struct wlr_backend *backend) {
@@ -519,9 +527,15 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 
 	// DRI3 may return a render node (Xwayland) or an authenticated primary
 	// node (plain Glamor).
-	int drm_fd = query_dri3_drm_fd(x11);
-	if (drm_fd < 0) {
+	x11->drm_fd = query_dri3_drm_fd(x11);
+	if (x11->drm_fd < 0) {
 		wlr_log(WLR_ERROR, "Failed to query DRI3 DRM FD");
+		goto error_event;
+	}
+
+	int drm_fd = fcntl(x11->drm_fd, F_DUPFD_CLOEXEC, 0);
+	if (drm_fd < 0) {
+		wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
 		goto error_event;
 	}
 
