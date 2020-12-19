@@ -91,6 +91,8 @@ struct wlr_x11_backend {
 	struct wlr_drm_format_set dri3_formats;
 	struct wlr_drm_format_set shm_formats;
 	const struct wlr_x11_format *x11_format;
+	struct wlr_drm_format_set primary_dri3_formats;
+	struct wlr_drm_format_set primary_shm_formats;
 	struct wlr_drm_format *drm_format;
 	struct wl_event_source *event_source;
 
