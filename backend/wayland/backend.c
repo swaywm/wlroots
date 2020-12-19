@@ -260,7 +260,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 }
 
 struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
-		const char *remote, wlr_renderer_create_func_t create_renderer_func) {
+		const char *remote) {
 	wlr_log(WLR_INFO, "Creating wayland backend");
 
 	struct wlr_wl_backend *wl = calloc(1, sizeof(*wl));
@@ -315,11 +315,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}
 	wl_event_source_check(wl->remote_display_src);
 
-	if (!create_renderer_func) {
-		create_renderer_func = wlr_renderer_autocreate;
-	}
-
-	wl->renderer = create_renderer_func(&wl->egl, EGL_PLATFORM_WAYLAND_EXT,
+	wl->renderer = wlr_renderer_autocreate(&wl->egl, EGL_PLATFORM_WAYLAND_EXT,
 		wl->remote_display, NULL, 0);
 	if (!wl->renderer) {
 		wlr_log(WLR_ERROR, "Could not create renderer");

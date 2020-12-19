@@ -322,8 +322,7 @@ static bool query_dri3_formats(struct wlr_x11_backend *x11) {
 }
 
 struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
-		const char *x11_display,
-		wlr_renderer_create_func_t create_renderer_func) {
+		const char *x11_display) {
 	struct wlr_x11_backend *x11 = calloc(1, sizeof(*x11));
 	if (!x11) {
 		return NULL;
@@ -512,11 +511,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 	x11->allocator = &gbm_alloc->base;
 
-	if (!create_renderer_func) {
-		create_renderer_func = wlr_renderer_autocreate;
-	}
-
-	x11->renderer = create_renderer_func(&x11->egl, EGL_PLATFORM_GBM_KHR,
+	x11->renderer = wlr_renderer_autocreate(&x11->egl, EGL_PLATFORM_GBM_KHR,
 		gbm_alloc->gbm_device, NULL, 0);
 	if (x11->renderer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
