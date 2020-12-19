@@ -309,22 +309,12 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}
 	wl_event_source_check(wl->remote_display_src);
 
-	static EGLint config_attribs[] = {
-		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-		EGL_RED_SIZE, 1,
-		EGL_GREEN_SIZE, 1,
-		EGL_BLUE_SIZE, 1,
-		EGL_ALPHA_SIZE, 1,
-		EGL_NONE,
-	};
-
 	if (!create_renderer_func) {
 		create_renderer_func = wlr_renderer_autocreate;
 	}
 
 	wl->renderer = create_renderer_func(&wl->egl, EGL_PLATFORM_WAYLAND_EXT,
-		wl->remote_display, config_attribs, 0);
+		wl->remote_display, NULL, 0);
 	if (!wl->renderer) {
 		wlr_log(WLR_ERROR, "Could not create renderer");
 		goto error_event;
