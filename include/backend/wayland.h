@@ -21,7 +21,6 @@ struct wlr_wl_backend {
 	struct wl_list devices;
 	struct wl_list outputs;
 	int drm_fd;
-	struct wlr_drm_format *format;
 	struct wl_list buffers; // wlr_wl_buffer.link
 	size_t requested_outputs;
 	size_t last_output_num;
@@ -74,9 +73,6 @@ struct wlr_wl_output {
 	struct xdg_toplevel *xdg_toplevel;
 	struct zxdg_toplevel_decoration_v1 *zxdg_toplevel_decoration_v1;
 	struct wl_list presentation_feedbacks;
-
-	struct wlr_swapchain *swapchain;
-	struct wlr_buffer *back_buffer;
 
 	uint32_t enter_serial;
 
