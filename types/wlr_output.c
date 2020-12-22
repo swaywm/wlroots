@@ -274,6 +274,7 @@ void wlr_output_set_subpixel(struct wlr_output *output,
 	wlr_output_schedule_done(output);
 }
 
+// TODO: make sure this actually sets the output format
 void wlr_output_set_format(struct wlr_output *output,
 		enum wl_shm_format format) {
 	if (output->format == format) {
