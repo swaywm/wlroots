@@ -30,10 +30,9 @@ struct wlr_drm_surface {
 };
 
 struct wlr_drm_fb {
-	struct wlr_buffer *wlr_buf;
+	struct wlr_buffer *wlr_buf; // original buffer
 
-	struct wlr_buffer *mgpu_wlr_buf;
-
+	struct wlr_buffer *local_wlr_buf; // GPU-local buffer
 	struct gbm_bo *bo;
 	uint32_t id;
 };
