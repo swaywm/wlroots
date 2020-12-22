@@ -630,10 +630,14 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
+	if (drm->parent) {
+		// We don't keep track of the original buffer on the parent GPU when
+		// using multi-GPU.
+		return false;
+	}
 	if (!drm->session->active) {
 		return false;
 	}
-
 	if (!crtc) {
 		return false;
 	}
