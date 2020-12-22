@@ -363,38 +363,32 @@ static struct gbm_bo *get_bo_for_dmabuf(struct gbm_device *gbm,
 	}
 }
 
-bool drm_fb_import(struct wlr_drm_fb **fb_ptr, struct wlr_drm_backend *drm,
-		struct wlr_buffer *buf, struct wlr_drm_surface *mgpu,
-		struct wlr_drm_format_set *set) {
+static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
+		struct wlr_buffer *buf, struct wlr_buffer *mgpu_buf,
+		const struct wlr_drm_format_set *formats) {
 	struct wlr_drm_fb *fb = calloc(1, sizeof(*fb));
 	if (!fb) {
-		return false;
+		return NULL;
 	}
 
 	fb->wlr_buf = wlr_buffer_lock(buf);
-
-	if (drm->parent && mgpu) {
-		// Perform a copy across GPUs
-		fb->mgpu_wlr_buf = drm_surface_blit(mgpu, buf);
-		if (!fb->mgpu_wlr_buf) {
-			wlr_log(WLR_ERROR, "Failed to blit buffer across GPUs");
-			goto error_mgpu_wlr_buf;
-		}
-
-		buf = fb->mgpu_wlr_buf;
+	if (mgpu_buf) {
+		fb->mgpu_wlr_buf = wlr_buffer_lock(mgpu_buf);
 	}
 
+	struct wlr_buffer *local_buf = mgpu_buf ? mgpu_buf : buf;
 	struct wlr_dmabuf_attributes attribs;
-	if (!wlr_buffer_get_dmabuf(buf, &attribs)) {
+	if (!wlr_buffer_get_dmabuf(local_buf, &attribs)) {
 		wlr_log(WLR_ERROR, "Failed to get DMA-BUF from buffer");
 		goto error_get_dmabuf;
 	}
 
-	if (set && !wlr_drm_format_set_has(set, attribs.format, attribs.modifier)) {
+	if (formats && !wlr_drm_format_set_has(formats, attribs.format,
+			attribs.modifier)) {
 		// The format isn't supported by the plane. Try stripping the alpha
 		// channel, if any.
 		uint32_t format = strip_alpha_channel(attribs.format);
-		if (wlr_drm_format_set_has(set, format, attribs.modifier)) {
+		if (wlr_drm_format_set_has(formats, format, attribs.modifier)) {
 			attribs.format = format;
 		} else {
 			wlr_log(WLR_ERROR, "Buffer format 0x%"PRIX32" cannot be scanned out",
@@ -415,18 +409,38 @@ bool drm_fb_import(struct wlr_drm_fb **fb_ptr, struct wlr_drm_backend *drm,
 		goto error_get_fb_for_bo;
 	}
 
-	drm_fb_move(fb_ptr, &fb);
-
-	return true;
+	return fb;
 
 error_get_fb_for_bo:
 	gbm_bo_destroy(fb->bo);
 error_get_dmabuf:
 	wlr_buffer_unlock(fb->mgpu_wlr_buf);
-error_mgpu_wlr_buf:
 	wlr_buffer_unlock(fb->wlr_buf);
 	free(fb);
-	return false;
+	return NULL;
+}
+
+bool drm_fb_import(struct wlr_drm_fb **fb_ptr, struct wlr_drm_backend *drm,
+		struct wlr_buffer *buf, struct wlr_drm_surface *mgpu,
+		const struct wlr_drm_format_set *formats) {
+	struct wlr_buffer *mgpu_buf = NULL;
+	if (drm->parent && mgpu) {
+		// Perform a copy across GPUs
+		mgpu_buf = drm_surface_blit(mgpu, buf);
+		if (!mgpu_buf) {
+			wlr_log(WLR_ERROR, "Failed to blit buffer across GPUs");
+			return false;
+		}
+	}
+
+	struct wlr_drm_fb *fb = drm_fb_create(drm, buf, mgpu_buf, formats);
+	wlr_buffer_unlock(mgpu_buf);
+	if (!fb) {
+		return false;
+	}
+
+	drm_fb_move(fb_ptr, &fb);
+	return true;
 }
 
 void drm_fb_move(struct wlr_drm_fb **new, struct wlr_drm_fb **old) {
