@@ -17,7 +17,7 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 	uint32_t fb_id = 0;
 	if (crtc->pending.active) {
 		struct wlr_drm_fb *fb = plane_get_next_fb(crtc->primary);
-		if (!fb->id) {
+		if (fb == NULL) {
 			wlr_log(WLR_ERROR, "%s: failed to acquire primary FB",
 				conn->output.name);
 			return false;
@@ -76,7 +76,7 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 
 	if (cursor != NULL && drm_connector_is_cursor_visible(conn)) {
 		struct wlr_drm_fb *cursor_fb = plane_get_next_fb(cursor);
-		if (!cursor_fb->bo) {
+		if (cursor_fb == NULL) {
 			wlr_drm_conn_log(conn, WLR_DEBUG, "Failed to acquire cursor FB");
 			return false;
 		}

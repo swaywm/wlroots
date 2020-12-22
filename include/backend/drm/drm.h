@@ -24,11 +24,11 @@ struct wlr_drm_plane {
 	struct wlr_drm_surface mgpu_surf;
 
 	/* Buffer to be submitted to the kernel on the next page-flip */
-	struct wlr_drm_fb pending_fb;
+	struct wlr_drm_fb *pending_fb;
 	/* Buffer submitted to the kernel, will be presented on next vblank */
-	struct wlr_drm_fb queued_fb;
+	struct wlr_drm_fb *queued_fb;
 	/* Buffer currently displayed on screen */
-	struct wlr_drm_fb current_fb;
+	struct wlr_drm_fb *current_fb;
 
 	struct wlr_drm_format_set formats;
 

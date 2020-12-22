@@ -324,9 +324,9 @@ static bool drm_connector_attach_render(struct wlr_output *output,
 static void drm_plane_set_committed(struct wlr_drm_plane *plane) {
 	drm_fb_move(&plane->queued_fb, &plane->pending_fb);
 
-	struct wlr_buffer *queued = plane->queued_fb.wlr_buf;
-	if (queued != NULL) {
-		wlr_swapchain_set_buffer_submitted(plane->surf.swapchain, queued);
+	if (plane->queued_fb && plane->queued_fb->wlr_buf) {
+		wlr_swapchain_set_buffer_submitted(plane->surf.swapchain,
+			plane->queued_fb->wlr_buf);
 	}
 }
 
@@ -366,7 +366,7 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 	}
 
 	assert(crtc->pending.active);
-	assert(plane_get_next_fb(crtc->primary)->bo);
+	assert(plane_get_next_fb(crtc->primary));
 	if (!drm_crtc_commit(conn, DRM_MODE_PAGE_FLIP_EVENT)) {
 		return false;
 	}
@@ -638,11 +638,11 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 		return false;
 	}
 
-	struct wlr_drm_fb *fb = &crtc->primary->queued_fb;
-	if (fb->wlr_buf == NULL) {
-		fb = &crtc->primary->current_fb;
+	struct wlr_drm_fb *fb = crtc->primary->queued_fb;
+	if (fb == NULL) {
+		fb = crtc->primary->current_fb;
 	}
-	if (fb->wlr_buf == NULL) {
+	if (fb == NULL) {
 		return false;
 	}
 
@@ -657,13 +657,13 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 }
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
-	if (plane->pending_fb.bo) {
-		return &plane->pending_fb;
+	if (plane->pending_fb) {
+		return plane->pending_fb;
 	}
-	if (plane->queued_fb.bo) {
-		return &plane->queued_fb;
+	if (plane->queued_fb) {
+		return plane->queued_fb;
 	}
-	return &plane->current_fb;
+	return plane->current_fb;
 }
 
 static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn) {
@@ -676,7 +676,7 @@ static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn) {
 
 	// drm_crtc_page_flip expects a FB to be available
 	struct wlr_drm_plane *plane = crtc->primary;
-	if (!plane_get_next_fb(plane)->bo) {
+	if (!plane_get_next_fb(plane)) {
 		if (!drm_surface_render_black_frame(&plane->surf)) {
 			return false;
 		}
@@ -1466,10 +1466,10 @@ static void page_flip_handler(int fd, unsigned seq,
 	}
 
 	struct wlr_drm_plane *plane = conn->crtc->primary;
-	if (plane->queued_fb.bo) {
+	if (plane->queued_fb) {
 		drm_fb_move(&plane->current_fb, &plane->queued_fb);
 	}
-	if (conn->crtc->cursor && conn->crtc->cursor->queued_fb.bo) {
+	if (conn->crtc->cursor && conn->crtc->cursor->queued_fb) {
 		drm_fb_move(&conn->crtc->cursor->current_fb,
 			&conn->crtc->cursor->queued_fb);
 	}
@@ -1480,8 +1480,8 @@ static void page_flip_handler(int fd, unsigned seq,
 	 * data between the GPUs, even if we were using the direct scanout
 	 * interface.
 	 */
-	if (!drm->parent && plane->current_fb.wlr_buf &&
-			wlr_client_buffer_get(plane->current_fb.wlr_buf)) {
+	if (!drm->parent && plane->current_fb->wlr_buf &&
+			wlr_client_buffer_get(plane->current_fb->wlr_buf)) {
 		present_flags |= WLR_OUTPUT_PRESENT_ZERO_COPY;
 	}
 
