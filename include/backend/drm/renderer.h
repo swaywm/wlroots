@@ -31,8 +31,12 @@ struct wlr_drm_surface {
 
 struct wlr_drm_fb {
 	struct wlr_buffer *wlr_buf;
+	struct wl_list link; // wlr_drm_backend.fbs
+
 	struct gbm_bo *bo;
 	uint32_t id;
+
+	struct wl_listener wlr_buf_destroy;
 };
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
@@ -47,6 +51,7 @@ bool drm_fb_lock_surface(struct wlr_drm_fb **fb, struct wlr_drm_backend *drm,
 bool drm_fb_import(struct wlr_drm_fb **fb, struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, struct wlr_drm_surface *mgpu,
 		const struct wlr_drm_format_set *formats);
+void drm_fb_destroy(struct wlr_drm_fb *fb);
 
 void drm_fb_clear(struct wlr_drm_fb **fb);
 void drm_fb_move(struct wlr_drm_fb **new, struct wlr_drm_fb **old);
