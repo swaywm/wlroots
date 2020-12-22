@@ -32,7 +32,6 @@ struct wlr_drm_plane {
 	/* Buffer currently displayed on screen */
 	struct wlr_drm_fb current_fb;
 
-	uint32_t drm_format; // ARGB2101010, XRGB2101010, ARGB8888, or XRGB8888
 	struct wlr_drm_format_set formats;
 
 	// Only used by cursor
@@ -63,13 +62,6 @@ struct wlr_drm_crtc {
 	struct wlr_drm_plane *primary;
 	struct wlr_drm_plane *cursor;
 
-	/*
-	 * We don't support overlay planes yet, but we keep track of them to
-	 * give to DRM lease clients.
-	 */
-	size_t num_overlays;
-	uint32_t *overlays;
-
 	union wlr_drm_crtc_props props;
 };
 
@@ -82,6 +74,8 @@ struct wlr_drm_backend {
 	bool addfb2_modifiers;
 
 	int fd;
+	char *name;
+	struct wlr_device *dev;
 
 	size_t num_crtcs;
 	struct wlr_drm_crtc *crtcs;
@@ -115,8 +109,10 @@ struct wlr_drm_mode {
 };
 
 struct wlr_drm_connector {
-	struct wlr_output output;
+	struct wlr_output output; // only valid if state != DISCONNECTED
 
+	struct wlr_drm_backend *backend;
+	char name[24];
 	enum wlr_drm_connector_state state;
 	struct wlr_output_mode *desired_mode;
 	bool desired_enabled;
@@ -134,7 +130,7 @@ struct wlr_drm_connector {
 	struct wl_list link;
 
 	/*
-	 * We've asked for a state change in the kernel, and yet to recieve a
+	 * We've asked for a state change in the kernel, and yet to receive a
 	 * notification for its completion. Currently, the kernel only has a
 	 * queue length of 1, and no way to modify your submissions after
 	 * they're sent.
@@ -150,6 +146,7 @@ void finish_drm_resources(struct wlr_drm_backend *drm);
 void restore_drm_outputs(struct wlr_drm_backend *drm);
 void scan_drm_connectors(struct wlr_drm_backend *state);
 int handle_drm_event(int fd, uint32_t mask, void *data);
+void destroy_drm_connector(struct wlr_drm_connector *conn);
 bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 	struct wlr_output_mode *mode);
 bool drm_connector_is_cursor_visible(struct wlr_drm_connector *conn);
@@ -158,5 +155,10 @@ size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc);
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane);
+
+#define wlr_drm_conn_log(conn, verb, fmt, ...) \
+	wlr_log(verb, "connector %s: " fmt, conn->name, ##__VA_ARGS__)
+#define wlr_drm_conn_log_errno(conn, verb, fmt, ...) \
+	wlr_log_errno(verb, "connector %s: " fmt, conn->name, ##__VA_ARGS__)
 
 #endif

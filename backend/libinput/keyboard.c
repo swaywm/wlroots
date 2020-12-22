@@ -72,10 +72,10 @@ void handle_keyboard_key(struct libinput_event *event,
 		libinput_event_keyboard_get_key_state(kbevent);
 	switch (state) {
 	case LIBINPUT_KEY_STATE_RELEASED:
-		wlr_event.state = WLR_KEY_RELEASED;
+		wlr_event.state = WL_KEYBOARD_KEY_STATE_RELEASED;
 		break;
 	case LIBINPUT_KEY_STATE_PRESSED:
-		wlr_event.state = WLR_KEY_PRESSED;
+		wlr_event.state = WL_KEYBOARD_KEY_STATE_PRESSED;
 		break;
 	}
 	wlr_event.update_state = true;

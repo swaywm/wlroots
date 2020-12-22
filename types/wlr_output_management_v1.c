@@ -6,7 +6,7 @@
 #include "util/signal.h"
 #include "wlr-output-management-unstable-v1-protocol.h"
 
-#define OUTPUT_MANAGER_VERSION 1
+#define OUTPUT_MANAGER_VERSION 2
 
 enum {
 	HEAD_STATE_ENABLED = 1 << 0,
@@ -118,6 +118,9 @@ struct wlr_output_configuration_head_v1 *
 		struct wlr_output_configuration_v1 *config, struct wlr_output *output) {
 	struct wlr_output_configuration_head_v1 *config_head =
 		config_head_create(config, output);
+	if (config_head == NULL) {
+		return NULL;
+	}
 	config_head->state.enabled = output->enabled;
 	config_head->state.mode = output->current_mode;
 	config_head->state.custom_mode.width = output->width;
@@ -680,6 +683,9 @@ static void head_send_state(struct wlr_output_head_v1 *head,
 
 	if (state & HEAD_STATE_ENABLED) {
 		zwlr_output_head_v1_send_enabled(head_resource, head->state.enabled);
+		// On enabling we send all current data since clients have not been
+		// notified about potential data changes while the head was disabled.
+		state = HEAD_STATE_ALL;
 	}
 
 	if (!head->state.enabled) {
@@ -761,6 +767,16 @@ static void manager_send_head(struct wlr_output_manager_v1 *manager,
 			output->phys_width, output->phys_height);
 	}
 
+	if (version >= ZWLR_OUTPUT_HEAD_V1_MAKE_SINCE_VERSION && output->make[0] != '\0') {
+		zwlr_output_head_v1_send_make(head_resource, output->make);
+	}
+	if (version >= ZWLR_OUTPUT_HEAD_V1_MODEL_SINCE_VERSION && output->model[0] != '\0') {
+		zwlr_output_head_v1_send_model(head_resource, output->model);
+	}
+	if (version >= ZWLR_OUTPUT_HEAD_V1_SERIAL_NUMBER_SINCE_VERSION && output->serial[0] != '\0') {
+		zwlr_output_head_v1_send_serial_number(head_resource, output->serial);
+	}
+
 	struct wlr_output_mode *mode;
 	wl_list_for_each(mode, &output->modes, link) {
 		head_send_mode(head, head_resource, mode);
@@ -801,6 +817,26 @@ static bool manager_update_head(struct wlr_output_manager_v1 *manager,
 	}
 	if (current->scale != next->scale) {
 		state |= HEAD_STATE_SCALE;
+	}
+
+	// If  a mode was added to wlr_output.modes we need to add the new mode
+	// to the wlr_output_head
+	struct wlr_output_mode *mode;
+	wl_list_for_each(mode, &head->state.output->modes, link) {
+		bool found = false;
+		struct wl_resource *mode_resource;
+		wl_resource_for_each(mode_resource, &head->mode_resources) {
+			if (mode_from_resource(mode_resource) == mode) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			struct wl_resource *resource;
+			wl_resource_for_each(resource, &head->resources) {
+				head_send_mode(head, resource, mode);
+			}
+		}
 	}
 
 	if (state != 0) {

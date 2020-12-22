@@ -21,6 +21,7 @@ enum wlr_renderer_read_pixels_flags {
 
 struct wlr_renderer_impl;
 struct wlr_drm_format_set;
+struct wlr_buffer;
 
 struct wlr_renderer {
 	const struct wlr_renderer_impl *impl;
@@ -35,7 +36,7 @@ struct wlr_renderer {
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl, EGLenum platform,
 	void *remote_display, EGLint *config_attribs, EGLint visual_id);
 
-void wlr_renderer_begin(struct wlr_renderer *r, int width, int height);
+void wlr_renderer_begin(struct wlr_renderer *r, uint32_t width, uint32_t height);
 void wlr_renderer_end(struct wlr_renderer *r);
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
 /**
@@ -82,10 +83,11 @@ void wlr_render_ellipse(struct wlr_renderer *r, const struct wlr_box *box,
 void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
 	const float color[static 4], const float matrix[static 9]);
 /**
- * Returns a list of pixel formats supported by this renderer.
+ * Get the shared-memory formats supporting import usage. Buffers allocated
+ * with a format from this list may be imported via wlr_texture_from_pixels.
  */
-const enum wl_shm_format *wlr_renderer_get_formats(struct wlr_renderer *r,
-	size_t *len);
+const enum wl_shm_format *wlr_renderer_get_shm_texture_formats(
+	struct wlr_renderer *r, size_t *len);
 /**
  * Returns true if this wl_buffer is a wl_drm buffer.
  */
@@ -97,9 +99,10 @@ bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *renderer,
 void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *renderer,
 	struct wl_resource *buffer, int *width, int *height);
 /**
- * Get the available DMA-BUF formats.
+ * Get the DMA-BUF formats supporting sampling usage. Buffers allocated with
+ * a format from this list may be imported via wlr_texture_from_dmabuf.
  */
-const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_formats(
+const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_texture_formats(
 	struct wlr_renderer *renderer);
 /**
  * Reads out of pixels of the currently bound surface into data. `stride` is in
@@ -118,17 +121,19 @@ bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
 bool wlr_renderer_blit_dmabuf(struct wlr_renderer *r,
 	struct wlr_dmabuf_attributes *dst, struct wlr_dmabuf_attributes *src);
 /**
- * Checks if a format is supported.
- */
-bool wlr_renderer_format_supported(struct wlr_renderer *r,
-	enum wl_shm_format fmt);
-/**
  * Creates necessary shm and invokes the initialization of the implementation.
  *
  * Returns false on failure.
  */
 bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	struct wl_display *wl_display);
+
+/**
+ * Obtains the FD of the DRM device used for rendering, or -1 if unavailable.
+ *
+ * The caller doesn't have ownership of the FD, it must not close it.
+ */
+int wlr_renderer_get_drm_fd(struct wlr_renderer *r);
 
 /**
  * Destroys this wlr_renderer. Textures must be destroyed separately.

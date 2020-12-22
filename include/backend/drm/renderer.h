@@ -17,9 +17,8 @@ struct wlr_drm_renderer {
 	struct gbm_device *gbm;
 	struct wlr_egl egl;
 
-	uint32_t gbm_format;
-
 	struct wlr_renderer *wlr_rend;
+	struct wlr_gbm_allocator *allocator;
 };
 
 struct wlr_drm_surface {
@@ -28,27 +27,17 @@ struct wlr_drm_surface {
 	uint32_t width;
 	uint32_t height;
 
-	struct gbm_surface *gbm;
-	EGLSurface egl;
-};
-
-enum wlr_drm_fb_type {
-	WLR_DRM_FB_TYPE_NONE,
-	WLR_DRM_FB_TYPE_SURFACE,
-	WLR_DRM_FB_TYPE_WLR_BUFFER
+	struct wlr_swapchain *swapchain;
+	struct wlr_buffer *back_buffer;
 };
 
 struct wlr_drm_fb {
-	enum wlr_drm_fb_type type;
 	struct gbm_bo *bo;
+	struct wlr_buffer *wlr_buf;
 
 	struct wlr_drm_surface *mgpu_surf;
 	struct gbm_bo *mgpu_bo;
-
-	union {
-		struct wlr_drm_surface *surf;
-		struct wlr_buffer *wlr_buf;
-	};
+	struct wlr_buffer *mgpu_wlr_buf;
 };
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
@@ -56,6 +45,7 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 void finish_drm_renderer(struct wlr_drm_renderer *renderer);
 
 bool drm_surface_make_current(struct wlr_drm_surface *surf, int *buffer_age);
+void drm_surface_unset_current(struct wlr_drm_surface *surf);
 bool export_drm_bo(struct gbm_bo *bo, struct wlr_dmabuf_attributes *attribs);
 
 void drm_fb_clear(struct wlr_drm_fb *fb);
@@ -71,7 +61,7 @@ struct gbm_bo *drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm
 
 bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
-		uint32_t format, uint32_t flags, bool with_modifiers);
+		uint32_t format, bool force_linear, bool with_modifiers);
 void drm_plane_finish_surface(struct wlr_drm_plane *plane);
 
 #endif

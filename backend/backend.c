@@ -151,7 +151,7 @@ static struct wlr_backend *attempt_noop_backend(struct wl_display *display) {
 static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 		struct wlr_backend *backend, struct wlr_session *session,
 		wlr_renderer_create_func_t create_renderer_func) {
-	int gpus[8];
+	struct wlr_device *gpus[8];
 	size_t num_gpus = wlr_session_find_gpus(session, 8, gpus);
 	struct wlr_backend *primary_drm = NULL;
 	wlr_log(WLR_INFO, "Found %zu GPUs", num_gpus);
@@ -160,7 +160,7 @@ static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 		struct wlr_backend *drm = wlr_drm_backend_create(display, session,
 			gpus[i], primary_drm, create_renderer_func);
 		if (!drm) {
-			wlr_log(WLR_ERROR, "Failed to open DRM device %d", gpus[i]);
+			wlr_log(WLR_ERROR, "Failed to create DRM backend");
 			continue;
 		}
 
@@ -254,8 +254,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		return backend;
 	}
 
-	if (getenv("WAYLAND_DISPLAY") || getenv("_WAYLAND_DISPLAY") ||
-			getenv("WAYLAND_SOCKET")) {
+	if (getenv("WAYLAND_DISPLAY") || getenv("WAYLAND_SOCKET")) {
 		struct wlr_backend *wl_backend = attempt_wl_backend(display,
 			create_renderer_func);
 		if (!wl_backend) {

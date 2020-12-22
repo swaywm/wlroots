@@ -23,9 +23,9 @@ static void xwm_selection_send_notify(struct wlr_xwm *xwm,
 		.property = success ? req->property : XCB_ATOM_NONE,
 	};
 
-	wlr_log(WLR_DEBUG, "SendEvent destination=%d SelectionNotify(31) time=%d "
-		"requestor=%d selection=%d target=%d property=%d", req->requestor,
-		req->time, req->requestor, req->selection, req->target,
+	wlr_log(WLR_DEBUG, "SendEvent destination=%" PRIu32 " SelectionNotify(31) time=%" PRIu32
+		" requestor=%" PRIu32 " selection=%" PRIu32 " target=%" PRIu32 " property=%" PRIu32,
+		req->requestor, req->time, req->requestor, req->selection, req->target,
 		selection_notify.property);
 	xcb_send_event(xwm->xcb_conn,
 		0, // propagate
@@ -55,16 +55,29 @@ static int xwm_selection_flush_source_data(
 static void xwm_selection_transfer_start_outgoing(
 		struct wlr_xwm_selection_transfer *transfer);
 
+static struct wlr_xwm_selection_transfer *xwm_selection_transfer_get_first(
+		struct wlr_xwm_selection *selection) {
+	struct wlr_xwm_selection_transfer *first = NULL;
+	if (!wl_list_empty(&selection->outgoing)) {
+		first = wl_container_of(selection->outgoing.prev, first,
+			outgoing_link);
+	}
+
+	return first;
+}
+
 static void xwm_selection_transfer_destroy_outgoing(
 		struct wlr_xwm_selection_transfer *transfer) {
+	struct wlr_xwm_selection *selection = transfer->selection;
+	bool was_first = transfer == xwm_selection_transfer_get_first(selection);
 	wl_list_remove(&transfer->outgoing_link);
+	wlr_log(WLR_DEBUG, "Destroying transfer %p", transfer);
 
-	// Start next queued transfer
-	struct wlr_xwm_selection_transfer *first = NULL;
-	if (!wl_list_empty(&transfer->selection->outgoing)) {
-		first = wl_container_of(transfer->selection->outgoing.prev, first,
-			outgoing_link);
-		xwm_selection_transfer_start_outgoing(first);
+	// Start next queued transfer if we just removed the active one.
+	if (was_first && !wl_list_empty(&selection->outgoing)) {
+		wlr_log(WLR_DEBUG, "Destroyed transfer was active, starting next");
+		xwm_selection_transfer_start_outgoing(
+			xwm_selection_transfer_get_first(selection));
 	}
 
 	xwm_selection_transfer_remove_source(transfer);
@@ -92,7 +105,7 @@ static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 	size_t available = transfer->source_data.alloc - current;
 	ssize_t len = read(fd, p, available);
 	if (len == -1) {
-		wlr_log(WLR_ERROR, "read error from data source: %m");
+		wlr_log_errno(WLR_ERROR, "read error from data source");
 		goto error_out;
 	}
 
@@ -219,6 +232,8 @@ static void xwm_selection_transfer_start_outgoing(
 	struct wlr_xwm *xwm = transfer->selection->xwm;
 	struct wl_event_loop *loop =
 		wl_display_get_event_loop(xwm->xwayland->wl_display);
+	wlr_log(WLR_DEBUG, "Starting transfer %p", transfer);
+	assert(transfer == xwm_selection_transfer_get_first(transfer->selection));
 	transfer->source = wl_event_loop_add_fd(loop, transfer->source_fd,
 		WL_EVENT_READABLE, xwm_data_source_read, transfer);
 }
@@ -250,15 +265,14 @@ static struct wl_array *xwm_selection_source_get_mime_types(
 /**
  * Read the Wayland selection and send it to an Xwayland client.
  */
-static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
+static bool xwm_selection_send_data(struct wlr_xwm_selection *selection,
 		xcb_selection_request_event_t *req, const char *mime_type) {
 	// Check MIME type
 	struct wl_array *mime_types =
 		xwm_selection_source_get_mime_types(selection);
 	if (mime_types == NULL) {
 		wlr_log(WLR_ERROR, "not sending selection: no MIME type list available");
-		xwm_selection_send_notify(selection->xwm, req, false);
-		return;
+		return false;
 	}
 
 	bool found = false;
@@ -273,26 +287,26 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 	if (!found) {
 		wlr_log(WLR_ERROR, "not sending selection: "
 			"requested an unsupported MIME type %s", mime_type);
-		xwm_selection_send_notify(selection->xwm, req, false);
-		return;
+		return false;
 	}
 
 	struct wlr_xwm_selection_transfer *transfer =
 		calloc(1, sizeof(struct wlr_xwm_selection_transfer));
 	if (transfer == NULL) {
 		wlr_log(WLR_ERROR, "Allocation failed");
-		return;
+		return false;
 	}
+
 	transfer->selection = selection;
 	transfer->request = *req;
 	wl_array_init(&transfer->source_data);
 
 	int p[2];
 	if (pipe(p) == -1) {
-		wlr_log(WLR_ERROR, "pipe() failed: %m");
-		xwm_selection_send_notify(selection->xwm, req, false);
-		return;
+		wlr_log_errno(WLR_ERROR, "pipe() failed");
+		return false;
 	}
+
 	fcntl(p[0], F_SETFD, FD_CLOEXEC);
 	fcntl(p[0], F_SETFL, O_NONBLOCK);
 	fcntl(p[1], F_SETFD, FD_CLOEXEC);
@@ -301,15 +315,37 @@ static void xwm_selection_send_data(struct wlr_xwm_selection *selection,
 	transfer->source_fd = p[0];
 
 	wlr_log(WLR_DEBUG, "Sending Wayland selection %u to Xwayland window with "
-		"MIME type %s, target %u", req->target, mime_type, req->target);
+		"MIME type %s, target %u, transfer %p", req->target, mime_type,
+		req->target, transfer);
 	xwm_selection_source_send(selection, mime_type, p[1]);
+
+	// It seems that if we ever try to reply to a selection request after
+	// another has been sent by the same requestor, the requestor never reads
+	// from it. It appears to only ever read from the latest, so purge stale
+	// transfers to prevent clipboard hangs.
+	struct wlr_xwm_selection_transfer *outgoing, *tmp;
+	wl_list_for_each_safe(outgoing, tmp, &selection->outgoing, outgoing_link) {
+		if (transfer->request.requestor == outgoing->request.requestor) {
+			wlr_log(WLR_DEBUG, "Destroying stale transfer %p", outgoing);
+			xwm_selection_send_notify(selection->xwm, &outgoing->request, false);
+			xwm_selection_transfer_destroy_outgoing(outgoing);
+		}
+	}
 
 	wl_list_insert(&selection->outgoing, &transfer->outgoing_link);
 
 	// We can only handle one transfer at a time
 	if (wl_list_length(&selection->outgoing) == 1) {
+		wlr_log(WLR_DEBUG, "No transfer active, starting %p now", transfer);
 		xwm_selection_transfer_start_outgoing(transfer);
+	} else {
+		struct wlr_xwm_selection_transfer *outgoing;
+		wl_list_for_each(outgoing, &selection->outgoing, outgoing_link) {
+			wlr_log(WLR_DEBUG, "Transfer %p still queued", outgoing);
+		}
 	}
+
+	return true;
 }
 
 static void xwm_selection_send_targets(struct wlr_xwm_selection *selection,
@@ -381,12 +417,12 @@ void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		xwm_get_selection(xwm, req->selection);
 	if (selection == NULL) {
 		wlr_log(WLR_DEBUG, "received selection request for unknown selection");
-		return;
+		goto fail_notify_requestor;
 	}
 
 	if (selection->window != req->owner) {
 		wlr_log(WLR_DEBUG, "received selection request with invalid owner");
-		return;
+		goto fail_notify_requestor;
 	}
 
 	// No xwayland surface focused, deny access to clipboard
@@ -395,8 +431,7 @@ void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		wlr_log(WLR_DEBUG, "denying read access to selection %u (%s): "
 			"no xwayland surface focused", selection->atom, selection_name);
 		free(selection_name);
-		xwm_selection_send_notify(xwm, req, false);
-		return;
+		goto fail_notify_requestor;
 	}
 
 	if (req->target == xwm->atoms[TARGETS]) {
@@ -411,12 +446,22 @@ void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		if (mime_type == NULL) {
 			wlr_log(WLR_ERROR, "ignoring selection request: unknown atom %u",
 				req->target);
-			xwm_selection_send_notify(xwm, req, false);
-			return;
+			goto fail_notify_requestor;
 		}
-		xwm_selection_send_data(selection, req, mime_type);
+
+		bool send_success = xwm_selection_send_data(selection, req, mime_type);
 		free(mime_type);
+		if (!send_success) {
+			goto fail_notify_requestor;
+		}
 	}
+
+	return;
+
+fail_notify_requestor:
+	// Something went wrong, and there won't be any data being sent to the
+	// requestor, so let them know.
+	xwm_selection_send_notify(xwm, req, false);
 }
 
 void xwm_handle_selection_destroy_notify(struct wlr_xwm *xwm,

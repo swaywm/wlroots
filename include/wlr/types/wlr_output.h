@@ -164,9 +164,11 @@ struct wlr_output {
 		// Emitted right before commit
 		struct wl_signal precommit; // wlr_output_event_precommit
 		// Emitted right after commit
-		struct wl_signal commit;
+		struct wl_signal commit; // wlr_output_event_commit
 		// Emitted right after the buffer has been presented to the user
 		struct wl_signal present; // wlr_output_event_present
+		// Emitted after a client bound the wl_output global
+		struct wl_signal bind; // wlr_output_event_bind
 		struct wl_signal enable;
 		struct wl_signal mode;
 		struct wl_signal scale;
@@ -199,6 +201,12 @@ struct wlr_output_event_precommit {
 	struct timespec *when;
 };
 
+struct wlr_output_event_commit {
+	struct wlr_output *output;
+	uint32_t committed; // bitmask of enum wlr_output_state_field
+	struct timespec *when;
+};
+
 enum wlr_output_present_flag {
 	// The presentation was synchronized to the "vertical retrace" by the
 	// display hardware such that tearing does not happen.
@@ -226,6 +234,11 @@ struct wlr_output_event_present {
 	// refresh may occur. Zero if unknown.
 	int refresh; // nsec
 	uint32_t flags; // enum wlr_output_present_flag
+};
+
+struct wlr_output_event_bind {
+	struct wlr_output *output;
+	struct wl_resource *resource;
 };
 
 struct wlr_surface;
@@ -342,8 +355,7 @@ bool wlr_output_preferred_read_format(struct wlr_output *output,
  * the screen that has changed since the last frame.
  *
  * Compositors implementing damage tracking should call this function with the
- * damaged region in output-buffer-local coordinates (ie. scaled and
- * transformed).
+ * damaged region in output-buffer-local coordinates.
  *
  * This region is not to be confused with the renderer's buffer damage, ie. the
  * region compositors need to repaint. Compositors usually need to repaint more
@@ -392,8 +404,7 @@ size_t wlr_output_get_gamma_size(struct wlr_output *output);
 void wlr_output_set_gamma(struct wlr_output *output, size_t size,
 	const uint16_t *r, const uint16_t *g, const uint16_t *b);
 /**
- * Exports the output's current back-buffer as a DMA-BUF (ie. the buffer that
- * will be displayed on next commit).
+ * Exports the last committed buffer as a DMA-BUF.
  *
  * The caller is responsible for cleaning up the DMA-BUF attributes.
  */

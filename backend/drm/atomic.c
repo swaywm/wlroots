@@ -25,8 +25,7 @@ static void atomic_begin(struct atomic *atom) {
 
 static bool atomic_commit(struct atomic *atom,
 		struct wlr_drm_connector *conn, uint32_t flags) {
-	struct wlr_drm_backend *drm =
-		get_drm_backend_from_backend(conn->output.backend);
+	struct wlr_drm_backend *drm = conn->backend;
 	if (atom->failed) {
 		return false;
 	}
@@ -34,7 +33,7 @@ static bool atomic_commit(struct atomic *atom,
 	int ret = drmModeAtomicCommit(drm->fd, atom->req, flags, drm);
 	if (ret) {
 		wlr_log_errno(WLR_ERROR, "%s: Atomic %s failed (%s)",
-			conn->output.name,
+			conn->name,
 			(flags & DRM_MODE_ATOMIC_TEST_ONLY) ? "test" : "commit",
 			(flags & DRM_MODE_ATOMIC_ALLOW_MODESET) ? "modeset" : "pageflip");
 		return false;

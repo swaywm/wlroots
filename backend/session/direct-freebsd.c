@@ -18,6 +18,7 @@
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include "backend/session/direct-ipc.h"
+#include "backend/session/session.h"
 #include "util/signal.h"
 
 const struct session_impl session_direct;
@@ -114,7 +115,7 @@ static int vt_handler(int signo, void *data) {
 
 	if (session->base.active) {
 		session->base.active = false;
-		wlr_signal_emit_safe(&session->base.session_signal, session);
+		wlr_signal_emit_safe(&session->base.events.active, NULL);
 
 		wl_list_for_each(dev, &session->base.devices, link) {
 			if (ioctl(dev->fd, DRM_IOCTL_VERSION, &dv) == 0) {
@@ -133,7 +134,7 @@ static int vt_handler(int signo, void *data) {
 		}
 
 		session->base.active = true;
-		wlr_signal_emit_safe(&session->base.session_signal, session);
+		wlr_signal_emit_safe(&session->base.events.active, NULL);
 	}
 
 	return 1;
@@ -274,6 +275,7 @@ static struct wlr_session *direct_session_create(struct wl_display *disp) {
 		return NULL;
 	}
 
+	session_init(&session->base);
 	session->sock = direct_ipc_init(&session->child);
 	if (session->sock == -1) {
 		goto error_session;
@@ -297,6 +299,7 @@ static struct wlr_session *direct_session_create(struct wl_display *disp) {
 
 	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
 	session->base.impl = &session_direct;
+	session->base.active = true;
 	return &session->base;
 
 error_ipc:

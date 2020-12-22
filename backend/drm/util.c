@@ -221,7 +221,7 @@ uint32_t get_fb_for_bo(struct gbm_bo *bo, bool with_modifiers) {
 	return id;
 }
 
-static inline bool is_taken(size_t n, const uint32_t arr[static n], uint32_t key) {
+static bool is_taken(size_t n, const uint32_t arr[static n], uint32_t key) {
 	for (size_t i = 0; i < n; ++i) {
 		if (arr[i] == key) {
 			return true;

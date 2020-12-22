@@ -1,7 +1,10 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <wlr/config.h>
 
@@ -16,7 +19,11 @@
 #include <wlr/util/log.h>
 
 #include "backend/wayland.h"
+#include "render/drm_format_set.h"
+#include "render/gbm_allocator.h"
+#include "render/wlr_renderer.h"
 #include "util/signal.h"
+
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
 #include "pointer-gestures-unstable-v1-client-protocol.h"
 #include "presentation-time-client-protocol.h"
@@ -97,15 +104,17 @@ static void registry_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *iface, uint32_t version) {
 	struct wlr_wl_backend *wl = data;
 
-	wlr_log(WLR_DEBUG, "Remote wayland global: %s v%d", iface, version);
+	wlr_log(WLR_DEBUG, "Remote wayland global: %s v%" PRIu32, iface, version);
 
 	if (strcmp(iface, wl_compositor_interface.name) == 0) {
 		wl->compositor = wl_registry_bind(registry, name,
 			&wl_compositor_interface, 4);
 	} else if (strcmp(iface, wl_seat_interface.name) == 0) {
-		wl->seat = wl_registry_bind(registry, name,
+		struct wl_seat *wl_seat = wl_registry_bind(registry, name,
 			&wl_seat_interface, 5);
-		wl_seat_add_listener(wl->seat, &seat_listener, wl);
+		if (!create_wl_seat(wl_seat, wl)) {
+			wl_seat_destroy(wl_seat);
+		}
 	} else if (strcmp(iface, xdg_wm_base_interface.name) == 0) {
 		wl->xdg_wm_base = wl_registry_bind(registry, name,
 			&xdg_wm_base_interface, 1);
@@ -155,13 +164,15 @@ static bool backend_start(struct wlr_backend *backend) {
 
 	wl->started = true;
 
-	if (wl->keyboard) {
-		create_wl_keyboard(wl->keyboard, wl);
-	}
+	struct wlr_wl_seat *seat;
+	wl_list_for_each(seat, &wl->seats, link) {
+		if (seat->keyboard) {
+			create_wl_keyboard(seat);
+		}
 
-	if (wl->tablet_manager && wl->seat) {
-		wl_add_tablet_seat(wl->tablet_manager,
-			wl->seat, wl);
+		if (wl->tablet_manager) {
+			wl_add_tablet_seat(wl->tablet_manager, seat);
+		}
 	}
 
 	for (size_t i = 0; i < wl->requested_outputs; ++i) {
@@ -192,8 +203,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wl_list_remove(&wl->local_display_destroy.link);
 
-	free(wl->seat_name);
-
 	wl_event_source_remove(wl->remote_display_src);
 
 	wlr_renderer_destroy(wl->renderer);
@@ -201,12 +210,12 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wlr_drm_format_set_finish(&wl->linux_dmabuf_v1_formats);
 
-	if (wl->pointer) {
-		wl_pointer_destroy(wl->pointer);
+	struct wlr_wl_buffer *buffer, *tmp_buffer;
+	wl_list_for_each_safe(buffer, tmp_buffer, &wl->buffers, link) {
+		destroy_wl_buffer(buffer);
 	}
-	if (wl->seat) {
-		wl_seat_destroy(wl->seat);
-	}
+
+	destroy_wl_seats(wl);
 	if (wl->zxdg_decoration_manager_v1) {
 		zxdg_decoration_manager_v1_destroy(wl->zxdg_decoration_manager_v1);
 	}
@@ -265,6 +274,8 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	wl->local_display = display;
 	wl_list_init(&wl->devices);
 	wl_list_init(&wl->outputs);
+	wl_list_init(&wl->seats);
+	wl_list_init(&wl->buffers);
 
 	wl->remote_display = wl_display_connect(remote);
 	if (!wl->remote_display) {
@@ -279,8 +290,8 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}
 
 	wl_registry_add_listener(wl->registry, &registry_listener, wl);
-	wl_display_dispatch(wl->remote_display);
-	wl_display_roundtrip(wl->remote_display);
+	wl_display_roundtrip(wl->remote_display); // get globals
+	wl_display_roundtrip(wl->remote_display); // get linux-dmabuf formats
 
 	if (!wl->compositor) {
 		wlr_log(WLR_ERROR,
@@ -304,26 +315,64 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}
 	wl_event_source_check(wl->remote_display_src);
 
-	static EGLint config_attribs[] = {
-		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-		EGL_RED_SIZE, 1,
-		EGL_GREEN_SIZE, 1,
-		EGL_BLUE_SIZE, 1,
-		EGL_ALPHA_SIZE, 1,
-		EGL_NONE,
-	};
-
 	if (!create_renderer_func) {
 		create_renderer_func = wlr_renderer_autocreate;
 	}
 
 	wl->renderer = create_renderer_func(&wl->egl, EGL_PLATFORM_WAYLAND_EXT,
-		wl->remote_display, config_attribs, WL_SHM_FORMAT_ARGB8888);
-
+		wl->remote_display, NULL, 0);
 	if (!wl->renderer) {
 		wlr_log(WLR_ERROR, "Could not create renderer");
 		goto error_event;
+	}
+
+	// TODO: get FD from linux-dmabuf hints instead
+	int drm_fd = wlr_renderer_get_drm_fd(wl->renderer);
+	if (drm_fd < 0) {
+		wlr_log(WLR_ERROR, "Failed to get DRM device FD from renderer");
+		goto error_event;
+	}
+
+	drm_fd = fcntl(drm_fd, F_DUPFD_CLOEXEC, 0);
+	if (drm_fd < 0) {
+		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+		goto error_event;
+	}
+
+	struct wlr_gbm_allocator *alloc = wlr_gbm_allocator_create(drm_fd);
+	if (alloc == NULL) {
+		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
+		goto error_event;
+	}
+	wl->allocator = &alloc->base;
+
+	uint32_t fmt = DRM_FORMAT_ARGB8888;
+	const struct wlr_drm_format *remote_format =
+		wlr_drm_format_set_get(&wl->linux_dmabuf_v1_formats, fmt);
+	if (remote_format == NULL) {
+		wlr_log(WLR_ERROR, "Remote compositor doesn't support format "
+			"0x%"PRIX32" via linux-dmabuf-unstable-v1", fmt);
+		goto error_event;
+	}
+
+	const struct wlr_drm_format_set *render_formats =
+		wlr_renderer_get_dmabuf_render_formats(wl->renderer);
+	if (render_formats == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get available DMA-BUF formats from renderer");
+		return false;
+	}
+	const struct wlr_drm_format *render_format =
+		wlr_drm_format_set_get(render_formats, fmt);
+	if (render_format == NULL) {
+		wlr_log(WLR_ERROR, "Renderer doesn't support DRM format 0x%"PRIX32, fmt);
+		return false;
+	}
+
+	wl->format = wlr_drm_format_intersect(remote_format, render_format);
+	if (wl->format == NULL) {
+		wlr_log(WLR_ERROR, "Failed to intersect remote and render modifiers "
+			"for format 0x%"PRIX32, fmt);
+		return false;
 	}
 
 	wl->local_display_destroy.notify = handle_display_destroy;

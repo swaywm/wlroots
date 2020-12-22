@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <libinput.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
 #include <wlr/util/log.h>
@@ -16,12 +17,27 @@ static struct wlr_libinput_backend *get_libinput_backend_from_backend(
 static int libinput_open_restricted(const char *path,
 		int flags, void *_backend) {
 	struct wlr_libinput_backend *backend = _backend;
-	return wlr_session_open_file(backend->session, path);
+	struct wlr_device *dev = wlr_session_open_file(backend->session, path);
+	if (dev == NULL) {
+		return -1;
+	}
+	return dev->fd;
 }
 
 static void libinput_close_restricted(int fd, void *_backend) {
 	struct wlr_libinput_backend *backend = _backend;
-	wlr_session_close_file(backend->session, fd);
+
+	struct wlr_device *dev;
+	bool found = false;
+	wl_list_for_each(dev, &backend->session->devices, link) {
+		if (dev->fd == fd) {
+			found = true;
+			break;
+		}
+	}
+	if (found) {
+		wlr_session_close_file(backend->session, dev);
+	}
 }
 
 static const struct libinput_interface libinput_impl = {
@@ -44,9 +60,24 @@ static int handle_libinput_readable(int fd, uint32_t mask, void *_backend) {
 	return 0;
 }
 
+static enum wlr_log_importance libinput_log_priority_to_wlr(
+		enum libinput_log_priority priority) {
+	switch (priority) {
+	case LIBINPUT_LOG_PRIORITY_ERROR:
+		return WLR_ERROR;
+	case LIBINPUT_LOG_PRIORITY_INFO:
+		return WLR_INFO;
+	default:
+		return WLR_DEBUG;
+	}
+}
+
 static void log_libinput(struct libinput *libinput_context,
 		enum libinput_log_priority priority, const char *fmt, va_list args) {
-	_wlr_vlog(WLR_ERROR, fmt, args);
+	enum wlr_log_importance importance = libinput_log_priority_to_wlr(priority);
+	static char wlr_fmt[1024];
+	snprintf(wlr_fmt, sizeof(wlr_fmt), "[libinput] %s", fmt);
+	_wlr_vlog(importance, wlr_fmt, args);
 }
 
 static bool backend_start(struct wlr_backend *wlr_backend) {
@@ -144,7 +175,7 @@ bool wlr_backend_is_libinput(struct wlr_backend *b) {
 static void session_signal(struct wl_listener *listener, void *data) {
 	struct wlr_libinput_backend *backend =
 		wl_container_of(listener, backend, session_signal);
-	struct wlr_session *session = data;
+	struct wlr_session *session = backend->session;
 
 	if (!backend->libinput_context) {
 		return;
@@ -188,7 +219,7 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 	backend->display = display;
 
 	backend->session_signal.notify = session_signal;
-	wl_signal_add(&session->session_signal, &backend->session_signal);
+	wl_signal_add(&session->events.active, &backend->session_signal);
 
 	backend->session_destroy.notify = handle_session_destroy;
 	wl_signal_add(&session->events.destroy, &backend->session_destroy);

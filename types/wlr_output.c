@@ -93,6 +93,13 @@ static void output_bind(struct wl_client *wl_client, void *data,
 	send_current_mode(resource);
 	send_scale(resource);
 	send_done(resource);
+
+	struct wlr_output_event_bind evt = {
+		.output = output,
+		.resource = resource,
+	};
+
+	wlr_signal_emit_safe(&output->events.bind, &evt);
 }
 
 void wlr_output_create_global(struct wlr_output *output) {
@@ -342,6 +349,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.precommit);
 	wl_signal_init(&output->events.commit);
 	wl_signal_init(&output->events.present);
+	wl_signal_init(&output->events.bind);
 	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.mode);
 	wl_signal_init(&output->events.scale);
@@ -359,8 +367,6 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 
 	output->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &output->display_destroy);
-
-	output->frame_pending = true;
 }
 
 void wlr_output_destroy(struct wlr_output *output) {
@@ -519,6 +525,7 @@ static bool output_basic_test(struct wlr_output *output) {
 
 		if (output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
 			if (output->attach_render_locks > 0) {
+				wlr_log(WLR_DEBUG, "Direct scan-out disabled by lock");
 				return false;
 			}
 
@@ -528,6 +535,8 @@ static bool output_basic_test(struct wlr_output *output) {
 			wl_list_for_each(cursor, &output->cursors, link) {
 				if (cursor->enabled && cursor->visible &&
 						cursor != output->hardware_cursor) {
+					wlr_log(WLR_DEBUG,
+						"Direct scan-out disabled by software cursor");
 					return false;
 				}
 			}
@@ -538,6 +547,7 @@ static bool output_basic_test(struct wlr_output *output) {
 			output_pending_resolution(output, &pending_width, &pending_height);
 			if (output->pending.buffer->width != pending_width ||
 					output->pending.buffer->height != pending_height) {
+				wlr_log(WLR_DEBUG, "Direct scan-out buffer size mismatch");
 				return false;
 			}
 		}
@@ -560,6 +570,10 @@ static bool output_basic_test(struct wlr_output *output) {
 		wlr_log(WLR_DEBUG, "Tried to enable adaptive sync on a disabled output");
 		return false;
 	}
+	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
+		wlr_log(WLR_DEBUG, "Tried to set the gamma lut on a disabled output");
+		return false;
+	}
 
 	return true;
 }
@@ -573,7 +587,7 @@ bool wlr_output_test(struct wlr_output *output) {
 
 bool wlr_output_commit(struct wlr_output *output) {
 	if (!output_basic_test(output)) {
-		wlr_log(WLR_ERROR, "Basic output test failed");
+		wlr_log(WLR_ERROR, "Basic output test failed for %s", output->name);
 		return false;
 	}
 
@@ -586,11 +600,11 @@ bool wlr_output_commit(struct wlr_output *output) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
-	struct wlr_output_event_precommit event = {
+	struct wlr_output_event_precommit pre_event = {
 		.output = output,
 		.when = &now,
 	};
-	wlr_signal_emit_safe(&output->events.precommit, &event);
+	wlr_signal_emit_safe(&output->events.precommit, &pre_event);
 
 	if (!output->impl->commit(output)) {
 		output_state_clear(&output->pending);
@@ -609,7 +623,12 @@ bool wlr_output_commit(struct wlr_output *output) {
 
 	output->commit_seq++;
 
-	wlr_signal_emit_safe(&output->events.commit, output);
+	struct wlr_output_event_commit event = {
+		.output = output,
+		.committed = output->pending.committed,
+		.when = &now,
+	};
+	wlr_signal_emit_safe(&output->events.commit, &event);
 
 	bool scale_updated = output->pending.committed & WLR_OUTPUT_STATE_SCALE;
 	if (scale_updated) {

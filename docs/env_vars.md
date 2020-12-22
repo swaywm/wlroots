@@ -9,6 +9,8 @@ wlroots reads these environment variables
 * *WLR_SESSION*: specifies the wlr\_session to be used (available sessions:
   logind/systemd, direct)
 * *WLR_DIRECT_TTY*: specifies the tty to be used (instead of using /dev/tty)
+* *WLR_XWAYLAND*: specifies the path to an Xwayland binary to be used (instead
+  of following shell search semantics for "Xwayland")
 
 ## DRM backend
 

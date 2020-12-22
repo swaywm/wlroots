@@ -4,6 +4,8 @@
 
 #include <linux/input-event-codes.h>
 
+#include <wayland-server-protocol.h>
+
 #include <xcb/xcb.h>
 #include <xcb/xfixes.h>
 #include <xcb/xinput.h>
@@ -18,7 +20,7 @@
 #include "util/signal.h"
 
 static void send_key_event(struct wlr_x11_backend *x11, uint32_t key,
-		enum wlr_key_state st, xcb_timestamp_t time) {
+		enum wl_keyboard_key_state st, xcb_timestamp_t time) {
 	struct wlr_event_keyboard_key ev = {
 		.time_msec = time,
 		.keycode = key,
@@ -123,7 +125,7 @@ void handle_x11_xinput_event(struct wlr_x11_backend *x11,
 
 		wlr_keyboard_notify_modifiers(&x11->keyboard, ev->mods.base,
 			ev->mods.latched, ev->mods.locked, ev->mods.effective);
-		send_key_event(x11, ev->detail - 8, WLR_KEY_PRESSED, ev->time);
+		send_key_event(x11, ev->detail - 8, WL_KEYBOARD_KEY_STATE_PRESSED, ev->time);
 		x11->time = ev->time;
 		break;
 	}
@@ -133,7 +135,7 @@ void handle_x11_xinput_event(struct wlr_x11_backend *x11,
 
 		wlr_keyboard_notify_modifiers(&x11->keyboard, ev->mods.base,
 			ev->mods.latched, ev->mods.locked, ev->mods.effective);
-		send_key_event(x11, ev->detail - 8, WLR_KEY_RELEASED, ev->time);
+		send_key_event(x11, ev->detail - 8, WL_KEYBOARD_KEY_STATE_RELEASED, ev->time);
 		x11->time = ev->time;
 		break;
 	}

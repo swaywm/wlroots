@@ -13,6 +13,7 @@
 #include <wlr/backend/session/interface.h>
 #include <wlr/config.h>
 #include <wlr/util/log.h>
+#include "backend/session/session.h"
 #include "util/signal.h"
 
 #if WLR_HAS_SYSTEMD
@@ -35,9 +36,7 @@ struct logind_session {
 
 	char *id;
 	char *path;
-	char *seat_path;
 
-	bool can_graphical;
 	// specifies whether a drm device was taken
 	// if so, the session will be (de)activated with the drm fd,
 	// otherwise with the dbus PropertiesChanged on "active" signal
@@ -129,8 +128,8 @@ static void logind_release_device(struct wlr_session *base, int fd) {
 static bool logind_change_vt(struct wlr_session *base, unsigned vt) {
 	struct logind_session *session = logind_session_from_session(base);
 
-	// Only seat0 has VTs associated with it
-	if (strcmp(session->base.seat, "seat0") != 0) {
+	// Only if seat has VTs associated with it
+	if (!sd_seat_can_tty(session->base.seat)) {
 		return true;
 	}
 
@@ -142,7 +141,7 @@ static bool logind_change_vt(struct wlr_session *base, unsigned vt) {
 		"/org/freedesktop/login1/seat/seat0", "org.freedesktop.login1.Seat", "SwitchTo",
 		&error, &msg, "u", (uint32_t)vt);
 	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Failed to change to vt '%d'", vt);
+		wlr_log(WLR_ERROR, "Failed to change to vt '%u'", vt);
 	}
 
 	sd_bus_error_free(&error);
@@ -170,34 +169,6 @@ static bool find_session_path(struct logind_session *session) {
 		goto out;
 	}
 	session->path = strdup(path);
-
-out:
-	sd_bus_error_free(&error);
-	sd_bus_message_unref(msg);
-
-	return ret >= 0;
-}
-
-static bool find_seat_path(struct logind_session *session) {
-	int ret;
-	sd_bus_message *msg = NULL;
-	sd_bus_error error = SD_BUS_ERROR_NULL;
-
-	ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
-			"/org/freedesktop/login1", "org.freedesktop.login1.Manager",
-			"GetSeat", &error, &msg, "s", session->base.seat);
-	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Failed to get seat path: %s", error.message);
-		goto out;
-	}
-
-	const char *path;
-	ret = sd_bus_message_read(msg, "o", &path);
-	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Could not parse seat path: %s", error.message);
-		goto out;
-	}
-	session->seat_path = strdup(path);
 
 out:
 	sd_bus_error_free(&error);
@@ -241,6 +212,32 @@ static bool take_control(struct logind_session *session) {
 	return ret >= 0;
 }
 
+static void set_type(struct logind_session *session) {
+	int ret;
+	sd_bus_message *msg = NULL;
+	sd_bus_error error = SD_BUS_ERROR_NULL;
+
+	ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
+		session->path, "org.freedesktop.login1.Session", "SetType",
+		&error, &msg, "s", "wayland");
+	if (ret < 0) {
+		wlr_log(WLR_DEBUG, "Failed to set logind session type for session: %s",
+			error.message);
+	}
+
+	sd_bus_error_free(&error);
+	sd_bus_message_unref(msg);
+
+	if (ret < 0) {
+		return;
+	}
+
+	ret = setenv("XDG_SESSION_TYPE", "wayland", 1);
+	if (ret < 0) {
+		wlr_log(WLR_ERROR, "Failed to set XDG_SESSION_TYPE for session");
+	}
+}
+
 static void release_control(struct logind_session *session) {
 	int ret;
 	sd_bus_message *msg = NULL;
@@ -267,7 +264,6 @@ static void logind_session_destroy(struct wlr_session *base) {
 	sd_bus_unref(session->bus);
 	free(session->id);
 	free(session->path);
-	free(session->seat_path);
 	free(session);
 }
 
@@ -310,7 +306,7 @@ static int pause_device(sd_bus_message *msg, void *userdata,
 	if (major == DRM_MAJOR && strcmp(type, "gone") != 0) {
 		assert(session->has_drm);
 		session->base.active = false;
-		wlr_signal_emit_safe(&session->base.session_signal, session);
+		wlr_signal_emit_safe(&session->base.events.active, NULL);
 	}
 
 	if (strcmp(type, "pause") == 0) {
@@ -352,7 +348,7 @@ static int resume_device(sd_bus_message *msg, void *userdata,
 
 		if (!session->base.active) {
 			session->base.active = true;
-			wlr_signal_emit_safe(&session->base.session_signal, session);
+			wlr_signal_emit_safe(&session->base.events.active, NULL);
 		}
 	}
 
@@ -411,7 +407,7 @@ static int session_properties_changed(sd_bus_message *msg, void *userdata,
 
 			if (session->base.active != active) {
 				session->base.active = active;
-				wlr_signal_emit_safe(&session->base.session_signal, session);
+				wlr_signal_emit_safe(&session->base.events.active, NULL);
 			}
 			return 0;
 		} else {
@@ -451,97 +447,8 @@ static int session_properties_changed(sd_bus_message *msg, void *userdata,
 
 			if (session->base.active != active) {
 				session->base.active = active;
-				wlr_signal_emit_safe(&session->base.session_signal, session);
+				wlr_signal_emit_safe(&session->base.events.active, NULL);
 			}
-			return 0;
-		}
-	}
-
-	if (ret < 0) {
-		goto error;
-	}
-
-	return 0;
-
-error:
-	wlr_log(WLR_ERROR, "Failed to parse D-Bus PropertiesChanged: %s",
-		strerror(-ret));
-	return 0;
-}
-
-static int seat_properties_changed(sd_bus_message *msg, void *userdata,
-		sd_bus_error *ret_error) {
-	struct logind_session *session = userdata;
-	int ret = 0;
-
-	// if we have a drm fd we don't depend on this
-	if (session->has_drm) {
-		return 0;
-	}
-
-	// PropertiesChanged arg 1: interface
-	const char *interface;
-	ret = sd_bus_message_read_basic(msg, 's', &interface); // skip path
-	if (ret < 0) {
-		goto error;
-	}
-
-	if (strcmp(interface, "org.freedesktop.login1.Seat") != 0) {
-		// not interesting for us; ignore
-		wlr_log(WLR_DEBUG, "ignoring PropertiesChanged from %s", interface);
-		return 0;
-	}
-
-	// PropertiesChanged arg 2: changed properties with values
-	ret = sd_bus_message_enter_container(msg, 'a', "{sv}");
-	if (ret < 0) {
-		goto error;
-	}
-
-	const char *s;
-	while ((ret = sd_bus_message_enter_container(msg, 'e', "sv")) > 0) {
-		ret = sd_bus_message_read_basic(msg, 's', &s);
-		if (ret < 0) {
-			goto error;
-		}
-
-		if (strcmp(s, "CanGraphical") == 0) {
-			int ret;
-			ret = sd_bus_message_enter_container(msg, 'v', "b");
-			if (ret < 0) {
-				goto error;
-			}
-
-			ret = sd_bus_message_read_basic(msg, 'b', &session->can_graphical);
-			if (ret < 0) {
-				goto error;
-			}
-
-			return 0;
-		} else {
-			sd_bus_message_skip(msg, "{sv}");
-		}
-
-		ret = sd_bus_message_exit_container(msg);
-		if (ret < 0) {
-			goto error;
-		}
-	}
-
-	if (ret < 0) {
-		goto error;
-	}
-
-	ret = sd_bus_message_exit_container(msg);
-	if (ret < 0) {
-		goto error;
-	}
-
-	// PropertiesChanged arg 3: changed properties without values
-	sd_bus_message_enter_container(msg, 'a', "s");
-	while ((ret = sd_bus_message_read_basic(msg, 's', &s)) > 0) {
-		if (strcmp(s, "CanGraphical") == 0) {
-			session->can_graphical = sd_seat_can_graphical(session->base.seat);
 			return 0;
 		}
 	}
@@ -590,14 +497,6 @@ static bool add_signal_matches(struct logind_session *session) {
 	ret = sd_bus_match_signal(session->bus, NULL, logind, session->path,
 		property_interface, "PropertiesChanged",
 		session_properties_changed, session);
-	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
-		return false;
-	}
-
-	ret = sd_bus_match_signal(session->bus, NULL, logind, session->seat_path,
-		property_interface, "PropertiesChanged",
-		seat_properties_changed, session);
 	if (ret < 0) {
 		wlr_log(WLR_ERROR, "Failed to add D-Bus match: %s", strerror(-ret));
 		return false;
@@ -670,6 +569,8 @@ static bool get_display_session(char **session_id) {
 	char *xdg_session_id = getenv("XDG_SESSION_ID");
 
 	if (xdg_session_id) {
+		wlr_log(WLR_INFO, "Selecting session from XDG_SESSION_ID: %s", xdg_session_id);
+
 		// This just checks whether the supplied session ID is valid
 		if (sd_session_is_active(xdg_session_id) < 0) {
 			wlr_log(WLR_ERROR, "Invalid XDG_SESSION_ID: '%s'", xdg_session_id);
@@ -750,6 +651,8 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 		return NULL;
 	}
 
+	session_init(&session->base);
+
 	if (!get_display_session(&session->id)) {
 		goto error;
 	}
@@ -762,7 +665,7 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 	}
 	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
 
-	if (strcmp(seat, "seat0") == 0) {
+	if (sd_seat_can_tty(seat)) {
 		ret = sd_session_get_vt(session->id, &session->base.vtnr);
 		if (ret < 0) {
 			wlr_log(WLR_ERROR, "Session not running in virtual terminal");
@@ -782,12 +685,6 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 		goto error;
 	}
 
-	if (!find_seat_path(session)) {
-		sd_bus_unref(session->bus);
-		free(session->path);
-		goto error;
-	}
-
 	if (!add_signal_matches(session)) {
 		goto error_bus;
 	}
@@ -804,30 +701,18 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 		goto error_bus;
 	}
 
-	// Check for CanGraphical first
-	session->can_graphical = sd_seat_can_graphical(session->base.seat);
-	if (!session->can_graphical) {
-		wlr_log(WLR_INFO, "Waiting for 'CanGraphical' on seat %s", session->base.seat);
-	}
-
-	while (!session->can_graphical) {
-		ret = wl_event_loop_dispatch(event_loop, -1);
-		if (ret < 0) {
-			wlr_log(WLR_ERROR, "Polling error waiting for 'CanGraphical' on seat %s",
-				session->base.seat);
-			goto error_bus;
-		}
-	}
+	set_type(session);
 
 	wlr_log(WLR_INFO, "Successfully loaded logind session");
 
 	session->base.impl = &session_logind;
+	session->base.active = true;
+
 	return &session->base;
 
 error_bus:
 	sd_bus_unref(session->bus);
 	free(session->path);
-	free(session->seat_path);
 
 error:
 	free(session->id);

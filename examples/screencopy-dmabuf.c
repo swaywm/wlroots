@@ -297,7 +297,7 @@ int main(int argc, char *argv[]) {
 
 	drm_fd = open(render_node, O_RDWR);
 	if (drm_fd < 0) {
-		fprintf(stderr, "Failed to open drm render node: %m\n");
+		perror("Failed to open drm render node");
 		return EXIT_FAILURE;
 	}
 
@@ -309,13 +309,12 @@ int main(int argc, char *argv[]) {
 
 	struct wl_display *display = wl_display_connect(NULL);
 	if (display == NULL) {
-		fprintf(stderr, "failed to create display: %m\n");
+		perror("failed to create display");
 		return EXIT_FAILURE;
 	}
 
 	struct wl_registry *registry = wl_display_get_registry(display);
 	wl_registry_add_listener(registry, &registry_listener, NULL);
-	wl_display_dispatch(display);
 	wl_display_roundtrip(display);
 
 	if (dmabuf == NULL) {
@@ -344,7 +343,7 @@ int main(int argc, char *argv[]) {
 	void *data = gbm_bo_map(buffer.bo, 0, 0, buffer.width, buffer.height,
 			GBM_BO_TRANSFER_READ, &stride, &map_data);
 	if (!data) {
-		fprintf(stderr, "Failed to map gbm bo: %m\n");
+		perror("Failed to map gbm bo");
 		return EXIT_FAILURE;
 	}
 

@@ -74,7 +74,7 @@ static void layer_surface_handle_ack_configure(struct wl_client *client,
 	if (!found) {
 		wl_resource_post_error(resource,
 			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_SURFACE_STATE,
-			"wrong configure serial: %u", serial);
+			"wrong configure serial: %" PRIu32, serial);
 		return;
 	}
 	// Then remove old configures from the list
@@ -114,7 +114,7 @@ static void layer_surface_handle_set_anchor(struct wl_client *client,
 	if (anchor > max_anchor) {
 		wl_resource_post_error(resource,
 			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_ANCHOR,
-			"invalid anchor %d", anchor);
+			"invalid anchor %" PRIu32, anchor);
 	}
 	struct wlr_layer_surface_v1 *surface = layer_surface_from_resource(resource);
 
@@ -187,7 +187,7 @@ static void layer_surface_set_layer(struct wl_client *client,
 	if (layer > ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY) {
 		wl_resource_post_error(surface->resource,
 				ZWLR_LAYER_SHELL_V1_ERROR_INVALID_LAYER,
-				"Invalid layer %d", layer);
+				"Invalid layer %" PRIu32, layer);
 		return;
 	}
 	surface->client_pending.layer = layer;
@@ -307,6 +307,26 @@ static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
 		return;
 	}
 
+	const uint32_t horiz = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+		ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+	if (surface->client_pending.desired_width == 0 &&
+		(surface->client_pending.anchor & horiz) != horiz) {
+		wl_resource_post_error(surface->resource,
+			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_SIZE,
+			"width 0 requested without setting left and right anchors");
+		return;
+	}
+
+	const uint32_t vert = ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
+		ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
+	if (surface->client_pending.desired_height == 0 &&
+		(surface->client_pending.anchor & vert) != vert) {
+		wl_resource_post_error(surface->resource,
+			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_SIZE,
+			"height 0 requested without setting top and bottom anchors");
+		return;
+	}
+
 	if (surface->closed) {
 		// Ignore commits after the compositor has closed it
 		return;
@@ -403,7 +423,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 		free(surface);
 		wl_resource_post_error(client_resource,
 				ZWLR_LAYER_SHELL_V1_ERROR_INVALID_LAYER,
-				"Invalid layer %d", layer);
+				"Invalid layer %" PRIu32, layer);
 		return;
 	}
 	surface->namespace = strdup(namespace);
@@ -534,16 +554,20 @@ static void xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
 	}
 }
 
-static void layer_surface_for_each_surface(struct wlr_layer_surface_v1 *surface,
-		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data) {
+void wlr_layer_surface_v1_for_each_surface(struct wlr_layer_surface_v1 *surface,
+		wlr_surface_iterator_func_t iterator, void *user_data) {
 	struct layer_surface_iterator_data data = {
 		.user_iterator = iterator,
 		.user_data = user_data,
-		.x = x, .y = y,
+		.x = 0, .y = 0,
 	};
 	wlr_surface_for_each_surface(surface->surface,
 			layer_surface_iterator, &data);
+	wlr_layer_surface_v1_for_each_popup(surface, iterator, user_data);
+}
 
+void wlr_layer_surface_v1_for_each_popup(struct wlr_layer_surface_v1 *surface,
+		wlr_surface_iterator_func_t iterator, void *user_data){
 	struct wlr_xdg_popup *popup_state;
 	wl_list_for_each(popup_state, &surface->popups, link) {
 		struct wlr_xdg_surface *popup = popup_state->base;
@@ -558,11 +582,6 @@ static void layer_surface_for_each_surface(struct wlr_layer_surface_v1 *surface,
 		xdg_surface_for_each_surface(popup,
 			popup_sx, popup_sy, iterator, user_data);
 	}
-}
-
-void wlr_layer_surface_v1_for_each_surface(struct wlr_layer_surface_v1 *surface,
-		wlr_surface_iterator_func_t iterator, void *user_data) {
-	layer_surface_for_each_surface(surface, 0, 0, iterator, user_data);
 }
 
 struct wlr_surface *wlr_layer_surface_v1_surface_at(

@@ -15,15 +15,14 @@
 #ifndef EGL_NO_X11
 #define EGL_NO_X11
 #endif
+#ifndef EGL_NO_PLATFORM_SPECIFIC_TYPES
+#define EGL_NO_PLATFORM_SPECIFIC_TYPES
+#endif
 
 #include <wlr/config.h>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#if WLR_HAS_EGLMESAEXT_H
-// TODO: remove eglmesaext.h
-#include <EGL/eglmesaext.h>
-#endif
 #include <pixman.h>
 #include <stdbool.h>
 #include <wayland-server-core.h>
@@ -42,8 +41,10 @@ struct wlr_egl {
 	EGLDisplay display;
 	EGLConfig config;
 	EGLContext context;
+	EGLDeviceEXT device; // may be EGL_NO_DEVICE_EXT
 
 	struct {
+		// Display extensions
 		bool bind_wayland_display_wl;
 		bool buffer_age_ext;
 		bool image_base_khr;
@@ -51,6 +52,9 @@ struct wlr_egl {
 		bool image_dmabuf_import_ext;
 		bool image_dmabuf_import_modifiers_ext;
 		bool swap_buffers_with_damage;
+
+		// Device extensions
+		bool device_drm_ext;
 	} exts;
 
 	struct {
@@ -67,12 +71,14 @@ struct wlr_egl {
 		PFNEGLEXPORTDMABUFIMAGEQUERYMESAPROC eglExportDMABUFImageQueryMESA;
 		PFNEGLEXPORTDMABUFIMAGEMESAPROC eglExportDMABUFImageMESA;
 		PFNEGLDEBUGMESSAGECONTROLKHRPROC eglDebugMessageControlKHR;
+		PFNEGLQUERYDISPLAYATTRIBEXTPROC eglQueryDisplayAttribEXT;
+		PFNEGLQUERYDEVICESTRINGEXTPROC eglQueryDeviceStringEXT;
 	} procs;
 
 	struct wl_display *wl_display;
 
-	struct wlr_drm_format_set dmabuf_formats;
-	EGLBoolean **external_only_dmabuf_formats;
+	struct wlr_drm_format_set dmabuf_texture_formats;
+	struct wlr_drm_format_set dmabuf_render_formats;
 };
 
 // TODO: Allocate and return a wlr_egl
@@ -117,9 +123,15 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 	struct wlr_dmabuf_attributes *attributes, bool *external_only);
 
 /**
- * Get the available dmabuf formats
+ * Get DMA-BUF formats suitable for sampling usage.
  */
-const struct wlr_drm_format_set *wlr_egl_get_dmabuf_formats(struct wlr_egl *egl);
+const struct wlr_drm_format_set *wlr_egl_get_dmabuf_texture_formats(
+	struct wlr_egl *egl);
+/**
+ * Get DMA-BUF formats suitable for rendering usage.
+ */
+const struct wlr_drm_format_set *wlr_egl_get_dmabuf_render_formats(
+	struct wlr_egl *egl);
 
 bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
 	int32_t width, int32_t height, uint32_t flags,
@@ -160,5 +172,7 @@ bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
 	pixman_region32_t *damage);
 
 bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface);
+
+int wlr_egl_dup_drm_fd(struct wlr_egl *egl);
 
 #endif

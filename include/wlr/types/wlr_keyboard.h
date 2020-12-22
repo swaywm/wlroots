@@ -12,28 +12,28 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
-#include <wayland-server-core.h>
+#include <wayland-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
 
 #define WLR_LED_COUNT 3
 
 enum wlr_keyboard_led {
-	WLR_LED_NUM_LOCK = 1,
-	WLR_LED_CAPS_LOCK = 2,
-	WLR_LED_SCROLL_LOCK = 4,
+	WLR_LED_NUM_LOCK = 1 << 0,
+	WLR_LED_CAPS_LOCK = 1 << 1,
+	WLR_LED_SCROLL_LOCK = 1 << 2,
 };
 
 #define WLR_MODIFIER_COUNT 8
 
 enum wlr_keyboard_modifier {
-	WLR_MODIFIER_SHIFT = 1,
-	WLR_MODIFIER_CAPS = 2,
-	WLR_MODIFIER_CTRL = 4,
-	WLR_MODIFIER_ALT = 8,
-	WLR_MODIFIER_MOD2 = 16,
-	WLR_MODIFIER_MOD3 = 32,
-	WLR_MODIFIER_LOGO = 64,
-	WLR_MODIFIER_MOD5 = 128,
+	WLR_MODIFIER_SHIFT = 1 << 0,
+	WLR_MODIFIER_CAPS = 1 << 1,
+	WLR_MODIFIER_CTRL = 1 << 2,
+	WLR_MODIFIER_ALT = 1 << 3,
+	WLR_MODIFIER_MOD2 = 1 << 4,
+	WLR_MODIFIER_MOD3 = 1 << 5,
+	WLR_MODIFIER_LOGO = 1 << 6,
+	WLR_MODIFIER_MOD5 = 1 << 7,
 };
 
 #define WLR_KEYBOARD_KEYS_CAP 32
@@ -91,16 +91,11 @@ struct wlr_keyboard {
 	void *data;
 };
 
-enum wlr_key_state {
-	WLR_KEY_RELEASED,
-	WLR_KEY_PRESSED,
-};
-
 struct wlr_event_keyboard_key {
 	uint32_t time_msec;
 	uint32_t keycode;
 	bool update_state; // if backend doesn't update modifiers on its own
-	enum wlr_key_state state;
+	enum wl_keyboard_key_state state;
 };
 
 bool wlr_keyboard_set_keymap(struct wlr_keyboard *kb,

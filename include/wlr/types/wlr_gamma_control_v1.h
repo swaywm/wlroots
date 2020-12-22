@@ -21,6 +21,10 @@ struct wlr_gamma_control_v1 {
 	struct wlr_output *output;
 	struct wl_list link;
 
+	uint16_t *table;
+	size_t ramp_size;
+
+	struct wl_listener output_commit_listener;
 	struct wl_listener output_destroy_listener;
 
 	void *data;

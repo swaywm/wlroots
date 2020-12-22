@@ -29,7 +29,7 @@ struct wlr_gles2_texture *gles2_get_texture(
 static struct wlr_gles2_texture *get_gles2_texture_in_context(
 		struct wlr_texture *wlr_texture) {
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
-	wlr_egl_make_current(texture->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_make_current(texture->renderer->egl, EGL_NO_SURFACE, NULL);
 	return texture;
 }
 
@@ -47,7 +47,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 
 	if (texture->target != GL_TEXTURE_2D) {
 		wlr_log(WLR_ERROR, "Cannot write pixels to immutable texture");
-		wlr_egl_unset_current(texture->egl);
+		wlr_egl_unset_current(texture->renderer->egl);
 		return false;
 	}
 
@@ -55,8 +55,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 		get_gles2_format_from_wl(texture->wl_format);
 	assert(fmt);
 
-	// TODO: what if the unpack subimage extension isn't supported?
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(texture->renderer);
 
 	glBindTexture(GL_TEXTURE_2D, texture->tex);
 
@@ -73,9 +72,9 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(texture->renderer);
 
-	wlr_egl_unset_current(texture->egl);
+	wlr_egl_unset_current(texture->renderer->egl);
 	return true;
 }
 
@@ -86,12 +85,12 @@ static bool gles2_texture_to_dmabuf(struct wlr_texture *wlr_texture,
 	if (!texture->image) {
 		assert(texture->target == GL_TEXTURE_2D);
 
-		if (!texture->egl->exts.image_base_khr) {
+		if (!texture->renderer->egl->exts.image_base_khr) {
 			return false;
 		}
 
-		texture->image = texture->egl->procs.eglCreateImageKHR(
-			texture->egl->display, texture->egl->context, EGL_GL_TEXTURE_2D_KHR,
+		texture->image = texture->renderer->egl->procs.eglCreateImageKHR(
+			texture->renderer->egl->display, texture->renderer->egl->context, EGL_GL_TEXTURE_2D_KHR,
 			(EGLClientBuffer)(uintptr_t)texture->tex, NULL);
 		if (texture->image == EGL_NO_IMAGE_KHR) {
 			return false;
@@ -103,7 +102,7 @@ static bool gles2_texture_to_dmabuf(struct wlr_texture *wlr_texture,
 		flags |= WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT;
 	}
 
-	return wlr_egl_export_image_to_dmabuf(texture->egl, texture->image,
+	return wlr_egl_export_image_to_dmabuf(texture->renderer->egl, texture->image,
 		wlr_texture->width, wlr_texture->height, flags, attribs);
 }
 
@@ -115,14 +114,14 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 	struct wlr_gles2_texture *texture =
 		get_gles2_texture_in_context(wlr_texture);
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(texture->renderer);
 
 	glDeleteTextures(1, &texture->tex);
-	wlr_egl_destroy_image(texture->egl, texture->image);
+	wlr_egl_destroy_image(texture->renderer->egl, texture->image);
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(texture->renderer);
 
-	wlr_egl_unset_current(texture->egl);
+	wlr_egl_unset_current(texture->renderer->egl);
 
 	free(texture);
 }
@@ -134,10 +133,12 @@ static const struct wlr_texture_impl texture_impl = {
 	.destroy = gles2_texture_destroy,
 };
 
-struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
+struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data) {
-	wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+
+	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
 
 	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
@@ -152,12 +153,12 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 		return NULL;
 	}
 	wlr_texture_init(&texture->wlr_texture, &texture_impl, width, height);
-	texture->egl = egl;
+	texture->renderer = renderer;
 	texture->target = GL_TEXTURE_2D;
 	texture->has_alpha = fmt->has_alpha;
 	texture->wl_format = fmt->wl_format;
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 
 	glGenTextures(1, &texture->tex);
 	glBindTexture(GL_TEXTURE_2D, texture->tex);
@@ -169,24 +170,26 @@ struct wlr_texture *wlr_gles2_texture_from_pixels(struct wlr_egl *egl,
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 
-	wlr_egl_unset_current(egl);
+	wlr_egl_unset_current(renderer->egl);
 	return &texture->wlr_texture;
 }
 
-struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
+struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 		struct wl_resource *resource) {
-	wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
-	if (!gles2_procs.glEGLImageTargetTexture2DOES) {
+	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
+
+	if (!renderer->procs.glEGLImageTargetTexture2DOES) {
 		return NULL;
 	}
 
 	EGLint fmt;
 	int width, height;
 	bool inverted_y;
-	EGLImageKHR image = wlr_egl_create_image_from_wl_drm(egl, resource,
+	EGLImageKHR image = wlr_egl_create_image_from_wl_drm(renderer->egl, resource,
 		&fmt, &width, &height, &inverted_y);
 	if (image == EGL_NO_IMAGE_KHR) {
 		wlr_log(WLR_ERROR, "Failed to create EGL image from wl_drm resource");
@@ -197,11 +200,11 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 		calloc(1, sizeof(struct wlr_gles2_texture));
 	if (texture == NULL) {
 		wlr_log(WLR_ERROR, "Allocation failed");
-		wlr_egl_destroy_image(egl, image);
+		wlr_egl_destroy_image(renderer->egl, image);
 		return NULL;
 	}
 	wlr_texture_init(&texture->wlr_texture, &texture_impl, width, height);
-	texture->egl = egl;
+	texture->renderer = renderer;
 
 	texture->wl_format = 0xFFFFFFFF; // texture can't be written anyways
 	texture->image = image;
@@ -217,36 +220,38 @@ struct wlr_texture *wlr_gles2_texture_from_wl_drm(struct wlr_egl *egl,
 		break;
 	default:
 		wlr_log(WLR_ERROR, "Invalid or unsupported EGL buffer format");
-		wlr_egl_destroy_image(egl, image);
+		wlr_egl_destroy_image(renderer->egl, image);
 		free(texture);
 		return NULL;
 	}
 
 	texture->target = GL_TEXTURE_EXTERNAL_OES;
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 
 	glGenTextures(1, &texture->tex);
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture->tex);
-	gles2_procs.glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
+	renderer->procs.glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
 		texture->image);
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 
-	wlr_egl_unset_current(egl);
+	wlr_egl_unset_current(renderer->egl);
 	return &texture->wlr_texture;
 }
 
-struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
+struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 		struct wlr_dmabuf_attributes *attribs) {
-	wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
-	if (!gles2_procs.glEGLImageTargetTexture2DOES) {
+	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
+
+	if (!renderer->procs.glEGLImageTargetTexture2DOES) {
 		return NULL;
 	}
 
-	if (!egl->exts.image_dmabuf_import_ext) {
+	if (!renderer->egl->exts.image_dmabuf_import_ext) {
 		wlr_log(WLR_ERROR, "Cannot create DMA-BUF texture: EGL extension "
 			"unavailable");
 		return NULL;
@@ -272,7 +277,7 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 	}
 	wlr_texture_init(&texture->wlr_texture, &texture_impl,
 		attribs->width, attribs->height);
-	texture->egl = egl;
+	texture->renderer = renderer;
 	texture->has_alpha = true;
 	texture->wl_format = 0xFFFFFFFF; // texture can't be written anyways
 	texture->inverted_y =
@@ -280,7 +285,7 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 
 	bool external_only;
 	texture->image =
-		wlr_egl_create_image_from_dmabuf(egl, attribs, &external_only);
+		wlr_egl_create_image_from_dmabuf(renderer->egl, attribs, &external_only);
 	if (texture->image == EGL_NO_IMAGE_KHR) {
 		wlr_log(WLR_ERROR, "Failed to create EGL image from DMA-BUF");
 		free(texture);
@@ -289,16 +294,16 @@ struct wlr_texture *wlr_gles2_texture_from_dmabuf(struct wlr_egl *egl,
 
 	texture->target = external_only ? GL_TEXTURE_EXTERNAL_OES : GL_TEXTURE_2D;
 
-	PUSH_GLES2_DEBUG;
+	push_gles2_debug(renderer);
 
 	glGenTextures(1, &texture->tex);
 	glBindTexture(texture->target, texture->tex);
-	gles2_procs.glEGLImageTargetTexture2DOES(texture->target, texture->image);
+	renderer->procs.glEGLImageTargetTexture2DOES(texture->target, texture->image);
 	glBindTexture(texture->target, 0);
 
-	POP_GLES2_DEBUG;
+	pop_gles2_debug(renderer);
 
-	wlr_egl_unset_current(egl);
+	wlr_egl_unset_current(renderer->egl);
 	return &texture->wlr_texture;
 }
 

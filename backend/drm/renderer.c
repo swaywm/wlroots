@@ -1,5 +1,7 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <drm_fourcc.h>
+#include <fcntl.h>
 #include <gbm.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -12,9 +14,14 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "backend/drm/drm.h"
+#include "render/drm_format_set.h"
+#include "render/gbm_allocator.h"
+#include "render/swapchain.h"
+#include "render/wlr_renderer.h"
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer, wlr_renderer_create_func_t create_renderer_func) {
+	// TODO: get rid of renderer->gbm
 	renderer->gbm = gbm_create_device(drm->fd);
 	if (!renderer->gbm) {
 		wlr_log(WLR_ERROR, "Failed to create GBM device");
@@ -25,29 +32,31 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		create_renderer_func = wlr_renderer_autocreate;
 	}
 
-	static EGLint config_attribs[] = {
-		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-		EGL_RED_SIZE, 1,
-		EGL_GREEN_SIZE, 1,
-		EGL_BLUE_SIZE, 1,
-		EGL_ALPHA_SIZE, 1,
-		EGL_NONE,
-	};
-	
-	// TODO: allow setting from sway config/args. Have sane default set.
-	renderer->gbm_format = GBM_FORMAT_ARGB2101010;
 	renderer->wlr_rend = create_renderer_func(&renderer->egl,
-		EGL_PLATFORM_GBM_MESA, renderer->gbm,
-		config_attribs, renderer->gbm_format);
+		EGL_PLATFORM_GBM_KHR, renderer->gbm, NULL, 0);
 	if (!renderer->wlr_rend) {
 		wlr_log(WLR_ERROR, "Failed to create EGL/WLR renderer");
 		goto error_gbm;
 	}
 
+	int alloc_fd = fcntl(drm->fd, F_DUPFD_CLOEXEC, 0);
+	if (alloc_fd < 0) {
+		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+		goto error_wlr_rend;
+	}
+
+	renderer->allocator = wlr_gbm_allocator_create(alloc_fd);
+	if (renderer->allocator == NULL) {
+		wlr_log(WLR_ERROR, "Failed to create allocator");
+		close(alloc_fd);
+		goto error_wlr_rend;
+	}
+
 	renderer->fd = drm->fd;
 	return true;
 
+error_wlr_rend:
+	wlr_renderer_destroy(renderer->wlr_rend);
 error_gbm:
 	gbm_device_destroy(renderer->gbm);
 	return false;
@@ -58,6 +67,7 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 		return;
 	}
 
+	wlr_allocator_destroy(&renderer->allocator->base);
 	wlr_renderer_destroy(renderer->wlr_rend);
 	wlr_egl_finish(&renderer->egl);
 	gbm_device_destroy(renderer->gbm);
@@ -65,7 +75,7 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 
 static bool init_drm_surface(struct wlr_drm_surface *surf,
 		struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
-		uint32_t format, struct wlr_drm_format_set *set, uint32_t flags) {
+		const struct wlr_drm_format *drm_format) {
 	if (surf->width == width && surf->height == height) {
 		return true;
 	}
@@ -74,43 +84,20 @@ static bool init_drm_surface(struct wlr_drm_surface *surf,
 	surf->width = width;
 	surf->height = height;
 
-	if (surf->gbm) {
-		gbm_surface_destroy(surf->gbm);
-		surf->gbm = NULL;
-	}
-	wlr_egl_destroy_surface(&surf->renderer->egl, surf->egl);
+	wlr_buffer_unlock(surf->back_buffer);
+	surf->back_buffer = NULL;
+	wlr_swapchain_destroy(surf->swapchain);
+	surf->swapchain = NULL;
 
-	if (!(flags & GBM_BO_USE_LINEAR) && set != NULL) {
-		const struct wlr_drm_format *drm_format =
-			wlr_drm_format_set_get(set, format);
-		if (drm_format != NULL) {
-			surf->gbm = gbm_surface_create_with_modifiers(renderer->gbm,
-				width, height, format, drm_format->modifiers, drm_format->len);
-		}
-	}
-
-	if (surf->gbm == NULL) {
-		surf->gbm = gbm_surface_create(renderer->gbm, width, height,
-			format, GBM_BO_USE_RENDERING | flags);
-	}
-	if (!surf->gbm) {
-		wlr_log_errno(WLR_ERROR, "Failed to create GBM surface");
-		goto error_zero;
-	}
-
-	surf->egl = wlr_egl_create_surface(&renderer->egl, surf->gbm);
-	if (surf->egl == EGL_NO_SURFACE) {
-		wlr_log(WLR_ERROR, "Failed to create EGL surface");
-		goto error_gbm;
+	surf->swapchain = wlr_swapchain_create(&renderer->allocator->base,
+		width, height, drm_format);
+	if (surf->swapchain == NULL) {
+		wlr_log(WLR_ERROR, "Failed to create swapchain");
+		memset(surf, 0, sizeof(*surf));
+		return false;
 	}
 
 	return true;
-
-error_gbm:
-	gbm_surface_destroy(surf->gbm);
-error_zero:
-	memset(surf, 0, sizeof(*surf));
-	return false;
 }
 
 static void finish_drm_surface(struct wlr_drm_surface *surf) {
@@ -118,17 +105,40 @@ static void finish_drm_surface(struct wlr_drm_surface *surf) {
 		return;
 	}
 
-	wlr_egl_destroy_surface(&surf->renderer->egl, surf->egl);
-	if (surf->gbm) {
-		gbm_surface_destroy(surf->gbm);
-	}
+	wlr_buffer_unlock(surf->back_buffer);
+	wlr_swapchain_destroy(surf->swapchain);
 
 	memset(surf, 0, sizeof(*surf));
 }
 
 bool drm_surface_make_current(struct wlr_drm_surface *surf,
 		int *buffer_age) {
-	return wlr_egl_make_current(&surf->renderer->egl, surf->egl, buffer_age);
+	wlr_buffer_unlock(surf->back_buffer);
+	surf->back_buffer = wlr_swapchain_acquire(surf->swapchain, buffer_age);
+	if (surf->back_buffer == NULL) {
+		wlr_log(WLR_ERROR, "Failed to acquire swapchain buffer");
+		return false;
+	}
+
+	if (!wlr_egl_make_current(&surf->renderer->egl, EGL_NO_SURFACE, NULL)) {
+		return false;
+	}
+	if (!wlr_renderer_bind_buffer(surf->renderer->wlr_rend, surf->back_buffer)) {
+		wlr_log(WLR_ERROR, "Failed to attach buffer to renderer");
+		return false;
+	}
+
+	return true;
+}
+
+void drm_surface_unset_current(struct wlr_drm_surface *surf) {
+	assert(surf->back_buffer != NULL);
+
+	wlr_renderer_bind_buffer(surf->renderer->wlr_rend, NULL);
+	wlr_egl_unset_current(&surf->renderer->egl);
+
+	wlr_buffer_unlock(surf->back_buffer);
+	surf->back_buffer = NULL;
 }
 
 bool export_drm_bo(struct gbm_bo *bo, struct wlr_dmabuf_attributes *attribs) {
@@ -203,8 +213,6 @@ static uint32_t strip_alpha_channel(uint32_t format) {
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:
 		return DRM_FORMAT_XRGB8888;
-	case DRM_FORMAT_ARGB2101010:
-		return DRM_FORMAT_XRGB2101010;
 	default:
 		return DRM_FORMAT_INVALID;
 	}
@@ -212,85 +220,117 @@ static uint32_t strip_alpha_channel(uint32_t format) {
 
 bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
-		uint32_t format, uint32_t flags, bool with_modifiers) {
+		uint32_t format, bool force_linear, bool with_modifiers) {
 	if (!wlr_drm_format_set_has(&plane->formats, format, DRM_FORMAT_MOD_INVALID)) {
 		format = strip_alpha_channel(format);
 	}
-	if (!wlr_drm_format_set_has(&plane->formats, format, DRM_FORMAT_MOD_INVALID)) {
+	const struct wlr_drm_format *plane_format =
+		wlr_drm_format_set_get(&plane->formats, format);
+	if (plane_format == NULL) {
 		wlr_log(WLR_ERROR, "Plane %"PRIu32" doesn't support format 0x%"PRIX32,
 			plane->id, format);
 		return false;
 	}
 
-	struct wlr_drm_format_set *format_set =
-		with_modifiers ? &plane->formats : NULL;
+	const struct wlr_drm_format_set *render_formats =
+		wlr_renderer_get_dmabuf_render_formats(drm->renderer.wlr_rend);
+	if (render_formats == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get render formats");
+		return false;
+	}
+	const struct wlr_drm_format *render_format =
+		wlr_drm_format_set_get(render_formats, format);
+	if (render_format == NULL) {
+		wlr_log(WLR_ERROR, "Renderer doesn't support format 0x%"PRIX32,
+			format);
+		return false;
+	}
+
+	struct wlr_drm_format *drm_format = NULL;
+	if (with_modifiers) {
+		drm_format = wlr_drm_format_intersect(plane_format, render_format);
+		if (drm_format == NULL) {
+			wlr_log(WLR_ERROR,
+				"Failed to intersect plane and render formats 0x%"PRIX32,
+				format);
+			return false;
+		}
+	} else {
+		drm_format = wlr_drm_format_create(format);
+	}
+
+	struct wlr_drm_format *drm_format_linear = wlr_drm_format_create(format);
+	if (drm_format_linear == NULL) {
+		free(drm_format);
+		return false;
+	}
+	if (!wlr_drm_format_add(&drm_format_linear, DRM_FORMAT_MOD_LINEAR)) {
+		free(drm_format_linear);
+		free(drm_format);
+		return false;
+	}
+
+	if (force_linear) {
+		free(drm_format);
+		drm_format = wlr_drm_format_dup(drm_format_linear);
+	}
 
 	drm_plane_finish_surface(plane);
 
+	bool ok = true;
 	if (!drm->parent) {
-		return init_drm_surface(&plane->surf, &drm->renderer, width, height,
-			format, format_set, flags | GBM_BO_USE_SCANOUT);
+		ok = init_drm_surface(&plane->surf, &drm->renderer,
+			width, height, drm_format);
+	} else {
+		ok = init_drm_surface(&plane->surf, &drm->parent->renderer,
+			width, height, drm_format_linear);
+		if (ok && !init_drm_surface(&plane->mgpu_surf, &drm->renderer,
+				width, height, drm_format)) {
+			finish_drm_surface(&plane->surf);
+			ok = false;
+		}
 	}
 
-	if (!init_drm_surface(&plane->surf, &drm->parent->renderer,
-			width, height, format, NULL,
-			flags | GBM_BO_USE_LINEAR)) {
-		return false;
-	}
+	free(drm_format_linear);
+	free(drm_format);
 
-	if (!init_drm_surface(&plane->mgpu_surf, &drm->renderer,
-			width, height, format, format_set,
-			flags | GBM_BO_USE_SCANOUT)) {
-		finish_drm_surface(&plane->surf);
-		return false;
-	}
-
-	return true;
+	return ok;
 }
 
 void drm_fb_clear(struct wlr_drm_fb *fb) {
-	switch (fb->type) {
-	case WLR_DRM_FB_TYPE_NONE:
-		assert(!fb->bo);
-		break;
-	case WLR_DRM_FB_TYPE_SURFACE:
-		gbm_surface_release_buffer(fb->surf->gbm, fb->bo);
-		break;
-	case WLR_DRM_FB_TYPE_WLR_BUFFER:
-		gbm_bo_destroy(fb->bo);
-		wlr_buffer_unlock(fb->wlr_buf);
-		fb->wlr_buf = NULL;
-		break;
+	if (!fb->bo) {
+		assert(!fb->wlr_buf);
+		return;
 	}
 
-	fb->type = WLR_DRM_FB_TYPE_NONE;
+	gbm_bo_destroy(fb->bo);
+	wlr_buffer_unlock(fb->wlr_buf);
+
+	fb->wlr_buf = NULL;
 	fb->bo = NULL;
 
 	if (fb->mgpu_bo) {
 		assert(fb->mgpu_surf);
-		gbm_surface_release_buffer(fb->mgpu_surf->gbm, fb->mgpu_bo);
+		gbm_bo_destroy(fb->mgpu_bo);
+		wlr_buffer_unlock(fb->mgpu_wlr_buf);
 		fb->mgpu_bo = NULL;
+		fb->mgpu_wlr_buf = NULL;
 		fb->mgpu_surf = NULL;
 	}
 }
 
 bool drm_fb_lock_surface(struct wlr_drm_fb *fb, struct wlr_drm_surface *surf) {
-	drm_fb_clear(fb);
+	assert(surf->back_buffer != NULL);
 
-	if (!wlr_egl_swap_buffers(&surf->renderer->egl, surf->egl, NULL)) {
-		wlr_log(WLR_ERROR, "Failed to swap buffers");
-		return false;
-	}
+	struct wlr_buffer *buffer = wlr_buffer_lock(surf->back_buffer);
 
-	fb->bo = gbm_surface_lock_front_buffer(surf->gbm);
-	if (!fb->bo) {
-		wlr_log(WLR_ERROR, "Failed to lock front buffer");
-		return false;
-	}
+	// Unset the current EGL context ASAP, because other operations may require
+	// making another context current.
+	drm_surface_unset_current(surf);
 
-	fb->type = WLR_DRM_FB_TYPE_SURFACE;
-	fb->surf = surf;
-	return true;
+	bool ok = drm_fb_import_wlr(fb, surf->renderer, buffer, NULL);
+	wlr_buffer_unlock(buffer);
+	return ok;
 }
 
 bool drm_fb_import_wlr(struct wlr_drm_fb *fb, struct wlr_drm_renderer *renderer,
@@ -302,7 +342,7 @@ bool drm_fb_import_wlr(struct wlr_drm_fb *fb, struct wlr_drm_renderer *renderer,
 		return false;
 	}
 
-	if (!wlr_drm_format_set_has(set, attribs.format, attribs.modifier)) {
+	if (set && !wlr_drm_format_set_has(set, attribs.format, attribs.modifier)) {
 		// The format isn't supported by the plane. Try stripping the alpha
 		// channel, if any.
 		uint32_t format = strip_alpha_channel(attribs.format);
@@ -352,7 +392,6 @@ bool drm_fb_import_wlr(struct wlr_drm_fb *fb, struct wlr_drm_renderer *renderer,
 		return false;
 	}
 
-	fb->type = WLR_DRM_FB_TYPE_WLR_BUFFER;
 	fb->wlr_buf = wlr_buffer_lock(buf);
 
 	return true;
@@ -413,17 +452,15 @@ struct gbm_bo *drm_fb_acquire(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm
 	wlr_render_texture_with_matrix(renderer, tex, mat, 1.0f);
 	wlr_renderer_end(renderer);
 
-	if (!wlr_egl_swap_buffers(&mgpu->renderer->egl, mgpu->egl, NULL)) {
-		wlr_log(WLR_ERROR, "Failed to swap buffers");
-		return NULL;
+	struct wlr_drm_fb mgpu_fb = {
+		.bo = fb->mgpu_bo,
+		.wlr_buf = fb->mgpu_wlr_buf,
+	};
+	if (!drm_fb_lock_surface(&mgpu_fb, mgpu)) {
+		return false;
 	}
-
-	fb->mgpu_bo = gbm_surface_lock_front_buffer(mgpu->gbm);
-	if (!fb->mgpu_bo) {
-		wlr_log(WLR_ERROR, "Failed to lock front buffer");
-		return NULL;
-	}
-
+	fb->mgpu_bo = mgpu_fb.bo;
+	fb->mgpu_wlr_buf = mgpu_fb.wlr_buf;
 	fb->mgpu_surf = mgpu;
 	return fb->mgpu_bo;
 }

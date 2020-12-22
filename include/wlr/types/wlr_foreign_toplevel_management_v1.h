@@ -50,6 +50,7 @@ struct wlr_foreign_toplevel_handle_v1 {
 
 	char *title;
 	char *app_id;
+	struct wlr_foreign_toplevel_handle_v1 *parent;
 	struct wl_list outputs; // wlr_foreign_toplevel_v1_output
 	uint32_t state; // wlr_foreign_toplevel_v1_state
 
@@ -104,6 +105,12 @@ struct wlr_foreign_toplevel_manager_v1 *wlr_foreign_toplevel_manager_v1_create(
 
 struct wlr_foreign_toplevel_handle_v1 *wlr_foreign_toplevel_handle_v1_create(
 	struct wlr_foreign_toplevel_manager_v1 *manager);
+/* Destroy the given toplevel handle, sending the closed event to any
+ * client. Also, if the destroyed toplevel is set as a parent of any
+ * other valid toplevel, clients still holding a handle to both are
+ * sent a parent signal with NULL parent. If this is not desired, the
+ * caller should ensure that any child toplevels are destroyed before
+ * the parent. */
 void wlr_foreign_toplevel_handle_v1_destroy(
 	struct wlr_foreign_toplevel_handle_v1 *toplevel);
 
@@ -125,5 +132,15 @@ void wlr_foreign_toplevel_handle_v1_set_activated(
 	struct wlr_foreign_toplevel_handle_v1 *toplevel, bool activated);
 void wlr_foreign_toplevel_handle_v1_set_fullscreen(
 	struct wlr_foreign_toplevel_handle_v1* toplevel, bool fullscreen);
+
+/* Set the parent of a toplevel. If the parent changed from its previous
+ * value, also sends a parent event to all clients that hold handles to
+ * both toplevel and parent (no message is sent to clients that have
+ * previously destroyed their parent handle). NULL is allowed as the
+ * parent, meaning no parent exists. */
+void wlr_foreign_toplevel_handle_v1_set_parent(
+	struct wlr_foreign_toplevel_handle_v1 *toplevel,
+	struct wlr_foreign_toplevel_handle_v1 *parent);
+
 
 #endif

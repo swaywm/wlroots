@@ -94,7 +94,7 @@ static void virtual_pointer_axis(struct wl_client *client,
 	if (axis > WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
 		wl_resource_post_error(resource,
 				ZWLR_VIRTUAL_POINTER_V1_ERROR_INVALID_AXIS,
-				"Invalid enumeration value %d", axis);
+				"Invalid enumeration value %" PRIu32, axis);
 		return;
 	}
 	struct wlr_virtual_pointer_v1 *pointer =
@@ -103,7 +103,8 @@ static void virtual_pointer_axis(struct wl_client *client,
 		return;
 	}
 	struct wlr_input_device *wlr_dev = &pointer->input_device;
-	pointer->axis_valid[axis] = true;
+	pointer->axis = axis;
+	pointer->axis_valid[pointer->axis] = true;
 	pointer->axis_event[pointer->axis].device = wlr_dev;
 	pointer->axis_event[pointer->axis].time_msec = time;
 	pointer->axis_event[pointer->axis].orientation = axis;
@@ -139,7 +140,7 @@ static void virtual_pointer_axis_source(struct wl_client *client,
 	if (source > WL_POINTER_AXIS_SOURCE_WHEEL_TILT) {
 		wl_resource_post_error(resource,
 				ZWLR_VIRTUAL_POINTER_V1_ERROR_INVALID_AXIS_SOURCE,
-				"Invalid enumeration value %d", source);
+				"Invalid enumeration value %" PRIu32, source);
 		return;
 	}
 	struct wlr_virtual_pointer_v1 *pointer =
@@ -157,7 +158,7 @@ static void virtual_pointer_axis_stop(struct wl_client *client,
 	if (axis > WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
 		wl_resource_post_error(resource,
 				ZWLR_VIRTUAL_POINTER_V1_ERROR_INVALID_AXIS,
-				"Invalid enumeration value %d", axis);
+				"Invalid enumeration value %" PRIu32, axis);
 		return;
 	}
 	struct wlr_virtual_pointer_v1 *pointer =
@@ -181,7 +182,7 @@ static void virtual_pointer_axis_discrete(struct wl_client *client,
 	if (axis > WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
 		wl_resource_post_error(resource,
 				ZWLR_VIRTUAL_POINTER_V1_ERROR_INVALID_AXIS,
-				"Invalid enumeration value %d", axis);
+				"Invalid enumeration value %" PRIu32, axis);
 		return;
 	}
 	struct wlr_virtual_pointer_v1 *pointer =

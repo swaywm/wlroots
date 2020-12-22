@@ -67,6 +67,15 @@ struct wlr_surface_role {
 	void (*precommit)(struct wlr_surface *surface);
 };
 
+struct wlr_surface_output {
+	struct wlr_surface *surface;
+	struct wlr_output *output;
+
+	struct wl_list link; // wlr_surface::current_outputs
+	struct wl_listener bind;
+	struct wl_listener destroy;
+};
+
 struct wlr_surface {
 	struct wl_resource *resource;
 	struct wlr_renderer *renderer;
@@ -125,6 +134,8 @@ struct wlr_surface {
 
 	// wlr_subsurface::parent_pending_link
 	struct wl_list subsurface_pending_list;
+
+	struct wl_list current_outputs; // wlr_surface_output::link
 
 	struct wl_listener renderer_destroy;
 
