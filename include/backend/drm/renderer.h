@@ -45,14 +45,14 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer);
 bool drm_surface_make_current(struct wlr_drm_surface *surf, int *buffer_age);
 void drm_surface_unset_current(struct wlr_drm_surface *surf);
 
-void drm_fb_clear(struct wlr_drm_fb *fb);
-bool drm_fb_lock_surface(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
+bool drm_fb_lock_surface(struct wlr_drm_fb **fb, struct wlr_drm_backend *drm,
 		struct wlr_drm_surface *surf, struct wlr_drm_surface *mgpu);
-bool drm_fb_import(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
+bool drm_fb_import(struct wlr_drm_fb **fb, struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, struct wlr_drm_surface *mgpu,
 		struct wlr_drm_format_set *set);
 
-void drm_fb_move(struct wlr_drm_fb *new, struct wlr_drm_fb *old);
+void drm_fb_clear(struct wlr_drm_fb **fb);
+void drm_fb_move(struct wlr_drm_fb **new, struct wlr_drm_fb **old);
 
 bool drm_surface_render_black_frame(struct wlr_drm_surface *surf);
 

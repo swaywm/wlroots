@@ -134,7 +134,7 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
 	uint32_t id = plane->id;
 	const union wlr_drm_plane_props *props = &plane->props;
 	struct wlr_drm_fb *fb = plane_get_next_fb(plane);
-	if (!fb->id) {
+	if (fb == NULL) {
 		wlr_log(WLR_ERROR, "Failed to acquire FB");
 		goto error;
 	}

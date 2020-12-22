@@ -291,11 +291,12 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 	return ok;
 }
 
-void drm_fb_clear(struct wlr_drm_fb *fb) {
-	if (!fb->bo) {
-		assert(!fb->wlr_buf);
+void drm_fb_clear(struct wlr_drm_fb **fb_ptr) {
+	if (*fb_ptr == NULL) {
 		return;
 	}
+
+	struct wlr_drm_fb *fb = *fb_ptr;
 
 	struct gbm_device *gbm = gbm_bo_get_device(fb->bo);
 	if (drmModeRmFB(gbm_device_get_fd(gbm), fb->id) != 0) {
@@ -305,11 +306,12 @@ void drm_fb_clear(struct wlr_drm_fb *fb) {
 	gbm_bo_destroy(fb->bo);
 	wlr_buffer_unlock(fb->wlr_buf);
 	wlr_buffer_unlock(fb->mgpu_wlr_buf);
+	free(fb);
 
-	memset(fb, 0, sizeof(*fb));
+	*fb_ptr = NULL;
 }
 
-bool drm_fb_lock_surface(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
+bool drm_fb_lock_surface(struct wlr_drm_fb **fb_ptr, struct wlr_drm_backend *drm,
 		struct wlr_drm_surface *surf, struct wlr_drm_surface *mgpu) {
 	assert(surf->back_buffer != NULL);
 
@@ -319,7 +321,7 @@ bool drm_fb_lock_surface(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
 	// making another context current.
 	drm_surface_unset_current(surf);
 
-	bool ok = drm_fb_import(fb, drm, buffer, mgpu, NULL);
+	bool ok = drm_fb_import(fb_ptr, drm, buffer, mgpu, NULL);
 	wlr_buffer_unlock(buffer);
 	return ok;
 }
@@ -361,10 +363,13 @@ static struct gbm_bo *get_bo_for_dmabuf(struct gbm_device *gbm,
 	}
 }
 
-bool drm_fb_import(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
+bool drm_fb_import(struct wlr_drm_fb **fb_ptr, struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, struct wlr_drm_surface *mgpu,
 		struct wlr_drm_format_set *set) {
-	drm_fb_clear(fb);
+	struct wlr_drm_fb *fb = calloc(1, sizeof(*fb));
+	if (!fb) {
+		return false;
+	}
 
 	fb->wlr_buf = wlr_buffer_lock(buf);
 
@@ -410,6 +415,8 @@ bool drm_fb_import(struct wlr_drm_fb *fb, struct wlr_drm_backend *drm,
 		goto error_get_fb_for_bo;
 	}
 
+	drm_fb_move(fb_ptr, &fb);
+
 	return true;
 
 error_get_fb_for_bo:
@@ -418,15 +425,14 @@ error_get_dmabuf:
 	wlr_buffer_unlock(fb->mgpu_wlr_buf);
 error_mgpu_wlr_buf:
 	wlr_buffer_unlock(fb->wlr_buf);
-	memset(fb, 0, sizeof(*fb));
+	free(fb);
 	return false;
 }
 
-void drm_fb_move(struct wlr_drm_fb *new, struct wlr_drm_fb *old) {
+void drm_fb_move(struct wlr_drm_fb **new, struct wlr_drm_fb **old) {
 	drm_fb_clear(new);
-
 	*new = *old;
-	memset(old, 0, sizeof(*old));
+	*old = NULL;
 }
 
 bool drm_surface_render_black_frame(struct wlr_drm_surface *surf) {
