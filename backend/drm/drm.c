@@ -1417,7 +1417,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		}
 
 		wlr_log(WLR_INFO, "'%s' disappeared", conn->name);
-		disconnect_drm_connector(conn);
+		destroy_drm_connector(conn);
 	}
 
 	realloc_crtcs(drm);
