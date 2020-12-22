@@ -373,6 +373,8 @@ static uint32_t strip_alpha_channel(uint32_t format) {
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:
 		return DRM_FORMAT_XRGB8888;
+	case DRM_FORMAT_ARGB2101010:
+		return DRM_FORMAT_XRGB2101010;
 	default:
 		return DRM_FORMAT_INVALID;
 	}
@@ -692,8 +694,9 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 
 	int width = mode->wlr_mode.width;
 	int height = mode->wlr_mode.height;
-	uint32_t format = DRM_FORMAT_ARGB8888;
-
+	// TODO: allow this to be set from sway and other wlroots clients
+	//uint32_t format = DRM_FORMAT_ARGB8888;
+	uint32_t format = DRM_FORMAT_XRGB2101010;
 	bool modifiers = true;
 	const char *no_modifiers = getenv("WLR_DRM_NO_MODIFIERS");
 	if (no_modifiers != NULL && strcmp(no_modifiers, "1") == 0) {
@@ -874,8 +877,14 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		ret = drmGetCap(drm->fd, DRM_CAP_CURSOR_HEIGHT, &h);
 		h = ret ? 64 : h;
 
-		if (!drm_plane_init_surface(plane, drm, w, h,
+		// TODO: allow DRM format to be set from sway and other wlroots clients
+		/*if (!drm_plane_init_surface(plane, drm, w, h,
 				DRM_FORMAT_ARGB8888, true, false)) {
+			wlr_drm_conn_log(conn, WLR_ERROR, "Cannot allocate cursor resources");
+			return false;
+		}*/
+		if (!drm_plane_init_surface(plane, drm, w, h,
+				DRM_FORMAT_ARGB2101010, true, false)) {
 			wlr_drm_conn_log(conn, WLR_ERROR, "Cannot allocate cursor resources");
 			return false;
 		}
