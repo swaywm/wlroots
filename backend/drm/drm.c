@@ -1558,6 +1558,8 @@ static void disconnect_drm_connector(struct wlr_drm_connector *conn) {
 	// This will cleanup the compositor-facing wlr_output, but won't destroy
 	// our wlr_drm_connector.
 	wlr_output_destroy(&conn->output);
+
+	assert(conn->state == WLR_DRM_CONN_DISCONNECTED);
 }
 
 void destroy_drm_connector(struct wlr_drm_connector *conn) {
