@@ -86,6 +86,7 @@ struct wlr_drm_backend {
 	struct wl_listener session_active;
 	struct wl_listener dev_change;
 
+	struct wl_list fbs; // wlr_drm_fb.link
 	struct wl_list outputs;
 
 	struct wlr_drm_renderer renderer;

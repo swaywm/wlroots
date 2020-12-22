@@ -42,6 +42,11 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wlr_signal_emit_safe(&backend->events.destroy, backend);
 
+	struct wlr_drm_fb *fb, *fb_tmp;
+	wl_list_for_each_safe(fb, fb_tmp, &drm->fbs, link) {
+		drm_fb_destroy(fb);
+	}
+
 	wl_list_remove(&drm->display_destroy.link);
 	wl_list_remove(&drm->session_destroy.link);
 	wl_list_remove(&drm->session_active.link);
@@ -147,6 +152,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	wlr_backend_init(&drm->backend, &backend_impl);
 
 	drm->session = session;
+	wl_list_init(&drm->fbs);
 	wl_list_init(&drm->outputs);
 
 	drm->dev = dev;

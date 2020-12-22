@@ -297,15 +297,7 @@ void drm_fb_clear(struct wlr_drm_fb **fb_ptr) {
 	}
 
 	struct wlr_drm_fb *fb = *fb_ptr;
-
-	struct gbm_device *gbm = gbm_bo_get_device(fb->bo);
-	if (drmModeRmFB(gbm_device_get_fd(gbm), fb->id) != 0) {
-		wlr_log(WLR_ERROR, "drmModeRmFB failed");
-	}
-
-	gbm_bo_destroy(fb->bo);
-	wlr_buffer_unlock(fb->wlr_buf);
-	free(fb);
+	wlr_buffer_unlock(fb->wlr_buf); // may destroy the buffer
 
 	*fb_ptr = NULL;
 }
@@ -362,14 +354,18 @@ static struct gbm_bo *get_bo_for_dmabuf(struct gbm_device *gbm,
 	}
 }
 
+static void drm_fb_handle_wlr_buf_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_drm_fb *fb = wl_container_of(listener, fb, wlr_buf_destroy);
+	drm_fb_destroy(fb);
+}
+
 static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, const struct wlr_drm_format_set *formats) {
 	struct wlr_drm_fb *fb = calloc(1, sizeof(*fb));
 	if (!fb) {
 		return NULL;
 	}
-
-	fb->wlr_buf = wlr_buffer_lock(buf);
 
 	struct wlr_dmabuf_attributes attribs;
 	if (!wlr_buffer_get_dmabuf(buf, &attribs)) {
@@ -403,13 +399,43 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 		goto error_get_fb_for_bo;
 	}
 
+	fb->wlr_buf = buf;
+
+	fb->wlr_buf_destroy.notify = drm_fb_handle_wlr_buf_destroy;
+	wl_signal_add(&buf->events.destroy, &fb->wlr_buf_destroy);
+
+	wl_list_insert(&drm->fbs, &fb->link);
+
 	return fb;
 
 error_get_fb_for_bo:
 	gbm_bo_destroy(fb->bo);
 error_get_dmabuf:
-	wlr_buffer_unlock(fb->wlr_buf);
 	free(fb);
+	return NULL;
+}
+
+void drm_fb_destroy(struct wlr_drm_fb *fb) {
+	wl_list_remove(&fb->link);
+	wl_list_remove(&fb->wlr_buf_destroy.link);
+
+	struct gbm_device *gbm = gbm_bo_get_device(fb->bo);
+	if (drmModeRmFB(gbm_device_get_fd(gbm), fb->id) != 0) {
+		wlr_log(WLR_ERROR, "drmModeRmFB failed");
+	}
+
+	gbm_bo_destroy(fb->bo);
+	free(fb);
+}
+
+static struct wlr_drm_fb *drm_fb_get(struct wlr_drm_backend *drm,
+		struct wlr_buffer *local_buf) {
+	struct wlr_drm_fb *fb;
+	wl_list_for_each(fb, &drm->fbs, link) {
+		if (fb->wlr_buf == local_buf) {
+			return fb;
+		}
+	}
 	return NULL;
 }
 
@@ -428,10 +454,13 @@ bool drm_fb_import(struct wlr_drm_fb **fb_ptr, struct wlr_drm_backend *drm,
 		local_buf = wlr_buffer_lock(buf);
 	}
 
-	struct wlr_drm_fb *fb = drm_fb_create(drm, local_buf, formats);
-	wlr_buffer_unlock(local_buf);
+	struct wlr_drm_fb *fb = drm_fb_get(drm, local_buf);
 	if (!fb) {
-		return false;
+		fb = drm_fb_create(drm, local_buf, formats);
+		if (!fb) {
+			wlr_buffer_unlock(local_buf);
+			return false;
+		}
 	}
 
 	drm_fb_move(fb_ptr, &fb);
