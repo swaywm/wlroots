@@ -304,8 +304,8 @@ void drm_fb_clear(struct wlr_drm_fb **fb_ptr) {
 	}
 
 	gbm_bo_destroy(fb->bo);
+	wlr_buffer_unlock(fb->local_wlr_buf);
 	wlr_buffer_unlock(fb->wlr_buf);
-	wlr_buffer_unlock(fb->mgpu_wlr_buf);
 	free(fb);
 
 	*fb_ptr = NULL;
@@ -364,7 +364,7 @@ static struct gbm_bo *get_bo_for_dmabuf(struct gbm_device *gbm,
 }
 
 static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
-		struct wlr_buffer *buf, struct wlr_buffer *mgpu_buf,
+		struct wlr_buffer *buf, struct wlr_buffer *local_buf,
 		const struct wlr_drm_format_set *formats) {
 	struct wlr_drm_fb *fb = calloc(1, sizeof(*fb));
 	if (!fb) {
@@ -372,11 +372,8 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 	}
 
 	fb->wlr_buf = wlr_buffer_lock(buf);
-	if (mgpu_buf) {
-		fb->mgpu_wlr_buf = wlr_buffer_lock(mgpu_buf);
-	}
+	fb->local_wlr_buf = wlr_buffer_lock(local_buf);
 
-	struct wlr_buffer *local_buf = mgpu_buf ? mgpu_buf : buf;
 	struct wlr_dmabuf_attributes attribs;
 	if (!wlr_buffer_get_dmabuf(local_buf, &attribs)) {
 		wlr_log(WLR_ERROR, "Failed to get DMA-BUF from buffer");
@@ -414,7 +411,7 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 error_get_fb_for_bo:
 	gbm_bo_destroy(fb->bo);
 error_get_dmabuf:
-	wlr_buffer_unlock(fb->mgpu_wlr_buf);
+	wlr_buffer_unlock(fb->local_wlr_buf);
 	wlr_buffer_unlock(fb->wlr_buf);
 	free(fb);
 	return NULL;
@@ -423,18 +420,20 @@ error_get_dmabuf:
 bool drm_fb_import(struct wlr_drm_fb **fb_ptr, struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, struct wlr_drm_surface *mgpu,
 		const struct wlr_drm_format_set *formats) {
-	struct wlr_buffer *mgpu_buf = NULL;
+	struct wlr_buffer *local_buf;
 	if (drm->parent && mgpu) {
 		// Perform a copy across GPUs
-		mgpu_buf = drm_surface_blit(mgpu, buf);
-		if (!mgpu_buf) {
+		local_buf = drm_surface_blit(mgpu, buf);
+		if (!local_buf) {
 			wlr_log(WLR_ERROR, "Failed to blit buffer across GPUs");
 			return false;
 		}
+	} else {
+		local_buf = wlr_buffer_lock(buf);
 	}
 
-	struct wlr_drm_fb *fb = drm_fb_create(drm, buf, mgpu_buf, formats);
-	wlr_buffer_unlock(mgpu_buf);
+	struct wlr_drm_fb *fb = drm_fb_create(drm, buf, local_buf, formats);
+	wlr_buffer_unlock(local_buf);
 	if (!fb) {
 		return false;
 	}
