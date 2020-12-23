@@ -75,8 +75,13 @@ bool check_drm_features(struct wlr_drm_backend *drm) {
 	int ret = drmGetCap(drm->fd, DRM_CAP_TIMESTAMP_MONOTONIC, &cap);
 	drm->clock = (ret == 0 && cap == 1) ? CLOCK_MONOTONIC : CLOCK_REALTIME;
 
-	ret = drmGetCap(drm->fd, DRM_CAP_ADDFB2_MODIFIERS, &cap);
-	drm->addfb2_modifiers = ret == 0 && cap == 1;
+	const char *no_modifiers = getenv("WLR_DRM_NO_MODIFIERS");
+	if (no_modifiers != NULL && strcmp(no_modifiers, "1") == 0) {
+		wlr_log(WLR_DEBUG, "WLR_DRM_NO_MODIFIERS set, disabling modifiers");
+	} else {
+		ret = drmGetCap(drm->fd, DRM_CAP_ADDFB2_MODIFIERS, &cap);
+		drm->addfb2_modifiers = ret == 0 && cap == 1;
+	}
 
 	return true;
 }
@@ -105,7 +110,7 @@ static bool add_plane(struct wlr_drm_backend *drm,
 			DRM_FORMAT_MOD_INVALID);
 	}
 
-	if (p->props.in_formats) {
+	if (p->props.in_formats && drm->addfb2_modifiers) {
 		uint64_t blob_id;
 		if (!get_drm_prop(drm->fd, p->id, p->props.in_formats, &blob_id)) {
 			wlr_log(WLR_ERROR, "Failed to read IN_FORMATS property");
@@ -704,14 +709,7 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	int height = mode->wlr_mode.height;
 	uint32_t format = DRM_FORMAT_ARGB8888;
 
-	bool modifiers = true;
-	const char *no_modifiers = getenv("WLR_DRM_NO_MODIFIERS");
-	if (no_modifiers != NULL && strcmp(no_modifiers, "1") == 0) {
-		wlr_drm_conn_log(conn, WLR_DEBUG,
-			"WLR_DRM_NO_MODIFIERS set, initializing planes without modifiers");
-		modifiers = false;
-	}
-
+	bool modifiers = drm->addfb2_modifiers;
 	if (!drm_plane_init_surface(plane, drm, width, height, format, false, modifiers) ||
 			!drm_connector_pageflip_renderer(conn)) {
 		if (!modifiers) {
