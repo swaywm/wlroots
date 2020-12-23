@@ -1014,7 +1014,7 @@ static void drm_connector_destroy_output(struct wlr_output *output) {
 	conn->state = WLR_DRM_CONN_DISCONNECTED;
 	conn->desired_enabled = false;
 	conn->desired_mode = NULL;
-	conn->possible_crtc = 0;
+	conn->possible_crtcs = 0;
 	conn->pageflip_pending = false;
 
 	struct wlr_drm_mode *mode, *mode_tmp;
@@ -1113,7 +1113,7 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 		if ((conn->state == WLR_DRM_CONN_CONNECTED ||
 				conn->state == WLR_DRM_CONN_NEEDS_MODESET) &&
 				conn->desired_enabled) {
-			connector_constraints[i] = conn->possible_crtc;
+			connector_constraints[i] = conn->possible_crtcs;
 		} else {
 			// Will always fail to match anything
 			connector_constraints[i] = 0;
@@ -1381,8 +1381,8 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
 			}
 
-			wlr_conn->possible_crtc = get_possible_crtcs(drm->fd, res, drm_conn);
-			if (wlr_conn->possible_crtc == 0) {
+			wlr_conn->possible_crtcs = get_possible_crtcs(drm->fd, res, drm_conn);
+			if (wlr_conn->possible_crtcs == 0) {
 				wlr_drm_conn_log(wlr_conn, WLR_ERROR, "No CRTC possible");
 			}
 
