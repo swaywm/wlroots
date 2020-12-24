@@ -81,6 +81,8 @@ bool check_drm_features(struct wlr_drm_backend *drm) {
 	} else {
 		ret = drmGetCap(drm->fd, DRM_CAP_ADDFB2_MODIFIERS, &cap);
 		drm->addfb2_modifiers = ret == 0 && cap == 1;
+		wlr_log(WLR_DEBUG, "ADDFB2 modifiers %s",
+			drm->addfb2_modifiers ? "supported" : "unsupported");
 	}
 
 	return true;
