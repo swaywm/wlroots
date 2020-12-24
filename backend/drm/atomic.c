@@ -32,8 +32,7 @@ static bool atomic_commit(struct atomic *atom,
 
 	int ret = drmModeAtomicCommit(drm->fd, atom->req, flags, drm);
 	if (ret) {
-		wlr_log_errno(WLR_ERROR, "%s: Atomic %s failed (%s)",
-			conn->name,
+		wlr_drm_conn_log_errno(conn, WLR_ERROR, "Atomic %s failed (%s)",
 			(flags & DRM_MODE_ATOMIC_TEST_ONLY) ? "test" : "commit",
 			(flags & DRM_MODE_ATOMIC_ALLOW_MODESET) ? "modeset" : "pageflip");
 		return false;
@@ -249,8 +248,8 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 			output->adaptive_sync_status = vrr_enabled ?
 				WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED :
 				WLR_OUTPUT_ADAPTIVE_SYNC_DISABLED;
-			wlr_log(WLR_DEBUG, "VRR %s on connector '%s'",
-				vrr_enabled ? "enabled" : "disabled", output->name);
+			wlr_drm_conn_log(conn, WLR_DEBUG, "VRR %s",
+				vrr_enabled ? "enabled" : "disabled");
 		}
 	} else {
 		rollback_blob(drm, &crtc->mode_id, mode_id);
