@@ -6,8 +6,8 @@ wlroots reads these environment variables
   libinput, drm, wayland, x11, headless, noop)
 * *WLR_NO_HARDWARE_CURSORS*: set to 1 to use software cursors instead of
   hardware cursors
-* *WLR_SESSION*: specifies the wlr\_session to be used (available sessions:
-  logind/systemd, direct)
+* *WLR_SESSION*: specifies the `wlr_session` to be used (available sessions:
+  logind/systemd, seatd, direct)
 * *WLR_DIRECT_TTY*: specifies the tty to be used (instead of using /dev/tty)
 * *WLR_XWAYLAND*: specifies the path to an Xwayland binary to be used (instead
   of following shell search semantics for "Xwayland")
@@ -41,7 +41,7 @@ wlroots reads these environment variables
 
 # Generic
 
-* *DISPLAY*: if set probe X11 backend in *wlr_backend_autocreate*
+* *DISPLAY*: if set probe X11 backend in `wlr_backend_autocreate`
 * *WAYLAND_DISPLAY*, *WAYLAND_SOCKET*: if set probe Wayland backend in
   `wlr_backend_autocreate`
 * *XCURSOR_PATH*: directory where xcursors are located
