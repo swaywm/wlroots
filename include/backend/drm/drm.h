@@ -129,13 +129,14 @@ struct wlr_drm_connector {
 
 	struct wl_list link;
 
-	/*
+	/* CRTC ID if a page-flip is pending, zero otherwise.
+	 *
 	 * We've asked for a state change in the kernel, and yet to receive a
 	 * notification for its completion. Currently, the kernel only has a
 	 * queue length of 1, and no way to modify your submissions after
 	 * they're sent.
 	 */
-	bool pageflip_pending;
+	uint32_t pending_page_flip_crtc;
 };
 
 struct wlr_drm_backend *get_drm_backend_from_backend(
