@@ -353,12 +353,13 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn, uint32_t flags) {
 
 static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
+	assert(crtc != NULL);
 
 	// wlr_drm_interface.crtc_commit will perform either a non-blocking
 	// page-flip, either a blocking modeset. When performing a blocking modeset
 	// we'll wait for all queued page-flips to complete, so we don't need this
 	// safeguard.
-	if (conn->pageflip_pending && !crtc->pending_modeset) {
+	if (conn->pending_page_flip_crtc && !crtc->pending_modeset) {
 		wlr_drm_conn_log(conn, WLR_ERROR, "Failed to page-flip output: "
 			"a page-flip is already pending");
 		return false;
@@ -370,7 +371,7 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 		return false;
 	}
 
-	conn->pageflip_pending = true;
+	conn->pending_page_flip_crtc = crtc->id;
 
 	// wlr_output's API guarantees that submitting a buffer will schedule a
 	// frame event. However the DRM backend will also schedule a frame event
@@ -1017,7 +1018,7 @@ static void drm_connector_destroy_output(struct wlr_output *output) {
 	conn->desired_enabled = false;
 	conn->desired_mode = NULL;
 	conn->possible_crtcs = 0;
-	conn->pageflip_pending = false;
+	conn->pending_page_flip_crtc = 0;
 
 	struct wlr_drm_mode *mode, *mode_tmp;
 	wl_list_for_each_safe(mode, mode_tmp, &conn->output.modes, wlr_mode.link) {
@@ -1443,22 +1444,24 @@ static void page_flip_handler(int fd, unsigned seq,
 		unsigned tv_sec, unsigned tv_usec, unsigned crtc_id, void *data) {
 	struct wlr_drm_backend *drm = data;
 
-	struct wlr_drm_connector *conn = NULL;
-	struct wlr_drm_connector *search;
-	wl_list_for_each(search, &drm->outputs, link) {
-		if (search->crtc && search->crtc->id == crtc_id) {
-			conn = search;
+	bool found = false;
+	struct wlr_drm_connector *conn;
+	wl_list_for_each(conn, &drm->outputs, link) {
+		if (conn->pending_page_flip_crtc == crtc_id) {
+			found = true;
 			break;
 		}
 	}
-	if (!conn) {
-		wlr_log(WLR_DEBUG, "No connector for CRTC %u", crtc_id);
+	if (!found) {
+		wlr_log(WLR_DEBUG, "Unexpected page-flip event for CRTC %u", crtc_id);
 		return;
 	}
 
-	conn->pageflip_pending = false;
+	conn->pending_page_flip_crtc = 0;
 
 	if (conn->state != WLR_DRM_CONN_CONNECTED || conn->crtc == NULL) {
+		wlr_drm_conn_log(conn, WLR_DEBUG,
+			"Ignoring page-flip event for disabled connector");
 		return;
 	}
 
@@ -1529,7 +1532,7 @@ void restore_drm_outputs(struct wlr_drm_backend *drm) {
 		size_t i = 0;
 		struct wlr_drm_connector *conn;
 		wl_list_for_each(conn, &drm->outputs, link) {
-			if (conn->state != WLR_DRM_CONN_CLEANUP || !conn->pageflip_pending) {
+			if (conn->state != WLR_DRM_CONN_CLEANUP || !conn->pending_page_flip_crtc) {
 				to_close &= ~(UINT64_C(1) << i);
 			}
 			i++;
