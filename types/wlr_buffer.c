@@ -222,9 +222,6 @@ struct wlr_client_buffer *wlr_client_buffer_import(
 		return NULL;
 	}
 
-	int width, height;
-	wlr_resource_get_buffer_size(resource, renderer, &width, &height);
-
 	struct wlr_client_buffer *buffer =
 		calloc(1, sizeof(struct wlr_client_buffer));
 	if (buffer == NULL) {
@@ -232,7 +229,8 @@ struct wlr_client_buffer *wlr_client_buffer_import(
 		wl_resource_post_no_memory(resource);
 		return NULL;
 	}
-	wlr_buffer_init(&buffer->base, &client_buffer_impl, width, height);
+	wlr_buffer_init(&buffer->base, &client_buffer_impl,
+		texture->width, texture->height);
 	buffer->resource = resource;
 	buffer->texture = texture;
 	buffer->resource_released = resource_released;
