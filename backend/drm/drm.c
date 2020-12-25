@@ -754,7 +754,11 @@ static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
 				conn->desired_enabled) {
 			wlr_drm_conn_log(conn, WLR_DEBUG,
 				"Output has a desired mode and a CRTC, attempting a modeset");
-			drm_connector_set_mode(conn, conn->desired_mode);
+
+			struct wlr_output *output = &conn->output;
+			wlr_output_enable(output, true);
+			wlr_output_set_mode(output, conn->desired_mode);
+			wlr_output_commit(output);
 		}
 	}
 }

@@ -93,13 +93,21 @@ static void handle_session_active(struct wl_listener *listener, void *data) {
 		wlr_log(WLR_INFO, "DRM fd resumed");
 		scan_drm_connectors(drm);
 
+		// Force a modeset for all connected connectors
+		// TODO: save and restore the whole KMS state instead
 		struct wlr_drm_connector *conn;
-		wl_list_for_each(conn, &drm->outputs, link){
-			if (conn->output.enabled && conn->output.current_mode != NULL) {
-				drm_connector_set_mode(conn, conn->output.current_mode);
-			} else {
-				drm_connector_set_mode(conn, NULL);
+		wl_list_for_each(conn, &drm->outputs, link) {
+			if (conn->state != WLR_DRM_CONN_CONNECTED) {
+				continue;
 			}
+
+			struct wlr_output *output = &conn->output;
+			output->pending.committed |=
+				WLR_OUTPUT_STATE_ENABLED | WLR_OUTPUT_STATE_MODE;
+			output->pending.enabled = output->enabled;
+			output->pending.mode_type = WLR_OUTPUT_STATE_MODE_FIXED;
+			output->pending.mode = output->current_mode;
+			wlr_output_commit(output);
 		}
 	} else {
 		wlr_log(WLR_INFO, "DRM fd paused");
