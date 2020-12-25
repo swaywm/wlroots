@@ -915,10 +915,8 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 
 	plane->cursor_enabled = false;
 	if (texture != NULL) {
-		int width, height;
-		wlr_texture_get_size(texture, &width, &height);
-		width = width * output->scale / scale;
-		height = height * output->scale / scale;
+		int width = texture->width * output->scale / scale;
+		int height = texture->height * output->scale / scale;
 
 		if (width > (int)plane->surf.width || height > (int)plane->surf.height) {
 			wlr_drm_conn_log(conn, WLR_ERROR, "Cursor too large (max %dx%d)",

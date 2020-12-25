@@ -277,9 +277,8 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 	int32_t width = wl_shm_buffer_get_width(shm_buf);
 	int32_t height = wl_shm_buffer_get_height(shm_buf);
 
-	int32_t texture_width, texture_height;
-	wlr_texture_get_size(buffer->texture, &texture_width, &texture_height);
-	if (width != texture_width || height != texture_height) {
+	if ((uint32_t)width != buffer->texture->width ||
+			(uint32_t)height != buffer->texture->height) {
 		return NULL;
 	}
 

@@ -402,10 +402,8 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 	struct wl_surface *surface = output->cursor.surface;
 
 	if (texture != NULL) {
-		int width, height;
-		wlr_texture_get_size(texture, &width, &height);
-		width = width * wlr_output->scale / scale;
-		height = height * wlr_output->scale / scale;
+		int width = texture->width * wlr_output->scale / scale;
+		int height = texture->height * wlr_output->scale / scale;
 
 		if (output->cursor.swapchain == NULL ||
 				output->cursor.swapchain->width != width ||

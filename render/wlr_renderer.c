@@ -76,8 +76,12 @@ void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box) {
 
 bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
 		const float projection[static 9], int x, int y, float alpha) {
-	struct wlr_box box = { .x = x, .y = y };
-	wlr_texture_get_size(texture, &box.width, &box.height);
+	struct wlr_box box = {
+		.x = x,
+		.y = y,
+		.width = texture->width,
+		.height = texture->height,
+	};
 
 	float matrix[9];
 	wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
