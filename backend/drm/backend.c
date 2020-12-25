@@ -45,8 +45,8 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wl_list_remove(&drm->display_destroy.link);
 	wl_list_remove(&drm->session_destroy.link);
-	wl_list_remove(&drm->session_signal.link);
-	wl_list_remove(&drm->drm_invalidated.link);
+	wl_list_remove(&drm->session_active.link);
+	wl_list_remove(&drm->dev_change.link);
 
 	finish_drm_resources(drm);
 	finish_drm_renderer(&drm->renderer);
@@ -84,9 +84,9 @@ bool wlr_backend_is_drm(struct wlr_backend *b) {
 	return b->impl == &backend_impl;
 }
 
-static void session_signal(struct wl_listener *listener, void *data) {
+static void handle_session_active(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *drm =
-		wl_container_of(listener, drm, session_signal);
+		wl_container_of(listener, drm, session_active);
 	struct wlr_session *session = drm->session;
 
 	if (session->active) {
@@ -106,9 +106,8 @@ static void session_signal(struct wl_listener *listener, void *data) {
 	}
 }
 
-static void drm_invalidated(struct wl_listener *listener, void *data) {
-	struct wlr_drm_backend *drm =
-		wl_container_of(listener, drm, drm_invalidated);
+static void handle_dev_change(struct wl_listener *listener, void *data) {
+	struct wlr_drm_backend *drm = wl_container_of(listener, drm, dev_change);
 
 	wlr_log(WLR_DEBUG, "%s invalidated", drm->name);
 
@@ -156,8 +155,8 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		drm->parent = get_drm_backend_from_backend(parent);
 	}
 
-	drm->drm_invalidated.notify = drm_invalidated;
-	wl_signal_add(&dev->events.change, &drm->drm_invalidated);
+	drm->dev_change.notify = handle_dev_change;
+	wl_signal_add(&dev->events.change, &drm->dev_change);
 
 	drm->display = display;
 	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
@@ -169,8 +168,8 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		goto error_fd;
 	}
 
-	drm->session_signal.notify = session_signal;
-	wl_signal_add(&session->events.active, &drm->session_signal);
+	drm->session_active.notify = handle_session_active;
+	wl_signal_add(&session->events.active, &drm->session_active);
 
 	if (!check_drm_features(drm)) {
 		goto error_event;
@@ -194,7 +193,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	return &drm->backend;
 
 error_event:
-	wl_list_remove(&drm->session_signal.link);
+	wl_list_remove(&drm->session_active.link);
 	wl_event_source_remove(drm->drm_event);
 error_fd:
 	wlr_session_close_file(drm->session, dev);
