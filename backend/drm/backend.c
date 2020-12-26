@@ -109,8 +109,11 @@ static void handle_session_active(struct wl_listener *listener, void *data) {
 static void handle_dev_change(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *drm = wl_container_of(listener, drm, dev_change);
 
-	wlr_log(WLR_DEBUG, "%s invalidated", drm->name);
+	if (!drm->session->active) {
+		return;
+	}
 
+	wlr_log(WLR_DEBUG, "%s invalidated", drm->name);
 	scan_drm_connectors(drm);
 }
 
