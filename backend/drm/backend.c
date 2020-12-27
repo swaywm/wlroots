@@ -52,6 +52,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&drm->session_active.link);
 	wl_list_remove(&drm->parent_destroy.link);
 	wl_list_remove(&drm->dev_change.link);
+	wl_list_remove(&drm->dev_remove.link);
 
 	finish_drm_resources(drm);
 	finish_drm_renderer(&drm->renderer);
@@ -133,6 +134,13 @@ static void handle_dev_change(struct wl_listener *listener, void *data) {
 	scan_drm_connectors(drm);
 }
 
+static void handle_dev_remove(struct wl_listener *listener, void *data) {
+	struct wlr_drm_backend *drm = wl_container_of(listener, drm, dev_remove);
+
+	wlr_log(WLR_INFO, "Destroying DRM backend for %s", drm->name);
+	backend_destroy(&drm->backend);
+}
+
 static void handle_session_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *drm =
 		wl_container_of(listener, drm, session_destroy);
@@ -188,6 +196,9 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 	drm->dev_change.notify = handle_dev_change;
 	wl_signal_add(&dev->events.change, &drm->dev_change);
+
+	drm->dev_remove.notify = handle_dev_remove;
+	wl_signal_add(&dev->events.remove, &drm->dev_remove);
 
 	drm->display = display;
 
