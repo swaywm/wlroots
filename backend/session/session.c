@@ -139,7 +139,7 @@ static bool is_drm_card(const char *sysname) {
 	return true;
 }
 
-static int udev_event(int fd, uint32_t mask, void *data) {
+static int handle_udev_event(int fd, uint32_t mask, void *data) {
 	struct wlr_session *session = data;
 
 	struct udev_device *udev_dev = udev_monitor_receive_device(session->mon);
@@ -170,15 +170,24 @@ static int udev_event(int fd, uint32_t mask, void *data) {
 			.path = devnode,
 		};
 		wlr_signal_emit_safe(&session->events.add_drm_card, &event);
-	} else if (strcmp(action, "change") == 0) {
+	} else if (strcmp(action, "change") == 0 || strcmp(action, "remove") == 0) {
 		dev_t devnum = udev_device_get_devnum(udev_dev);
 		struct wlr_device *dev;
 		wl_list_for_each(dev, &session->devices, link) {
-			if (dev->dev == devnum) {
+			if (dev->dev != devnum) {
+				continue;
+			}
+
+			if (strcmp(action, "change") == 0) {
 				wlr_log(WLR_DEBUG, "DRM device %s changed", sysname);
 				wlr_signal_emit_safe(&dev->events.change, NULL);
-				break;
+			} else if (strcmp(action, "remove") == 0) {
+				wlr_log(WLR_DEBUG, "DRM device %s removed", sysname);
+				wlr_signal_emit_safe(&dev->events.remove, NULL);
+			} else {
+				assert(0);
 			}
+			break;
 		}
 	}
 
@@ -229,7 +238,7 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 	int fd = udev_monitor_get_fd(session->mon);
 
 	session->udev_event = wl_event_loop_add_fd(event_loop, fd,
-		WL_EVENT_READABLE, udev_event, session);
+		WL_EVENT_READABLE, handle_udev_event, session);
 	if (!session->udev_event) {
 		wlr_log_errno(WLR_ERROR, "Failed to create udev event source");
 		goto error_mon;
@@ -299,6 +308,7 @@ struct wlr_device *wlr_session_open_file(struct wlr_session *session,
 	dev->dev = st.st_rdev;
 	dev->device_id = device_id;
 	wl_signal_init(&dev->events.change);
+	wl_signal_init(&dev->events.remove);
 	wl_list_insert(&session->devices, &dev->link);
 
 	return dev;
