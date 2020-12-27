@@ -50,6 +50,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&drm->display_destroy.link);
 	wl_list_remove(&drm->session_destroy.link);
 	wl_list_remove(&drm->session_active.link);
+	wl_list_remove(&drm->parent_destroy.link);
 	wl_list_remove(&drm->dev_change.link);
 
 	finish_drm_resources(drm);
@@ -144,6 +145,12 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	backend_destroy(&drm->backend);
 }
 
+static void handle_parent_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_drm_backend *drm =
+		wl_container_of(listener, drm, parent_destroy);
+	backend_destroy(&drm->backend);
+}
+
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		struct wlr_session *session, struct wlr_device *dev,
 		struct wlr_backend *parent) {
@@ -169,16 +176,22 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	drm->dev = dev;
 	drm->fd = dev->fd;
 	drm->name = name;
+
 	if (parent != NULL) {
 		drm->parent = get_drm_backend_from_backend(parent);
+
+		drm->parent_destroy.notify = handle_parent_destroy;
+		wl_signal_add(&parent->events.destroy, &drm->parent_destroy);
+	} else {
+		wl_list_init(&drm->parent_destroy.link);
 	}
 
 	drm->dev_change.notify = handle_dev_change;
 	wl_signal_add(&dev->events.change, &drm->dev_change);
 
 	drm->display = display;
-	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
 
+	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
 	drm->drm_event = wl_event_loop_add_fd(event_loop, drm->fd,
 		WL_EVENT_READABLE, handle_drm_event, NULL);
 	if (!drm->drm_event) {
