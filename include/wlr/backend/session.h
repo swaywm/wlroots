@@ -16,6 +16,7 @@ struct wlr_device {
 
 	struct {
 		struct wl_signal change;
+		struct wl_signal remove;
 	} events;
 };
 
