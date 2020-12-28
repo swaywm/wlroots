@@ -318,7 +318,8 @@ struct wlr_seat_keyboard_focus_change_event {
  */
 struct wlr_seat *wlr_seat_create(struct wl_display *display, const char *name);
 /**
- * Destroys a wlr_seat and removes its wl_seat global.
+ * Destroys a wlr_seat, removes its wl_seat global and clears focus for all
+ * devices belonging to the seat.
  */
 void wlr_seat_destroy(struct wlr_seat *wlr_seat);
 /**
