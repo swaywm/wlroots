@@ -34,6 +34,7 @@ struct wlr_x11_output {
 	struct wl_list link; // wlr_x11_backend::outputs
 
 	xcb_window_t win;
+	xcb_present_event_t present_event_id;
 
 	struct wlr_swapchain *swapchain;
 	struct wlr_buffer *back_buffer;
@@ -68,7 +69,6 @@ struct wlr_x11_backend {
 	xcb_depth_t *depth;
 	xcb_visualid_t visualid;
 	xcb_colormap_t colormap;
-	xcb_present_event_t present_event_id;
 
 	size_t requested_outputs;
 	size_t last_output_num;

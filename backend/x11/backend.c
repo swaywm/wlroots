@@ -564,8 +564,6 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 #endif
 
-	x11->present_event_id = xcb_generate_id(x11->xcb);
-
 	wlr_input_device_init(&x11->keyboard_dev, WLR_INPUT_DEVICE_KEYBOARD,
 		&input_device_impl, "X11 keyboard", 0, 0);
 	wlr_keyboard_init(&x11->keyboard, &keyboard_impl);
