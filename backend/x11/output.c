@@ -86,6 +86,8 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	wl_list_remove(&output->link);
 	wlr_buffer_unlock(output->back_buffer);
 	wlr_swapchain_destroy(output->swapchain);
+	// A zero event mask deletes the event context
+	xcb_present_select_input(x11->xcb, output->present_event_id, output->win, 0);
 	xcb_destroy_window(x11->xcb, output->win);
 	xcb_flush(x11->xcb);
 	free(output);
@@ -398,7 +400,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 	uint32_t present_mask = XCB_PRESENT_EVENT_MASK_IDLE_NOTIFY |
 		XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY;
-	xcb_present_select_input(x11->xcb, x11->present_event_id, output->win,
+	output->present_event_id = xcb_generate_id(x11->xcb);
+	xcb_present_select_input(x11->xcb, output->present_event_id, output->win,
 		present_mask);
 
 	xcb_change_property(x11->xcb, XCB_PROP_MODE_REPLACE, output->win,
