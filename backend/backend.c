@@ -152,11 +152,16 @@ static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 		struct wlr_backend *backend, struct wlr_session *session,
 		wlr_renderer_create_func_t create_renderer_func) {
 	struct wlr_device *gpus[8];
-	size_t num_gpus = wlr_session_find_gpus(session, 8, gpus);
-	struct wlr_backend *primary_drm = NULL;
+	ssize_t num_gpus = wlr_session_find_gpus(session, 8, gpus);
+	if (num_gpus < 0) {
+		wlr_log(WLR_ERROR, "Failed to find GPUs");
+		return NULL;
+	}
+
 	wlr_log(WLR_INFO, "Found %zu GPUs", num_gpus);
 
-	for (size_t i = 0; i < num_gpus; ++i) {
+	struct wlr_backend *primary_drm = NULL;
+	for (size_t i = 0; i < (size_t)num_gpus; ++i) {
 		struct wlr_backend *drm = wlr_drm_backend_create(display, session,
 			gpus[i], primary_drm, create_renderer_func);
 		if (!drm) {

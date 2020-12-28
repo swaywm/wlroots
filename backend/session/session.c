@@ -278,12 +278,12 @@ out_dev:
 	return NULL;
 }
 
-static size_t explicit_find_gpus(struct wlr_session *session,
+static ssize_t explicit_find_gpus(struct wlr_session *session,
 		size_t ret_len, struct wlr_device *ret[static ret_len], const char *str) {
 	char *gpus = strdup(str);
 	if (!gpus) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
-		return 0;
+		return -1;
 	}
 
 	size_t i = 0;
@@ -345,7 +345,7 @@ static void find_gpus_handle_add(struct wl_listener *listener, void *data) {
 /* Tries to find the primary GPU by checking for the "boot_vga" attribute.
  * If it's not found, it returns the first valid GPU it finds.
  */
-size_t wlr_session_find_gpus(struct wlr_session *session,
+ssize_t wlr_session_find_gpus(struct wlr_session *session,
 		size_t ret_len, struct wlr_device **ret) {
 	const char *explicit = getenv("WLR_DRM_DEVICES");
 	if (explicit) {
