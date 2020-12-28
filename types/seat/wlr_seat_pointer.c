@@ -134,6 +134,15 @@ static void seat_pointer_handle_surface_destroy(struct wl_listener *listener,
 	wlr_seat_pointer_clear_focus(state->seat);
 }
 
+static void seat_pointer_handle_surface_commit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_seat_pointer_state *state =
+		wl_container_of(listener, state, surface_commit);
+	wl_list_remove(&state->surface_commit.link);
+	wl_list_init(&state->surface_commit.link);
+	wlr_seat_pointer_clear_focus(state->seat);
+}
+
 void seat_client_send_pointer_leave_raw(struct wlr_seat_client *seat_client,
 		struct wlr_surface *surface) {
 	uint32_t serial = wlr_seat_client_next_serial(seat_client);
@@ -195,6 +204,16 @@ void wlr_seat_pointer_enter(struct wlr_seat *wlr_seat,
 		wlr_seat->pointer_state.surface_destroy.notify =
 			seat_pointer_handle_surface_destroy;
 	}
+
+	wl_list_remove(&wlr_seat->pointer_state.surface_commit.link);
+	wl_list_init(&wlr_seat->pointer_state.surface_commit.link);
+	if (surface != NULL) {
+		wl_signal_add(&surface->events.commit,
+			&wlr_seat->pointer_state.surface_commit);
+		wlr_seat->pointer_state.surface_commit.notify =
+			seat_pointer_handle_surface_commit;
+	}
+
 
 	wlr_seat->pointer_state.focused_client = client;
 	wlr_seat->pointer_state.focused_surface = surface;

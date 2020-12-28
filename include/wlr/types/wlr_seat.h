@@ -169,6 +169,7 @@ struct wlr_seat_pointer_state {
 	uint32_t grab_time;
 
 	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit;
 
 	struct {
 		struct wl_signal focus_change; // wlr_seat_pointer_focus_change_event
