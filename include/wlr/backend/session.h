@@ -96,7 +96,7 @@ void wlr_session_close_file(struct wlr_session *session,
  */
 bool wlr_session_change_vt(struct wlr_session *session, unsigned vt);
 
-size_t wlr_session_find_gpus(struct wlr_session *session,
+ssize_t wlr_session_find_gpus(struct wlr_session *session,
 	size_t ret_len, struct wlr_device **ret);
 
 #endif
