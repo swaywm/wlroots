@@ -10,6 +10,8 @@ struct wlr_noop_backend {
 	struct wl_list outputs;
 	size_t last_output_num;
 	bool started;
+
+	struct wl_listener display_destroy;
 };
 
 struct wlr_noop_output {
