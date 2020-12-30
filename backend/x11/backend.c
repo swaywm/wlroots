@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <xf86drm.h>
 
 #include <wlr/config.h>
 
@@ -266,6 +267,23 @@ static int query_dri3_drm_fd(struct wlr_x11_backend *x11) {
 	if (fcntl(drm_fd, F_SETFD, flags | FD_CLOEXEC) < 0) {
 		close(drm_fd);
 		return -1;
+	}
+
+	if (drmGetNodeTypeFromFd(drm_fd) != DRM_NODE_RENDER) {
+		char *render_name = drmGetRenderDeviceNameFromFd(drm_fd);
+		if (render_name == NULL) {
+			close(drm_fd);
+			return -1;
+		}
+
+		close(drm_fd);
+		drm_fd = open(render_name, O_RDWR | O_CLOEXEC);
+		if (drm_fd < 0) {
+			free(render_name);
+			return -1;
+		}
+
+		free(render_name);
 	}
 
 	return drm_fd;
