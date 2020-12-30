@@ -159,6 +159,14 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 		return;
 	}
 
+	wlr_seat_pointer_clear_focus(seat);
+	wlr_seat_keyboard_clear_focus(seat);
+
+	struct wlr_touch_point* point;
+	wl_list_for_each(point, &seat->touch_state.touch_points, link) {
+		wlr_seat_touch_point_clear_focus(seat, 0, point->touch_id);
+	}
+
 	wlr_signal_emit_safe(&seat->events.destroy, seat);
 
 	wl_list_remove(&seat->display_destroy.link);
