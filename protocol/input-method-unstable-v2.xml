@@ -70,6 +70,10 @@
       There must be no more than one input method object per seat.
     </description>
 
+    <enum name="error">
+      <entry name="role" value="0" summary="wl_surface has another role"/>
+    </enum>
+
     <event name="activate">
       <description summary="input method has been requested">
         Notification that a text input focused on this seat requested the input
