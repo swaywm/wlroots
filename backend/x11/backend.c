@@ -409,7 +409,9 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		xcb_dri3_query_version_reply(x11->xcb, dri3_cookie, NULL);
 	if (!dri3_reply || dri3_reply->major_version < 1 ||
 			dri3_reply->minor_version < 2) {
-		wlr_log(WLR_ERROR, "X11 does not support required DRI3 version");
+		wlr_log(WLR_ERROR, "X11 does not support required DRI3 version "
+			"(has %"PRIu32".%"PRIu32", want 1.2)",
+			dri3_reply->major_version, dri3_reply->minor_version);
 		goto error_display;
 	}
 	free(dri3_reply);
@@ -428,7 +430,9 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	xcb_present_query_version_reply_t *present_reply =
 		xcb_present_query_version_reply(x11->xcb, present_cookie, NULL);
 	if (!present_reply || present_reply->major_version < 1) {
-		wlr_log(WLR_ERROR, "X11 does not support required Present version");
+		wlr_log(WLR_ERROR, "X11 does not support required Present version "
+			"(has %"PRIu32".%"PRIu32", want 1.0)",
+			present_reply->major_version, present_reply->minor_version);
 		free(present_reply);
 		goto error_display;
 	}
@@ -446,9 +450,10 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		xcb_xfixes_query_version(x11->xcb, 4, 0);
 	xcb_xfixes_query_version_reply_t *fixes_reply =
 		xcb_xfixes_query_version_reply(x11->xcb, fixes_cookie, NULL);
-
 	if (!fixes_reply || fixes_reply->major_version < 4) {
-		wlr_log(WLR_ERROR, "X11 does not support required Xfixes version");
+		wlr_log(WLR_ERROR, "X11 does not support required Xfixes version "
+			"(has %"PRIu32".%"PRIu32", want 4.0)",
+			fixes_reply->major_version, fixes_reply->minor_version);
 		free(fixes_reply);
 		goto error_display;
 	}
@@ -467,9 +472,10 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		xcb_input_xi_query_version(x11->xcb, 2, 0);
 	xcb_input_xi_query_version_reply_t *xi_reply =
 		xcb_input_xi_query_version_reply(x11->xcb, xi_cookie, NULL);
-
 	if (!xi_reply || xi_reply->major_version < 2) {
-		wlr_log(WLR_ERROR, "X11 does not support required Xinput version");
+		wlr_log(WLR_ERROR, "X11 does not support required Xinput version "
+			"(has %"PRIu32".%"PRIu32", want 2.0)",
+			xi_reply->major_version, xi_reply->minor_version);
 		free(xi_reply);
 		goto error_display;
 	}
