@@ -470,12 +470,15 @@ static void read_surface_title(struct wlr_xwm *xwm,
 
 static bool has_parent(struct wlr_xwayland_surface *parent,
 		struct wlr_xwayland_surface *child) {
-	while (parent) {
-		if (child == parent) {
+
+	struct wlr_xwayland_surface *search = parent;
+
+	while (search) {
+		if (child == search) {
 			return true;
 		}
 
-		parent = parent->parent;
+		search = search->parent;
 	}
 
 	return false;
