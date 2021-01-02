@@ -107,8 +107,11 @@ static void foreign_toplevel_handle_activate(struct wl_client *client,
 	if (!toplevel) {
 		return;
 	}
-
 	struct wlr_seat_client *seat_client = wlr_seat_client_from_resource(seat);
+	if (!seat_client) {
+		return;
+	}
+
 	struct wlr_foreign_toplevel_handle_v1_activated_event event = {
 		.toplevel = toplevel,
 		.seat = seat_client->seat,
