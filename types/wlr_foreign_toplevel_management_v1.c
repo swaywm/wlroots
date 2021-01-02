@@ -198,6 +198,10 @@ void wlr_foreign_toplevel_handle_v1_set_title(
 		struct wlr_foreign_toplevel_handle_v1 *toplevel, const char *title) {
 	free(toplevel->title);
 	toplevel->title = strdup(title);
+	if (toplevel->title == NULL) {
+		wlr_log(WLR_ERROR, "failed to allocate memory for toplevel title");
+		return;
+	}
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &toplevel->resources) {
@@ -211,6 +215,10 @@ void wlr_foreign_toplevel_handle_v1_set_app_id(
 		struct wlr_foreign_toplevel_handle_v1 *toplevel, const char *app_id) {
 	free(toplevel->app_id);
 	toplevel->app_id = strdup(app_id);
+	if (toplevel->app_id == NULL) {
+		wlr_log(WLR_ERROR, "failed to allocate memory for toplevel app_id");
+		return;
+	}
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &toplevel->resources) {
