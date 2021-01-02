@@ -297,12 +297,12 @@ static void frame_handle_output_commit(struct wl_listener *listener,
 	}
 
 	struct wlr_dmabuf_attributes attr = { 0 };
-	bool ok = wlr_output_export_dmabuf(output, &attr);
+	struct wlr_buffer *buffer = wlr_output_get_front_buffer(output);
+	bool ok = buffer && wlr_buffer_get_dmabuf(buffer, &attr);
 	ok = ok && wlr_renderer_blit_dmabuf(renderer,
 		&dma_buffer->attributes, &attr);
 	uint32_t flags = dma_buffer->attributes.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT ?
 		ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT : 0;
-	wlr_dmabuf_attributes_finish(&attr);
 
 	if (!ok) {
 		zwlr_screencopy_frame_v1_send_failed(frame->resource);
@@ -495,11 +495,11 @@ static struct wlr_screencopy_v1_client *client_from_resource(
 
 static uint32_t get_output_fourcc(struct wlr_output *output) {
 	struct wlr_dmabuf_attributes attr = { 0 };
-	if (!wlr_output_export_dmabuf(output, &attr)) {
+	struct wlr_buffer *buffer = wlr_output_get_front_buffer(output);
+	if (!buffer || !wlr_buffer_get_dmabuf(buffer, &attr)) {
 		return DRM_FORMAT_INVALID;
 	}
 	uint32_t format = attr.format;
-	wlr_dmabuf_attributes_finish(&attr);
 	return format;
 }
 
