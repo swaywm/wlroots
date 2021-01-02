@@ -13,6 +13,14 @@
 
 static const struct zext_foreign_toplevel_handle_v1_interface toplevel_handle_impl;
 
+struct wlr_ext_foreign_toplevel_handle_v1 *
+wlr_ext_foreign_toplevel_handle_v1_from_resource(struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource,
+			&zext_foreign_toplevel_handle_v1_interface,
+			&toplevel_handle_impl));
+	return wl_resource_get_user_data(resource);
+}
+
 static void foreign_toplevel_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);

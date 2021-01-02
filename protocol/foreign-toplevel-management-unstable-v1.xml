@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="foreign_toplevel_management_unstable_v1">
+  <copyright>
+    Copyright © 2018 Ilia Bozhinov
+    Copyright © 2020 Isaac Freund
+
+    Permission to use, copy, modify, distribute, and sell this
+    software and its documentation for any purpose is hereby granted
+    without fee, provided that the above copyright notice appear in
+    all copies and that both that copyright notice and this permission
+    notice appear in supporting documentation, and that the name of
+    the copyright holders not be used in advertising or publicity
+    pertaining to distribution of the software without specific,
+    written prior permission.  The copyright holders make no
+    representations about the suitability of this software for any
+    purpose.  It is provided "as is" without express or implied
+    warranty.
+
+    THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
+    SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+    FITNESS, IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
+    AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+    ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+    THIS SOFTWARE.
+  </copyright>
+
+  <interface name="zext_foreign_toplevel_manager_v1" version="1">
+    <description summary="control open apps">
+      This protocol allows clients such as a taskbar to request the compositor
+      to preform typical actions on open toplevels. The compositor is in all
+      cases free to ignore the request.
+    </description>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the zext_foreign_toplevel_manager_v1">
+        This request indicates that the client has finished using the
+        zext_foreign_toplevel_manager_v1 object and that it can be safely
+        destroyed.
+      </description>
+    </request>
+
+    <request name="close">
+      <description summary="request that a toplevel be closed">
+        If the compositor honors this request, the
+        zext_foreign_toplevel_handle_v1.closed event will be sent.
+      </description>
+      <arg name="toplevel" type="object" interface="zext_foreign_toplevel_handle_v1"/>
+    </request>
+
+    <request name="set_maximized">
+      <description summary="request that a toplevel be maximized">
+        If the compositor honors this request, the
+        zext_foreign_toplevel_handle_v1.state event will be sent.
+      </description>
+      <arg name="toplevel" type="object" interface="zext_foreign_toplevel_handle_v1"/>
+    </request>
+
+    <request name="unset_maximized">
+      <description summary="request that a toplevel be unmaximized">
+        If the compositor honors this request, the
+        zext_foreign_toplevel_handle_v1.state event will be sent.
+      </description>
+      <arg name="toplevel" type="object" interface="zext_foreign_toplevel_handle_v1"/>
+    </request>
+
+    <request name="set_minimized">
+      <description summary="request that a toplevel be minimized">
+        If the compositor honors this request, the
+        zext_foreign_toplevel_handle_v1.state event will be sent.
+      </description>
+      <arg name="toplevel" type="object" interface="zext_foreign_toplevel_handle_v1"/>
+    </request>
+
+    <request name="unset_minimized">
+      <description summary="request that a toplevel be unminimized">
+        If the compositor honors this request, the
+        zext_foreign_toplevel_handle_v1.state event will be sent.
+      </description>
+      <arg name="toplevel" type="object" interface="zext_foreign_toplevel_handle_v1"/>
+    </request>
+
+    <request name="set_fullscreen">
+      <description summary="request that a toplevel be fullscreened">
+        If the compositor honors this request, the
+        zext_foreign_toplevel_handle_v1.state and potentially the
+        zext_foreign_toplevel_handle_v1.output_enter/output_leave events will
+        be sent.
+
+        The output parameter a hint to the compositor and may be ignored. A
+        value of NULL indicates that the compositor should choose the target
+        output, if it honors the fullscreen request.
+      </description>
+      <arg name="toplevel" type="object" interface="zext_foreign_toplevel_handle_v1"/>
+      <arg name="output" type="object" interface="wl_output" allow-null="true"/>
+    </request>
+
+    <request name="unset_fullscreen">
+      <description summary="request that a toplevel be unfullscreened">
+        If the compositor honors this request, the
+        zext_foreign_toplevel_handle_v1.state event will be sent.
+      </description>
+      <arg name="toplevel" type="object" interface="zext_foreign_toplevel_handle_v1"/>
+    </request>
+
+    <request name="activate">
+      <description summary="request that a toplevel be activated">
+        If the compositor honors this request, the
+        zext_foreign_toplevel_handle_v1.state event will be sent.
+      </description>
+      <arg name="toplevel" type="object" interface="zext_foreign_toplevel_handle_v1"/>
+      <arg name="seat" type="object" interface="wl_seat"/>
+    </request>
+
+    <request name="set_rectangle">
+      <description summary="designate a rectangle to represent a toplevel">
+        If a client using this protocol displays UI elements corresponding
+        to toplevels, it may use this request to inform the server about such
+        a relation. This information may be used by the server, for example as
+        the target for a minimize animation.
+
+        If the client sets more than one rectangle, only the most recently
+        set rectangle is considered.
+
+        The dimensions are given in surface-local coordinates.
+
+        Setting width=height=0 removes the current rectangle if one was set.
+      </description>
+      <arg name="toplevel" type="object" interface="zext_foreign_toplevel_handle_v1"/>
+      <arg name="surface" type="object" interface="wl_surface"/>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+      <arg name="width" type="int"/>
+      <arg name="height" type="int"/>
+    </request>
+
+    <enum name="error">
+      <entry name="invalid_rectangle" value="0"
+        summary="the provided rectangle is invalid"/>
+    </enum>
+  </interface>
+</protocol>

@@ -67,6 +67,10 @@ struct wlr_ext_foreign_toplevel_info_v1 *wlr_ext_foreign_toplevel_info_v1_create
 struct wlr_ext_foreign_toplevel_handle_v1 *wlr_ext_foreign_toplevel_handle_v1_create(
 	struct wlr_ext_foreign_toplevel_info_v1 *info);
 
+// Returns NULL if the toplevel handle is inert
+struct wlr_ext_foreign_toplevel_handle_v1 *
+wlr_ext_foreign_toplevel_handle_v1_from_resource(struct wl_resource *resource);
+
 /* Destroy the given toplevel handle, sending the closed event to any
  * client. Also, if the destroyed toplevel is set as a parent of any
  * other valid toplevel, clients still holding a handle to both are
