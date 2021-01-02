@@ -75,6 +75,7 @@ struct wlr_wl_output {
 	struct wl_list presentation_feedbacks;
 
 	struct wlr_swapchain *swapchain;
+	struct wlr_buffer *front_buffer;
 	struct wlr_buffer *back_buffer;
 
 	uint32_t enter_serial;

@@ -341,6 +341,7 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		wl_surface_commit(output->surface);
 
 		wlr_buffer_unlock(output->back_buffer);
+		output->front_buffer = output->back_buffer;
 		output->back_buffer = NULL;
 
 		wlr_swapchain_set_buffer_submitted(output->swapchain, wlr_buffer);
@@ -522,6 +523,14 @@ static bool output_move_cursor(struct wlr_output *_output, int x, int y) {
 	return true;
 }
 
+static struct wlr_buffer *output_get_front_buffer(
+		struct wlr_output *wlr_output) {
+	// TODO: buffer_handle_release might free the front buffer. How do we
+	// fix that?
+	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
+	return output->front_buffer;
+}
+
 static const struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
@@ -530,6 +539,7 @@ static const struct wlr_output_impl output_impl = {
 	.rollback_render = output_rollback_render,
 	.set_cursor = output_set_cursor,
 	.move_cursor = output_move_cursor,
+	.get_front_buffer = output_get_front_buffer,
 };
 
 bool wlr_output_is_wl(struct wlr_output *wlr_output) {

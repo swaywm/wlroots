@@ -14,6 +14,8 @@
 #include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 
+struct wlr_buffer;
+
 /**
  * A backend implementation of wlr_output.
  *
@@ -86,6 +88,10 @@ struct wlr_output_impl {
 	 */
 	bool (*export_dmabuf)(struct wlr_output *output,
 		struct wlr_dmabuf_attributes *attribs);
+        /**
+         * Get the output's current front-buffer as a wlr_buffer.
+         */
+        struct wlr_buffer *(*get_front_buffer)(struct wlr_output *output);
 };
 
 /**

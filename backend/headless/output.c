@@ -148,6 +148,13 @@ static bool output_export_dmabuf(struct wlr_output *wlr_output,
 	return wlr_dmabuf_attributes_copy(attribs, &tmp);
 }
 
+static struct wlr_buffer *output_get_front_buffer(
+		struct wlr_output *wlr_output) {
+	struct wlr_headless_output *output =
+		headless_output_from_output(wlr_output);
+	return output->front_buffer;
+}
+
 static void output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
@@ -165,6 +172,7 @@ static const struct wlr_output_impl output_impl = {
 	.commit = output_commit,
 	.rollback_render = output_rollback_render,
 	.export_dmabuf = output_export_dmabuf,
+	.get_front_buffer = output_get_front_buffer,
 };
 
 bool wlr_output_is_headless(struct wlr_output *wlr_output) {

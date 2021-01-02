@@ -623,37 +623,40 @@ static size_t drm_connector_get_gamma_size(struct wlr_output *output) {
 	return drm_crtc_get_gamma_lut_size(drm, crtc);
 }
 
-static bool drm_connector_export_dmabuf(struct wlr_output *output,
-		struct wlr_dmabuf_attributes *attribs) {
+static struct wlr_buffer *drm_connector_get_front_buffer(
+		struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
 	if (!drm->session->active) {
-		return false;
+		return NULL;
 	}
 
 	if (!crtc) {
-		return false;
+		return NULL;
 	}
 
-	struct wlr_drm_fb *fb = &crtc->primary->queued_fb;
-	if (fb->wlr_buf == NULL) {
-		fb = &crtc->primary->current_fb;
-	}
-	if (fb->wlr_buf == NULL) {
-		return false;
+	if (crtc->primary->queued_fb.wlr_buf) {
+		return crtc->primary->queued_fb.wlr_buf;
 	}
 
+	return crtc->primary->current_fb.wlr_buf;
+}
+
+static bool drm_connector_export_dmabuf(struct wlr_output *output,
+		struct wlr_dmabuf_attributes *attribs) {
+	struct wlr_buffer *buffer = drm_connector_get_front_buffer(output);
 	// export_dmabuf gives ownership of the DMA-BUF to the caller, so we need
 	// to dup it
 	struct wlr_dmabuf_attributes buf_attribs = {0};
-	if (!wlr_buffer_get_dmabuf(fb->wlr_buf, &buf_attribs)) {
+	if (!wlr_buffer_get_dmabuf(buffer, &buf_attribs)) {
 		return false;
 	}
 
 	return wlr_dmabuf_attributes_copy(attribs, &buf_attribs);
 }
+
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
 	if (plane->pending_fb.bo) {
@@ -1038,6 +1041,7 @@ static const struct wlr_output_impl output_impl = {
 	.rollback_render = drm_connector_rollback_render,
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.export_dmabuf = drm_connector_export_dmabuf,
+	.get_front_buffer = drm_connector_get_front_buffer,
 };
 
 bool wlr_output_is_drm(struct wlr_output *output) {

@@ -762,6 +762,13 @@ bool wlr_output_export_dmabuf(struct wlr_output *output,
 	return output->impl->export_dmabuf(output, attribs);
 }
 
+struct wlr_buffer *wlr_output_get_front_buffer(struct wlr_output *output) {
+	if (!output->impl->get_front_buffer) {
+		return false;
+	}
+	return output->impl->get_front_buffer(output);
+}
+
 void wlr_output_update_needs_frame(struct wlr_output *output) {
 	if (output->needs_frame) {
 		return;

@@ -37,6 +37,7 @@ struct wlr_x11_output {
 	xcb_present_event_t present_event_id;
 
 	struct wlr_swapchain *swapchain;
+	struct wlr_buffer *front_buffer;
 	struct wlr_buffer *back_buffer;
 
 	struct wlr_pointer pointer;

@@ -405,6 +405,10 @@ void wlr_output_set_gamma(struct wlr_output *output, size_t size,
 bool wlr_output_export_dmabuf(struct wlr_output *output,
 	struct wlr_dmabuf_attributes *attribs);
 /**
+ * Get the output's current front buffer as a wlr_buffer.
+ */
+struct wlr_buffer *wlr_output_get_front_buffer(struct wlr_output *output);
+/**
  * Returns the wlr_output matching the provided wl_output resource. If the
  * resource isn't a wl_output, it aborts. If the resource is inert (because the
  * wlr_output has been destroyed), NULL is returned.

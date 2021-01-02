@@ -256,6 +256,7 @@ static bool output_commit_buffer(struct wlr_x11_output *output) {
 	}
 
 	wlr_buffer_unlock(output->back_buffer);
+	output->front_buffer = output->back_buffer;
 	output->back_buffer = NULL;
 
 	wlr_swapchain_set_buffer_submitted(output->swapchain, x11_buffer->buffer);
@@ -319,12 +320,21 @@ static void output_rollback_render(struct wlr_output *wlr_output) {
 	wlr_egl_unset_current(&x11->egl);
 }
 
+static struct wlr_buffer *output_get_front_buffer(
+		struct wlr_output *wlr_output) {
+	// TODO: handle_x11_present_event might destroy the front buffer. How
+	// do we deal with that?
+	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
+	return output->front_buffer;
+}
+
 static const struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
 	.test = output_test,
 	.commit = output_commit,
 	.rollback_render = output_rollback_render,
+	.get_front_buffer = output_get_front_buffer,
 };
 
 struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
