@@ -10,6 +10,7 @@
 
 #include <drm_fourcc.h>
 #include <wayland-server-core.h>
+#include <xf86drm.h>
 
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
@@ -23,6 +24,7 @@
 #include "render/wlr_renderer.h"
 #include "util/signal.h"
 
+#include "drm-client-protocol.h"
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
 #include "pointer-gestures-unstable-v1-client-protocol.h"
 #include "presentation-time-client-protocol.h"
@@ -99,6 +101,91 @@ static const struct zwp_linux_dmabuf_v1_listener linux_dmabuf_v1_listener = {
 	.modifier = linux_dmabuf_v1_handle_modifier,
 };
 
+static bool device_has_name(const drmDevice *device, const char *name) {
+	for (size_t i = 0; i < DRM_NODE_MAX; i++) {
+		if (!(device->available_nodes & (1 << i))) {
+			continue;
+		}
+		if (strcmp(device->nodes[i], name) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static char *get_render_name(const char *name) {
+	uint32_t flags = 0;
+	int devices_len = drmGetDevices2(flags, NULL, 0);
+	if (devices_len < 0) {
+		wlr_log(WLR_ERROR, "drmGetDevices2 failed");
+		return NULL;
+	}
+	drmDevice **devices = calloc(devices_len, sizeof(drmDevice *));
+	if (devices == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return NULL;
+	}
+	devices_len = drmGetDevices2(flags, devices, devices_len);
+	if (devices_len < 0) {
+		free(devices);
+		wlr_log(WLR_ERROR, "drmGetDevices2 failed");
+		return NULL;
+	}
+
+	const drmDevice *match = NULL;
+	for (int i = 0; i < devices_len; i++) {
+		if (device_has_name(devices[i], name)) {
+			match = devices[i];
+			break;
+		}
+	}
+
+	char *render_name = NULL;
+	if (match == NULL) {
+		wlr_log(WLR_ERROR, "Cannot find DRM device %s", name);
+	} else if (!(match->available_nodes & (1 << DRM_NODE_RENDER))) {
+		wlr_log(WLR_ERROR, "DRM device %s has no render node", name);
+	} else {
+		render_name = strdup(match->nodes[DRM_NODE_RENDER]);
+	}
+
+	for (int i = 0; i < devices_len; i++) {
+		drmFreeDevice(&devices[i]);
+	}
+	free(devices);
+
+	return render_name;
+}
+
+static void legacy_drm_handle_device(void *data, struct wl_drm *drm,
+		const char *name) {
+	struct wlr_wl_backend *wl = data;
+
+	// TODO: get FD from linux-dmabuf hints instead
+	wl->drm_render_name = get_render_name(name);
+}
+
+static void legacy_drm_handle_format(void *data, struct wl_drm *drm,
+		uint32_t format) {
+	// This space is intentionally left blank
+}
+
+static void legacy_drm_handle_authenticated(void *data, struct wl_drm *drm) {
+	// This space is intentionally left blank
+}
+
+static void legacy_drm_handle_capabilities(void *data, struct wl_drm *drm,
+		uint32_t caps) {
+	// This space is intentionally left blank
+}
+
+static const struct wl_drm_listener legacy_drm_listener = {
+	.device = legacy_drm_handle_device,
+	.format = legacy_drm_handle_format,
+	.authenticated = legacy_drm_handle_authenticated,
+	.capabilities = legacy_drm_handle_capabilities,
+};
+
 static void registry_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *iface, uint32_t version) {
 	struct wlr_wl_backend *wl = data;
@@ -139,6 +226,9 @@ static void registry_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(iface, zwp_relative_pointer_manager_v1_interface.name) == 0) {
 		wl->zwp_relative_pointer_manager_v1 = wl_registry_bind(registry, name,
 			&zwp_relative_pointer_manager_v1_interface, 1);
+	} else if (strcmp(iface, wl_drm_interface.name) == 0) {
+		wl->legacy_drm = wl_registry_bind(registry, name, &wl_drm_interface, 1);
+		wl_drm_add_listener(wl->legacy_drm, &legacy_drm_listener, wl);
 	}
 }
 
@@ -205,6 +295,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_event_source_remove(wl->remote_display_src);
 
 	wlr_renderer_destroy(wl->renderer);
+	wlr_allocator_destroy(wl->allocator);
 
 	wlr_drm_format_set_finish(&wl->linux_dmabuf_v1_formats);
 
@@ -229,6 +320,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	if (wl->zwp_relative_pointer_manager_v1) {
 		zwp_relative_pointer_manager_v1_destroy(wl->zwp_relative_pointer_manager_v1);
 	}
+	free(wl->drm_render_name);
 	xdg_wm_base_destroy(wl->xdg_wm_base);
 	wl_compositor_destroy(wl->compositor);
 	wl_registry_destroy(wl->registry);
@@ -301,6 +393,11 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 			"Remote Wayland compositor does not support xdg-shell");
 		goto error_registry;
 	}
+	if (!wl->drm_render_name) {
+		wlr_log(WLR_ERROR, "Failed to get DRM render node from remote Wayland "
+			"compositor wl_drm interface");
+		goto error_registry;
+	}
 
 	struct wl_event_loop *loop = wl_display_get_event_loop(wl->local_display);
 	int fd = wl_display_get_fd(wl->remote_display);
@@ -312,32 +409,28 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}
 	wl_event_source_check(wl->remote_display_src);
 
-	wl->renderer = wlr_renderer_autocreate(EGL_PLATFORM_WAYLAND_EXT,
-		wl->remote_display);
-	if (!wl->renderer) {
-		wlr_log(WLR_ERROR, "Could not create renderer");
-		goto error_event;
-	}
-
-	// TODO: get FD from linux-dmabuf hints instead
-	int drm_fd = wlr_renderer_get_drm_fd(wl->renderer);
+	wlr_log(WLR_DEBUG, "Opening DRM render node %s", wl->drm_render_name);
+	int drm_fd = open(wl->drm_render_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
 	if (drm_fd < 0) {
-		wlr_log(WLR_ERROR, "Failed to get DRM device FD from renderer");
-		goto error_event;
+		wlr_log_errno(WLR_ERROR, "Failed to open DRM render node %s",
+			wl->drm_render_name);
+		goto error_registry;
 	}
 
-	drm_fd = fcntl(drm_fd, F_DUPFD_CLOEXEC, 0);
-	if (drm_fd < 0) {
-		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
-		goto error_event;
-	}
-
-	struct wlr_gbm_allocator *alloc = wlr_gbm_allocator_create(drm_fd);
-	if (alloc == NULL) {
+	struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
+	if (gbm_alloc == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
-		goto error_event;
+		close(drm_fd);
+		goto error_registry;
 	}
-	wl->allocator = &alloc->base;
+	wl->allocator = &gbm_alloc->base;
+
+	wl->renderer = wlr_renderer_autocreate(EGL_PLATFORM_GBM_KHR,
+		gbm_alloc->gbm_device);
+	if (wl->renderer == NULL) {
+		wlr_log(WLR_ERROR, "Failed to create renderer");
+		goto error_registry;
+	}
 
 	uint32_t fmt = DRM_FORMAT_ARGB8888;
 	const struct wlr_drm_format *remote_format =
@@ -376,6 +469,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 error_event:
 	wl_event_source_remove(wl->remote_display_src);
 error_registry:
+	free(wl->drm_render_name);
 	if (wl->compositor) {
 		wl_compositor_destroy(wl->compositor);
 	}
