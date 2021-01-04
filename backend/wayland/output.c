@@ -450,7 +450,7 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		wlr_egl_unset_current(&output->backend->egl);
 
 		struct wlr_wl_buffer *buffer =
-			create_wl_buffer(output->backend, wlr_buffer);
+			get_or_create_wl_buffer(output->backend, wlr_buffer);
 		if (buffer == NULL) {
 			return false;
 		}
