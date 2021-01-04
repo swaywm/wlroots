@@ -211,8 +211,7 @@ int main(int argc, char **argv) {
 	wl_region_add(joint_region, 256, 256, 256, 256);
 	regions[REGION_TYPE_JOINT] = joint_region;
 
-	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL,
-		WL_SHM_FORMAT_ARGB8888);
+	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL, 0);
 
 	struct wl_surface *surface = wl_compositor_create_surface(compositor);
 	struct xdg_surface *xdg_surface =

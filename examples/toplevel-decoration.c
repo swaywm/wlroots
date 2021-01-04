@@ -218,8 +218,7 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
-	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL,
-		WL_SHM_FORMAT_ARGB8888);
+	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL, 0);
 
 	struct wl_surface *surface = wl_compositor_create_surface(compositor);
 	struct xdg_surface *xdg_surface =
