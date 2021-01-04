@@ -363,8 +363,8 @@ int main(int argc, char **argv) {
 
 	zwp_text_input_v3_add_listener(text_input, &text_input_listener, NULL);
 
-
-	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL, 0);
+	EGLint attribs[] = { EGL_NONE };
+	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, attribs, 0);
 
 	struct wl_surface *surface = wl_compositor_create_surface(compositor);
 	struct xdg_surface *xdg_surface =

@@ -443,7 +443,8 @@ int main(int argc, char **argv) {
 	e->egl = calloc(1, sizeof(struct wlr_egl));
 	e->width = e->height = 512;
 
-	wlr_egl_init(e->egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL, 0);
+	EGLint attribs[] = { EGL_NONE };
+	wlr_egl_init(e->egl, EGL_PLATFORM_WAYLAND_EXT, display, attribs, 0);
 
 	/* Create the surface and xdg_toplevels, and set listeners */
 

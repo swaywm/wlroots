@@ -157,7 +157,8 @@ int main(int argc, char **argv) {
 			input_inhibit_manager);
 	assert(input_inhibitor);
 
-	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL, 0);
+	EGLint attribs[] = { EGL_NONE };
+	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, attribs, 0);
 
 	struct wl_surface *surface = wl_compositor_create_surface(compositor);
 	assert(surface);
