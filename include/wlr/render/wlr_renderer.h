@@ -34,7 +34,7 @@ struct wlr_renderer {
 };
 
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl, EGLenum platform,
-	void *remote_display, EGLint *config_attribs, EGLint visual_id);
+	void *remote_display);
 
 void wlr_renderer_begin(struct wlr_renderer *r, uint32_t width, uint32_t height);
 void wlr_renderer_end(struct wlr_renderer *r);
