@@ -207,7 +207,7 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 	}
 
 	struct wlr_renderer *renderer = wlr_renderer_autocreate(&backend->priv_egl,
-		EGL_PLATFORM_GBM_KHR, gbm_alloc->gbm_device, NULL, 0);
+		EGL_PLATFORM_GBM_KHR, gbm_alloc->gbm_device);
 	if (!renderer) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
 		goto error_renderer;
