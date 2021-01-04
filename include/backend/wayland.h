@@ -42,6 +42,8 @@ struct wlr_wl_backend {
 	struct wl_list seats; // wlr_wl_seat.link
 	struct zwp_tablet_manager_v2 *tablet_manager;
 	struct wlr_drm_format_set linux_dmabuf_v1_formats;
+	struct wl_drm *legacy_drm;
+	char *drm_render_name;
 };
 
 struct wlr_wl_buffer {
