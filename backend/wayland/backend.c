@@ -306,8 +306,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 
 	struct wl_event_loop *loop = wl_display_get_event_loop(wl->local_display);
 	int fd = wl_display_get_fd(wl->remote_display);
-	int events = WL_EVENT_READABLE | WL_EVENT_ERROR | WL_EVENT_HANGUP;
-	wl->remote_display_src = wl_event_loop_add_fd(loop, fd, events,
+	wl->remote_display_src = wl_event_loop_add_fd(loop, fd, WL_EVENT_READABLE,
 		dispatch_events, wl);
 	if (!wl->remote_display_src) {
 		wlr_log(WLR_ERROR, "Failed to create event source");
