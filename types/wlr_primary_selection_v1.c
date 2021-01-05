@@ -452,6 +452,12 @@ static void primary_selection_device_manager_bind(struct wl_client *client,
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_primary_selection_v1_device_manager *manager =
 		wl_container_of(listener, manager, display_destroy);
+
+	struct wlr_primary_selection_v1_device *device, *tmp;
+	wl_list_for_each_safe(device, tmp, &manager->devices, link) {
+		device_destroy(device);
+	}
+
 	wlr_signal_emit_safe(&manager->events.destroy, manager);
 	wl_list_remove(&manager->display_destroy.link);
 	wl_global_destroy(manager->global);
