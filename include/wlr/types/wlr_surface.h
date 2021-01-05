@@ -256,6 +256,11 @@ void wlr_surface_send_frame_done(struct wlr_surface *surface,
  */
 void wlr_surface_get_extends(struct wlr_surface *surface, struct wlr_box *box);
 
+/**
+ * Get the wlr_surface corresponding to a wl_surface resource. This asserts
+ * that the resource is a valid wl_surface resource created by wlroots and
+ * will never return NULL.
+ */
 struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource);
 
 /**
