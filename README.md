@@ -55,6 +55,7 @@ Install dependencies:
 * pixman
 * systemd (optional, for logind support)
 * elogind (optional, for logind support on systems without systemd)
+* libuuid (optional, for xdg-foreign support)
 
 If you choose to enable X11 support:
 

@@ -7,3 +7,11 @@ wlr_files += files(
 	'signal.c',
 	'time.c',
 )
+
+if uuid.found()
+	wlr_deps += uuid
+	add_project_arguments('-DHAS_LIBUUID=1', language: 'c')
+else
+	add_project_arguments('-DHAS_LIBUUID=0', language: 'c')
+endif
+wlr_files += files('uuid.c')
