@@ -194,16 +194,14 @@ struct wlr_xdg_surface *wlr_xdg_surface_from_toplevel_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-static void set_parent(struct wlr_xdg_surface *surface,
-		struct wlr_xdg_surface *parent);
-
 static void handle_parent_unmap(struct wl_listener *listener, void *data) {
 	struct wlr_xdg_toplevel *toplevel =
 		wl_container_of(listener, toplevel, parent_unmap);
-	set_parent(toplevel->base, toplevel->parent->toplevel->parent);
+	wlr_xdg_toplevel_set_parent(toplevel->base,
+			toplevel->parent->toplevel->parent);
 }
 
-static void set_parent(struct wlr_xdg_surface *surface,
+void wlr_xdg_toplevel_set_parent(struct wlr_xdg_surface *surface,
 		struct wlr_xdg_surface *parent) {
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
 	assert(!parent || parent->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
@@ -232,7 +230,7 @@ static void xdg_toplevel_handle_set_parent(struct wl_client *client,
 		parent = wlr_xdg_surface_from_toplevel_resource(parent_resource);
 	}
 
-	set_parent(surface, parent);
+	wlr_xdg_toplevel_set_parent(surface, parent);
 }
 
 static void xdg_toplevel_handle_set_title(struct wl_client *client,
