@@ -87,6 +87,7 @@ conf_data.set10('WLR_HAS_X11_BACKEND', false)
 conf_data.set10('WLR_HAS_XWAYLAND', false)
 conf_data.set10('WLR_HAS_XCB_ERRORS', false)
 conf_data.set10('WLR_HAS_XCB_ICCCM', false)
+conf_data.set10('WLR_HAS_XDG_FOREIGN', false)
 
 # Clang complains about some zeroed initializer lists (= {0}), even though they
 # are valid
@@ -109,8 +110,16 @@ pixman = dependency('pixman-1')
 math = cc.find_library('m')
 rt = cc.find_library('rt')
 
-uuid = dependency('uuid', required: false)
-uuid_create = cc.has_function('uuid_create')
+if not get_option('xdg-foreign').disabled()
+	uuid = dependency('uuid', required: false)
+	uuid_create = cc.has_function('uuid_create')
+	if uuid.found() or uuid_create
+		conf_data.set10('WLR_HAS_XDG_FOREIGN', true)
+	elif get_option('xdg-foreign').enabled()
+		error('Missing dependency uuid and uuid_create function not available ' +
+				'cannot build with xdg-foreign support')
+	endif
+endif
 
 wlr_files = []
 wlr_deps = [
@@ -171,6 +180,7 @@ summary({
 	'x11_backend': conf_data.get('WLR_HAS_X11_BACKEND', 0) == 1,
 	'xcb-icccm': conf_data.get('WLR_HAS_XCB_ICCCM', 0) == 1,
 	'xcb-errors': conf_data.get('WLR_HAS_XCB_ERRORS', 0) == 1,
+	'xdg-foreign': conf_data.get('WLR_HAS_XDG_FOREIGN', 0) == 1,
 }, bool_yn: true)
 
 if get_option('examples')
