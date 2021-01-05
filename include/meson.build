@@ -10,6 +10,7 @@ endif
 if conf_data.get('WLR_HAS_XDG_FOREIGN', 0) != 1
 	exclude_files += [
     'types/wlr_xdg_foreign_v1.h',
+    'types/wlr_xdg_foreign_v2.h',
     'types/wlr_xdg_foreign_registry.h',
 	]
 endif
