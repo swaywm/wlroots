@@ -109,6 +109,9 @@ pixman = dependency('pixman-1')
 math = cc.find_library('m')
 rt = cc.find_library('rt')
 
+uuid = dependency('uuid', required: false)
+uuid_create = cc.has_function('uuid_create')
+
 wlr_files = []
 wlr_deps = [
 	wayland_server,
