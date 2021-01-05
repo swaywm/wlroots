@@ -70,6 +70,7 @@ wlr_files += files(
 if conf_data.get('WLR_HAS_XDG_FOREIGN', 0) == 1
 	wlr_files += files(
 		'wlr_xdg_foreign_v1.c',
+		'wlr_xdg_foreign_v2.c',
 		'wlr_xdg_foreign_registry.c',
 	)
 endif
