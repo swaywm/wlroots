@@ -310,6 +310,12 @@ uint32_t wlr_xdg_toplevel_set_tiled(struct wlr_xdg_surface *surface,
 void wlr_xdg_toplevel_send_close(struct wlr_xdg_surface *surface);
 
 /**
+ * Sets the parent of this toplevel. Parent can be NULL.
+ */
+void wlr_xdg_toplevel_set_parent(struct wlr_xdg_surface *surface,
+		struct wlr_xdg_surface *parent);
+
+/**
  * Request that this xdg popup closes.
  **/
 void wlr_xdg_popup_destroy(struct wlr_xdg_surface *surface);
