@@ -66,3 +66,9 @@ wlr_files += files(
 	'wlr_xdg_decoration_v1.c',
 	'wlr_xdg_output_v1.c',
 )
+
+if conf_data.get('WLR_HAS_XDG_FOREIGN', 0) == 1
+	wlr_files += files(
+		'wlr_xdg_foreign_registry.c',
+	)
+endif

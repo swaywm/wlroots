@@ -13,4 +13,6 @@
 #mesondefine WLR_HAS_XCB_ERRORS
 #mesondefine WLR_HAS_XCB_ICCCM
 
+#mesondefine WLR_HAS_XDG_FOREIGN
+
 #endif
