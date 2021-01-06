@@ -18,11 +18,14 @@ sources:
 tasks:
   - setup: |
       cd wlroots
-      CC=gcc meson build-gcc -Dauto_features=enabled -Dlogind-provider=systemd
+      CC=gcc meson build-gcc -Dauto_features=enabled -Dlogind-provider=systemd --prefix /usr
       CC=clang meson build-clang -Dauto_features=enabled -Dlogind-provider=systemd
   - gcc: |
       cd wlroots/build-gcc
       ninja
+      sudo ninja install
+      cd ../tinywl
+      make
   - clang: |
       cd wlroots/build-clang
       ninja
