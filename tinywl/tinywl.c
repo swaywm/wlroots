@@ -841,12 +841,8 @@ int main(int argc, char *argv[]) {
 	/* The backend is a wlroots feature which abstracts the underlying input and
 	 * output hardware. The autocreate option will choose the most suitable
 	 * backend based on the current environment, such as opening an X11 window
-	 * if an X11 server is running. The NULL argument here optionally allows you
-	 * to pass in a custom renderer if wlr_renderer doesn't meet your needs. The
-	 * backend uses the renderer, for example, to fall back to software cursors
-	 * if the backend does not support hardware cursors (some older GPUs
-	 * don't). */
-	server.backend = wlr_backend_autocreate(server.wl_display, NULL);
+	 * if an X11 server is running. */
+	server.backend = wlr_backend_autocreate(server.wl_display);
 
 	/* If we don't provide a renderer, autocreate makes a GLES2 renderer for us.
 	 * The renderer is responsible for defining the various pixel formats it
