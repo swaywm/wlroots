@@ -110,6 +110,13 @@ void wlr_output_update_mode(struct wlr_output *output,
 void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 	int32_t height, int32_t refresh);
 /**
+ * Update the output available modes.
+ *
+ * The backend must call this function when the available modes are updated
+ * to notify compositors about the change.
+ */
+void wlr_output_update_available_modes(struct wlr_output *output);
+/**
  * Update the current output status.
  *
  * The backend must call this function when the status is updated to notify

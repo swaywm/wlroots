@@ -226,6 +226,10 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 	wlr_signal_emit_safe(&output->events.mode, output);
 }
 
+void wlr_output_update_available_modes(struct wlr_output *output) {
+	wlr_signal_emit_safe(&output->events.available_modes, output);
+}
+
 void wlr_output_set_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
 	if (output->transform == transform) {
@@ -343,6 +347,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.bind);
 	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.mode);
+	wl_signal_init(&output->events.available_modes);
 	wl_signal_init(&output->events.scale);
 	wl_signal_init(&output->events.transform);
 	wl_signal_init(&output->events.description);

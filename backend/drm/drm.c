@@ -1221,6 +1221,94 @@ static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
 
 static void disconnect_drm_connector(struct wlr_drm_connector *conn);
 
+static bool update_modes(drmModeConnector *drm_conn,
+		struct wlr_drm_connector *wlr_conn) {
+	bool changes_made = false;
+
+	struct wlr_output_mode *previous_mode, *tmp_mode;
+	wl_list_for_each_safe(previous_mode, tmp_mode, &wlr_conn->output.modes, link) {
+
+		struct wlr_drm_mode *previous_drm_mode = (struct wlr_drm_mode *) previous_mode;
+		bool matched = false;
+
+		for (int j = 0; j < drm_conn->count_modes; ++j) {
+			if (memcmp(&previous_drm_mode->drm_mode, &drm_conn->modes[j],
+					sizeof(previous_drm_mode->drm_mode)) == 0) {
+				matched = true;
+				continue;
+			}
+		}
+
+		if (matched) {
+			continue;
+		}
+
+		if (!changes_made) {
+			changes_made = true;
+			wlr_log(WLR_INFO, "Removed modes:");
+		}
+
+		wlr_log(WLR_INFO, "  %"PRId32"x%"PRId32"@%"PRId32" %s",
+			previous_drm_mode->wlr_mode.width,
+			previous_drm_mode->wlr_mode.height,
+			previous_drm_mode->wlr_mode.refresh,
+			previous_drm_mode->wlr_mode.preferred ? "(preferred)" : "");
+
+		wl_list_remove(&previous_drm_mode->wlr_mode.link);
+		free(previous_drm_mode);
+	}
+
+	if (drm_conn->count_modes > wl_list_length(&wlr_conn->output.modes)) {
+		wlr_log(WLR_INFO, "New modes:");
+
+		for (int i = 0; i < drm_conn->count_modes; ++i) {
+			if (drm_conn->modes[i].flags & DRM_MODE_FLAG_INTERLACE) {
+				continue;
+			}
+
+			struct wlr_output_mode *existing_mode;
+			bool matched = false;
+			wl_list_for_each(existing_mode, &wlr_conn->output.modes, link) {
+				struct wlr_drm_mode *existing_drm_mode =
+					(struct wlr_drm_mode *) existing_mode;
+				if (memcmp(&drm_conn->modes[i], &existing_drm_mode->drm_mode,
+						sizeof(drm_conn->modes[i])) == 0) {
+					matched = true;
+					continue;
+				}
+			}
+
+			if (matched) {
+				continue;
+			}
+
+			struct wlr_drm_mode *mode = calloc(1, sizeof(*mode));
+			if (!mode) {
+				wlr_log_errno(WLR_ERROR, "Allocation failed");
+				continue;
+			}
+
+			mode->drm_mode = drm_conn->modes[i];
+			mode->wlr_mode.width = mode->drm_mode.hdisplay;
+			mode->wlr_mode.height = mode->drm_mode.vdisplay;
+			mode->wlr_mode.refresh = calculate_refresh_rate(&mode->drm_mode);
+			if (mode->drm_mode.type & DRM_MODE_TYPE_PREFERRED) {
+				mode->wlr_mode.preferred = true;
+			}
+
+			wlr_log(WLR_INFO, "  %"PRId32"x%"PRId32"@%"PRId32" %s",
+				mode->wlr_mode.width, mode->wlr_mode.height,
+				mode->wlr_mode.refresh,
+				mode->wlr_mode.preferred ? "(preferred)" : "");
+
+			changes_made = true;
+			wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
+		}
+	}
+
+	return changes_made;
+}
+
 void scan_drm_connectors(struct wlr_drm_backend *drm) {
 	/*
 	 * This GPU is not really a modesetting device.
@@ -1322,6 +1410,15 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			}
 		}
 
+		if ((wlr_conn->state == WLR_DRM_CONN_CONNECTED
+				|| wlr_conn->state == WLR_DRM_CONN_NEEDS_MODESET) &&
+				drm_conn->connection == DRM_MODE_CONNECTED) {
+			wlr_log(WLR_INFO, "Scanning '%s' for changed modes", wlr_conn->name);
+			if (update_modes(drm_conn, wlr_conn)) {
+				wlr_output_update_available_modes(&wlr_conn->output);
+			}
+		}
+
 		if (wlr_conn->state == WLR_DRM_CONN_DISCONNECTED &&
 				drm_conn->connection == DRM_MODE_CONNECTED) {
 			wlr_log(WLR_INFO, "'%s' connected", wlr_conn->name);
@@ -1354,35 +1451,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				output->make, output->model, output->serial, output->name);
 			wlr_output_set_description(output, description);
 
-			wlr_log(WLR_INFO, "Detected modes:");
-
-			for (int i = 0; i < drm_conn->count_modes; ++i) {
-				struct wlr_drm_mode *mode = calloc(1, sizeof(*mode));
-				if (!mode) {
-					wlr_log_errno(WLR_ERROR, "Allocation failed");
-					continue;
-				}
-
-				if (drm_conn->modes[i].flags & DRM_MODE_FLAG_INTERLACE) {
-					free(mode);
-					continue;
-				}
-
-				mode->drm_mode = drm_conn->modes[i];
-				mode->wlr_mode.width = mode->drm_mode.hdisplay;
-				mode->wlr_mode.height = mode->drm_mode.vdisplay;
-				mode->wlr_mode.refresh = calculate_refresh_rate(&mode->drm_mode);
-				if (mode->drm_mode.type & DRM_MODE_TYPE_PREFERRED) {
-					mode->wlr_mode.preferred = true;
-				}
-
-				wlr_log(WLR_INFO, "  %"PRId32"x%"PRId32"@%"PRId32" %s",
-					mode->wlr_mode.width, mode->wlr_mode.height,
-					mode->wlr_mode.refresh,
-					mode->wlr_mode.preferred ? "(preferred)" : "");
-
-				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
-			}
+			update_modes(drm_conn, wlr_conn);
 
 			wlr_conn->possible_crtcs = get_possible_crtcs(drm->fd, res, drm_conn);
 			if (wlr_conn->possible_crtcs == 0) {
