@@ -77,7 +77,6 @@ struct wlr_x11_backend {
 	struct wlr_keyboard keyboard;
 	struct wlr_input_device keyboard_dev;
 
-	struct wlr_egl egl;
 	struct wlr_renderer *renderer;
 	struct wlr_drm_format_set dri3_formats;
 	const struct wlr_x11_format *x11_format;

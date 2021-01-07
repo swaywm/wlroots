@@ -21,7 +21,6 @@ struct wlr_wl_backend {
 	struct wl_display *local_display;
 	struct wl_list devices;
 	struct wl_list outputs;
-	struct wlr_egl egl;
 	struct wlr_renderer *renderer;
 	struct wlr_drm_format *format;
 	struct wlr_allocator *allocator;

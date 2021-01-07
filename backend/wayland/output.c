@@ -10,6 +10,7 @@
 #include <wayland-client.h>
 
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/gles2.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
@@ -115,6 +116,8 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output,
 static bool output_attach_render(struct wlr_output *wlr_output,
 		int *buffer_age) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
+	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(
+			output->backend->renderer);
 
 	wlr_buffer_unlock(output->back_buffer);
 	output->back_buffer = wlr_swapchain_acquire(output->swapchain, buffer_age);
@@ -122,7 +125,7 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		return false;
 	}
 
-	if (!wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL)) {
+	if (!wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL)) {
 		return false;
 	}
 	if (!wlr_renderer_bind_buffer(output->backend->renderer,
@@ -309,7 +312,10 @@ static bool output_commit(struct wlr_output *wlr_output) {
 			wlr_buffer = output->back_buffer;
 
 			wlr_renderer_bind_buffer(output->backend->renderer, NULL);
-			wlr_egl_unset_current(&output->backend->egl);
+
+			struct wlr_egl *egl = wlr_gles2_renderer_get_egl(
+					output->backend->renderer);
+			wlr_egl_unset_current(egl);
 			break;
 		case WLR_OUTPUT_STATE_BUFFER_SCANOUT:;
 			wlr_buffer = wlr_output->pending.buffer;
@@ -369,8 +375,10 @@ static bool output_commit(struct wlr_output *wlr_output) {
 
 static void output_rollback_render(struct wlr_output *wlr_output) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
+	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(
+			output->backend->renderer);
 	wlr_renderer_bind_buffer(output->backend->renderer, NULL);
-	wlr_egl_unset_current(&output->backend->egl);
+	wlr_egl_unset_current(egl);
 }
 
 static bool output_set_cursor(struct wlr_output *wlr_output,
@@ -402,6 +410,8 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 	struct wl_surface *surface = output->cursor.surface;
 
 	if (texture != NULL) {
+		struct wlr_egl *egl = wlr_gles2_renderer_get_egl(
+				output->backend->renderer);
 		int width = texture->width * wlr_output->scale / scale;
 		int height = texture->height * wlr_output->scale / scale;
 
@@ -423,7 +433,7 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 			return false;
 		}
 
-		if (!wlr_egl_make_current(&output->backend->egl, EGL_NO_SURFACE, NULL)) {
+		if (!wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL)) {
 			return false;
 		}
 		if (!wlr_renderer_bind_buffer(output->backend->renderer, wlr_buffer)) {
@@ -447,7 +457,7 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		wlr_renderer_end(backend->renderer);
 
 		wlr_renderer_bind_buffer(output->backend->renderer, NULL);
-		wlr_egl_unset_current(&output->backend->egl);
+		wlr_egl_unset_current(egl);
 
 		struct wlr_wl_buffer *buffer =
 			get_or_create_wl_buffer(output->backend, wlr_buffer);

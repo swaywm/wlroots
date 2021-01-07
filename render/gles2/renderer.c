@@ -674,6 +674,7 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
 	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_finish(renderer->egl);
 
 	struct wlr_gles2_buffer *buffer, *buffer_tmp;
 	wl_list_for_each_safe(buffer, buffer_tmp, &renderer->buffers, link) {

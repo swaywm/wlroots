@@ -13,6 +13,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/interfaces/wlr_touch.h>
+#include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 
 #include "backend/x11.h"
@@ -97,6 +98,7 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		int *buffer_age) {
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
 	struct wlr_x11_backend *x11 = output->x11;
+	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(x11->renderer);
 
 	wlr_buffer_unlock(output->back_buffer);
 	output->back_buffer = wlr_swapchain_acquire(output->swapchain, buffer_age);
@@ -104,7 +106,7 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		return false;
 	}
 
-	if (!wlr_egl_make_current(&x11->egl, EGL_NO_SURFACE, NULL)) {
+	if (!wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL)) {
 		return false;
 	}
 	if (!wlr_renderer_bind_buffer(x11->renderer, output->back_buffer)) {
@@ -204,11 +206,12 @@ static struct wlr_x11_buffer *get_or_create_x11_buffer(
 
 static bool output_commit_buffer(struct wlr_x11_output *output) {
 	struct wlr_x11_backend *x11 = output->x11;
+	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(x11->renderer);
 
 	assert(output->back_buffer != NULL);
 
 	wlr_renderer_bind_buffer(x11->renderer, NULL);
-	wlr_egl_unset_current(&x11->egl);
+	wlr_egl_unset_current(egl);
 
 	struct wlr_x11_buffer *x11_buffer =
 		get_or_create_x11_buffer(output, output->back_buffer);
@@ -315,8 +318,10 @@ static bool output_commit(struct wlr_output *wlr_output) {
 static void output_rollback_render(struct wlr_output *wlr_output) {
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
 	struct wlr_x11_backend *x11 = output->x11;
+	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(x11->renderer);
+
 	wlr_renderer_bind_buffer(x11->renderer, NULL);
-	wlr_egl_unset_current(&x11->egl);
+	wlr_egl_unset_current(egl);
 }
 
 static const struct wlr_output_impl output_impl = {
