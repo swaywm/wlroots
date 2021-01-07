@@ -393,6 +393,14 @@ void wlr_xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data);
 
 /**
+ * Call `iterator` on each popup's surface and popup's subsurface in the
+ * xdg-surface tree, with the surfaces's position relative to the root
+ * xdg-surface. The function is called from root to leaves (in rendering order).
+ */
+void wlr_xdg_surface_for_each_popup_surface(struct wlr_xdg_surface *surface,
+		wlr_surface_iterator_func_t iterator, void *user_data);
+
+/**
  * Schedule a surface configuration. This should only be called by protocols
  * extending the shell.
  */
