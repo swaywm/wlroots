@@ -8,6 +8,7 @@
 
 struct wlr_headless_backend {
 	struct wlr_backend backend;
+	int drm_fd;
 	struct wlr_renderer *renderer;
 	struct wlr_allocator *allocator;
 	struct wlr_drm_format *format;

@@ -75,6 +75,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 	}
 
 	wlr_allocator_destroy(backend->allocator);
+	close(backend->drm_fd);
 	free(backend);
 }
 
@@ -85,10 +86,17 @@ static struct wlr_renderer *backend_get_renderer(
 	return backend->renderer;
 }
 
+static int backend_get_drm_fd(struct wlr_backend *wlr_backend) {
+	struct wlr_headless_backend *backend =
+		headless_backend_from_backend(wlr_backend);
+	return backend->drm_fd;
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
+	.get_drm_fd = backend_get_drm_fd,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -185,23 +193,30 @@ out:
 struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 	wlr_log(WLR_INFO, "Creating headless backend");
 
-	int drm_fd = open_drm_render_node();
-	if (drm_fd < 0) {
-		wlr_log(WLR_ERROR, "Failed to open DRM render node");
+	struct wlr_headless_backend *backend =
+		calloc(1, sizeof(struct wlr_headless_backend));
+	if (!backend) {
+		wlr_log(WLR_ERROR, "Failed to allocate wlr_headless_backend");
 		return NULL;
+	}
+
+	backend->drm_fd = open_drm_render_node();
+	if (backend->drm_fd < 0) {
+		wlr_log(WLR_ERROR, "Failed to open DRM render node");
+		goto error_drm_fd;
+	}
+
+	int drm_fd = fcntl(backend->drm_fd, F_DUPFD_CLOEXEC, 0);
+	if (drm_fd < 0) {
+		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+		goto error_dup;
 	}
 
 	struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
 	if (gbm_alloc == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
-		return false;
-	}
-
-	struct wlr_headless_backend *backend =
-		calloc(1, sizeof(struct wlr_headless_backend));
-	if (!backend) {
-		wlr_log(WLR_ERROR, "Failed to allocate wlr_headless_backend");
-		goto error_backend;
+		close(drm_fd);
+		goto error_dup;
 	}
 
 	struct wlr_renderer *renderer = wlr_renderer_autocreate(
@@ -220,9 +235,11 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 error_init:
 	wlr_renderer_destroy(renderer);
 error_renderer:
-	free(backend);
-error_backend:
 	wlr_allocator_destroy(&gbm_alloc->base);
+error_dup:
+	close(backend->drm_fd);
+error_drm_fd:
+	free(backend);
 	return NULL;
 }
 
@@ -230,32 +247,32 @@ struct wlr_backend *wlr_headless_backend_create_with_renderer(
 		struct wl_display *display, struct wlr_renderer *renderer) {
 	wlr_log(WLR_INFO, "Creating headless backend with parent renderer");
 
-	int drm_fd = wlr_renderer_get_drm_fd(renderer);
-	if (drm_fd < 0) {
+	struct wlr_headless_backend *backend =
+		calloc(1, sizeof(struct wlr_headless_backend));
+	if (!backend) {
+		wlr_log(WLR_ERROR, "Failed to allocate wlr_headless_backend");
+		return NULL;
+	}
+	backend->has_parent_renderer = true;
+
+	backend->drm_fd = wlr_renderer_get_drm_fd(renderer);
+	if (backend->drm_fd < 0) {
 		wlr_log(WLR_ERROR, "Failed to get DRM device FD from renderer");
-		return false;
+		goto error_drm_fd;
 	}
 
-	drm_fd = fcntl(drm_fd, F_DUPFD_CLOEXEC, 0);
+	int drm_fd = fcntl(backend->drm_fd, F_DUPFD_CLOEXEC, 0);
 	if (drm_fd < 0) {
 		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
-		return false;
+		goto error_dup;
 	}
 
 	struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
 	if (gbm_alloc == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
-		return false;
+		close(drm_fd);
+		goto error_dup;
 	}
-
-	struct wlr_headless_backend *backend =
-		calloc(1, sizeof(struct wlr_headless_backend));
-	if (!backend) {
-		wlr_log(WLR_ERROR, "Failed to allocate wlr_headless_backend");
-		goto error_backend;
-	}
-
-	backend->has_parent_renderer = true;
 
 	if (!backend_init(backend, display, &gbm_alloc->base, renderer)) {
 		goto error_init;
@@ -267,9 +284,11 @@ struct wlr_backend *wlr_headless_backend_create_with_renderer(
 	return &backend->backend;
 
 error_init:
-	free(backend);
-error_backend:
 	wlr_allocator_destroy(&gbm_alloc->base);
+error_dup:
+	close(backend->drm_fd);
+error_drm_fd:
+	free(backend);
 	return NULL;
 }
 
