@@ -1,7 +1,6 @@
 #ifndef BACKEND_DRM_RENDERER_H
 #define BACKEND_DRM_RENDERER_H
 
-#include <EGL/egl.h>
 #include <gbm.h>
 #include <stdbool.h>
 #include <stdint.h>

@@ -1,7 +1,6 @@
 #ifndef BACKEND_DRM_DRM_H
 #define BACKEND_DRM_DRM_H
 
-#include <EGL/egl.h>
 #include <gbm.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -12,7 +11,6 @@
 #include <wlr/backend/drm.h>
 #include <wlr/backend/session.h>
 #include <wlr/render/drm_format_set.h>
-#include <wlr/render/egl.h>
 #include <xf86drmMode.h>
 #include "iface.h"
 #include "properties.h"

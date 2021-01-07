@@ -11,7 +11,6 @@
 
 #include <wayland-server-core.h>
 #include <wlr/backend/session.h>
-#include <wlr/render/egl.h>
 
 struct wlr_backend_impl;
 
