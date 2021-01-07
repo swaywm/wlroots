@@ -583,6 +583,17 @@ static void xdg_popup_get_position(struct wlr_xdg_popup *popup,
 struct wlr_surface *wlr_xdg_surface_surface_at(
 		struct wlr_xdg_surface *surface, double sx, double sy,
 		double *sub_x, double *sub_y) {
+	struct wlr_surface *sub = wlr_xdg_surface_popup_surface_at(surface, sx, sy,
+			sub_x, sub_y);
+	if (sub != NULL) {
+		return sub;
+	}
+	return wlr_surface_surface_at(surface->surface, sx, sy, sub_x, sub_y);
+}
+
+struct wlr_surface *wlr_xdg_surface_popup_surface_at(
+		struct wlr_xdg_surface *surface, double sx, double sy,
+		double *sub_x, double *sub_y) {
 	struct wlr_xdg_popup *popup_state;
 	wl_list_for_each(popup_state, &surface->popups, link) {
 		struct wlr_xdg_surface *popup = popup_state->base;
@@ -599,7 +610,7 @@ struct wlr_surface *wlr_xdg_surface_surface_at(
 		}
 	}
 
-	return wlr_surface_surface_at(surface->surface, sx, sy, sub_x, sub_y);
+	return NULL;
 }
 
 struct xdg_surface_iterator_data {
