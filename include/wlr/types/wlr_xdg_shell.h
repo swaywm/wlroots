@@ -346,7 +346,7 @@ void wlr_xdg_popup_get_toplevel_coords(struct wlr_xdg_popup *popup,
  * surface coordinate system.
  */
 void wlr_xdg_popup_unconstrain_from_box(struct wlr_xdg_popup *popup,
-		struct wlr_box *toplevel_sx_box);
+		const struct wlr_box *toplevel_sx_box);
 
 /**
   Invert the right/left anchor and gravity for this positioner. This can be
