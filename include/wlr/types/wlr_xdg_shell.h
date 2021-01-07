@@ -369,6 +369,15 @@ struct wlr_surface *wlr_xdg_surface_surface_at(
 		struct wlr_xdg_surface *surface, double sx, double sy,
 		double *sub_x, double *sub_y);
 
+/**
+ * Find a surface within this xdg-surface's popup tree at the given
+ * surface-local coordinates. Returns the surface and coordinates in the leaf
+ * surface coordinate system or NULL if no surface is found at that location.
+ */
+struct wlr_surface *wlr_xdg_surface_popup_surface_at(
+		struct wlr_xdg_surface *surface, double sx, double sy,
+		double *sub_x, double *sub_y);
+
 bool wlr_surface_is_xdg_surface(struct wlr_surface *surface);
 
 struct wlr_xdg_surface *wlr_xdg_surface_from_wlr_surface(
