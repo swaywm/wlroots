@@ -56,20 +56,25 @@ static int xwm_data_source_write(int fd, uint32_t mask, void *data) {
 
 static void xwm_write_property(struct wlr_xwm_selection_transfer *transfer,
 		xcb_get_property_reply_t *reply) {
-	struct wlr_xwm *xwm = transfer->selection->xwm;
+	if (transfer->source != NULL) {
+		// Incremental transfer requested while one is already in progress; ignore
+		// the request.
+		return;
+	}
 
-	transfer->property_start = 0;
-	transfer->property_reply = reply;
-
-	xwm_data_source_write(transfer->source_fd, WL_EVENT_WRITABLE, transfer);
-
-	if (transfer->property_reply != NULL) {
+	if (reply != NULL) {
+		struct wlr_xwm *xwm = transfer->selection->xwm;
 		struct wl_event_loop *loop =
 			wl_display_get_event_loop(xwm->xwayland->wl_display);
 		transfer->source = wl_event_loop_add_fd(loop,
 			transfer->source_fd, WL_EVENT_WRITABLE, xwm_data_source_write,
 			transfer);
 	}
+
+	transfer->property_start = 0;
+	transfer->property_reply = reply;
+
+	xwm_data_source_write(transfer->source_fd, WL_EVENT_WRITABLE, transfer);
 }
 
 void xwm_get_incr_chunk(struct wlr_xwm_selection_transfer *transfer) {
