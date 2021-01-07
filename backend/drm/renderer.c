@@ -30,8 +30,8 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		return false;
 	}
 
-	renderer->wlr_rend = wlr_renderer_autocreate(&renderer->egl,
-		EGL_PLATFORM_GBM_KHR, renderer->gbm);
+	renderer->wlr_rend = wlr_renderer_autocreate(EGL_PLATFORM_GBM_KHR,
+			renderer->gbm);
 	if (!renderer->wlr_rend) {
 		wlr_log(WLR_ERROR, "Failed to create EGL/WLR renderer");
 		goto error_gbm;
@@ -66,7 +66,6 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 
 	wlr_allocator_destroy(&renderer->allocator->base);
 	wlr_renderer_destroy(renderer->wlr_rend);
-	wlr_egl_finish(&renderer->egl);
 	gbm_device_destroy(renderer->gbm);
 }
 
@@ -117,7 +116,8 @@ bool drm_surface_make_current(struct wlr_drm_surface *surf,
 		return false;
 	}
 
-	if (!wlr_egl_make_current(&surf->renderer->egl, EGL_NO_SURFACE, NULL)) {
+	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(surf->renderer->wlr_rend);
+	if (!wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL)) {
 		return false;
 	}
 	if (!wlr_renderer_bind_buffer(surf->renderer->wlr_rend, surf->back_buffer)) {
@@ -130,9 +130,10 @@ bool drm_surface_make_current(struct wlr_drm_surface *surf,
 
 void drm_surface_unset_current(struct wlr_drm_surface *surf) {
 	assert(surf->back_buffer != NULL);
+	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(surf->renderer->wlr_rend);
 
 	wlr_renderer_bind_buffer(surf->renderer->wlr_rend, NULL);
-	wlr_egl_unset_current(&surf->renderer->egl);
+	wlr_egl_unset_current(egl);
 
 	wlr_buffer_unlock(surf->back_buffer);
 	surf->back_buffer = NULL;

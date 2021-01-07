@@ -71,10 +71,11 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 	wlr_signal_emit_safe(&wlr_backend->events.destroy, backend);
 
 	free(backend->format);
-	if (backend->egl == &backend->priv_egl) {
+
+	if (!backend->has_parent_renderer) {
 		wlr_renderer_destroy(backend->renderer);
-		wlr_egl_finish(&backend->priv_egl);
 	}
+
 	wlr_allocator_destroy(backend->allocator);
 	free(backend);
 }
@@ -114,7 +115,6 @@ static bool backend_init(struct wlr_headless_backend *backend,
 
 	backend->allocator = allocator;
 	backend->renderer = renderer;
-	backend->egl = wlr_gles2_renderer_get_egl(renderer);
 
 	const struct wlr_drm_format_set *formats =
 		wlr_renderer_get_dmabuf_render_formats(backend->renderer);
@@ -206,7 +206,7 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 		goto error_backend;
 	}
 
-	struct wlr_renderer *renderer = wlr_renderer_autocreate(&backend->priv_egl,
+	struct wlr_renderer *renderer = wlr_renderer_autocreate(
 		EGL_PLATFORM_GBM_KHR, gbm_alloc->gbm_device);
 	if (!renderer) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
@@ -256,6 +256,8 @@ struct wlr_backend *wlr_headless_backend_create_with_renderer(
 		wlr_log(WLR_ERROR, "Failed to allocate wlr_headless_backend");
 		goto error_backend;
 	}
+
+	backend->has_parent_renderer = true;
 
 	if (!backend_init(backend, display, &gbm_alloc->base, renderer)) {
 		goto error_init;

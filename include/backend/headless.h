@@ -8,8 +8,6 @@
 
 struct wlr_headless_backend {
 	struct wlr_backend backend;
-	struct wlr_egl priv_egl; // may be uninitialized
-	struct wlr_egl *egl;
 	struct wlr_renderer *renderer;
 	struct wlr_allocator *allocator;
 	struct wlr_drm_format *format;
@@ -19,6 +17,7 @@ struct wlr_headless_backend {
 	struct wl_list input_devices;
 	struct wl_listener display_destroy;
 	struct wl_listener renderer_destroy;
+	bool has_parent_renderer;
 	bool started;
 };
 

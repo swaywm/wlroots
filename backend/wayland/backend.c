@@ -206,7 +206,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_event_source_remove(wl->remote_display_src);
 
 	wlr_renderer_destroy(wl->renderer);
-	wlr_egl_finish(&wl->egl);
 
 	wlr_drm_format_set_finish(&wl->linux_dmabuf_v1_formats);
 
@@ -314,7 +313,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}
 	wl_event_source_check(wl->remote_display_src);
 
-	wl->renderer = wlr_renderer_autocreate(&wl->egl, EGL_PLATFORM_WAYLAND_EXT,
+	wl->renderer = wlr_renderer_autocreate(EGL_PLATFORM_WAYLAND_EXT,
 		wl->remote_display);
 	if (!wl->renderer) {
 		wlr_log(WLR_ERROR, "Could not create renderer");

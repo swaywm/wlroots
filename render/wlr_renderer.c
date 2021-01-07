@@ -247,13 +247,24 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	return true;
 }
 
-struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
-		EGLenum platform, void *remote_display) {
+struct wlr_renderer *wlr_renderer_autocreate(EGLenum platform,
+		void *remote_display) {
+	struct wlr_egl *egl = calloc(1, sizeof(*egl));
+	if (egl == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return NULL;
+	}
+
 	if (!wlr_egl_init(egl, platform, remote_display, NULL, 0)) {
 		wlr_log(WLR_ERROR, "Could not initialize EGL");
 		return NULL;
 	}
 
+	/*
+	 * wlr_renderer becomes the owner of the previously wlr_egl, and will
+	 * take care of freeing the allocated memory
+	 * TODO: move the wlr_egl logic to wlr_gles2_renderer
+	 */
 	struct wlr_renderer *renderer = wlr_gles2_renderer_create(egl);
 	if (!renderer) {
 		wlr_egl_finish(egl);

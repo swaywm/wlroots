@@ -181,7 +181,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&x11->display_destroy.link);
 
 	wlr_renderer_destroy(x11->renderer);
-	wlr_egl_finish(&x11->egl);
 	wlr_allocator_destroy(x11->allocator);
 	wlr_drm_format_set_finish(&x11->dri3_formats);
 	free(x11->drm_format);
@@ -535,7 +534,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 	x11->allocator = &gbm_alloc->base;
 
-	x11->renderer = wlr_renderer_autocreate(&x11->egl, EGL_PLATFORM_GBM_KHR,
+	x11->renderer = wlr_renderer_autocreate(EGL_PLATFORM_GBM_KHR,
 		gbm_alloc->gbm_device);
 	if (x11->renderer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
