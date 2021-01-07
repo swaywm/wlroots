@@ -11,6 +11,8 @@
 #include "util/signal.h"
 #include "wlr-layer-shell-unstable-v1-protocol.h"
 
+#define LAYER_SHELL_VERSION 3
+
 static void resource_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -498,7 +500,8 @@ struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display)
 	}
 
 	struct wl_global *global = wl_global_create(display,
-		&zwlr_layer_shell_v1_interface, 2, layer_shell, layer_shell_bind);
+		&zwlr_layer_shell_v1_interface, LAYER_SHELL_VERSION,
+		layer_shell, layer_shell_bind);
 	if (!global) {
 		free(layer_shell);
 		return NULL;
