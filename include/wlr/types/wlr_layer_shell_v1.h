@@ -151,4 +151,13 @@ struct wlr_surface *wlr_layer_surface_v1_surface_at(
 		struct wlr_layer_surface_v1 *surface, double sx, double sy,
 		double *sub_x, double *sub_y);
 
+/**
+ * Find a surface within this layer-surface's popup tree at the given
+ * surface-local coordinates. Returns the surface and coordinates in the leaf
+ * surface coordinate system or NULL if no surface is found at that location.
+ */
+struct wlr_surface *wlr_layer_surface_v1_popup_surface_at(
+		struct wlr_layer_surface_v1 *surface, double sx, double sy,
+		double *sub_x, double *sub_y);
+
 #endif
