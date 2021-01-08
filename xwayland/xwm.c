@@ -411,9 +411,6 @@ static void read_surface_class(struct wlr_xwm *xwm,
 		surface->class = NULL;
 	}
 
-	wlr_log(WLR_DEBUG, "XCB_ATOM_WM_CLASS: %s %s",
-		surface->instance ? surface->instance : "(null)",
-		surface->class ? surface->class : "(null)");
 	wlr_signal_emit_safe(&surface->events.set_class, surface);
 }
 
@@ -435,8 +432,6 @@ static void read_surface_role(struct wlr_xwm *xwm,
 		xsurface->role = NULL;
 	}
 
-	wlr_log(WLR_DEBUG, "XCB_ATOM_WM_WINDOW_ROLE: %s",
-		xsurface->role ? xsurface->role : "(null)");
 	wlr_signal_emit_safe(&xsurface->events.set_role, xsurface);
 }
 
@@ -464,7 +459,6 @@ static void read_surface_title(struct wlr_xwm *xwm,
 	}
 	xsurface->has_utf8_title = is_utf8;
 
-	wlr_log(WLR_DEBUG, "XCB_ATOM_WM_NAME: %s", xsurface->title ? xsurface->title : "(null)");
 	wlr_signal_emit_safe(&xsurface->events.set_title, xsurface);
 }
 
@@ -510,7 +504,6 @@ static void read_surface_parent(struct wlr_xwm *xwm,
 		wl_list_init(&xsurface->parent_link);
 	}
 
-	wlr_log(WLR_DEBUG, "XCB_ATOM_WM_TRANSIENT_FOR: %p", xsurface->parent);
 	wlr_signal_emit_safe(&xsurface->events.set_parent, xsurface);
 }
 
@@ -523,7 +516,6 @@ static void read_surface_pid(struct wlr_xwm *xwm,
 
 	pid_t *pid = xcb_get_property_value(reply);
 	xsurface->pid = *pid;
-	wlr_log(WLR_DEBUG, "NET_WM_PID %d", xsurface->pid);
 	wlr_signal_emit_safe(&xsurface->events.set_pid, xsurface);
 }
 
@@ -546,7 +538,6 @@ static void read_surface_window_type(struct wlr_xwm *xwm,
 	memcpy(xsurface->window_type, atoms, atoms_size);
 	xsurface->window_type_len = atoms_len;
 
-	wlr_log(WLR_DEBUG, "NET_WM_WINDOW_TYPE (%zu)", atoms_len);
 	wlr_signal_emit_safe(&xsurface->events.set_window_type, xsurface);
 }
 
@@ -568,8 +559,6 @@ static void read_surface_protocols(struct wlr_xwm *xwm,
 	}
 	memcpy(xsurface->protocols, atoms, atoms_size);
 	xsurface->protocols_len = atoms_len;
-
-	wlr_log(WLR_DEBUG, "WM_PROTOCOLS (%zu)", atoms_len);
 }
 
 #if WLR_HAS_XCB_ICCCM
@@ -599,7 +588,6 @@ static void read_surface_hints(struct wlr_xwm *xwm,
 		xsurface->hints->input = true;
 	}
 
-	wlr_log(WLR_DEBUG, "WM_HINTS (%" PRIu32 ")", reply->value_len);
 	wlr_signal_emit_safe(&xsurface->events.set_hints, xsurface);
 }
 #else
@@ -650,8 +638,6 @@ static void read_surface_normal_hints(struct wlr_xwm *xwm,
 		xsurface->size_hints->max_width = -1;
 		xsurface->size_hints->max_height = -1;
 	}
-
-	wlr_log(WLR_DEBUG, "WM_NORMAL_HINTS (%" PRIu32 ")", reply->value_len);
 }
 #else
 static void read_surface_normal_hints(struct wlr_xwm *xwm,
@@ -694,8 +680,6 @@ static void read_surface_motif_hints(struct wlr_xwm *xwm,
 		}
 		wlr_signal_emit_safe(&xsurface->events.set_decorations, xsurface);
 	}
-
-	wlr_log(WLR_DEBUG, "MOTIF_WM_HINTS (%" PRIu32 ")", reply->value_len);
 }
 
 static void read_surface_net_wm_state(struct wlr_xwm *xwm,
@@ -876,8 +860,6 @@ static void xsurface_unmap(struct wlr_xwayland_surface *surface) {
 
 static void xwm_handle_create_notify(struct wlr_xwm *xwm,
 		xcb_create_notify_event_t *ev) {
-	wlr_log(WLR_DEBUG, "XCB_CREATE_NOTIFY (%u)", ev->window);
-
 	if (ev->window == xwm->window ||
 			ev->window == xwm->selection_window ||
 			ev->window == xwm->dnd_window) {
@@ -890,7 +872,6 @@ static void xwm_handle_create_notify(struct wlr_xwm *xwm,
 
 static void xwm_handle_destroy_notify(struct wlr_xwm *xwm,
 		xcb_destroy_notify_event_t *ev) {
-	wlr_log(WLR_DEBUG, "XCB_DESTROY_NOTIFY (%u)", ev->window);
 	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
 	if (xsurface == NULL) {
 		return;
@@ -923,8 +904,6 @@ static void xwm_handle_configure_request(struct wlr_xwm *xwm,
 		.height = mask & XCB_CONFIG_WINDOW_HEIGHT ? ev->height : surface->height,
 		.mask = mask,
 	};
-	wlr_log(WLR_DEBUG, "XCB_CONFIGURE_REQUEST (%u) [%ux%u+%d,%d]", ev->window,
-		wlr_event.width, wlr_event.height, wlr_event.x, wlr_event.y);
 
 	wlr_signal_emit_safe(&surface->events.request_configure, &wlr_event);
 }
@@ -977,7 +956,6 @@ static void xsurface_set_wm_state(struct wlr_xwayland_surface *xsurface,
 
 static void xwm_handle_map_request(struct wlr_xwm *xwm,
 		xcb_map_request_event_t *ev) {
-	wlr_log(WLR_DEBUG, "XCB_MAP_REQUEST (%u)", ev->window);
 	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
 	if (!xsurface) {
 		return;
@@ -996,7 +974,6 @@ static void xwm_handle_map_request(struct wlr_xwm *xwm,
 
 static void xwm_handle_map_notify(struct wlr_xwm *xwm,
 		xcb_map_notify_event_t *ev) {
-	wlr_log(WLR_DEBUG, "XCB_MAP_NOTIFY (%u)", ev->window);
 	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
 	if (!xsurface) {
 		return;
@@ -1010,7 +987,6 @@ static void xwm_handle_map_notify(struct wlr_xwm *xwm,
 
 static void xwm_handle_unmap_notify(struct wlr_xwm *xwm,
 		xcb_unmap_notify_event_t *ev) {
-	wlr_log(WLR_DEBUG, "XCB_UNMAP_NOTIFY (%u)", ev->window);
 	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
 	if (xsurface == NULL) {
 		return;
@@ -1022,7 +998,6 @@ static void xwm_handle_unmap_notify(struct wlr_xwm *xwm,
 
 static void xwm_handle_property_notify(struct wlr_xwm *xwm,
 		xcb_property_notify_event_t *ev) {
-	wlr_log(WLR_DEBUG, "XCB_PROPERTY_NOTIFY (%u)", ev->window);
 	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
 	if (xsurface == NULL) {
 		return;
@@ -1309,8 +1284,6 @@ static void xwm_handle_wm_change_state_message(struct wlr_xwm *xwm,
 
 static void xwm_handle_client_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
-	wlr_log(WLR_DEBUG, "XCB_CLIENT_MESSAGE (%u)", ev->window);
-
 	if (ev->type == xwm->atoms[WL_SURFACE_ID]) {
 		xwm_handle_surface_id_message(xwm, ev);
 	} else if (ev->type == xwm->atoms[NET_WM_STATE]) {
