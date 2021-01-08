@@ -9,6 +9,7 @@ bool generate_uuid(char out[static 37]) {
 	return true;
 }
 #else
+#include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -26,7 +27,7 @@ bool generate_uuid(char out[static 37]) {
 	}
 
 	assert(strlen(str) + 1 == 37);
-	memcpy(out, str, sizeof(out));
+	memcpy(out, str, 37);
 	free(str);
 	return true;
 }
