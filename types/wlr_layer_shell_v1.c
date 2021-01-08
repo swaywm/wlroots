@@ -533,10 +533,10 @@ static void layer_surface_iterator(struct wlr_surface *surface,
 void wlr_layer_surface_v1_for_each_surface(struct wlr_layer_surface_v1 *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data) {
 	wlr_surface_for_each_surface(surface->surface, iterator, user_data);
-	wlr_layer_surface_v1_for_each_popup(surface, iterator, user_data);
+	wlr_layer_surface_v1_for_each_popup_surface(surface, iterator, user_data);
 }
 
-void wlr_layer_surface_v1_for_each_popup(struct wlr_layer_surface_v1 *surface,
+void wlr_layer_surface_v1_for_each_popup_surface(struct wlr_layer_surface_v1 *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data){
 	struct wlr_xdg_popup *popup_state;
 	wl_list_for_each(popup_state, &surface->popups, link) {
