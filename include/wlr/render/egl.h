@@ -37,7 +37,6 @@ struct wlr_egl_context {
 };
 
 struct wlr_egl {
-	EGLenum platform;
 	EGLDisplay display;
 	EGLConfig config; // may be EGL_NO_CONFIG
 	EGLContext context;
@@ -51,7 +50,6 @@ struct wlr_egl {
 		bool image_dma_buf_export_mesa;
 		bool image_dmabuf_import_ext;
 		bool image_dmabuf_import_modifiers_ext;
-		bool swap_buffers_with_damage;
 
 		// Device extensions
 		bool device_drm_ext;
@@ -65,7 +63,6 @@ struct wlr_egl {
 		PFNEGLQUERYWAYLANDBUFFERWL eglQueryWaylandBufferWL;
 		PFNEGLBINDWAYLANDDISPLAYWL eglBindWaylandDisplayWL;
 		PFNEGLUNBINDWAYLANDDISPLAYWL eglUnbindWaylandDisplayWL;
-		PFNEGLSWAPBUFFERSWITHDAMAGEKHRPROC eglSwapBuffersWithDamage; // KHR or EXT
 		PFNEGLQUERYDMABUFFORMATSEXTPROC eglQueryDmaBufFormatsEXT;
 		PFNEGLQUERYDMABUFMODIFIERSEXTPROC eglQueryDmaBufModifiersEXT;
 		PFNEGLEXPORTDMABUFIMAGEQUERYMESAPROC eglExportDMABUFImageQueryMESA;
@@ -169,9 +166,6 @@ void wlr_egl_save_context(struct wlr_egl_context *context);
  * Restore EGL context that was previously saved using wlr_egl_save_current().
  */
 bool wlr_egl_restore_context(struct wlr_egl_context *context);
-
-bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
-	pixman_region32_t *damage);
 
 bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface);
 

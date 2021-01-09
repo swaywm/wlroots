@@ -196,8 +196,6 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		goto error;
 	}
 
-	egl->platform = platform;
-
 	EGLint major, minor;
 	if (eglInitialize(egl->display, &major, &minor) == EGL_FALSE) {
 		wlr_log(WLR_ERROR, "Failed to initialize EGL");
@@ -218,17 +216,6 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 
 	egl->exts.buffer_age_ext =
 		check_egl_ext(display_exts_str, "EGL_EXT_buffer_age");
-
-	if (check_egl_ext(display_exts_str, "EGL_KHR_swap_buffers_with_damage")) {
-		egl->exts.swap_buffers_with_damage = true;
-		load_egl_proc(&egl->procs.eglSwapBuffersWithDamage,
-			"eglSwapBuffersWithDamageKHR");
-	} else if (check_egl_ext(display_exts_str,
-			"EGL_EXT_swap_buffers_with_damage")) {
-		egl->exts.swap_buffers_with_damage = true;
-		load_egl_proc(&egl->procs.eglSwapBuffersWithDamage,
-			"eglSwapBuffersWithDamageEXT");
-	}
 
 	egl->exts.image_dmabuf_import_ext =
 		check_egl_ext(display_exts_str, "EGL_EXT_image_dma_buf_import");
@@ -485,60 +472,6 @@ bool wlr_egl_restore_context(struct wlr_egl_context *context) {
 
 	return eglMakeCurrent(display, context->draw_surface,
 			context->read_surface, context->context);
-}
-
-bool wlr_egl_swap_buffers(struct wlr_egl *egl, EGLSurface surface,
-		pixman_region32_t *damage) {
-	// Never block when swapping buffers on Wayland
-	if (egl->platform == EGL_PLATFORM_WAYLAND_EXT) {
-		eglSwapInterval(egl->display, 0);
-	}
-
-	EGLBoolean ret;
-	if (damage != NULL && egl->exts.swap_buffers_with_damage) {
-		EGLint width = 0, height = 0;
-		eglQuerySurface(egl->display, surface, EGL_WIDTH, &width);
-		eglQuerySurface(egl->display, surface, EGL_HEIGHT, &height);
-
-		pixman_region32_t flipped_damage;
-		pixman_region32_init(&flipped_damage);
-		wlr_region_transform(&flipped_damage, damage,
-			WL_OUTPUT_TRANSFORM_FLIPPED_180, width, height);
-
-		int nrects;
-		pixman_box32_t *rects =
-			pixman_region32_rectangles(&flipped_damage, &nrects);
-		EGLint egl_damage[4 * nrects + 1];
-		for (int i = 0; i < nrects; ++i) {
-			egl_damage[4*i] = rects[i].x1;
-			egl_damage[4*i + 1] = rects[i].y1;
-			egl_damage[4*i + 2] = rects[i].x2 - rects[i].x1;
-			egl_damage[4*i + 3] = rects[i].y2 - rects[i].y1;
-		}
-
-		pixman_region32_fini(&flipped_damage);
-
-		if (nrects == 0) {
-			// Swapping with no rects is the same as swapping with the entire
-			// surface damaged. To swap with no damage, we set the damage region
-			// to a single empty rectangle.
-			nrects = 1;
-			memset(egl_damage, 0, sizeof(egl_damage));
-		}
-
-		ret = egl->procs.eglSwapBuffersWithDamage(egl->display, surface,
-			egl_damage, nrects);
-	} else {
-		ret = eglSwapBuffers(egl->display, surface);
-	}
-
-	if (!ret) {
-		wlr_log(WLR_ERROR, "eglSwapBuffers failed");
-		return false;
-	}
-
-	wlr_egl_unset_current(egl);
-	return true;
 }
 
 EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
