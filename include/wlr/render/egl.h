@@ -39,7 +39,7 @@ struct wlr_egl_context {
 struct wlr_egl {
 	EGLenum platform;
 	EGLDisplay display;
-	EGLConfig config;
+	EGLConfig config; // may be EGL_NO_CONFIG
 	EGLContext context;
 	EGLDeviceEXT device; // may be EGL_NO_DEVICE_EXT
 
