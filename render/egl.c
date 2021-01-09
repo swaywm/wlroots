@@ -220,9 +220,6 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display,
 		load_egl_proc(&egl->procs.eglDestroyImageKHR, "eglDestroyImageKHR");
 	}
 
-	egl->exts.buffer_age_ext =
-		check_egl_ext(display_exts_str, "EGL_EXT_buffer_age");
-
 	egl->exts.image_dmabuf_import_ext =
 		check_egl_ext(display_exts_str, "EGL_EXT_image_dma_buf_import");
 	if (check_egl_ext(display_exts_str,
@@ -414,31 +411,11 @@ EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window) {
 	return surf;
 }
 
-static int egl_get_buffer_age(struct wlr_egl *egl, EGLSurface surface) {
-	if (!egl->exts.buffer_age_ext) {
-		return -1;
-	}
-
-	EGLint buffer_age;
-	EGLBoolean ok = eglQuerySurface(egl->display, surface,
-		EGL_BUFFER_AGE_EXT, &buffer_age);
-	if (!ok) {
-		wlr_log(WLR_ERROR, "Failed to get EGL surface buffer age");
-		return -1;
-	}
-
-	return buffer_age;
-}
-
-bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
-		int *buffer_age) {
-	if (!eglMakeCurrent(egl->display, surface, surface, egl->context)) {
+bool wlr_egl_make_current(struct wlr_egl *egl) {
+	if (!eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+			egl->context)) {
 		wlr_log(WLR_ERROR, "eglMakeCurrent failed");
 		return false;
-	}
-
-	if (buffer_age != NULL) {
-		*buffer_age = egl_get_buffer_age(egl, surface);
 	}
 	return true;
 }
@@ -751,7 +728,7 @@ bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface) {
 		// Reset the current EGL surface in case it's the one we're destroying,
 		// otherwise the next wlr_egl_make_current call will result in a
 		// use-after-free.
-		wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL);
+		wlr_egl_make_current(egl);
 	}
 	return eglDestroySurface(egl->display, surface);
 }

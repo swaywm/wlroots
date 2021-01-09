@@ -45,7 +45,6 @@ struct wlr_egl {
 	struct {
 		// Display extensions
 		bool bind_wayland_display_wl;
-		bool buffer_age_ext;
 		bool image_base_khr;
 		bool image_dma_buf_export_mesa;
 		bool image_dmabuf_import_ext;
@@ -141,14 +140,12 @@ bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImageKHR image);
 
 /**
- * Make the EGL context current. The provided surface will be made current
- * unless EGL_NO_SURFACE.
+ * Make the EGL context current.
  *
  * Callers are expected to clear the current context when they are done by
  * calling wlr_egl_unset_current.
  */
-bool wlr_egl_make_current(struct wlr_egl *egl, EGLSurface surface,
-	int *buffer_age);
+bool wlr_egl_make_current(struct wlr_egl *egl);
 
 bool wlr_egl_unset_current(struct wlr_egl *egl);
 

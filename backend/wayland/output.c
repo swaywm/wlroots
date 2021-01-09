@@ -125,7 +125,7 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		return false;
 	}
 
-	if (!wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL)) {
+	if (!wlr_egl_make_current(egl)) {
 		return false;
 	}
 	if (!wlr_renderer_bind_buffer(output->backend->renderer,
@@ -433,7 +433,7 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 			return false;
 		}
 
-		if (!wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL)) {
+		if (!wlr_egl_make_current(egl)) {
 			return false;
 		}
 		if (!wlr_renderer_bind_buffer(output->backend->renderer, wlr_buffer)) {
