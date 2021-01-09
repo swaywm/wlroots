@@ -171,7 +171,7 @@ static void xdg_toplevel_handle_configure(void *data,
 static void xdg_toplevel_handle_close(void *data,
 		struct xdg_toplevel *xdg_toplevel) {
 	struct egl_info *e = data;
-	wlr_egl_finish(e->egl);
+	wlr_egl_destroy(e->egl);
 	exit(EXIT_SUCCESS);
 }
 
@@ -440,11 +440,10 @@ int main(int argc, char **argv) {
 	/* Initialize EGL context */
 
 	struct egl_info *e = calloc(1, sizeof(struct egl_info));
-	e->egl = calloc(1, sizeof(struct wlr_egl));
 	e->width = e->height = 512;
 
 	EGLint attribs[] = { EGL_NONE };
-	wlr_egl_init(e->egl, EGL_PLATFORM_WAYLAND_EXT, display, attribs);
+	e->egl = wlr_egl_create(EGL_PLATFORM_WAYLAND_EXT, display, attribs);
 
 	/* Create the surface and xdg_toplevels, and set listeners */
 

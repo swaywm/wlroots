@@ -694,9 +694,7 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	}
 
 	wlr_egl_unset_current(renderer->egl);
-
-	wlr_egl_finish(renderer->egl);
-	free(renderer->egl);
+	wlr_egl_destroy(renderer->egl);
 
 	if (renderer->drm_fd >= 0) {
 		close(renderer->drm_fd);
