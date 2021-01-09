@@ -1399,6 +1399,7 @@ static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_generic_error_t *ev) {
 		major_name, minor_name ? minor_name : "no minor",
 		error_name, extension ? extension : "no extension",
 		ev->sequence, ev->resource_id);
+	wlr_x11_trace_log_error_trace(&xwm->trace, ev->full_sequence);
 
 	return;
 log_raw:
@@ -1407,6 +1408,7 @@ log_raw:
 		"xcb error: op %"PRIu8":%"PRIu16", code %"PRIu8", sequence %"PRIu16", value %"PRIu32,
 		ev->major_code, ev->minor_code, ev->error_code,
 		ev->sequence, ev->resource_id);
+	wlr_x11_trace_log_error_trace(&xwm->trace, ev->full_sequence);
 
 }
 
@@ -1440,6 +1442,8 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 
 	while ((event = xcb_poll_for_event(xwm->xcb_conn))) {
 		count++;
+
+		wlr_x11_trace_received_event(&xwm->trace, event);
 
 		if (xwm->xwayland->user_event_handler &&
 				xwm->xwayland->user_event_handler(xwm, event)) {
@@ -1634,6 +1638,7 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	}
 	wl_list_remove(&xwm->compositor_new_surface.link);
 	wl_list_remove(&xwm->compositor_destroy.link);
+	wlr_x11_trace_deinit(&xwm->trace);
 	xcb_disconnect(xwm->xcb_conn);
 
 	xwm->xwayland->xwm = NULL;
@@ -1850,6 +1855,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 	xwm->xwayland = xwayland;
 	wl_list_init(&xwm->surfaces);
 	wl_list_init(&xwm->unpaired_surfaces);
+	wlr_x11_trace_init(&xwm->trace);
 	xwm->ping_timeout = 10000;
 
 	xwm->xcb_conn = xcb_connect_to_fd(wm_fd, NULL);

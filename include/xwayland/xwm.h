@@ -12,6 +12,7 @@
 #include <xcb/xcb_errors.h>
 #endif
 #include "xwayland/selection.h"
+#include "xwayland/trace.h"
 
 /* This is in xcb/xcb_event.h, but pulling xcb-util just for a constant
  * others redefine anyway is meh
@@ -98,6 +99,7 @@ struct wlr_xwm {
 	struct wlr_xwayland *xwayland;
 	struct wl_event_source *event_source;
 	struct wlr_seat *seat;
+	struct wlr_x11_trace trace;
 	uint32_t ping_timeout;
 
 	xcb_atom_t atoms[ATOM_LAST];
