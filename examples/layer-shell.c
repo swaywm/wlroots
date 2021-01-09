@@ -611,7 +611,7 @@ int main(int argc, char **argv) {
 	assert(cursor_surface);
 
 	EGLint attribs[] = { EGL_ALPHA_SIZE, 8, EGL_NONE };
-	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, attribs, 0);
+	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, attribs);
 
 	wl_surface = wl_compositor_create_surface(compositor);
 	assert(wl_surface);

@@ -255,7 +255,7 @@ struct wlr_renderer *wlr_renderer_autocreate(EGLenum platform,
 		return NULL;
 	}
 
-	if (!wlr_egl_init(egl, platform, remote_display, NULL, 0)) {
+	if (!wlr_egl_init(egl, platform, remote_display, NULL)) {
 		wlr_log(WLR_ERROR, "Could not initialize EGL");
 		return NULL;
 	}
