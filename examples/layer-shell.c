@@ -29,7 +29,7 @@ struct zwlr_layer_surface_v1 *layer_surface;
 static struct wl_output *wl_output;
 
 struct wl_surface *wl_surface;
-struct wlr_egl egl;
+struct wlr_egl *egl;
 struct wl_egl_window *egl_window;
 struct wlr_egl_surface *egl_surface;
 struct wl_callback *frame_callback;
@@ -93,7 +93,7 @@ static struct wl_callback_listener popup_frame_listener = {
 };
 
 static void draw(void) {
-	eglMakeCurrent(egl.display, egl_surface, egl_surface, egl.context);
+	eglMakeCurrent(egl->display, egl_surface, egl_surface, egl->context);
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 
@@ -142,7 +142,7 @@ static void draw(void) {
 	frame_callback = wl_surface_frame(wl_surface);
 	wl_callback_add_listener(frame_callback, &frame_listener, NULL);
 
-	eglSwapBuffers(egl.display, egl_surface);
+	eglSwapBuffers(egl->display, egl_surface);
 
 	demo.last_frame = ts;
 }
@@ -150,7 +150,7 @@ static void draw(void) {
 static void draw_popup(void) {
 	static float alpha_mod = -0.01;
 
-	eglMakeCurrent(egl.display, popup_egl_surface, popup_egl_surface, egl.context);
+	eglMakeCurrent(egl->display, popup_egl_surface, popup_egl_surface, egl->context);
 	glViewport(0, 0, popup_width, popup_height);
 	glClearColor(popup_red, 0.5f, 0.5f, popup_alpha);
 	popup_alpha += alpha_mod;
@@ -162,7 +162,7 @@ static void draw_popup(void) {
 	popup_frame_callback = wl_surface_frame(popup_wl_surface);
 	assert(popup_frame_callback);
 	wl_callback_add_listener(popup_frame_callback, &popup_frame_listener, NULL);
-	eglSwapBuffers(egl.display, popup_egl_surface);
+	eglSwapBuffers(egl->display, popup_egl_surface);
 	wl_surface_commit(popup_wl_surface);
 }
 
@@ -187,7 +187,7 @@ static void xdg_popup_configure(void *data, struct xdg_popup *xdg_popup,
 }
 
 static void popup_destroy(void) {
-	wlr_egl_destroy_surface(&egl, popup_egl_surface);
+	wlr_egl_destroy_surface(egl, popup_egl_surface);
 	wl_egl_window_destroy(popup_egl_window);
 	xdg_popup_destroy(popup);
 	wl_surface_destroy(popup_wl_surface);
@@ -241,7 +241,7 @@ static void create_popup(uint32_t serial) {
 	popup_wl_surface = surface;
 	popup_egl_window = wl_egl_window_create(surface, popup_width, popup_height);
 	assert(popup_egl_window);
-	popup_egl_surface = wlr_egl_create_surface(&egl, popup_egl_window);
+	popup_egl_surface = wlr_egl_create_surface(egl, popup_egl_window);
 	assert(popup_egl_surface);
 	draw_popup();
 }
@@ -259,7 +259,7 @@ static void layer_surface_configure(void *data,
 
 static void layer_surface_closed(void *data,
 		struct zwlr_layer_surface_v1 *surface) {
-	wlr_egl_destroy_surface(&egl, egl_surface);
+	wlr_egl_destroy_surface(egl, egl_surface);
 	wl_egl_window_destroy(egl_window);
 	zwlr_layer_surface_v1_destroy(surface);
 	wl_surface_destroy(wl_surface);
@@ -611,7 +611,7 @@ int main(int argc, char **argv) {
 	assert(cursor_surface);
 
 	EGLint attribs[] = { EGL_ALPHA_SIZE, 8, EGL_NONE };
-	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, attribs);
+	egl = wlr_egl_create(EGL_PLATFORM_WAYLAND_EXT, display, attribs);
 
 	wl_surface = wl_compositor_create_surface(compositor);
 	assert(wl_surface);
@@ -633,7 +633,7 @@ int main(int argc, char **argv) {
 
 	egl_window = wl_egl_window_create(wl_surface, width, height);
 	assert(egl_window);
-	egl_surface = wlr_egl_create_surface(&egl, egl_window);
+	egl_surface = wlr_egl_create_surface(egl, egl_window);
 	assert(egl_surface);
 
 	wl_display_roundtrip(display);

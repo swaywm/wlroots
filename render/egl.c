@@ -149,8 +149,14 @@ out:
 	free(formats);
 }
 
-bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
+struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display,
 		const EGLint *config_attribs) {
+	struct wlr_egl *egl = calloc(1, sizeof(struct wlr_egl));
+	if (egl == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return NULL;
+	}
+
 	const char *client_exts_str = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
 	if (client_exts_str == NULL) {
 		if (eglGetError() == EGL_BAD_DISPLAY) {
@@ -158,12 +164,12 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		} else {
 			wlr_log(WLR_ERROR, "Failed to query EGL client extensions");
 		}
-		return false;
+		return NULL;
 	}
 
 	if (!check_egl_ext(client_exts_str, "EGL_EXT_platform_base")) {
 		wlr_log(WLR_ERROR, "EGL_EXT_platform_base not supported");
-		return false;
+		return NULL;
 	}
 	load_egl_proc(&egl->procs.eglGetPlatformDisplayEXT,
 		"eglGetPlatformDisplayEXT");
@@ -205,7 +211,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	const char *display_exts_str = eglQueryString(egl->display, EGL_EXTENSIONS);
 	if (display_exts_str == NULL) {
 		wlr_log(WLR_ERROR, "Failed to query EGL display extensions");
-		return false;
+		return NULL;
 	}
 
 	if (check_egl_ext(display_exts_str, "EGL_KHR_image_base")) {
@@ -343,7 +349,7 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 		}
 	}
 
-	return true;
+	return egl;
 
 error:
 	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -351,10 +357,10 @@ error:
 		eglTerminate(egl->display);
 	}
 	eglReleaseThread();
-	return false;
+	return NULL;
 }
 
-void wlr_egl_finish(struct wlr_egl *egl) {
+void wlr_egl_destroy(struct wlr_egl *egl) {
 	if (egl == NULL) {
 		return;
 	}
@@ -371,6 +377,7 @@ void wlr_egl_finish(struct wlr_egl *egl) {
 	eglDestroyContext(egl->display, egl->context);
 	eglTerminate(egl->display);
 	eglReleaseThread();
+	free(egl);
 }
 
 bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display) {

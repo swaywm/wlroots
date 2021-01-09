@@ -78,21 +78,20 @@ struct wlr_egl {
 	struct wlr_drm_format_set dmabuf_render_formats;
 };
 
-// TODO: Allocate and return a wlr_egl
 /**
  * Initializes an EGL context for the given platform and remote display.
  * Will attempt to load all possibly required api functions.
  *
  * If config_attribs is NULL, the EGL config is not created.
  */
-bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
+struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display,
 	const EGLint *config_attribs);
 
 /**
  * Frees all related EGL resources, makes the context not-current and
  * unbinds a bound wayland display.
  */
-void wlr_egl_finish(struct wlr_egl *egl);
+void wlr_egl_destroy(struct wlr_egl *egl);
 
 /**
  * Binds the given display to the EGL instance.

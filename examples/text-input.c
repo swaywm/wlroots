@@ -63,12 +63,12 @@ static struct xdg_wm_base *wm_base = NULL;
 static struct zwp_text_input_manager_v3 *text_input_manager = NULL;
 static struct zwp_text_input_v3 *text_input	= NULL;
 
-struct wlr_egl egl;
+struct wlr_egl *egl;
 struct wl_egl_window *egl_window;
 struct wlr_egl_surface *egl_surface;
 
 static void draw(void) {
-	eglMakeCurrent(egl.display, egl_surface, egl_surface, egl.context);
+	eglMakeCurrent(egl->display, egl_surface, egl_surface, egl->context);
 
 	float color[] = {1.0, 1.0, 0.0, 1.0};
 	color[0] = enabled * 1.0;
@@ -78,7 +78,7 @@ static void draw(void) {
 	glClearColor(color[0], color[1], color[2], 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	eglSwapBuffers(egl.display, egl_surface);
+	eglSwapBuffers(egl->display, egl_surface);
 }
 
 static size_t utf8_strlen(char *str) {
@@ -364,7 +364,7 @@ int main(int argc, char **argv) {
 	zwp_text_input_v3_add_listener(text_input, &text_input_listener, NULL);
 
 	EGLint attribs[] = { EGL_NONE };
-	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, attribs);
+	egl = wlr_egl_create(EGL_PLATFORM_WAYLAND_EXT, display, attribs);
 
 	struct wl_surface *surface = wl_compositor_create_surface(compositor);
 	struct xdg_surface *xdg_surface =
@@ -377,7 +377,7 @@ int main(int argc, char **argv) {
 	wl_surface_commit(surface);
 
 	egl_window = wl_egl_window_create(surface, width, height);
-	egl_surface = wlr_egl_create_surface(&egl, egl_window);
+	egl_surface = wlr_egl_create_surface(egl, egl_window);
 
 	wl_display_roundtrip(display);
 
