@@ -1372,11 +1372,11 @@ static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 	}
 }
 
-static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
+static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_generic_error_t *ev) {
 #if WLR_HAS_XCB_ERRORS
 	const char *major_name =
 		xcb_errors_get_name_for_major_code(xwm->errors_context,
-			ev->major_opcode);
+			ev->major_code);
 	if (!major_name) {
 		wlr_log(WLR_DEBUG, "xcb error happened, but could not get major name");
 		goto log_raw;
@@ -1384,7 +1384,7 @@ static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
 
 	const char *minor_name =
 		xcb_errors_get_name_for_minor_code(xwm->errors_context,
-			ev->major_opcode, ev->minor_opcode);
+			ev->major_code, ev->minor_code);
 
 	const char *extension;
 	const char *error_name =
@@ -1398,15 +1398,15 @@ static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
 	wlr_log(WLR_ERROR, "xcb error: op %s (%s), code %s (%s), sequence %"PRIu16", value %"PRIu32,
 		major_name, minor_name ? minor_name : "no minor",
 		error_name, extension ? extension : "no extension",
-		ev->sequence, ev->bad_value);
+		ev->sequence, ev->resource_id);
 
 	return;
 log_raw:
 #endif
 	wlr_log(WLR_ERROR,
 		"xcb error: op %"PRIu8":%"PRIu16", code %"PRIu8", sequence %"PRIu16", value %"PRIu32,
-		ev->major_opcode, ev->minor_opcode, ev->error_code,
-		ev->sequence, ev->bad_value);
+		ev->major_code, ev->minor_code, ev->error_code,
+		ev->sequence, ev->resource_id);
 
 }
 
@@ -1486,7 +1486,7 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 			xwm_handle_focus_in(xwm, (xcb_focus_in_event_t *)event);
 			break;
 		case 0:
-			xwm_handle_xcb_error(xwm, (xcb_value_error_t *)event);
+			xwm_handle_xcb_error(xwm, (xcb_generic_error_t *)event);
 			break;
 		default:
 			xwm_handle_unhandled_event(xwm, event);
