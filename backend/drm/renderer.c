@@ -116,7 +116,7 @@ bool drm_surface_make_current(struct wlr_drm_surface *surf,
 	}
 
 	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(surf->renderer->wlr_rend);
-	if (!wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL)) {
+	if (!wlr_egl_make_current(egl)) {
 		return false;
 	}
 	if (!wlr_renderer_bind_buffer(surf->renderer->wlr_rend, surf->back_buffer)) {

@@ -41,7 +41,7 @@ static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
 	wl_list_remove(&buffer->link);
 	wl_list_remove(&buffer->buffer_destroy.link);
 
-	wlr_egl_make_current(buffer->renderer->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_make_current(buffer->renderer->egl);
 
 	push_gles2_debug(buffer->renderer);
 
@@ -575,7 +575,7 @@ static bool gles2_blit_dmabuf(struct wlr_renderer *wlr_renderer,
 		gles2_src_tex->inverted_y = !gles2_src_tex->inverted_y;
 	}
 
-	if (!wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL)) {
+	if (!wlr_egl_make_current(renderer->egl)) {
 		goto texture_destroy_out;
 	}
 
@@ -673,7 +673,7 @@ struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *wlr_renderer) {
 static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
-	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_make_current(renderer->egl);
 
 	struct wlr_gles2_buffer *buffer, *buffer_tmp;
 	wl_list_for_each_safe(buffer, buffer_tmp, &renderer->buffers, link) {
@@ -861,7 +861,7 @@ extern const GLchar tex_fragment_src_rgbx[];
 extern const GLchar tex_fragment_src_external[];
 
 struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
-	if (!wlr_egl_make_current(egl, EGL_NO_SURFACE, NULL)) {
+	if (!wlr_egl_make_current(egl)) {
 		return NULL;
 	}
 

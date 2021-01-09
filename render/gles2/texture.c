@@ -29,7 +29,7 @@ struct wlr_gles2_texture *gles2_get_texture(
 static struct wlr_gles2_texture *get_gles2_texture_in_context(
 		struct wlr_texture *wlr_texture) {
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
-	wlr_egl_make_current(texture->renderer->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_make_current(texture->renderer->egl);
 	return texture;
 }
 
@@ -138,7 +138,7 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 		uint32_t height, const void *data) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
-	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_make_current(renderer->egl);
 
 	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
@@ -180,7 +180,7 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 		struct wl_resource *resource) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
-	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_make_current(renderer->egl);
 
 	if (!renderer->procs.glEGLImageTargetTexture2DOES) {
 		return NULL;
@@ -245,7 +245,7 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 		struct wlr_dmabuf_attributes *attribs) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
-	wlr_egl_make_current(renderer->egl, EGL_NO_SURFACE, NULL);
+	wlr_egl_make_current(renderer->egl);
 
 	if (!renderer->procs.glEGLImageTargetTexture2DOES) {
 		return NULL;
