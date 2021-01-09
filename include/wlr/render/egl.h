@@ -85,6 +85,8 @@ struct wlr_egl {
 /**
  * Initializes an EGL context for the given platform and remote display.
  * Will attempt to load all possibly required api functions.
+ *
+ * If config_attribs is NULL, the EGL config is not created.
  */
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	const EGLint *config_attribs, EGLint visual_id);
