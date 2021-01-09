@@ -89,7 +89,7 @@ struct wlr_egl {
  * If config_attribs is NULL, the EGL config is not created.
  */
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
-	const EGLint *config_attribs, EGLint visual_id);
+	const EGLint *config_attribs);
 
 /**
  * Frees all related EGL resources, makes the context not-current and

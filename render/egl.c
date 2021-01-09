@@ -10,41 +10,6 @@
 #include <wlr/util/region.h>
 #include <xf86drm.h>
 
-static bool egl_get_config(EGLDisplay disp, const EGLint *attribs,
-		EGLConfig *out, EGLint visual_id) {
-	EGLint count = 0, matched = 0, ret;
-
-	ret = eglGetConfigs(disp, NULL, 0, &count);
-	if (ret == EGL_FALSE || count == 0) {
-		wlr_log(WLR_ERROR, "eglGetConfigs returned no configs");
-		return false;
-	}
-
-	EGLConfig configs[count];
-
-	ret = eglChooseConfig(disp, attribs, configs, count, &matched);
-	if (ret == EGL_FALSE) {
-		wlr_log(WLR_ERROR, "eglChooseConfig failed");
-		return false;
-	}
-
-	for (int i = 0; i < matched; ++i) {
-		EGLint visual;
-		if (!eglGetConfigAttrib(disp, configs[i],
-				EGL_NATIVE_VISUAL_ID, &visual)) {
-			continue;
-		}
-
-		if (!visual_id || visual == visual_id) {
-			*out = configs[i];
-			return true;
-		}
-	}
-
-	wlr_log(WLR_ERROR, "no valid egl config found");
-	return false;
-}
-
 static enum wlr_log_importance egl_log_importance_to_wlr(EGLint type) {
 	switch (type) {
 	case EGL_DEBUG_MSG_CRITICAL_KHR: return WLR_ERROR;
@@ -185,7 +150,7 @@ out:
 }
 
 bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
-		const EGLint *config_attribs, EGLint visual_id) {
+		const EGLint *config_attribs) {
 	const char *client_exts_str = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
 	if (client_exts_str == NULL) {
 		if (eglGetError() == EGL_BAD_DISPLAY) {
@@ -321,8 +286,14 @@ bool wlr_egl_init(struct wlr_egl *egl, EGLenum platform, void *remote_display,
 	}
 
 	if (config_attribs != NULL) {
-		if (!egl_get_config(egl->display, config_attribs, &egl->config, visual_id)) {
-			wlr_log(WLR_ERROR, "Failed to get EGL config");
+		EGLint matched = 0;
+		if (!eglChooseConfig(egl->display, config_attribs, &egl->config, 1,
+				&matched)) {
+			wlr_log(WLR_ERROR, "eglChooseConfig failed");
+			goto error;
+		}
+		if (matched == 0) {
+			wlr_log(WLR_ERROR, "Failed to match an EGL config");
 			goto error;
 		}
 	} else {
