@@ -128,6 +128,7 @@ struct wlr_output {
 	char model[16];
 	char serial[16];
 	int32_t phys_width, phys_height; // mm
+	int32_t suggested_x, suggested_y;
 
 	// Note: some backends may have zero modes
 	struct wl_list modes; // wlr_output_mode::link
@@ -171,6 +172,7 @@ struct wlr_output {
 		struct wl_signal enable;
 		struct wl_signal mode;
 		struct wl_signal available_modes;
+		struct wl_signal suggested_position;
 		struct wl_signal scale;
 		struct wl_signal transform;
 		struct wl_signal description;

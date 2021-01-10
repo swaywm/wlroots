@@ -17,6 +17,8 @@ union wlr_drm_connector_props {
 		uint32_t link_status; // not guaranteed to exist
 		uint32_t path;
 		uint32_t vrr_capable; // not guaranteed to exist
+		uint32_t suggested_x;
+		uint32_t suggested_y;
 
 		// atomic-modesetting only
 

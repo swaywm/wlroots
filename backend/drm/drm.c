@@ -540,6 +540,30 @@ bool drm_connector_supports_vrr(struct wlr_drm_connector *conn) {
 	return true;
 }
 
+static int32_t drm_connector_get_suggested_x(struct wlr_drm_connector *conn) {
+	struct wlr_drm_backend *drm = conn->backend;
+
+	uint64_t suggested_x;
+	if (conn->props.suggested_x == 0 ||
+			!get_drm_prop(drm->fd, conn->id, conn->props.suggested_x, &suggested_x)) {
+		return -1;
+	}
+
+	return suggested_x;
+}
+
+static int32_t drm_connector_get_suggested_y(struct wlr_drm_connector *conn) {
+	struct wlr_drm_backend *drm = conn->backend;
+
+	uint64_t suggested_y;
+	if (conn->props.suggested_y == 0 ||
+			!get_drm_prop(drm->fd, conn->id, conn->props.suggested_y, &suggested_y)) {
+		return -1;
+	}
+
+	return suggested_y;
+}
+
 static bool drm_connector_commit(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = conn->backend;
@@ -1315,6 +1339,25 @@ static bool update_modes(drmModeConnector *drm_conn,
 	return changes_made;
 }
 
+static bool update_suggested_position(struct wlr_drm_connector *wlr_conn) {
+	int32_t suggested_x = drm_connector_get_suggested_x(wlr_conn);
+	int32_t suggested_y = drm_connector_get_suggested_y(wlr_conn);
+
+	bool position_changed = false;
+
+	if (suggested_x != wlr_conn->output.suggested_x) {
+		position_changed = true;
+		wlr_conn->output.suggested_x = suggested_x;
+	}
+
+	if (suggested_y != wlr_conn->output.suggested_y) {
+		position_changed = true;
+		wlr_conn->output.suggested_y = suggested_y;
+	}
+
+	return position_changed;
+}
+
 void scan_drm_connectors(struct wlr_drm_backend *drm) {
 	/*
 	 * This GPU is not really a modesetting device.
@@ -1423,6 +1466,10 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			if (update_modes(drm_conn, wlr_conn)) {
 				wlr_output_update_available_modes(&wlr_conn->output);
 			}
+
+			if (update_suggested_position(wlr_conn)) {
+				wlr_output_update_suggested_position(&wlr_conn->output);
+			}
 		}
 
 		if (wlr_conn->state == WLR_DRM_CONN_DISCONNECTED &&
@@ -1458,6 +1505,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			wlr_output_set_description(output, description);
 
 			update_modes(drm_conn, wlr_conn);
+			update_suggested_position(wlr_conn);
 
 			wlr_conn->possible_crtcs = get_possible_crtcs(drm->fd, res, drm_conn);
 			if (wlr_conn->possible_crtcs == 0) {

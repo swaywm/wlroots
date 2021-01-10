@@ -117,6 +117,13 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
  */
 void wlr_output_update_available_modes(struct wlr_output *output);
 /**
+ * Update the output suggested position.
+ *
+ * The backend must call this function when the suggested position is updated
+ * to notify compositors about the change.
+ */
+void wlr_output_update_suggested_position (struct wlr_output *output);
+/**
  * Update the current output status.
  *
  * The backend must call this function when the status is updated to notify
