@@ -614,13 +614,6 @@ bool wlr_output_commit(struct wlr_output *output) {
 
 	output->commit_seq++;
 
-	struct wlr_output_event_commit event = {
-		.output = output,
-		.committed = output->pending.committed,
-		.when = &now,
-	};
-	wlr_signal_emit_safe(&output->events.commit, &event);
-
 	bool scale_updated = output->pending.committed & WLR_OUTPUT_STATE_SCALE;
 	if (scale_updated) {
 		output->scale = output->pending.scale;
@@ -653,7 +646,16 @@ bool wlr_output_commit(struct wlr_output *output) {
 		output->needs_frame = false;
 	}
 
+	uint32_t committed = output->pending.committed;
 	output_state_clear(&output->pending);
+
+	struct wlr_output_event_commit event = {
+		.output = output,
+		.committed = committed,
+		.when = &now,
+	};
+	wlr_signal_emit_safe(&output->events.commit, &event);
+
 	return true;
 }
 
