@@ -170,8 +170,6 @@ struct wlr_output {
 		struct wl_signal bind; // wlr_output_event_bind
 		struct wl_signal enable;
 		struct wl_signal mode;
-		struct wl_signal scale;
-		struct wl_signal transform;
 		struct wl_signal description;
 		struct wl_signal destroy;
 	} events;

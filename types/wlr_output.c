@@ -343,8 +343,6 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.bind);
 	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.mode);
-	wl_signal_init(&output->events.scale);
-	wl_signal_init(&output->events.transform);
 	wl_signal_init(&output->events.description);
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->pending.damage);
@@ -624,13 +622,11 @@ bool wlr_output_commit(struct wlr_output *output) {
 	bool scale_updated = output->pending.committed & WLR_OUTPUT_STATE_SCALE;
 	if (scale_updated) {
 		output->scale = output->pending.scale;
-		wlr_signal_emit_safe(&output->events.scale, output);
 	}
 
 	if (output->pending.committed & WLR_OUTPUT_STATE_TRANSFORM) {
 		output->transform = output->pending.transform;
 		output_update_matrix(output);
-		wlr_signal_emit_safe(&output->events.transform, output);
 	}
 
 	bool geometry_updated = output->pending.committed &
