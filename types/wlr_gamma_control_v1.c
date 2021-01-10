@@ -21,7 +21,11 @@ static void gamma_control_destroy(struct wlr_gamma_control_v1 *gamma_control) {
 	if (gamma_control == NULL) {
 		return;
 	}
+
 	wlr_output_set_gamma(gamma_control->output, 0, NULL, NULL, NULL);
+	// Gamma LUT will be applied on next output commit
+	wlr_output_schedule_frame(gamma_control->output);
+
 	wl_resource_set_user_data(gamma_control->resource, NULL);
 	wl_list_remove(&gamma_control->output_destroy_listener.link);
 	wl_list_remove(&gamma_control->output_commit_listener.link);
