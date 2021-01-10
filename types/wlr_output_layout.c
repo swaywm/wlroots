@@ -20,8 +20,7 @@ struct wlr_output_layout_output_state {
 	bool auto_configured;
 
 	struct wl_listener mode;
-	struct wl_listener scale;
-	struct wl_listener transform;
+	struct wl_listener commit;
 	struct wl_listener output_destroy;
 };
 
@@ -50,8 +49,7 @@ static void output_layout_output_destroy(
 	wlr_signal_emit_safe(&l_output->events.destroy, l_output);
 	wlr_output_destroy_global(l_output->output);
 	wl_list_remove(&l_output->state->mode.link);
-	wl_list_remove(&l_output->state->scale.link);
-	wl_list_remove(&l_output->state->transform.link);
+	wl_list_remove(&l_output->state->commit.link);
 	wl_list_remove(&l_output->state->output_destroy.link);
 	wl_list_remove(&l_output->link);
 	free(l_output->state);
@@ -146,16 +144,14 @@ static void handle_output_mode(struct wl_listener *listener, void *data) {
 	output_update_global(state->l_output->output);
 }
 
-static void handle_output_scale(struct wl_listener *listener, void *data) {
+static void handle_output_commit(struct wl_listener *listener, void *data) {
 	struct wlr_output_layout_output_state *state =
-		wl_container_of(listener, state, scale);
-	output_layout_reconfigure(state->layout);
-}
+		wl_container_of(listener, state, commit);
+	struct wlr_output_event_commit *event = data;
 
-static void handle_output_transform(struct wl_listener *listener, void *data) {
-	struct wlr_output_layout_output_state *state =
-		wl_container_of(listener, state, transform);
-	output_layout_reconfigure(state->layout);
+	if (event->committed & (WLR_OUTPUT_STATE_SCALE | WLR_OUTPUT_STATE_TRANSFORM)) {
+		output_layout_reconfigure(state->layout);
+	}
 }
 
 static void handle_output_destroy(struct wl_listener *listener, void *data) {
@@ -186,10 +182,8 @@ static struct wlr_output_layout_output *output_layout_output_create(
 
 	wl_signal_add(&output->events.mode, &l_output->state->mode);
 	l_output->state->mode.notify = handle_output_mode;
-	wl_signal_add(&output->events.scale, &l_output->state->scale);
-	l_output->state->scale.notify = handle_output_scale;
-	wl_signal_add(&output->events.transform, &l_output->state->transform);
-	l_output->state->transform.notify = handle_output_transform;
+	wl_signal_add(&output->events.commit, &l_output->state->commit);
+	l_output->state->commit.notify = handle_output_commit;
 	wl_signal_add(&output->events.destroy, &l_output->state->output_destroy);
 	l_output->state->output_destroy.notify = handle_output_destroy;
 
