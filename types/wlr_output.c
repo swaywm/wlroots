@@ -154,19 +154,47 @@ void wlr_output_enable(struct wlr_output *output, bool enable) {
 	output->pending.enabled = enable;
 }
 
-static void output_state_clear_mode(struct wlr_output_state *state) {
-	if (!(state->committed & WLR_OUTPUT_STATE_MODE)) {
+static void wlr_output_free_mode_if_not_used(struct wlr_output *output,
+		struct wlr_output_mode *mode) {
+	if (output->current_mode == mode) {
 		return;
 	}
 
-	state->mode = NULL;
+	if (output->pending.committed & WLR_OUTPUT_STATE_MODE
+			&& output->pending.mode == mode) {
+		return;
+	}
 
-	state->committed &= ~WLR_OUTPUT_STATE_MODE;
+	struct wlr_output_mode *available_mode;
+	bool found = false;
+	wl_list_for_each(available_mode, &output->modes, link) {
+		if (available_mode == mode) {
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		free(mode);
+	}
+}
+
+static void output_state_clear_mode(struct wlr_output *output) {
+	if (!(output->pending.committed & WLR_OUTPUT_STATE_MODE)) {
+		return;
+	}
+
+	struct wlr_output_mode *old_mode = output->pending.mode;
+
+	output->pending.mode = NULL;
+
+	output->pending.committed &= ~WLR_OUTPUT_STATE_MODE;
+
+	wlr_output_free_mode_if_not_used(output, old_mode);
 }
 
 void wlr_output_set_mode(struct wlr_output *output,
 		struct wlr_output_mode *mode) {
-	output_state_clear_mode(&output->pending);
+	output_state_clear_mode(output);
 
 	if (output->current_mode == mode) {
 		return;
@@ -179,7 +207,7 @@ void wlr_output_set_mode(struct wlr_output *output,
 
 void wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 		int32_t height, int32_t refresh) {
-	output_state_clear_mode(&output->pending);
+	output_state_clear_mode(output);
 
 	if (output->width == width && output->height == height &&
 			output->refresh == refresh) {
@@ -195,13 +223,18 @@ void wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 
 void wlr_output_update_mode(struct wlr_output *output,
 		struct wlr_output_mode *mode) {
+	struct wlr_output_mode *old_mode = output->current_mode;
+
 	output->current_mode = mode;
+
 	if (mode != NULL) {
 		wlr_output_update_custom_mode(output, mode->width, mode->height,
 			mode->refresh);
 	} else {
 		wlr_output_update_custom_mode(output, 0, 0, 0);
 	}
+
+	wlr_output_free_mode_if_not_used(output, old_mode);
 }
 
 void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,

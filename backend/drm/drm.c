@@ -1255,7 +1255,13 @@ static bool update_modes(drmModeConnector *drm_conn,
 			previous_drm_mode->wlr_mode.preferred ? "(preferred)" : "");
 
 		wl_list_remove(&previous_drm_mode->wlr_mode.link);
-		free(previous_drm_mode);
+
+		// Free the removed mode unless it is the current or pending mode
+		if (previous_mode != wlr_conn->output.current_mode &&
+				!(wlr_conn->output.pending.committed & WLR_OUTPUT_STATE_MODE &&
+				previous_mode != wlr_conn->output.pending.mode)) {
+			free(previous_drm_mode);
+		}
 	}
 
 	if (drm_conn->count_modes > wl_list_length(&wlr_conn->output.modes)) {
