@@ -59,8 +59,9 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 static void output_handle_commit(struct wl_listener *listener, void *data) {
 	struct wlr_output_damage *output_damage =
 		wl_container_of(listener, output_damage, output_commit);
+	struct wlr_output_event_commit *event = data;
 
-	if (!(output_damage->output->pending.committed & WLR_OUTPUT_STATE_BUFFER)) {
+	if (!(event->committed & WLR_OUTPUT_STATE_BUFFER)) {
 		return;
 	}
 
