@@ -89,13 +89,6 @@ conf_data.set10('WLR_HAS_XCB_ERRORS', false)
 conf_data.set10('WLR_HAS_XCB_ICCCM', false)
 conf_data.set10('WLR_HAS_XDG_FOREIGN', false)
 
-# Clang complains about some zeroed initializer lists (= {0}), even though they
-# are valid
-if cc.get_id() == 'clang'
-	add_project_arguments('-Wno-missing-field-initializers', language: 'c')
-	add_project_arguments('-Wno-missing-braces', language: 'c')
-endif
-
 wayland_server = dependency('wayland-server', version: '>=1.18')
 wayland_client = dependency('wayland-client')
 wayland_protos = dependency('wayland-protocols', version: '>=1.17')
