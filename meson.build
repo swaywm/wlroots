@@ -84,6 +84,7 @@ conf_data.set10('WLR_HAS_SYSTEMD', false)
 conf_data.set10('WLR_HAS_ELOGIND', false)
 conf_data.set10('WLR_HAS_LIBSEAT', false)
 conf_data.set10('WLR_HAS_X11_BACKEND', false)
+conf_data.set10('WLR_HAS_LIBINPUT_BACKEND', false)
 conf_data.set10('WLR_HAS_XWAYLAND', false)
 conf_data.set10('WLR_HAS_XCB_ERRORS', false)
 conf_data.set10('WLR_HAS_XCB_ICCCM', false)
@@ -96,7 +97,6 @@ egl = dependency('egl')
 glesv2 = dependency('glesv2')
 drm = dependency('libdrm', version: '>=2.4.95')
 gbm = dependency('gbm', version: '>=17.1.0')
-libinput = dependency('libinput', version: '>=1.14.0')
 xkbcommon = dependency('xkbcommon')
 udev = dependency('libudev')
 pixman = dependency('pixman-1')
@@ -123,7 +123,6 @@ wlr_deps = [
 	glesv2,
 	drm,
 	gbm,
-	libinput,
 	xkbcommon,
 	udev,
 	pixman,
@@ -171,6 +170,7 @@ summary({
 	'libseat': conf_data.get('WLR_HAS_LIBSEAT', 0) == 1,
 	'xwayland': conf_data.get('WLR_HAS_XWAYLAND', 0) == 1,
 	'x11-backend': conf_data.get('WLR_HAS_X11_BACKEND', 0) == 1,
+	'libinput-backend': conf_data.get('WLR_HAS_LIBINPUT_BACKEND', 0) == 1,
 	'xcb-icccm': conf_data.get('WLR_HAS_XCB_ICCCM', 0) == 1,
 	'xcb-errors': conf_data.get('WLR_HAS_XCB_ERRORS', 0) == 1,
 	'xdg-foreign': conf_data.get('WLR_HAS_XDG_FOREIGN', 0) == 1,

@@ -4,6 +4,9 @@ exclude_files = ['meson.build', 'config.h.in', 'version.h.in']
 if conf_data.get('WLR_HAS_X11_BACKEND', 0) != 1
 	exclude_files += 'backend/x11.h'
 endif
+if conf_data.get('WLR_HAS_LIBINPUT_BACKEND', 0) != 1
+	exclude_files += 'backend/libinput.h'
+endif
 if conf_data.get('WLR_HAS_XWAYLAND', 0) != 1
 	exclude_files += 'xwayland.h'
 endif
