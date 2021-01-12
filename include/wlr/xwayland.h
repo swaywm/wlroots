@@ -120,6 +120,18 @@ struct wlr_xwayland_surface_size_hints {
 };
 
 /**
+ * This represents the input focus described as follows:
+ * 
+ * https://www.x.org/releases/X11R7.6/doc/xorg-docs/specs/ICCCM/icccm.html#input_focus
+ */
+enum wlr_xwayland_icccm_input_model {
+	WLR_ICCCM_INPUT_MODEL_NONE = 0,
+	WLR_ICCCM_INPUT_MODEL_PASSIVE = 1,
+	WLR_ICCCM_INPUT_MODEL_LOCAL = 2,
+	WLR_ICCCM_INPUT_MODEL_GLOBAL = 3,
+};
+
+/**
  * An Xwayland user interface component. It has an absolute position in
  * layout-local coordinates.
  *
@@ -303,7 +315,10 @@ void wlr_xwayland_surface_ping(struct wlr_xwayland_surface *surface);
  *          false if it should be ignored
  */
 bool wlr_xwayland_or_surface_wants_focus(
-	const struct wlr_xwayland_surface *surface);
+	const struct wlr_xwayland_surface *xsurface);
 
+
+enum wlr_xwayland_icccm_input_model wlr_xwayland_icccm_input_model(
+	const struct wlr_xwayland_surface *xsurface);
 
 #endif

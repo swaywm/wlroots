@@ -579,6 +579,7 @@ static void read_surface_hints(struct wlr_xwm *xwm,
 	if (xsurface->hints == NULL) {
 		return;
 	}
+	
 	memcpy(xsurface->hints, &hints, sizeof(struct wlr_xwayland_surface_hints));
 	xsurface->hints_urgency = xcb_icccm_wm_hints_get_urgency(&hints);
 
@@ -1967,8 +1968,7 @@ void wlr_xwayland_surface_ping(struct wlr_xwayland_surface *surface) {
 }
 
 bool wlr_xwayland_or_surface_wants_focus(
-		const struct wlr_xwayland_surface *surface) {
-	bool ret = true;
+		const struct wlr_xwayland_surface *xsurface) {
 	static enum atom_name needles[] = {
 		NET_WM_WINDOW_TYPE_COMBO,
 		NET_WM_WINDOW_TYPE_DND,
@@ -1980,12 +1980,32 @@ bool wlr_xwayland_or_surface_wants_focus(
 		NET_WM_WINDOW_TYPE_TOOLTIP,
 		NET_WM_WINDOW_TYPE_UTILITY,
 	};
+
 	for (size_t i = 0; i < sizeof(needles) / sizeof(needles[0]); ++i) {
-		if (xwm_atoms_contains(surface->xwm, surface->window_type,
-				surface->window_type_len, needles[i])) {
-			ret = false;
+		if (xwm_atoms_contains(xsurface->xwm, xsurface->window_type,
+				xsurface->window_type_len, needles[i])) {
+			return false;
 		}
 	}
 
-	return ret;
+	return true;
+}
+
+enum wlr_xwayland_icccm_input_model wlr_xwayland_icccm_input_model(
+	const struct wlr_xwayland_surface *xsurface) {
+	bool take_focus = xwm_atoms_contains(xsurface->xwm,
+		xsurface->protocols, xsurface->protocols_len,
+		WM_TAKE_FOCUS);
+
+	if (xsurface->hints && xsurface->hints->input) {
+		if (take_focus) {
+			return WLR_ICCCM_INPUT_MODEL_LOCAL;
+		}
+		return WLR_ICCCM_INPUT_MODEL_PASSIVE;
+	} else {
+		if (take_focus) {
+			return WLR_ICCCM_INPUT_MODEL_GLOBAL;
+		}
+	}
+	return WLR_ICCCM_INPUT_MODEL_NONE;
 }
