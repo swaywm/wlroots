@@ -1352,11 +1352,24 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			parse_edid(&wlr_conn->output, edid_len, edid);
 			free(edid);
 
+			char *subconnector = NULL;
+			if (wlr_conn->props.subconnector) {
+				subconnector = get_drm_prop_enum(drm->fd,
+					wlr_conn->id, wlr_conn->props.subconnector);
+			}
+			if (subconnector && strcmp(subconnector, "Native") == 0) {
+				free(subconnector);
+				subconnector = NULL;
+			}
+
 			struct wlr_output *output = &wlr_conn->output;
 			char description[128];
-			snprintf(description, sizeof(description), "%s %s %s (%s)",
-				output->make, output->model, output->serial, output->name);
+			snprintf(description, sizeof(description), "%s %s %s (%s%s%s)",
+				output->make, output->model, output->serial, output->name,
+				subconnector ? " via " : "", subconnector ? subconnector : "");
 			wlr_output_set_description(output, description);
+
+			free(subconnector);
 
 			wlr_log(WLR_INFO, "Detected modes:");
 
