@@ -1484,7 +1484,7 @@ static void page_flip_handler(int fd, unsigned seq,
 	 * data between the GPUs, even if we were using the direct scanout
 	 * interface.
 	 */
-	if (!drm->parent && plane->current_fb->wlr_buf &&
+	if (!drm->parent && plane->current_fb &&
 			wlr_client_buffer_get(plane->current_fb->wlr_buf)) {
 		present_flags |= WLR_OUTPUT_PRESENT_ZERO_COPY;
 	}
