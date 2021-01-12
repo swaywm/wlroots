@@ -7,6 +7,9 @@ endif
 if conf_data.get('WLR_HAS_LIBINPUT_BACKEND', 0) != 1
 	exclude_files += 'backend/libinput.h'
 endif
+if conf_data.get('WLR_HAS_DRM_BACKEND', 0) != 1
+	exclude_files += 'backend/drm.h'
+endif
 if conf_data.get('WLR_HAS_XWAYLAND', 0) != 1
 	exclude_files += 'xwayland.h'
 endif

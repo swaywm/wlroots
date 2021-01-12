@@ -85,6 +85,7 @@ conf_data.set10('WLR_HAS_ELOGIND', false)
 conf_data.set10('WLR_HAS_LIBSEAT', false)
 conf_data.set10('WLR_HAS_X11_BACKEND', false)
 conf_data.set10('WLR_HAS_LIBINPUT_BACKEND', false)
+conf_data.set10('WLR_HAS_DRM_BACKEND', false)
 conf_data.set10('WLR_HAS_XWAYLAND', false)
 conf_data.set10('WLR_HAS_XCB_ERRORS', false)
 conf_data.set10('WLR_HAS_XCB_ICCCM', false)
@@ -171,6 +172,7 @@ summary({
 	'xwayland': conf_data.get('WLR_HAS_XWAYLAND', 0) == 1,
 	'x11-backend': conf_data.get('WLR_HAS_X11_BACKEND', 0) == 1,
 	'libinput-backend': conf_data.get('WLR_HAS_LIBINPUT_BACKEND', 0) == 1,
+	'drm-backend': conf_data.get('WLR_HAS_DRM_BACKEND', 0) == 1,
 	'xcb-icccm': conf_data.get('WLR_HAS_XCB_ICCCM', 0) == 1,
 	'xcb-errors': conf_data.get('WLR_HAS_XCB_ERRORS', 0) == 1,
 	'xdg-foreign': conf_data.get('WLR_HAS_XDG_FOREIGN', 0) == 1,
