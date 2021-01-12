@@ -170,7 +170,7 @@ summary({
 	'elogind': conf_data.get('WLR_HAS_ELOGIND', 0) == 1,
 	'libseat': conf_data.get('WLR_HAS_LIBSEAT', 0) == 1,
 	'xwayland': conf_data.get('WLR_HAS_XWAYLAND', 0) == 1,
-	'x11_backend': conf_data.get('WLR_HAS_X11_BACKEND', 0) == 1,
+	'x11-backend': conf_data.get('WLR_HAS_X11_BACKEND', 0) == 1,
 	'xcb-icccm': conf_data.get('WLR_HAS_XCB_ICCCM', 0) == 1,
 	'xcb-errors': conf_data.get('WLR_HAS_XCB_ERRORS', 0) == 1,
 	'xdg-foreign': conf_data.get('WLR_HAS_XDG_FOREIGN', 0) == 1,
