@@ -324,7 +324,7 @@ static bool drm_connector_attach_render(struct wlr_output *output,
 static void drm_plane_set_committed(struct wlr_drm_plane *plane) {
 	drm_fb_move(&plane->queued_fb, &plane->pending_fb);
 
-	if (plane->queued_fb && plane->queued_fb->wlr_buf) {
+	if (plane->queued_fb) {
 		wlr_swapchain_set_buffer_submitted(plane->surf.swapchain,
 			plane->queued_fb->wlr_buf);
 	}
