@@ -3,6 +3,13 @@
 
 #include <wlr/render/wlr_renderer.h>
 
+/**
+ * Bind a buffer to the renderer.
+ *
+ * All subsequent rendering operations will operate on the supplied buffer.
+ * After rendering operations are done, the caller must unbind a buffer by
+ * calling wlr_renderer_bind_buffer with a NULL buffer.
+ */
 bool wlr_renderer_bind_buffer(struct wlr_renderer *r, struct wlr_buffer *buffer);
 /**
  * Get the DMA-BUF formats supporting rendering usage. Buffers allocated with
