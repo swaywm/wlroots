@@ -4,8 +4,6 @@
 #include <drm_mode.h>
 #include <errno.h>
 #include <gbm.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -17,7 +15,6 @@
 #include <wayland-util.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render/gles2.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>

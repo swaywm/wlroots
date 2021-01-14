@@ -7,7 +7,6 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/wlr_renderer.h>
-#include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include "backend/headless.h"
