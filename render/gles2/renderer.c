@@ -41,6 +41,8 @@ static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
 	wl_list_remove(&buffer->link);
 	wl_list_remove(&buffer->buffer_destroy.link);
 
+	struct wlr_egl_context prev_ctx;
+	wlr_egl_save_context(&prev_ctx);
 	wlr_egl_make_current(buffer->renderer->egl);
 
 	push_gles2_debug(buffer->renderer);
@@ -51,7 +53,9 @@ static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
 	pop_gles2_debug(buffer->renderer);
 
 	wlr_egl_destroy_image(buffer->renderer->egl, buffer->image);
-	wlr_egl_unset_current(buffer->renderer->egl);
+
+	wlr_egl_restore_context(&prev_ctx);
+
 	free(buffer);
 }
 
