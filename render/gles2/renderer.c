@@ -139,10 +139,11 @@ error_buffer:
 
 static bool gles2_bind_buffer(struct wlr_renderer *wlr_renderer,
 		struct wlr_buffer *wlr_buffer) {
-	struct wlr_gles2_renderer *renderer =
-		gles2_get_renderer_in_context(wlr_renderer);
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
 	if (renderer->current_buffer != NULL) {
+		assert(wlr_egl_is_current(renderer->egl));
+
 		push_gles2_debug(renderer);
 		glFlush();
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -153,8 +154,11 @@ static bool gles2_bind_buffer(struct wlr_renderer *wlr_renderer,
 	}
 
 	if (wlr_buffer == NULL) {
+		wlr_egl_unset_current(renderer->egl);
 		return true;
 	}
+
+	wlr_egl_make_current(renderer->egl);
 
 	struct wlr_gles2_buffer *buffer = get_buffer(renderer, wlr_buffer);
 	if (buffer == NULL) {
