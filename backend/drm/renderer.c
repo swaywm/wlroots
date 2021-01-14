@@ -8,8 +8,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <wayland-util.h>
-#include <wlr/render/egl.h>
-#include <wlr/render/gles2.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
@@ -115,10 +113,6 @@ bool drm_surface_make_current(struct wlr_drm_surface *surf,
 		return false;
 	}
 
-	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(surf->renderer->wlr_rend);
-	if (!wlr_egl_make_current(egl)) {
-		return false;
-	}
 	if (!wlr_renderer_bind_buffer(surf->renderer->wlr_rend, surf->back_buffer)) {
 		wlr_log(WLR_ERROR, "Failed to attach buffer to renderer");
 		return false;
@@ -129,10 +123,8 @@ bool drm_surface_make_current(struct wlr_drm_surface *surf,
 
 void drm_surface_unset_current(struct wlr_drm_surface *surf) {
 	assert(surf->back_buffer != NULL);
-	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(surf->renderer->wlr_rend);
 
 	wlr_renderer_bind_buffer(surf->renderer->wlr_rend, NULL);
-	wlr_egl_unset_current(egl);
 
 	wlr_buffer_unlock(surf->back_buffer);
 	surf->back_buffer = NULL;

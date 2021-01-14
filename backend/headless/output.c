@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render/egl.h>
-#include <wlr/render/gles2.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 #include "backend/headless.h"
@@ -44,8 +42,6 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		int *buffer_age) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
-	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(
-			output->backend->renderer);
 
 	wlr_buffer_unlock(output->back_buffer);
 	output->back_buffer = wlr_swapchain_acquire(output->swapchain, buffer_age);
@@ -53,9 +49,6 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		return false;
 	}
 
-	if (!wlr_egl_make_current(egl)) {
-		return false;
-	}
 	if (!wlr_renderer_bind_buffer(output->backend->renderer,
 			output->back_buffer)) {
 		return false;
@@ -102,10 +95,6 @@ static bool output_commit(struct wlr_output *wlr_output) {
 
 			wlr_renderer_bind_buffer(output->backend->renderer, NULL);
 
-			struct wlr_egl *egl = wlr_gles2_renderer_get_egl(
-					output->backend->renderer);
-			wlr_egl_unset_current(egl);
-
 			buffer = output->back_buffer;
 			output->back_buffer = NULL;
 			break;
@@ -129,12 +118,8 @@ static bool output_commit(struct wlr_output *wlr_output) {
 static void output_rollback_render(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
-	struct wlr_egl *egl = wlr_gles2_renderer_get_egl(
-			output->backend->renderer);
-	assert(wlr_egl_is_current(egl));
 
 	wlr_renderer_bind_buffer(output->backend->renderer, NULL);
-	wlr_egl_unset_current(egl);
 
 	wlr_buffer_unlock(output->back_buffer);
 	output->back_buffer = NULL;
