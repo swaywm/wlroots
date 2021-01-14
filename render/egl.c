@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <gbm.h>
 #include <wlr/render/egl.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
@@ -360,6 +361,10 @@ error:
 void wlr_egl_destroy(struct wlr_egl *egl) {
 	if (egl == NULL) {
 		return;
+	}
+
+	if (egl->gbm_device) {
+		gbm_device_destroy(egl->gbm_device);
 	}
 
 	wlr_drm_format_set_finish(&egl->dmabuf_render_formats);

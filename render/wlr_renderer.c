@@ -1,6 +1,8 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <gbm.h>
+#include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
@@ -8,6 +10,7 @@
 #include <wlr/util/log.h>
 #include "util/signal.h"
 #include "render/wlr_renderer.h"
+#include "backend/backend.h"
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
 		const struct wlr_renderer_impl *impl) {
@@ -247,13 +250,28 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	return true;
 }
 
-struct wlr_renderer *wlr_renderer_autocreate(EGLenum platform,
-		void *remote_display) {
-	struct wlr_egl *egl = wlr_egl_create(platform, remote_display, NULL);
-	if (egl == NULL) {
-		wlr_log(WLR_ERROR, "Could not initialize EGL");
+struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
+	int fd = backend_get_drm_fd(backend);
+	if (fd < 0) {
+		wlr_log(WLR_ERROR, "Failed to get DRM FD from backend");
 		return NULL;
 	}
+
+	struct gbm_device *gbm_device = gbm_create_device(fd);
+	if (!gbm_device) {
+		wlr_log(WLR_ERROR, "Failed to create GBM device");
+		return NULL;
+	}
+
+	struct wlr_egl *egl = wlr_egl_create(EGL_PLATFORM_GBM_KHR, gbm_device,
+			NULL);
+	if (egl == NULL) {
+		wlr_log(WLR_ERROR, "Could not initialize EGL");
+		gbm_device_destroy(gbm_device);
+		return NULL;
+	}
+
+	egl->gbm_device = gbm_device;
 
 	struct wlr_renderer *renderer = wlr_gles2_renderer_create(egl);
 	if (!renderer) {

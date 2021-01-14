@@ -547,8 +547,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 	x11->allocator = &gbm_alloc->base;
 
-	x11->renderer = wlr_renderer_autocreate(EGL_PLATFORM_GBM_KHR,
-		gbm_alloc->gbm_device);
+	x11->renderer = wlr_renderer_autocreate(&x11->backend);
 	if (x11->renderer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
 		goto error_event;
