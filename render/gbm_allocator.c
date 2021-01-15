@@ -16,8 +16,10 @@ static struct wlr_gbm_buffer *get_gbm_buffer_from_buffer(
 	return (struct wlr_gbm_buffer *)buffer;
 }
 
-static struct wlr_gbm_buffer *create_buffer(struct gbm_device *gbm_device,
+static struct wlr_gbm_buffer *create_buffer(struct wlr_gbm_allocator *alloc,
 		int width, int height, const struct wlr_drm_format *format) {
+	struct gbm_device *gbm_device = alloc->gbm_device;
+
 	struct gbm_bo *bo = NULL;
 	if (format->len > 0) {
 		bo = gbm_bo_create_with_modifiers(gbm_device, width, height,
@@ -43,6 +45,7 @@ static struct wlr_gbm_buffer *create_buffer(struct gbm_device *gbm_device,
 	}
 	wlr_buffer_init(&buffer->base, &buffer_impl, width, height);
 	buffer->gbm_bo = bo;
+	wl_list_insert(&alloc->buffers, &buffer->link);
 
 	wlr_log(WLR_DEBUG, "Allocated %dx%d GBM buffer (format 0x%"PRIX32", "
 		"modifier 0x%"PRIX64")", buffer->base.width, buffer->base.height,
@@ -55,7 +58,10 @@ static void buffer_destroy(struct wlr_buffer *wlr_buffer) {
 	struct wlr_gbm_buffer *buffer =
 		get_gbm_buffer_from_buffer(wlr_buffer);
 	wlr_dmabuf_attributes_finish(&buffer->dmabuf);
-	gbm_bo_destroy(buffer->gbm_bo);
+	if (buffer->gbm_bo != NULL) {
+		gbm_bo_destroy(buffer->gbm_bo);
+	}
+	wl_list_remove(&buffer->link);
 	free(buffer);
 }
 
@@ -63,6 +69,10 @@ static bool buffer_create_dmabuf(struct wlr_gbm_buffer *buffer) {
 	assert(buffer->dmabuf.n_planes == 0);
 
 	struct gbm_bo *bo = buffer->gbm_bo;
+	if (bo == NULL) {
+		return false;
+	}
+
 	struct wlr_dmabuf_attributes attribs = {0};
 
 	attribs.n_planes = gbm_bo_get_plane_count(bo);
@@ -146,6 +156,7 @@ struct wlr_gbm_allocator *wlr_gbm_allocator_create(int fd) {
 	wlr_allocator_init(&alloc->base, &allocator_impl);
 
 	alloc->fd = fd;
+	wl_list_init(&alloc->buffers);
 
 	alloc->gbm_device = gbm_create_device(fd);
 	if (alloc->gbm_device == NULL) {
@@ -162,6 +173,16 @@ struct wlr_gbm_allocator *wlr_gbm_allocator_create(int fd) {
 
 static void allocator_destroy(struct wlr_allocator *wlr_alloc) {
 	struct wlr_gbm_allocator *alloc = get_gbm_alloc_from_alloc(wlr_alloc);
+
+	// The gbm_bo objects need to be destroyed before the gbm_device
+	struct wlr_gbm_buffer *buf, *buf_tmp;
+	wl_list_for_each_safe(buf, buf_tmp, &alloc->buffers, link) {
+		gbm_bo_destroy(buf->gbm_bo);
+		buf->gbm_bo = NULL;
+		wl_list_remove(&buf->link);
+		wl_list_init(&buf->link);
+	}
+
 	gbm_device_destroy(alloc->gbm_device);
 	close(alloc->fd);
 	free(alloc);
@@ -171,8 +192,7 @@ static struct wlr_buffer *allocator_create_buffer(
 		struct wlr_allocator *wlr_alloc, int width, int height,
 		const struct wlr_drm_format *format) {
 	struct wlr_gbm_allocator *alloc = get_gbm_alloc_from_alloc(wlr_alloc);
-	struct wlr_gbm_buffer *buffer =
-		create_buffer(alloc->gbm_device, width, height, format);
+	struct wlr_gbm_buffer *buffer = create_buffer(alloc, width, height, format);
 	if (buffer == NULL) {
 		return NULL;
 	}

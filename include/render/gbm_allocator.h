@@ -8,7 +8,9 @@
 struct wlr_gbm_buffer {
 	struct wlr_buffer base;
 
-	struct gbm_bo *gbm_bo;
+	struct wl_list link; // wlr_gbm_allocator.buffers
+
+	struct gbm_bo *gbm_bo; // NULL if the gbm_device has been destroyed
 	struct wlr_dmabuf_attributes dmabuf;
 };
 
@@ -17,6 +19,8 @@ struct wlr_gbm_allocator {
 
 	int fd;
 	struct gbm_device *gbm_device;
+
+	struct wl_list buffers; // wlr_gbm_buffer.link
 };
 
 /**
