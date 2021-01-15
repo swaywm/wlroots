@@ -12,7 +12,6 @@
 #include <stdint.h>
 #include <wayland-server-protocol.h>
 #include <wlr/backend.h>
-#include <wlr/render/egl.h>
 #include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_box.h>
 
