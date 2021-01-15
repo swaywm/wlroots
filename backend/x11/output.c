@@ -13,6 +13,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/interfaces/wlr_touch.h>
+#include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
 #include <wlr/util/log.h>
 
