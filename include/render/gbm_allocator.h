@@ -20,10 +20,10 @@ struct wlr_gbm_allocator {
 };
 
 /**
- * Creates a new GBM allocator from a render FD.
+ * Creates a new GBM allocator from a DRM FD.
  *
  * Takes ownership over the FD.
  */
-struct wlr_gbm_allocator *wlr_gbm_allocator_create(int render_fd);
+struct wlr_gbm_allocator *wlr_gbm_allocator_create(int drm_fd);
 
 #endif
