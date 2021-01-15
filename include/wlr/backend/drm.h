@@ -29,6 +29,11 @@ bool wlr_backend_is_drm(struct wlr_backend *backend);
 bool wlr_output_is_drm(struct wlr_output *output);
 
 /**
+ * Get the KMS connector object ID.
+ */
+uint32_t wlr_drm_connector_get_id(struct wlr_output *output);
+
+/**
  * Add mode to the list of available modes
  */
 typedef struct _drmModeModeInfo drmModeModeInfo;

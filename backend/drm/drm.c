@@ -1046,6 +1046,11 @@ bool wlr_output_is_drm(struct wlr_output *output) {
 	return output->impl == &output_impl;
 }
 
+uint32_t wlr_drm_connector_get_id(struct wlr_output *output) {
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+	return conn->id;
+}
+
 static const int32_t subpixel_map[] = {
 	[DRM_MODE_SUBPIXEL_UNKNOWN] = WL_OUTPUT_SUBPIXEL_UNKNOWN,
 	[DRM_MODE_SUBPIXEL_HORIZONTAL_RGB] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB,
