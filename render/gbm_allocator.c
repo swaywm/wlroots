@@ -154,6 +154,9 @@ struct wlr_gbm_allocator *wlr_gbm_allocator_create(int fd) {
 		return NULL;
 	}
 
+	wlr_log(WLR_DEBUG, "Created GBM allocator with backend %s",
+		gbm_device_get_backend_name(alloc->gbm_device));
+
 	return alloc;
 }
 
