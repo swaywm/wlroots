@@ -67,6 +67,7 @@ static struct wlr_gbm_buffer *create_buffer(struct wlr_gbm_allocator *alloc,
 	struct gbm_device *gbm_device = alloc->gbm_device;
 
 	struct gbm_bo *bo = NULL;
+	bool has_modifier = true;
 	if (format->len > 0) {
 		bo = gbm_bo_create_with_modifiers(gbm_device, width, height,
 			format->format, format->modifiers, format->len);
@@ -78,6 +79,7 @@ static struct wlr_gbm_buffer *create_buffer(struct wlr_gbm_allocator *alloc,
 			usage |= GBM_BO_USE_LINEAR;
 		}
 		bo = gbm_bo_create(gbm_device, width, height, format->format, usage);
+		has_modifier = false;
 	}
 	if (bo == NULL) {
 		wlr_log(WLR_ERROR, "gbm_bo_create failed");
@@ -99,9 +101,16 @@ static struct wlr_gbm_buffer *create_buffer(struct wlr_gbm_allocator *alloc,
 		return NULL;
 	}
 
+	// If the buffer has been allocated with an implicit modifier, make sure we
+	// don't populate the modifier field: other parts of the stack may not
+	// understand modifiers, and they can't strip the modifier.
+	if (!has_modifier) {
+		buffer->dmabuf.modifier = DRM_FORMAT_MOD_INVALID;
+	}
+
 	wlr_log(WLR_DEBUG, "Allocated %dx%d GBM buffer (format 0x%"PRIX32", "
 		"modifier 0x%"PRIX64")", buffer->base.width, buffer->base.height,
-		gbm_bo_get_format(bo), gbm_bo_get_modifier(bo));
+		buffer->dmabuf.format, buffer->dmabuf.modifier);
 
 	return buffer;
 }
