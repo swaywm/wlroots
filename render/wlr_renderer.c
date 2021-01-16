@@ -250,14 +250,8 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	return true;
 }
 
-struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
-	int fd = backend_get_drm_fd(backend);
-	if (fd < 0) {
-		wlr_log(WLR_ERROR, "Failed to get DRM FD from backend");
-		return NULL;
-	}
-
-	struct gbm_device *gbm_device = gbm_create_device(fd);
+struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
+	struct gbm_device *gbm_device = gbm_create_device(drm_fd);
 	if (!gbm_device) {
 		wlr_log(WLR_ERROR, "Failed to create GBM device");
 		return NULL;
@@ -280,6 +274,16 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
 	}
 
 	return renderer;
+}
+
+struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
+	int drm_fd = backend_get_drm_fd(backend);
+	if (drm_fd < 0) {
+		wlr_log(WLR_ERROR, "Failed to get DRM FD from backend");
+		return NULL;
+	}
+
+	return wlr_renderer_autocreate_with_drm_fd(drm_fd);
 }
 
 int wlr_renderer_get_drm_fd(struct wlr_renderer *r) {
