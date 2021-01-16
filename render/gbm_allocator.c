@@ -16,63 +16,8 @@ static struct wlr_gbm_buffer *get_gbm_buffer_from_buffer(
 	return (struct wlr_gbm_buffer *)buffer;
 }
 
-static struct wlr_gbm_buffer *create_buffer(struct wlr_gbm_allocator *alloc,
-		int width, int height, const struct wlr_drm_format *format) {
-	struct gbm_device *gbm_device = alloc->gbm_device;
-
-	struct gbm_bo *bo = NULL;
-	if (format->len > 0) {
-		bo = gbm_bo_create_with_modifiers(gbm_device, width, height,
-			format->format, format->modifiers, format->len);
-	}
-	if (bo == NULL) {
-		uint32_t usage = GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING;
-		if (format->len == 1 &&
-				format->modifiers[0] == DRM_FORMAT_MOD_LINEAR) {
-			usage |= GBM_BO_USE_LINEAR;
-		}
-		bo = gbm_bo_create(gbm_device, width, height, format->format, usage);
-	}
-	if (bo == NULL) {
-		wlr_log(WLR_ERROR, "gbm_bo_create failed");
-		return NULL;
-	}
-
-	struct wlr_gbm_buffer *buffer = calloc(1, sizeof(*buffer));
-	if (buffer == NULL) {
-		gbm_bo_destroy(bo);
-		return NULL;
-	}
-	wlr_buffer_init(&buffer->base, &buffer_impl, width, height);
-	buffer->gbm_bo = bo;
-	wl_list_insert(&alloc->buffers, &buffer->link);
-
-	wlr_log(WLR_DEBUG, "Allocated %dx%d GBM buffer (format 0x%"PRIX32", "
-		"modifier 0x%"PRIX64")", buffer->base.width, buffer->base.height,
-		gbm_bo_get_format(bo), gbm_bo_get_modifier(bo));
-
-	return buffer;
-}
-
-static void buffer_destroy(struct wlr_buffer *wlr_buffer) {
-	struct wlr_gbm_buffer *buffer =
-		get_gbm_buffer_from_buffer(wlr_buffer);
-	wlr_dmabuf_attributes_finish(&buffer->dmabuf);
-	if (buffer->gbm_bo != NULL) {
-		gbm_bo_destroy(buffer->gbm_bo);
-	}
-	wl_list_remove(&buffer->link);
-	free(buffer);
-}
-
-static bool buffer_create_dmabuf(struct wlr_gbm_buffer *buffer) {
-	assert(buffer->dmabuf.n_planes == 0);
-
-	struct gbm_bo *bo = buffer->gbm_bo;
-	if (bo == NULL) {
-		return false;
-	}
-
+static bool export_gbm_bo(struct gbm_bo *bo,
+		struct wlr_dmabuf_attributes *out) {
 	struct wlr_dmabuf_attributes attribs = {0};
 
 	attribs.n_planes = gbm_bo_get_plane_count(bo);
@@ -107,7 +52,7 @@ static bool buffer_create_dmabuf(struct wlr_gbm_buffer *buffer) {
 		attribs.stride[i] = gbm_bo_get_stride_for_plane(bo, i);
 	}
 
-	memcpy(&buffer->dmabuf, &attribs, sizeof(attribs));
+	memcpy(out, &attribs, sizeof(attribs));
 	return true;
 
 error_fd:
@@ -117,20 +62,65 @@ error_fd:
 	return false;
 }
 
+static struct wlr_gbm_buffer *create_buffer(struct wlr_gbm_allocator *alloc,
+		int width, int height, const struct wlr_drm_format *format) {
+	struct gbm_device *gbm_device = alloc->gbm_device;
+
+	struct gbm_bo *bo = NULL;
+	if (format->len > 0) {
+		bo = gbm_bo_create_with_modifiers(gbm_device, width, height,
+			format->format, format->modifiers, format->len);
+	}
+	if (bo == NULL) {
+		uint32_t usage = GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING;
+		if (format->len == 1 &&
+				format->modifiers[0] == DRM_FORMAT_MOD_LINEAR) {
+			usage |= GBM_BO_USE_LINEAR;
+		}
+		bo = gbm_bo_create(gbm_device, width, height, format->format, usage);
+	}
+	if (bo == NULL) {
+		wlr_log(WLR_ERROR, "gbm_bo_create failed");
+		return NULL;
+	}
+
+	struct wlr_gbm_buffer *buffer = calloc(1, sizeof(*buffer));
+	if (buffer == NULL) {
+		gbm_bo_destroy(bo);
+		return NULL;
+	}
+	wlr_buffer_init(&buffer->base, &buffer_impl, width, height);
+	buffer->gbm_bo = bo;
+	wl_list_insert(&alloc->buffers, &buffer->link);
+
+	if (!export_gbm_bo(bo, &buffer->dmabuf)) {
+		free(buffer);
+		gbm_bo_destroy(bo);
+		return NULL;
+	}
+
+	wlr_log(WLR_DEBUG, "Allocated %dx%d GBM buffer (format 0x%"PRIX32", "
+		"modifier 0x%"PRIX64")", buffer->base.width, buffer->base.height,
+		gbm_bo_get_format(bo), gbm_bo_get_modifier(bo));
+
+	return buffer;
+}
+
+static void buffer_destroy(struct wlr_buffer *wlr_buffer) {
+	struct wlr_gbm_buffer *buffer =
+		get_gbm_buffer_from_buffer(wlr_buffer);
+	wlr_dmabuf_attributes_finish(&buffer->dmabuf);
+	if (buffer->gbm_bo != NULL) {
+		gbm_bo_destroy(buffer->gbm_bo);
+	}
+	wl_list_remove(&buffer->link);
+	free(buffer);
+}
+
 static bool buffer_get_dmabuf(struct wlr_buffer *wlr_buffer,
 		struct wlr_dmabuf_attributes *attribs) {
 	struct wlr_gbm_buffer *buffer =
 		get_gbm_buffer_from_buffer(wlr_buffer);
-
-	memset(attribs, 0, sizeof(*attribs));
-
-	// Only export the buffer once
-	if (buffer->dmabuf.n_planes == 0) {
-		if (!buffer_create_dmabuf(buffer)) {
-			return false;
-		}
-	}
-
 	memcpy(attribs, &buffer->dmabuf, sizeof(buffer->dmabuf));
 	return true;
 }
