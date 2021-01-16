@@ -4,6 +4,10 @@
 #include <wlr/render/wlr_renderer.h>
 
 /**
+ * Automatically select and create a renderer suitable for the DRM FD.
+ */
+struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd);
+/**
  * Bind a buffer to the renderer.
  *
  * All subsequent rendering operations will operate on the supplied buffer.
