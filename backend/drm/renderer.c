@@ -28,7 +28,7 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		return false;
 	}
 
-	renderer->wlr_rend = wlr_renderer_autocreate(&drm->backend);
+	renderer->wlr_rend = wlr_renderer_autocreate_with_drm_fd(drm->fd);
 	if (!renderer->wlr_rend) {
 		wlr_log(WLR_ERROR, "Failed to create EGL/WLR renderer");
 		goto error_gbm;
