@@ -363,10 +363,6 @@ void wlr_egl_destroy(struct wlr_egl *egl) {
 		return;
 	}
 
-	if (egl->gbm_device) {
-		gbm_device_destroy(egl->gbm_device);
-	}
-
 	wlr_drm_format_set_finish(&egl->dmabuf_render_formats);
 	wlr_drm_format_set_finish(&egl->dmabuf_texture_formats);
 
@@ -379,6 +375,11 @@ void wlr_egl_destroy(struct wlr_egl *egl) {
 	eglDestroyContext(egl->display, egl->context);
 	eglTerminate(egl->display);
 	eglReleaseThread();
+
+	if (egl->gbm_device) {
+		gbm_device_destroy(egl->gbm_device);
+	}
+
 	free(egl);
 }
 
