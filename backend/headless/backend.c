@@ -120,6 +120,14 @@ static bool backend_init(struct wlr_headless_backend *backend,
 	wl_list_init(&backend->input_devices);
 
 	backend->allocator = allocator;
+
+	if (renderer == NULL) {
+		renderer = wlr_renderer_autocreate(&backend->backend);
+		if (!renderer) {
+			wlr_log(WLR_ERROR, "Failed to create renderer");
+			return false;
+		}
+	}
 	backend->renderer = renderer;
 
 	const struct wlr_drm_format_set *formats =
@@ -219,21 +227,13 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 		goto error_dup;
 	}
 
-	struct wlr_renderer *renderer = wlr_renderer_autocreate(&backend->backend);
-	if (!renderer) {
-		wlr_log(WLR_ERROR, "Failed to create renderer");
-		goto error_renderer;
-	}
-
-	if (!backend_init(backend, display, &gbm_alloc->base, renderer)) {
+	if (!backend_init(backend, display, &gbm_alloc->base, NULL)) {
 		goto error_init;
 	}
 
 	return &backend->backend;
 
 error_init:
-	wlr_renderer_destroy(renderer);
-error_renderer:
 	wlr_allocator_destroy(&gbm_alloc->base);
 error_dup:
 	close(backend->drm_fd);
