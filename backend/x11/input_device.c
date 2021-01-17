@@ -212,36 +212,6 @@ void handle_x11_xinput_event(struct wlr_x11_backend *x11,
 		x11->time = ev->time;
 		break;
 	}
-	case XCB_INPUT_ENTER: {
-		xcb_input_enter_event_t *ev = (xcb_input_enter_event_t *)event;
-
-		output = get_x11_output_from_window_id(x11, ev->event);
-		if (!output) {
-			return;
-		}
-
-		if (!output->cursor_hidden) {
-			xcb_xfixes_hide_cursor(x11->xcb, output->win);
-			xcb_flush(x11->xcb);
-			output->cursor_hidden = true;
-		}
-		break;
-	}
-	case XCB_INPUT_LEAVE: {
-		xcb_input_leave_event_t *ev = (xcb_input_leave_event_t *)event;
-
-		output = get_x11_output_from_window_id(x11, ev->event);
-		if (!output) {
-			return;
-		}
-
-		if (output->cursor_hidden) {
-			xcb_xfixes_show_cursor(x11->xcb, output->win);
-			xcb_flush(x11->xcb);
-			output->cursor_hidden = false;
-		}
-		break;
-	}
 	case XCB_INPUT_TOUCH_BEGIN: {
 		xcb_input_touch_begin_event_t *ev = (xcb_input_touch_begin_event_t *)event;
 

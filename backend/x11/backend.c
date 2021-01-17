@@ -613,6 +613,23 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	x11->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &x11->display_destroy);
 
+	// Create an empty pixmap to be used as the cursor. The
+	// default GC foreground is 0, and that is what it will be
+	// filled with.
+	xcb_pixmap_t blank = xcb_generate_id(x11->xcb);
+	xcb_create_pixmap(x11->xcb, 1, blank, x11->screen->root, 1, 1);
+	xcb_gcontext_t gc = xcb_generate_id(x11->xcb);
+	xcb_create_gc(x11->xcb, gc, blank, 0, NULL);
+	xcb_rectangle_t rect = { .x = 0, .y = 0, .width = 1, .height = 1 };
+	xcb_poly_fill_rectangle(x11->xcb, blank, gc, 1, &rect);
+
+	x11->cursor = xcb_generate_id(x11->xcb);
+	xcb_create_cursor(x11->xcb, x11->cursor, blank, blank,
+		0, 0, 0, 0, 0, 0, 0, 0);
+
+	xcb_free_gc(x11->xcb, gc);
+	xcb_free_pixmap(x11->xcb, blank);
+
 	return &x11->backend;
 
 error_event:

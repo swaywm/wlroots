@@ -381,11 +381,13 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 	// The X11 protocol requires us to set a colormap and border pixel if the
 	// depth doesn't match the root window's
-	uint32_t mask = XCB_CW_BORDER_PIXEL | XCB_CW_EVENT_MASK | XCB_CW_COLORMAP;
+	uint32_t mask = XCB_CW_BORDER_PIXEL | XCB_CW_EVENT_MASK |
+		XCB_CW_COLORMAP | XCB_CW_CURSOR;
 	uint32_t values[] = {
 		0,
 		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY,
 		x11->colormap,
+		x11->cursor,
 	};
 	output->win = xcb_generate_id(x11->xcb);
 	xcb_create_window(x11->xcb, x11->depth->depth, output->win,
@@ -402,8 +404,6 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 			XCB_INPUT_XI_EVENT_MASK_BUTTON_PRESS |
 			XCB_INPUT_XI_EVENT_MASK_BUTTON_RELEASE |
 			XCB_INPUT_XI_EVENT_MASK_MOTION |
-			XCB_INPUT_XI_EVENT_MASK_ENTER |
-			XCB_INPUT_XI_EVENT_MASK_LEAVE |
 			XCB_INPUT_XI_EVENT_MASK_TOUCH_BEGIN |
 			XCB_INPUT_XI_EVENT_MASK_TOUCH_END |
 			XCB_INPUT_XI_EVENT_MASK_TOUCH_UPDATE,
