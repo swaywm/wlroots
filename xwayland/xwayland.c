@@ -64,6 +64,7 @@ void wlr_xwayland_destroy(struct wlr_xwayland *xwayland) {
 
 	wl_list_remove(&xwayland->server_destroy.link);
 	wl_list_remove(&xwayland->server_ready.link);
+	free(xwayland->cursor);
 
 	wlr_xwayland_set_seat(xwayland, NULL);
 	wlr_xwayland_server_destroy(xwayland->server);
