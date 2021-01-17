@@ -347,6 +347,8 @@ static bool query_dri3_formats(struct wlr_x11_backend *x11) {
 
 struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		const char *x11_display) {
+	wlr_log(WLR_INFO, "Creating X11 backend");
+
 	struct wlr_x11_backend *x11 = calloc(1, sizeof(*x11));
 	if (!x11) {
 		return NULL;
