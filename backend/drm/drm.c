@@ -891,7 +891,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		h = ret ? 64 : h;
 
 		if (!drm_plane_init_surface(plane, drm, w, h,
-				DRM_FORMAT_ARGB8888, false)) {
+				DRM_FORMAT_ARGB8888, true)) {
 			wlr_drm_conn_log(conn, WLR_ERROR, "Cannot allocate cursor resources");
 			return false;
 		}
