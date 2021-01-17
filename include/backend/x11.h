@@ -68,6 +68,7 @@ struct wlr_x11_backend {
 	xcb_depth_t *depth;
 	xcb_visualid_t visualid;
 	xcb_colormap_t colormap;
+	uint32_t dri3_major_version, dri3_minor_version;
 
 	size_t requested_outputs;
 	size_t last_output_num;

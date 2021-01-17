@@ -297,6 +297,10 @@ static int query_dri3_drm_fd(struct wlr_x11_backend *x11) {
 
 static bool query_dri3_modifiers(struct wlr_x11_backend *x11,
 		const struct wlr_x11_format *format) {
+	if (x11->dri3_major_version == 1 && x11->dri3_minor_version < 2) {
+		return true; // GetSupportedModifiers requires DRI3 1.2
+	}
+
 	// Query the root window's supported modifiers, because we only care about
 	// screen_modifiers for now
 	xcb_dri3_get_supported_modifiers_cookie_t modifiers_cookie =
@@ -415,13 +419,14 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		xcb_dri3_query_version(x11->xcb, 1, 2);
 	xcb_dri3_query_version_reply_t *dri3_reply =
 		xcb_dri3_query_version_reply(x11->xcb, dri3_cookie, NULL);
-	if (!dri3_reply || dri3_reply->major_version < 1 ||
-			dri3_reply->minor_version < 2) {
+	if (!dri3_reply || dri3_reply->major_version < 1) {
 		wlr_log(WLR_ERROR, "X11 does not support required DRI3 version "
-			"(has %"PRIu32".%"PRIu32", want 1.2)",
+			"(has %"PRIu32".%"PRIu32", want 1.0)",
 			dri3_reply->major_version, dri3_reply->minor_version);
 		goto error_display;
 	}
+	x11->dri3_major_version = dri3_reply->major_version;
+	x11->dri3_minor_version = dri3_reply->minor_version;
 	free(dri3_reply);
 
 	// Present extension
