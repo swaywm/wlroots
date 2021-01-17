@@ -47,7 +47,6 @@ struct wlr_x11_output {
 
 	struct wl_list buffers; // wlr_x11_buffer::link
 
-	bool cursor_hidden;
 	uint64_t last_msc;
 };
 
@@ -68,6 +67,7 @@ struct wlr_x11_backend {
 	xcb_depth_t *depth;
 	xcb_visualid_t visualid;
 	xcb_colormap_t colormap;
+	xcb_cursor_t cursor;
 	uint32_t dri3_major_version, dri3_minor_version;
 
 	size_t requested_outputs;
