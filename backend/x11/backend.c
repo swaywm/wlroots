@@ -535,6 +535,10 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
+	char *drm_name = drmGetDeviceNameFromFd2(x11->drm_fd);
+	wlr_log(WLR_DEBUG, "Using DRM node %s", drm_name);
+	free(drm_name);
+
 	int drm_fd = fcntl(x11->drm_fd, F_DUPFD_CLOEXEC, 0);
 	if (drm_fd < 0) {
 		wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
