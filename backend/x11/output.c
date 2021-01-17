@@ -166,6 +166,10 @@ static struct wlr_x11_buffer *create_x11_buffer(struct wlr_x11_output *output,
 	xcb_pixmap_t pixmap = xcb_generate_id(x11->xcb);
 
 	if (x11->dri3_major_version > 1 || x11->dri3_minor_version >= 2) {
+		if (attrs.n_planes > 4) {
+			wlr_dmabuf_attributes_finish(&dup_attrs);
+			return NULL;
+		}
 		xcb_dri3_pixmap_from_buffers(x11->xcb, pixmap, output->win,
 			attrs.n_planes, attrs.width, attrs.height, attrs.stride[0],
 			attrs.offset[0], attrs.stride[1], attrs.offset[1], attrs.stride[2],
