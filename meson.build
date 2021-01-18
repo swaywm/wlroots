@@ -17,8 +17,13 @@ project(
 # between minor releases.
 soversion = 9
 
+little_endian = host_machine.endian() == 'little'
+big_endian = host_machine.endian() == 'big'
+
 add_project_arguments([
 	'-DWLR_USE_UNSTABLE',
+	'-DWLR_LITTLE_ENDIAN=@0@'.format(little_endian.to_int()),
+	'-DWLR_BIG_ENDIAN=@0@'.format(big_endian.to_int()),
 ], language: 'c')
 
 cc = meson.get_compiler('c')
