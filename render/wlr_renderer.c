@@ -4,6 +4,7 @@
 #include <gbm.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
+#include <wlr/render/pixman.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
