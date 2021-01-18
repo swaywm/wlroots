@@ -131,7 +131,7 @@ static void compositor_create_surface(struct wl_client *client,
 
 static void compositor_create_region(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
-	region_create(client, wl_resource_get_version(resource), id, NULL);
+	region_create(client, wl_resource_get_version(resource), id);
 }
 
 static const struct wl_compositor_interface compositor_impl = {
