@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_region.h>
+#include "types/wlr_region.h"
 
 static void region_add(struct wl_client *client, struct wl_resource *resource,
 		int32_t x, int32_t y, int32_t width, int32_t height) {
@@ -41,7 +42,7 @@ static void region_handle_resource_destroy(struct wl_resource *resource) {
 	free(reg);
 }
 
-struct wl_resource *wlr_region_create(struct wl_client *client,
+struct wl_resource *region_create(struct wl_client *client,
 		uint32_t version, uint32_t id, struct wl_list *resource_list) {
 	pixman_region32_t *region = calloc(1, sizeof(pixman_region32_t));
 	if (region == NULL) {
