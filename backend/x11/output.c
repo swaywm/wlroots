@@ -250,7 +250,7 @@ static bool output_commit_buffer(struct wlr_x11_output *output) {
 			};
 		}
 
-		xcb_xfixes_region_t region = xcb_generate_id(x11->xcb);
+		region = xcb_generate_id(x11->xcb);
 		xcb_xfixes_create_region(x11->xcb, region, rects_len, xcb_rects);
 
 		free(xcb_rects);
