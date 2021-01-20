@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <gbm.h>
 #include <wlr/render/egl.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
@@ -486,6 +487,10 @@ void wlr_egl_destroy(struct wlr_egl *egl) {
 	eglDestroyContext(egl->display, egl->context);
 	eglTerminate(egl->display);
 	eglReleaseThread();
+
+	if (egl->gbm_device) {
+		gbm_device_destroy(egl->gbm_device);
+	}
 
 	free(egl);
 }
