@@ -53,9 +53,6 @@ struct wlr_egl {
 
 		// Device extensions
 		bool device_drm_ext;
-
-		// Client extensions
-		bool device_query_ext;
 	} exts;
 
 	struct {
@@ -73,7 +70,6 @@ struct wlr_egl {
 		PFNEGLDEBUGMESSAGECONTROLKHRPROC eglDebugMessageControlKHR;
 		PFNEGLQUERYDISPLAYATTRIBEXTPROC eglQueryDisplayAttribEXT;
 		PFNEGLQUERYDEVICESTRINGEXTPROC eglQueryDeviceStringEXT;
-		PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT;
 	} procs;
 
 	struct wl_display *wl_display;
@@ -90,15 +86,6 @@ struct wlr_egl {
  */
 struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display,
 	const EGLint *config_attribs);
-
-/**
- * Creates and EGL context from a given drm fd. This function uses the
- * following extensions:
- * - EXT_device_enumeration to get the list of available EGLDeviceEXT
- * - EXT_device_drm to get the name of the EGLDeviceEXT
- * - EXT_platform_device to create an EGLDisplay from an EGLDeviceEXT
- */
-struct wlr_egl *wlr_egl_create_from_drm_fd(int drm_fd);
 
 /**
  * Frees all related EGL resources, makes the context not-current and
