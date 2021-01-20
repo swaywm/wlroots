@@ -357,8 +357,7 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	struct wlr_output *wlr_output = &output->wlr_output;
 	wlr_output_init(wlr_output, &x11->backend, &output_impl, x11->wl_display);
 
-	wlr_output->width = 1024;
-	wlr_output->height = 768;
+	wlr_output_update_custom_mode(wlr_output, 1024, 768, 0);
 
 	output->swapchain = wlr_swapchain_create(x11->allocator,
 		wlr_output->width, wlr_output->height, x11->drm_format);
