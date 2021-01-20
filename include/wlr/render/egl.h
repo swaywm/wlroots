@@ -41,7 +41,6 @@ struct wlr_egl {
 	EGLConfig config; // may be EGL_NO_CONFIG
 	EGLContext context;
 	EGLDeviceEXT device; // may be EGL_NO_DEVICE_EXT
-	struct gbm_device *gbm_device;
 
 	struct {
 		// Display extensions
