@@ -1832,6 +1832,7 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 	xcb_render_create_cursor(xwm->xcb_conn, xwm->cursor, pic, hotspot_x,
 		hotspot_y);
 	xcb_free_pixmap(xwm->xcb_conn, pix);
+	xcb_render_free_picture(xwm->xcb_conn, pic);
 
 	uint32_t values[] = {xwm->cursor};
 	xcb_change_window_attributes(xwm->xcb_conn, xwm->screen->root,
