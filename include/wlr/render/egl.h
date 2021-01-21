@@ -44,6 +44,11 @@ struct wlr_egl {
 		// Device extensions
 		bool EXT_device_drm;
 		bool EXT_device_drm_render_node;
+
+		// Client extensions
+		bool EXT_device_query;
+		bool KHR_platform_gbm;
+		bool EXT_platform_device;
 	} exts;
 
 	struct {
@@ -56,6 +61,7 @@ struct wlr_egl {
 		PFNEGLDEBUGMESSAGECONTROLKHRPROC eglDebugMessageControlKHR;
 		PFNEGLQUERYDISPLAYATTRIBEXTPROC eglQueryDisplayAttribEXT;
 		PFNEGLQUERYDEVICESTRINGEXTPROC eglQueryDeviceStringEXT;
+		PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT;
 	} procs;
 
 	struct wlr_drm_format_set dmabuf_texture_formats;
