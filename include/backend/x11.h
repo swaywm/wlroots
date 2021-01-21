@@ -14,6 +14,7 @@
 #include <xcb/xcb_errors.h>
 #endif
 
+#include <pixman.h>
 #include <wlr/backend/x11.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
@@ -46,6 +47,8 @@ struct wlr_x11_output {
 	struct wl_list touchpoints; // wlr_x11_touchpoint::link
 
 	struct wl_list buffers; // wlr_x11_buffer::link
+
+	pixman_region32_t exposed;
 
 	uint64_t last_msc;
 };

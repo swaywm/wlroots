@@ -72,6 +72,9 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		struct wlr_x11_output *output =
 			get_x11_output_from_window_id(x11, ev->window);
 		if (output != NULL) {
+			pixman_region32_union_rect(
+				&output->exposed, &output->exposed,
+				ev->x, ev->y, ev->width, ev->height);
 			wlr_output_update_needs_frame(&output->wlr_output);
 		}
 		break;
