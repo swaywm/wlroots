@@ -7,12 +7,14 @@
 #include <drm_fourcc.h>
 #include <xcb/dri3.h>
 #include <xcb/present.h>
+#include <xcb/render.h>
 #include <xcb/xcb.h>
 #include <xcb/xinput.h>
 
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/interfaces/wlr_touch.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 
 #include "backend/x11.h"
@@ -79,6 +81,11 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	wl_list_remove(&output->link);
 	wlr_buffer_unlock(output->back_buffer);
 	wlr_swapchain_destroy(output->swapchain);
+	wlr_swapchain_destroy(output->cursor.swapchain);
+	if (output->cursor.pic != XCB_NONE) {
+		xcb_render_free_picture(x11->xcb, output->cursor.pic);
+	}
+
 	// A zero event mask deletes the event context
 	xcb_present_select_input(x11->xcb, output->present_event_id, output->win, 0);
 	xcb_destroy_window(x11->xcb, output->win);
@@ -336,12 +343,177 @@ static void output_rollback_render(struct wlr_output *wlr_output) {
 	wlr_renderer_bind_buffer(x11->renderer, NULL);
 }
 
+static void update_x11_output_cursor(struct wlr_x11_output *output,
+		int32_t hotspot_x, int32_t hotspot_y) {
+	struct wlr_x11_backend *x11 = output->x11;
+
+	xcb_cursor_t cursor = x11->transparent_cursor;
+
+	if (output->cursor.pic != XCB_NONE) {
+		cursor = xcb_generate_id(x11->xcb);
+		xcb_render_create_cursor(x11->xcb, cursor, output->cursor.pic,
+			hotspot_x, hotspot_y);
+	}
+
+	uint32_t values[] = {cursor};
+	xcb_change_window_attributes(x11->xcb, output->win,
+		XCB_CW_CURSOR, values);
+	xcb_flush(x11->xcb);
+
+	if (cursor != x11->transparent_cursor) {
+		xcb_free_cursor(x11->xcb, cursor);
+	}
+}
+
+static bool output_cursor_to_picture(struct wlr_x11_output *output,
+		struct wlr_texture *texture, enum wl_output_transform transform,
+		int width, int height) {
+	struct wlr_x11_backend *x11 = output->x11;
+	int depth = 32;
+	int stride = width * 4;
+
+	if (output->cursor.pic != XCB_NONE) {
+		xcb_render_free_picture(x11->xcb, output->cursor.pic);
+	}
+	output->cursor.pic = XCB_NONE;
+
+	if (texture == NULL) {
+		return true;
+	}
+
+	if (output->cursor.swapchain == NULL ||
+			output->cursor.swapchain->width != width ||
+			output->cursor.swapchain->height != height) {
+		wlr_swapchain_destroy(output->cursor.swapchain);
+		output->cursor.swapchain = wlr_swapchain_create(
+			x11->allocator, width, height,
+			x11->drm_format);
+		if (output->cursor.swapchain == NULL) {
+			return false;
+		}
+	}
+
+	struct wlr_buffer *wlr_buffer =
+		wlr_swapchain_acquire(output->cursor.swapchain, NULL);
+	if (wlr_buffer == NULL) {
+		return false;
+	}
+
+	if (!wlr_renderer_bind_buffer(x11->renderer, wlr_buffer)) {
+		return false;
+	}
+
+	uint8_t *data = malloc(width * height * 4);
+	if (data == NULL) {
+		return false;
+	}
+
+	struct wlr_box cursor_box = {
+		.width = width,
+		.height = height,
+	};
+
+	float projection[9];
+	wlr_matrix_projection(projection, width, height, output->wlr_output.transform);
+
+	float matrix[9];
+	wlr_matrix_project_box(matrix, &cursor_box, transform, 0, projection);
+
+	wlr_renderer_begin(x11->renderer, width, height);
+	wlr_renderer_clear(x11->renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
+	wlr_render_texture_with_matrix(x11->renderer, texture, matrix, 1.0);
+	wlr_renderer_end(x11->renderer);
+
+	bool result = wlr_renderer_read_pixels(
+		x11->renderer, WL_SHM_FORMAT_ARGB8888, NULL,
+		width * 4, width, height, 0, 0, 0, 0,
+		data);
+
+	wlr_renderer_bind_buffer(x11->renderer, NULL);
+
+	wlr_buffer_unlock(wlr_buffer);
+
+	if (!result) {
+		free(data);
+		return false;
+	}
+
+	xcb_pixmap_t pix = xcb_generate_id(x11->xcb);
+	xcb_create_pixmap(x11->xcb, depth, pix, output->win,
+		width, height);
+
+	output->cursor.pic = xcb_generate_id(x11->xcb);
+	xcb_render_create_picture(x11->xcb, output->cursor.pic,
+		pix, x11->argb32, 0, 0);
+
+	xcb_gcontext_t gc = xcb_generate_id(x11->xcb);
+	xcb_create_gc(x11->xcb, gc, pix, 0, NULL);
+
+	xcb_put_image(x11->xcb, XCB_IMAGE_FORMAT_Z_PIXMAP,
+		pix, gc, width, height, 0, 0, 0, depth,
+		stride * height * sizeof(uint8_t),
+		data);
+	free(data);
+	xcb_free_gc(x11->xcb, gc);
+	xcb_free_pixmap(x11->xcb, pix);
+
+	return true;
+}
+
+static bool output_set_cursor(struct wlr_output *wlr_output,
+		struct wlr_texture *texture, float scale,
+		enum wl_output_transform transform,
+		int32_t hotspot_x, int32_t hotspot_y, bool update_texture) {
+	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
+	struct wlr_x11_backend *x11 = output->x11;
+	int width = 0, height = 0;
+
+	if (x11->argb32 == XCB_NONE) {
+		return false;
+	}
+
+	if (texture != NULL) {
+		width = texture->width * wlr_output->scale / scale;
+		height = texture->height * wlr_output->scale / scale;
+	}
+
+	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
+	wlr_box_transform(&hotspot, &hotspot,
+		wlr_output_transform_invert(wlr_output->transform),
+		width, height);
+
+	if (!update_texture) {
+		// This means we previously had a failure of some sort.
+		if (texture != NULL && output->cursor.pic == XCB_NONE) {
+			return false;
+		}
+
+		// Update hotspot without changing cursor image
+		update_x11_output_cursor(output, hotspot.x, hotspot.y);
+		return true;
+	}
+
+	bool success = output_cursor_to_picture(output, texture, transform,
+		width, height);
+
+	update_x11_output_cursor(output, hotspot.x, hotspot.y);
+
+	return success;
+}
+
+static bool output_move_cursor(struct wlr_output *_output, int x, int y) {
+	// TODO: only return true if x == current x and y == current y
+	return true;
+}
+
 static const struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
 	.attach_render = output_attach_render,
 	.test = output_test,
 	.commit = output_commit,
 	.rollback_render = output_rollback_render,
+	.set_cursor = output_set_cursor,
+	.move_cursor = output_move_cursor,
 };
 
 struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
@@ -390,7 +562,7 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 		0,
 		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY,
 		x11->colormap,
-		x11->cursor,
+		x11->transparent_cursor,
 	};
 	output->win = xcb_generate_id(x11->xcb);
 	xcb_create_window(x11->xcb, x11->depth->depth, output->win,
