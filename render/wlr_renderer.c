@@ -9,6 +9,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
+#include "render/egl.h"
 #include "render/pixel_format.h"
 #include "render/wlr_renderer.h"
 
@@ -221,20 +222,11 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 }
 
 struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
-	struct gbm_device *gbm_device = gbm_create_device(drm_fd);
-	if (!gbm_device) {
-		wlr_log(WLR_ERROR, "Failed to create GBM device");
-		return NULL;
-	}
-
-	struct wlr_egl *egl = wlr_egl_create(EGL_PLATFORM_GBM_KHR, gbm_device);
+	struct wlr_egl *egl = wlr_egl_create_from_drm_fd(drm_fd);
 	if (egl == NULL) {
 		wlr_log(WLR_ERROR, "Could not initialize EGL");
-		gbm_device_destroy(gbm_device);
 		return NULL;
 	}
-
-	egl->gbm_device = gbm_device;
 
 	struct wlr_renderer *renderer = wlr_gles2_renderer_create(egl);
 	if (!renderer) {
