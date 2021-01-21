@@ -33,18 +33,30 @@ static bool export_gbm_bo(struct gbm_bo *bo,
 	attribs.modifier = gbm_bo_get_modifier(bo);
 
 	int i;
+	int32_t handle = -1;
 	for (i = 0; i < attribs.n_planes; ++i) {
-		union gbm_bo_handle handle = gbm_bo_get_handle_for_plane(bo, i);
-		if (handle.s32 < 0) {
+		// GBM is lacking a function to get a FD for a given plane. Instead,
+		// check all planes have the same handle. We can't use
+		// drmPrimeHandleToFD because that messes up handle ref'counting in
+		// the user-space driver.
+		// TODO: use gbm_bo_get_plane_fd when it lands, see
+		// https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/5442
+		union gbm_bo_handle plane_handle = gbm_bo_get_handle_for_plane(bo, i);
+		if (plane_handle.s32 < 0) {
 			wlr_log(WLR_ERROR, "gbm_bo_get_handle_for_plane failed");
 			goto error_fd;
 		}
+		if (i == 0) {
+			handle = plane_handle.s32;
+		} else if (plane_handle.s32 != handle) {
+			wlr_log(WLR_ERROR, "Failed to export GBM BO: "
+				"all planes don't have the same GEM handle");
+			goto error_fd;
+		}
 
-		int drm_fd = gbm_device_get_fd(gbm_bo_get_device(bo));
-		int ret = drmPrimeHandleToFD(drm_fd, handle.s32,
-			DRM_CLOEXEC, &attribs.fd[i]);
-		if (ret < 0 || attribs.fd[i] < 0) {
-			wlr_log_errno(WLR_ERROR, "drmPrimeHandleToFD failed");
+		attribs.fd[i] = gbm_bo_get_fd(bo);
+		if (attribs.fd[i] < 0) {
+			wlr_log(WLR_ERROR, "gbm_bo_get_fd failed");
 			goto error_fd;
 		}
 
