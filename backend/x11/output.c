@@ -218,12 +218,24 @@ static struct wlr_x11_buffer *get_or_create_x11_buffer(
 static bool output_commit_buffer(struct wlr_x11_output *output) {
 	struct wlr_x11_backend *x11 = output->x11;
 
-	assert(output->back_buffer != NULL);
+	struct wlr_buffer *buffer = NULL;
+	switch (output->wlr_output.pending.buffer_type) {
+	case WLR_OUTPUT_STATE_BUFFER_RENDER:
+		assert(output->back_buffer != NULL);
 
-	wlr_renderer_bind_buffer(x11->renderer, NULL);
+		wlr_renderer_bind_buffer(x11->renderer, NULL);
+
+		buffer = output->back_buffer;
+		output->back_buffer = NULL;
+		break;
+	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:
+		buffer = wlr_buffer_lock(output->wlr_output.pending.buffer);
+		break;
+	}
+	assert(buffer != NULL);
 
 	struct wlr_x11_buffer *x11_buffer =
-		get_or_create_x11_buffer(output, output->back_buffer);
+		get_or_create_x11_buffer(output, buffer);
 	if (!x11_buffer) {
 		goto error;
 	}
@@ -267,8 +279,7 @@ static bool output_commit_buffer(struct wlr_x11_output *output) {
 		xcb_xfixes_destroy_region(x11->xcb, region);
 	}
 
-	wlr_buffer_unlock(output->back_buffer);
-	output->back_buffer = NULL;
+	wlr_buffer_unlock(buffer);
 
 	wlr_swapchain_set_buffer_submitted(output->swapchain, x11_buffer->buffer);
 
@@ -276,8 +287,7 @@ static bool output_commit_buffer(struct wlr_x11_output *output) {
 
 error:
 	destroy_x11_buffer(x11_buffer);
-	wlr_buffer_unlock(output->back_buffer);
-	output->back_buffer = NULL;
+	wlr_buffer_unlock(buffer);
 	return false;
 }
 
