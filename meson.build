@@ -1,7 +1,7 @@
 project(
 	'wlroots',
 	'c',
-	version: '0.10.0',
+	version: '0.12.0',
 	license: 'MIT',
 	meson_version: '>=0.54.0',
 	default_options: [
@@ -15,7 +15,7 @@ project(
 # necessary for bugfix releases. Increasing soversion is required because
 # wlroots never guarantees ABI stability -- only API stability is guaranteed
 # between minor releases.
-soversion = 5
+soversion = 7
 
 add_project_arguments([
 	'-DWLR_USE_UNSTABLE',
@@ -82,6 +82,7 @@ endif
 conf_data = configuration_data()
 conf_data.set10('WLR_HAS_SYSTEMD', false)
 conf_data.set10('WLR_HAS_ELOGIND', false)
+conf_data.set10('WLR_HAS_LIBSEAT', false)
 conf_data.set10('WLR_HAS_X11_BACKEND', false)
 conf_data.set10('WLR_HAS_XWAYLAND', false)
 conf_data.set10('WLR_HAS_XCB_ERRORS', false)
@@ -178,6 +179,7 @@ meson.override_dependency('wlroots', wlroots)
 summary({
 	'systemd': conf_data.get('WLR_HAS_SYSTEMD', 0),
 	'elogind': conf_data.get('WLR_HAS_ELOGIND', 0),
+	'libseat': conf_data.get('WLR_HAS_LIBSEAT', 0),
 	'xwayland': conf_data.get('WLR_HAS_XWAYLAND', 0),
 	'x11_backend': conf_data.get('WLR_HAS_X11_BACKEND', 0),
 	'xcb-icccm': conf_data.get('WLR_HAS_XCB_ICCCM', 0),

@@ -419,8 +419,9 @@ static void output_destroy(struct wlr_output *wlr_output) {
 }
 
 void update_wl_output_cursor(struct wlr_wl_output *output) {
-	if (output->backend->pointer && output->enter_serial) {
-		wl_pointer_set_cursor(output->backend->pointer, output->enter_serial,
+	struct wlr_wl_pointer *pointer = output->backend->current_pointer;
+	if (pointer && pointer->output == output && output->enter_serial) {
+		wl_pointer_set_cursor(pointer->wl_pointer, output->enter_serial,
 			output->cursor.surface, output->cursor.hotspot_x,
 			output->cursor.hotspot_y);
 	}
@@ -585,8 +586,11 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 
 	wlr_signal_emit_safe(&backend->backend.events.new_output, wlr_output);
 
-	if (backend->pointer != NULL) {
-		create_wl_pointer(backend->pointer, output);
+	struct wlr_wl_seat *seat = backend->seat;
+	if (seat != NULL) {
+		if (seat->pointer) {
+			create_wl_pointer(seat->pointer, output);
+		}
 	}
 
 	return wlr_output;

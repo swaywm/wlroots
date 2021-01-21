@@ -254,8 +254,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display,
 		return backend;
 	}
 
-	if (getenv("WAYLAND_DISPLAY") || getenv("_WAYLAND_DISPLAY") ||
-			getenv("WAYLAND_SOCKET")) {
+	if (getenv("WAYLAND_DISPLAY") || getenv("WAYLAND_SOCKET")) {
 		struct wlr_backend *wl_backend = attempt_wl_backend(display,
 			create_renderer_func);
 		if (!wl_backend) {

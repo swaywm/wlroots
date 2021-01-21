@@ -39,7 +39,7 @@
     interface version number is reset.
   </description>
 
-  <interface name="zwlr_output_manager_v1" version="1">
+  <interface name="zwlr_output_manager_v1" version="2">
     <description summary="output device configuration manager">
       This interface is a manager that allows reading and writing the current
       output device configuration.
@@ -125,7 +125,7 @@
     </event>
   </interface>
 
-  <interface name="zwlr_output_head_v1" version="1">
+  <interface name="zwlr_output_head_v1" version="2">
     <description summary="output device">
       A head is an output device. The difference between a wl_output object and
       a head is that heads are advertised even if they are turned off. A head
@@ -257,9 +257,80 @@
         resources associated with it.
       </description>
     </event>
+
+    <!-- Version 2 additions -->
+    <event name="make" since="2">
+      <description summary="head manufacturer">
+        This event describes the manufacturer of the head.
+
+        This must report the same make as the wl_output interface does in its
+        geometry event.
+
+        Together with the model and serial_number events the purpose is to
+        allow clients to recognize heads from previous sessions and for example
+        load head-specific configurations back.
+
+        It is not guaranteed this event will be ever sent. A reason for that
+        can be that the compositor does not have information about the make of
+        the head or the definition of a make is not sensible in the current
+        setup, for example in a virtual session. Clients can still try to
+        identify the head by available information from other events but should
+        be aware that there is an increased risk of false positives.
+
+        It is not recommended to display the make string in UI to users. For
+        that the string provided by the description event should be preferred.
+      </description>
+      <arg name="make" type="string"/>
+    </event>
+
+    <event name="model" since="2">
+      <description summary="head model">
+        This event describes the model of the head.
+
+        This must report the same model as the wl_output interface does in its
+        geometry event.
+
+        Together with the make and serial_number events the purpose is to
+        allow clients to recognize heads from previous sessions and for example
+        load head-specific configurations back.
+
+        It is not guaranteed this event will be ever sent. A reason for that
+        can be that the compositor does not have information about the model of
+        the head or the definition of a model is not sensible in the current
+        setup, for example in a virtual session. Clients can still try to
+        identify the head by available information from other events but should
+        be aware that there is an increased risk of false positives.
+
+        It is not recommended to display the model string in UI to users. For
+        that the string provided by the description event should be preferred.
+      </description>
+      <arg name="model" type="string"/>
+    </event>
+
+    <event name="serial_number" since="2">
+      <description summary="head serial number">
+        This event describes the serial number of the head.
+
+        Together with the make and model events the purpose is to allow clients
+        to recognize heads from previous sessions and for example load head-
+        specific configurations back.
+
+        It is not guaranteed this event will be ever sent. A reason for that
+        can be that the compositor does not have information about the serial
+        number of the head or the definition of a serial number is not sensible
+        in the current setup. Clients can still try to identify the head by
+        available information from other events but should be aware that there
+        is an increased risk of false positives.
+
+        It is not recommended to display the serial_number string in UI to
+        users. For that the string provided by the description event should be
+        preferred.
+      </description>
+      <arg name="serial_number" type="string"/>
+    </event>
   </interface>
 
-  <interface name="zwlr_output_mode_v1" version="1">
+  <interface name="zwlr_output_mode_v1" version="2">
     <description summary="output mode">
       This object describes an output mode.
 
@@ -305,7 +376,7 @@
     </event>
   </interface>
 
-  <interface name="zwlr_output_configuration_v1" version="1">
+  <interface name="zwlr_output_configuration_v1" version="2">
     <description summary="output configuration">
       This object is used by the client to describe a full output configuration.
 
@@ -423,7 +494,7 @@
     </request>
   </interface>
 
-  <interface name="zwlr_output_configuration_head_v1" version="1">
+  <interface name="zwlr_output_configuration_head_v1" version="2">
     <description summary="head configuration">
       This object is used by the client to update a single head's configuration.
 

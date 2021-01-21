@@ -89,7 +89,7 @@ struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 	};
 	xwayland->server = wlr_xwayland_server_create(wl_display, &options);
 	if (xwayland->server == NULL) {
-		free(xwayland->server);
+		free(xwayland);
 		return NULL;
 	}
 

@@ -192,7 +192,7 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 		drag->source->accepted = accepted;
 		wlr_data_source_dnd_action(drag->source, action);
 
-		wlr_log(WLR_DEBUG, "DND_STATUS window=%d accepted=%d action=%d",
+		wlr_log(WLR_DEBUG, "DND_STATUS window=%" PRIu32 " accepted=%d action=%d",
 			target_window, accepted, action);
 		return 1;
 	} else if (ev->type == xwm->atoms[DND_FINISHED]) {
@@ -226,7 +226,7 @@ int xwm_handle_selection_client_message(struct wlr_xwm *xwm,
 			wlr_data_source_dnd_finish(source);
 		}
 
-		wlr_log(WLR_DEBUG, "DND_FINISH window=%d performed=%d action=%d",
+		wlr_log(WLR_DEBUG, "DND_FINISH window=%" PRIu32 " performed=%d action=%d",
 			target_window, performed, action);
 		return 1;
 	} else {

@@ -24,16 +24,6 @@
 
 enum { DRM_MAJOR = 226 };
 
-static bool have_permissions(void) {
-#ifdef __linux__
-	if (geteuid() != 0) {
-		wlr_log(WLR_ERROR, "Do not have root privileges; cannot become DRM master");
-		return false;
-	}
-#endif
-	return true;
-}
-
 static void send_msg(int sock, int fd, void *buf, size_t buf_len) {
 	char control[CMSG_SPACE(sizeof(fd))] = {0};
 	struct iovec iovec = { .iov_base = buf, .iov_len = buf_len };
@@ -223,10 +213,6 @@ void direct_ipc_finish(int sock, pid_t pid) {
 }
 
 int direct_ipc_init(pid_t *pid_out) {
-	if (!have_permissions()) {
-		return -1;
-	}
-
 	int sock[2];
 	if (socketpair(AF_UNIX, SOCK_SEQPACKET, 0, sock) < 0) {
 		wlr_log_errno(WLR_ERROR, "Failed to create socket pair");

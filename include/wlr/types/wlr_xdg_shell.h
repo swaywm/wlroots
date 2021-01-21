@@ -48,8 +48,6 @@ struct wlr_xdg_client {
 };
 
 struct wlr_xdg_positioner {
-	struct wl_resource *resource;
-
 	struct wlr_box anchor_rect;
 	enum xdg_positioner_anchor anchor;
 	enum xdg_positioner_gravity gravity;
@@ -124,6 +122,7 @@ struct wlr_xdg_toplevel {
 
 	struct wlr_xdg_toplevel_state client_pending;
 	struct wlr_xdg_toplevel_state server_pending;
+	struct wlr_xdg_toplevel_state last_acked;
 	struct wlr_xdg_toplevel_state current;
 
 	char *title;

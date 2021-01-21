@@ -163,7 +163,7 @@ struct wlr_output {
 		// Emitted right before commit
 		struct wl_signal precommit; // wlr_output_event_precommit
 		// Emitted right after commit
-		struct wl_signal commit;
+		struct wl_signal commit; // wlr_output_event_commit
 		// Emitted right after the buffer has been presented to the user
 		struct wl_signal present; // wlr_output_event_present
 		struct wl_signal enable;
@@ -197,6 +197,12 @@ struct wlr_output_event_damage {
 
 struct wlr_output_event_precommit {
 	struct wlr_output *output;
+	struct timespec *when;
+};
+
+struct wlr_output_event_commit {
+	struct wlr_output *output;
+	uint32_t committed; // bitmask of enum wlr_output_state_field
 	struct timespec *when;
 };
 
@@ -388,8 +394,7 @@ size_t wlr_output_get_gamma_size(struct wlr_output *output);
 void wlr_output_set_gamma(struct wlr_output *output, size_t size,
 	const uint16_t *r, const uint16_t *g, const uint16_t *b);
 /**
- * Exports the output's current back-buffer as a DMA-BUF (ie. the buffer that
- * will be displayed on next commit).
+ * Exports the last committed buffer as a DMA-BUF.
  *
  * The caller is responsible for cleaning up the DMA-BUF attributes.
  */

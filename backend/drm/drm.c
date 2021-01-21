@@ -373,6 +373,12 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 	}
 
 	conn->pageflip_pending = true;
+
+	// wlr_output's API guarantees that submitting a buffer will schedule a
+	// frame event. However the DRM backend will also schedule a frame event
+	// when performing a modeset. Set frame_pending to true so that
+	// wlr_output_schedule_frame doesn't trigger a synthetic frame event.
+	conn->output.frame_pending = true;
 	return true;
 }
 
@@ -633,13 +639,15 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 		return false;
 	}
 
-	struct wlr_drm_plane *plane = crtc->primary;
-
-	if (plane->current_fb.type == WLR_DRM_FB_TYPE_NONE) {
+	struct wlr_drm_fb *fb = &crtc->primary->queued_fb;
+	if (fb->type == WLR_DRM_FB_TYPE_NONE) {
+		fb = &crtc->primary->current_fb;
+	}
+	if (fb->type == WLR_DRM_FB_TYPE_NONE) {
 		return false;
 	}
 
-	return export_drm_bo(plane->current_fb.bo, attribs);
+	return export_drm_bo(fb->bo, attribs);
 }
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
@@ -800,7 +808,7 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 		return false;
 	}
 
-	wlr_log(WLR_INFO, "Modesetting '%s' with '%ux%u@%u mHz'",
+	wlr_log(WLR_INFO, "Modesetting '%s' with '%" PRId32 "x%" PRId32 "@%" PRId32 "mHz'",
 		conn->output.name, wlr_mode->width, wlr_mode->height,
 		wlr_mode->refresh);
 
@@ -1398,7 +1406,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			bool is_mst = false;
 			char *path = get_drm_prop_blob(drm->fd, wlr_conn->id,
 				wlr_conn->props.path, &path_len);
-			if (path_len > 4 && path && strncmp(path, "mst:", 4) == 0) {
+			if (path && path_len > 4 && strncmp(path, "mst:", 4) == 0) {
 				is_mst = true;
 			}
 			free(path);
@@ -1523,7 +1531,7 @@ static void page_flip_handler(int fd, unsigned seq,
 	};
 	wlr_output_send_present(&conn->output, &present_event);
 
-	if (drm->session->active) {
+	if (drm->session->active && conn->output.enabled) {
 		wlr_output_send_frame(&conn->output);
 	}
 }

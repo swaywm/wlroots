@@ -6,6 +6,7 @@
 #include <wayland-server-core.h>
 #include <wlr/backend/session/interface.h>
 #include <wlr/util/log.h>
+#include "backend/session/session.h"
 #include "util/signal.h"
 
 const struct session_impl session_noop;
@@ -33,7 +34,9 @@ static struct wlr_session *noop_session_create(struct wl_display *disp) {
 		return NULL;
 	}
 
+	session_init(session);
 	session->impl = &session_noop;
+	session->active = true;
 
 	wlr_log(WLR_INFO, "Successfully initialized noop session");
 	return session;

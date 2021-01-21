@@ -84,7 +84,6 @@ struct wlr_xwayland {
 
 	struct wl_listener server_ready;
 	struct wl_listener server_destroy;
-	struct wl_listener client_destroy;
 	struct wl_listener seat_destroy;
 
 	void *data;
@@ -173,6 +172,7 @@ struct wlr_xwayland_surface {
 	bool modal;
 	bool fullscreen;
 	bool maximized_vert, maximized_horz;
+	bool minimized;
 
 	bool has_alpha;
 
@@ -181,6 +181,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal request_configure;
 		struct wl_signal request_move;
 		struct wl_signal request_resize;
+		struct wl_signal request_minimize;
 		struct wl_signal request_maximize;
 		struct wl_signal request_fullscreen;
 		struct wl_signal request_activate;
@@ -196,6 +197,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal set_hints;
 		struct wl_signal set_decorations;
 		struct wl_signal set_override_redirect;
+		struct wl_signal set_geometry;
 		struct wl_signal ping_timeout;
 	} events;
 
@@ -219,6 +221,11 @@ struct wlr_xwayland_move_event {
 struct wlr_xwayland_resize_event {
 	struct wlr_xwayland_surface *surface;
 	uint32_t edges;
+};
+
+struct wlr_xwayland_minimize_event {
+	struct wlr_xwayland_surface *surface;
+	bool minimize;
 };
 
 struct wlr_xwayland_server *wlr_xwayland_server_create(
@@ -249,6 +256,9 @@ void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *surface,
 	int16_t x, int16_t y, uint16_t width, uint16_t height);
 
 void wlr_xwayland_surface_close(struct wlr_xwayland_surface *surface);
+
+void wlr_xwayland_surface_set_minimized(struct wlr_xwayland_surface *surface,
+	bool minimized);
 
 void wlr_xwayland_surface_set_maximized(struct wlr_xwayland_surface *surface,
 	bool maximized);

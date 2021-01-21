@@ -61,13 +61,12 @@ int main(int argc, char *argv[]) {
 	}
 	struct wl_display * display = wl_display_connect(NULL);
 	if (display == NULL) {
-		fprintf(stderr, "failed to create display: %m\n");
+		perror("failed to create display");
 		return EXIT_FAILURE;
 	}
 
 	struct wl_registry *registry = wl_display_get_registry(display);
 	wl_registry_add_listener(registry, &registry_listener, NULL);
-	wl_display_dispatch(display);
 	wl_display_roundtrip(display);
 
 	if (pointer_manager == NULL) {
@@ -132,7 +131,6 @@ int main(int argc, char *argv[]) {
 
 	zwlr_virtual_pointer_v1_frame(pointer);
 	zwlr_virtual_pointer_v1_destroy(pointer);
-	wl_display_dispatch(display);
 
 	return EXIT_SUCCESS;
 }

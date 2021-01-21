@@ -107,8 +107,16 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 		dup2(devnull, STDERR_FILENO);
 	}
 
+	const char *xwayland_path = getenv("WLR_XWAYLAND");
+	if (xwayland_path) {
+		wlr_log(WLR_INFO, "Using Xwayland binary '%s' due to WLR_XWAYLAND",
+			xwayland_path);
+	} else {
+		xwayland_path = "Xwayland";
+	}
+
 	// This returns if and only if the call fails
-	execvp("Xwayland", argv);
+	execvp(xwayland_path, argv);
 
 	wlr_log_errno(WLR_ERROR, "failed to exec Xwayland");
 	close(devnull);
@@ -150,15 +158,19 @@ static void server_finish_process(struct wlr_xwayland_server *server) {
 }
 
 static void server_finish_display(struct wlr_xwayland_server *server) {
-	if (!server || server->display == -1) {
+	if (!server) {
+		return;
+	}
+
+	wl_list_remove(&server->display_destroy.link);
+
+	if (server->display == -1) {
 		return;
 	}
 
 	safe_close(server->x_fd[0]);
 	safe_close(server->x_fd[1]);
 	server->x_fd[0] = server->x_fd[1] = -1;
-
-	wl_list_remove(&server->display_destroy.link);
 
 	unlink_display_sockets(server->display);
 	server->display = -1;

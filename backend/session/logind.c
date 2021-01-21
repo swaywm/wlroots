@@ -13,6 +13,7 @@
 #include <wlr/backend/session/interface.h>
 #include <wlr/config.h>
 #include <wlr/util/log.h>
+#include "backend/session/session.h"
 #include "util/signal.h"
 
 #if WLR_HAS_SYSTEMD
@@ -129,8 +130,8 @@ static void logind_release_device(struct wlr_session *base, int fd) {
 static bool logind_change_vt(struct wlr_session *base, unsigned vt) {
 	struct logind_session *session = logind_session_from_session(base);
 
-	// Only seat0 has VTs associated with it
-	if (strcmp(session->base.seat, "seat0") != 0) {
+	// Only if seat has VTs associated with it
+	if (!sd_seat_can_tty(session->base.seat)) {
 		return true;
 	}
 
@@ -142,7 +143,7 @@ static bool logind_change_vt(struct wlr_session *base, unsigned vt) {
 		"/org/freedesktop/login1/seat/seat0", "org.freedesktop.login1.Seat", "SwitchTo",
 		&error, &msg, "u", (uint32_t)vt);
 	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Failed to change to vt '%d'", vt);
+		wlr_log(WLR_ERROR, "Failed to change to vt '%u'", vt);
 	}
 
 	sd_bus_error_free(&error);
@@ -239,6 +240,32 @@ static bool take_control(struct logind_session *session) {
 	sd_bus_error_free(&error);
 	sd_bus_message_unref(msg);
 	return ret >= 0;
+}
+
+static void set_type(struct logind_session *session) {
+	int ret;
+	sd_bus_message *msg = NULL;
+	sd_bus_error error = SD_BUS_ERROR_NULL;
+
+	ret = sd_bus_call_method(session->bus, "org.freedesktop.login1",
+		session->path, "org.freedesktop.login1.Session", "SetType",
+		&error, &msg, "s", "wayland");
+	if (ret < 0) {
+		wlr_log(WLR_DEBUG, "Failed to set logind session type for session: %s",
+			error.message);
+	}
+
+	sd_bus_error_free(&error);
+	sd_bus_message_unref(msg);
+
+	if (ret < 0) {
+		return;
+	}
+
+	ret = setenv("XDG_SESSION_TYPE", "wayland", 1);
+	if (ret < 0) {
+		wlr_log(WLR_ERROR, "Failed to set XDG_SESSION_TYPE for session");
+	}
 }
 
 static void release_control(struct logind_session *session) {
@@ -750,6 +777,8 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 		return NULL;
 	}
 
+	session_init(&session->base);
+
 	if (!get_display_session(&session->id)) {
 		goto error;
 	}
@@ -762,7 +791,7 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 	}
 	snprintf(session->base.seat, sizeof(session->base.seat), "%s", seat);
 
-	if (strcmp(seat, "seat0") == 0) {
+	if (sd_seat_can_tty(seat)) {
 		ret = sd_session_get_vt(session->id, &session->base.vtnr);
 		if (ret < 0) {
 			wlr_log(WLR_ERROR, "Session not running in virtual terminal");
@@ -819,9 +848,13 @@ static struct wlr_session *logind_session_create(struct wl_display *disp) {
 		}
 	}
 
+	set_type(session);
+
 	wlr_log(WLR_INFO, "Successfully loaded logind session");
 
 	session->base.impl = &session_logind;
+	session->base.active = true;
+
 	return &session->base;
 
 error_bus:

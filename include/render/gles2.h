@@ -15,17 +15,6 @@
 #include <wlr/render/wlr_texture.h>
 #include <wlr/util/log.h>
 
-struct wlr_gles2_procs {
-	PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
-	PFNGLDEBUGMESSAGECALLBACKKHRPROC glDebugMessageCallbackKHR;
-	PFNGLDEBUGMESSAGECONTROLKHRPROC glDebugMessageControlKHR;
-	PFNGLPOPDEBUGGROUPKHRPROC glPopDebugGroupKHR;
-	PFNGLPUSHDEBUGGROUPKHRPROC glPushDebugGroupKHR;
-	PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC glEGLImageTargetRenderbufferStorageOES;
-};
-
-extern struct wlr_gles2_procs gles2_procs;
-
 struct wlr_gles2_pixel_format {
 	enum wl_shm_format wl_format;
 	GLint gl_format, gl_type;
@@ -63,6 +52,15 @@ struct wlr_gles2_renderer {
 	} exts;
 
 	struct {
+		PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
+		PFNGLDEBUGMESSAGECALLBACKKHRPROC glDebugMessageCallbackKHR;
+		PFNGLDEBUGMESSAGECONTROLKHRPROC glDebugMessageControlKHR;
+		PFNGLPOPDEBUGGROUPKHRPROC glPopDebugGroupKHR;
+		PFNGLPUSHDEBUGGROUPKHRPROC glPushDebugGroupKHR;
+		PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC glEGLImageTargetRenderbufferStorageOES;
+	} procs;
+
+	struct {
 		struct {
 			GLuint program;
 			GLint proj;
@@ -87,7 +85,7 @@ struct wlr_gles2_renderer {
 
 struct wlr_gles2_texture {
 	struct wlr_texture wlr_texture;
-	struct wlr_egl *egl;
+	struct wlr_gles2_renderer *renderer;
 
 	// Basically:
 	//   GL_TEXTURE_2D == mutable
@@ -110,13 +108,23 @@ const struct wlr_gles2_pixel_format *get_gles2_format_from_gl(
 	GLint gl_format, GLint gl_type, bool alpha);
 const enum wl_shm_format *get_gles2_wl_formats(size_t *len);
 
+struct wlr_gles2_renderer *gles2_get_renderer(
+	struct wlr_renderer *wlr_renderer);
 struct wlr_gles2_texture *gles2_get_texture(
 	struct wlr_texture *wlr_texture);
 
-void push_gles2_marker(const char *file, const char *func);
-void pop_gles2_marker(void);
-#define PUSH_GLES2_DEBUG push_gles2_marker(_WLR_FILENAME, __func__)
-#define POP_GLES2_DEBUG pop_gles2_marker()
+struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
+	enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width, uint32_t height,
+	const void *data);
+struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
+	struct wl_resource *data);
+struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
+	struct wlr_dmabuf_attributes *attribs);
+
+void push_gles2_debug_(struct wlr_gles2_renderer *renderer,
+	const char *file, const char *func);
+#define push_gles2_debug(renderer) push_gles2_debug_(renderer, _WLR_FILENAME, __func__)
+void pop_gles2_debug(struct wlr_gles2_renderer *renderer);
 
 // color engine
 

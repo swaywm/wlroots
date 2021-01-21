@@ -1,5 +1,4 @@
 #define _POSIX_C_SOURCE 200112L
-#include <GLES2/gl2.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +7,7 @@
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
@@ -18,7 +18,7 @@ struct sample_state {
 	struct wl_listener new_output;
 	struct wl_listener new_input;
 	struct timespec last_frame;
-	float color[3];
+	float color[4];
 	int dec;
 };
 
@@ -40,6 +40,8 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct sample_output *sample_output =
 		wl_container_of(listener, sample_output, frame);
 	struct sample_state *sample = sample_output->sample;
+	struct wlr_output *wlr_output = sample_output->output;
+
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 
@@ -56,12 +58,15 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 		sample->dec = inc;
 	}
 
-	wlr_output_attach_render(sample_output->output, NULL);
+	wlr_output_attach_render(wlr_output, NULL);
 
-	glClearColor(sample->color[0], sample->color[1], sample->color[2], 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	struct wlr_renderer *renderer =
+		wlr_backend_get_renderer(wlr_output->backend);
+	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
+	wlr_renderer_clear(renderer, sample->color);
+	wlr_renderer_end(renderer);
 
-	wlr_output_commit(sample_output->output);
+	wlr_output_commit(wlr_output);
 	sample->last_frame = now;
 }
 
@@ -80,9 +85,9 @@ static void new_output_notify(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, sample, new_output);
 	struct sample_output *sample_output =
 		calloc(1, sizeof(struct sample_output));
-	if (!wl_list_empty(&output->modes)) {
-		struct wlr_output_mode *mode =
-			wl_container_of(output->modes.prev, mode, link);
+
+	struct wlr_output_mode *mode = wlr_output_preferred_mode(output);
+	if (mode != NULL) {
 		wlr_output_set_mode(output, mode);
 	}
 	sample_output->output = output;
@@ -162,7 +167,7 @@ int main(void) {
 	wlr_log_init(WLR_DEBUG, NULL);
 	struct wl_display *display = wl_display_create();
 	struct sample_state state = {
-		.color = { 1.0, 0.0, 0.0 },
+		.color = { 1.0, 0.0, 0.0, 1.0 },
 		.dec = 0,
 		.last_frame = { 0 },
 		.display = display

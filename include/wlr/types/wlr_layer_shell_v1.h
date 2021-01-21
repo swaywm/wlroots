@@ -138,6 +138,10 @@ struct wlr_layer_surface_v1 *wlr_layer_surface_v1_from_wlr_surface(
 void wlr_layer_surface_v1_for_each_surface(struct wlr_layer_surface_v1 *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data);
 
+/* Calls the iterator function for each popup of this surface */
+void wlr_layer_surface_v1_for_each_popup(struct wlr_layer_surface_v1 *surface,
+		wlr_surface_iterator_func_t iterator, void *user_data);
+
 /**
  * Find a surface within this layer-surface tree at the given surface-local
  * coordinates. Returns the surface and coordinates in the leaf surface

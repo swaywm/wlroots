@@ -40,11 +40,14 @@ enum atom_name {
 	NET_ACTIVE_WINDOW,
 	NET_WM_MOVERESIZE,
 	NET_SUPPORTING_WM_CHECK,
+	NET_WM_STATE_FOCUSED,
 	NET_WM_STATE_MODAL,
 	NET_WM_STATE_FULLSCREEN,
 	NET_WM_STATE_MAXIMIZED_VERT,
 	NET_WM_STATE_MAXIMIZED_HORZ,
+	NET_WM_STATE_HIDDEN,
 	NET_WM_PING,
+	WM_CHANGE_STATE,
 	WM_STATE,
 	CLIPBOARD,
 	PRIMARY,
@@ -125,6 +128,7 @@ struct wlr_xwm {
 #if WLR_HAS_XCB_ERRORS
 	xcb_errors_context_t *errors_context;
 #endif
+	unsigned int last_focus_seq;
 
 	struct wl_listener compositor_new_surface;
 	struct wl_listener compositor_destroy;
