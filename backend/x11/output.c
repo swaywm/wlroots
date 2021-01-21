@@ -75,6 +75,8 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
 	struct wlr_x11_backend *x11 = output->x11;
 
+	pixman_region32_fini(&output->exposed);
+
 	wlr_input_device_destroy(&output->pointer_dev);
 	wlr_input_device_destroy(&output->touch_dev);
 
@@ -230,10 +232,10 @@ static bool output_commit_buffer(struct wlr_x11_output *output) {
 
 	xcb_xfixes_region_t region = XCB_NONE;
 	if (output->wlr_output.pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
-		pixman_region32_t *damage = &output->wlr_output.pending.damage;
+		pixman_region32_union(&output->exposed, &output->exposed, &output->wlr_output.pending.damage);
 
 		int rects_len = 0;
-		pixman_box32_t *rects = pixman_region32_rectangles(damage, &rects_len);
+		pixman_box32_t *rects = pixman_region32_rectangles(&output->exposed, &rects_len);
 
 		xcb_rectangle_t *xcb_rects = calloc(rects_len, sizeof(xcb_rectangle_t));
 		if (!xcb_rects) {
@@ -255,6 +257,8 @@ static bool output_commit_buffer(struct wlr_x11_output *output) {
 
 		free(xcb_rects);
 	}
+
+	pixman_region32_clear(&output->exposed);
 
 	uint32_t serial = output->wlr_output.commit_seq;
 	uint32_t options = 0;
@@ -353,6 +357,7 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	}
 	output->x11 = x11;
 	wl_list_init(&output->buffers);
+	pixman_region32_init(&output->exposed);
 
 	struct wlr_output *wlr_output = &output->wlr_output;
 	wlr_output_init(wlr_output, &x11->backend, &output_impl, x11->wl_display);
