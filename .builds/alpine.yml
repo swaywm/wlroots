@@ -11,6 +11,7 @@ packages:
   - wayland-dev
   - wayland-protocols
   - xcb-util-image-dev
+  - xcb-util-renderutil-dev
   - xcb-util-wm-dev
 sources:
   - https://github.com/swaywm/wlroots

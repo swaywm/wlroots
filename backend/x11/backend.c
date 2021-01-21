@@ -17,6 +17,8 @@
 #include <xcb/xcb.h>
 #include <xcb/dri3.h>
 #include <xcb/present.h>
+#include <xcb/render.h>
+#include <xcb/xcb_renderutil.h>
 #include <xcb/xfixes.h>
 #include <xcb/xinput.h>
 
@@ -355,6 +357,29 @@ static bool query_dri3_formats(struct wlr_x11_backend *x11) {
 	return true;
 }
 
+static void x11_get_argb32(struct wlr_x11_backend *x11) {
+	xcb_render_query_pict_formats_cookie_t cookie =
+		xcb_render_query_pict_formats(x11->xcb);
+	xcb_render_query_pict_formats_reply_t *reply =
+		xcb_render_query_pict_formats_reply(x11->xcb, cookie, NULL);
+	if (!reply) {
+		wlr_log(WLR_ERROR, "Did not get any reply from xcb_render_query_pict_formats");
+		return;
+	}
+
+	xcb_render_pictforminfo_t *format =
+		xcb_render_util_find_standard_format(reply, XCB_PICT_STANDARD_ARGB_32);
+
+	if (format == NULL) {
+		wlr_log(WLR_DEBUG, "No ARGB_32 render format");
+		free(reply);
+		return;
+	}
+
+	x11->argb32 = format->id;
+	free(reply);
+}
+
 struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		const char *x11_display) {
 	wlr_log(WLR_INFO, "Creating X11 backend");
@@ -629,12 +654,14 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	xcb_rectangle_t rect = { .x = 0, .y = 0, .width = 1, .height = 1 };
 	xcb_poly_fill_rectangle(x11->xcb, blank, gc, 1, &rect);
 
-	x11->cursor = xcb_generate_id(x11->xcb);
-	xcb_create_cursor(x11->xcb, x11->cursor, blank, blank,
+	x11->transparent_cursor = xcb_generate_id(x11->xcb);
+	xcb_create_cursor(x11->xcb, x11->transparent_cursor, blank, blank,
 		0, 0, 0, 0, 0, 0, 0, 0);
 
 	xcb_free_gc(x11->xcb, gc);
 	xcb_free_pixmap(x11->xcb, blank);
+
+	x11_get_argb32(x11);
 
 	return &x11->backend;
 

@@ -4,6 +4,8 @@ x11_required = [
 	'xcb',
 	'xcb-dri3',
 	'xcb-present',
+	'xcb-render',
+	'xcb-renderutil',
 	'xcb-xfixes',
 	'xcb-xinput',
 ]

@@ -51,6 +51,11 @@ struct wlr_x11_output {
 	pixman_region32_t exposed;
 
 	uint64_t last_msc;
+
+	struct {
+		struct wlr_swapchain *swapchain;
+		xcb_render_picture_t pic;
+	} cursor;
 };
 
 struct wlr_x11_touchpoint {
@@ -70,7 +75,8 @@ struct wlr_x11_backend {
 	xcb_depth_t *depth;
 	xcb_visualid_t visualid;
 	xcb_colormap_t colormap;
-	xcb_cursor_t cursor;
+	xcb_cursor_t transparent_cursor;
+	xcb_render_pictformat_t argb32;
 	uint32_t dri3_major_version, dri3_minor_version;
 
 	size_t requested_outputs;

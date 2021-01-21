@@ -11,6 +11,7 @@ packages:
   - wayland-protocols
   - xcb-util-errors
   - xcb-util-image
+  - xcb-util-renderutil
   - xcb-util-wm
   - seatd
 sources:
