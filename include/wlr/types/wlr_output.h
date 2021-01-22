@@ -286,7 +286,7 @@ void wlr_output_set_custom_mode(struct wlr_output *output, int32_t width,
 void wlr_output_set_transform(struct wlr_output *output,
 	enum wl_output_transform transform);
 /**
- * Enables or disables adaptive sync (ie. variable refresh rate) on this
+ * Enables adaptive sync (ie. variable refresh rate) on this
  * output. This is just a hint, the backend is free to ignore this setting.
  *
  * When enabled, compositors can submit frames a little bit later than the
@@ -294,7 +294,14 @@ void wlr_output_set_transform(struct wlr_output *output,
  *
  * Adaptive sync is double-buffered state, see `wlr_output_commit`.
  */
-void wlr_output_enable_adaptive_sync(struct wlr_output *output, bool enabled);
+void wlr_output_enable_adaptive_sync(struct wlr_output *output);
+/**
+ * Disables adaptive sync (ie. variable refresh rate) on this
+ * output. This is just a hint, the backend is free to ignore this setting.
+ *
+ * Adaptive sync is double-buffered state, see `wlr_output_commit`.
+ */
+void wlr_output_disable_adaptive_sync(struct wlr_output *output);
 /**
  * Sets a scale for the output.
  *
