@@ -673,7 +673,7 @@ static void server_new_output(struct wl_listener *listener, void *data) {
 	if (!wl_list_empty(&wlr_output->modes)) {
 		struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
 		wlr_output_set_mode(wlr_output, mode);
-		wlr_output_enable(wlr_output, true);
+		wlr_output_enable(wlr_output);
 		if (!wlr_output_commit(wlr_output)) {
 			return;
 		}

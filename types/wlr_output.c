@@ -144,14 +144,24 @@ static void output_update_matrix(struct wlr_output *output) {
 		output->height, output->transform);
 }
 
-void wlr_output_enable(struct wlr_output *output, bool enable) {
-	if (output->enabled == enable) {
+void wlr_output_enable(struct wlr_output *output) {
+	if (output->enabled) {
 		output->pending.committed &= ~WLR_OUTPUT_STATE_ENABLED;
 		return;
 	}
 
 	output->pending.committed |= WLR_OUTPUT_STATE_ENABLED;
-	output->pending.enabled = enable;
+	output->pending.enabled = true;
+}
+
+void wlr_output_disable(struct wlr_output *output) {
+	if (!output->enabled) {
+		output->pending.committed &= ~WLR_OUTPUT_STATE_ENABLED;
+		return;
+	}
+
+	output->pending.committed |= WLR_OUTPUT_STATE_ENABLED;
+	output->pending.enabled = false;
 }
 
 static void output_state_clear_mode(struct wlr_output_state *state) {

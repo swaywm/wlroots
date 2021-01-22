@@ -241,13 +241,20 @@ struct wlr_output_event_bind {
 struct wlr_surface;
 
 /**
- * Enables or disables the output. A disabled output is turned off and doesn't
- * emit `frame` events.
+ * Enables the output.
  *
- * Whether an output is enabled is double-buffered state, see
+ * Whether an output is enabled or disabled is double-buffered state, see
  * `wlr_output_commit`.
  */
-void wlr_output_enable(struct wlr_output *output, bool enable);
+void wlr_output_enable(struct wlr_output *output);
+/**
+ * Disables the output. A disabled output is turned off and doesn't
+ * emit `frame` events.
+ *
+ * Whether an output is enabled or disabled is double-buffered state, see
+ * `wlr_output_commit`.
+ */
+void wlr_output_disable(struct wlr_output *output);
 void wlr_output_create_global(struct wlr_output *output);
 void wlr_output_destroy_global(struct wlr_output *output);
 /**
