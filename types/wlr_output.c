@@ -130,12 +130,21 @@ void wlr_output_destroy_global(struct wlr_output *output) {
 	output->global = NULL;
 }
 
-void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
-	if (output->enabled == enabled) {
+void wlr_output_update_enabled(struct wlr_output *output) {
+	if (output->enabled) {
 		return;
 	}
 
-	output->enabled = enabled;
+	output->enabled = true;
+	wlr_signal_emit_safe(&output->events.enable, output);
+}
+
+void wlr_output_update_disabled(struct wlr_output *output) {
+	if (!output->enabled) {
+		return;
+	}
+
+	output->enabled = false;
 	wlr_signal_emit_safe(&output->events.enable, output);
 }
 

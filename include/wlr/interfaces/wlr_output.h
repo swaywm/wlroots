@@ -112,10 +112,11 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 /**
  * Update the current output status.
  *
- * The backend must call this function when the status is updated to notify
+ * The backend must call either of these functions when the status is updated to notify
  * compositors about the change.
  */
-void wlr_output_update_enabled(struct wlr_output *output, bool enabled);
+void wlr_output_update_enabled(struct wlr_output *output);
+void wlr_output_update_disabled(struct wlr_output *output);
 /**
  * Notify compositors that they need to submit a new frame in order to apply
  * output changes.

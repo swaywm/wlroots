@@ -29,7 +29,7 @@ static bool backend_start(struct wlr_backend *wlr_backend) {
 	struct wlr_headless_output *output;
 	wl_list_for_each(output, &backend->outputs, link) {
 		wl_event_source_timer_update(output->frame_timer, output->frame_delay);
-		wlr_output_update_enabled(&output->wlr_output, true);
+		wlr_output_update_enabled(&output->wlr_output);
 		wlr_signal_emit_safe(&backend->backend.events.new_output,
 			&output->wlr_output);
 	}

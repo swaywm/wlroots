@@ -441,7 +441,7 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 	wl_list_insert(&x11->outputs, &output->link);
 
-	wlr_output_update_enabled(wlr_output, true);
+	wlr_output_update_enabled(wlr_output);
 
 	wlr_input_device_init(&output->pointer_dev, WLR_INPUT_DEVICE_POINTER,
 		&input_device_impl, "X11 pointer", 0, 0);

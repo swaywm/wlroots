@@ -212,7 +212,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 
 	if (backend->started) {
 		wl_event_source_timer_update(output->frame_timer, output->frame_delay);
-		wlr_output_update_enabled(wlr_output, true);
+		wlr_output_update_enabled(wlr_output);
 		wlr_signal_emit_safe(&backend->backend.events.new_output, wlr_output);
 	}
 

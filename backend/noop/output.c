@@ -83,7 +83,7 @@ struct wlr_output *wlr_noop_add_output(struct wlr_backend *wlr_backend) {
 	wl_list_insert(&backend->outputs, &output->link);
 
 	if (backend->started) {
-		wlr_output_update_enabled(wlr_output, true);
+		wlr_output_update_enabled(wlr_output);
 		wlr_signal_emit_safe(&backend->backend.events.new_output, wlr_output);
 	}
 

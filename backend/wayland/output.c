@@ -646,7 +646,7 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 	wl_display_roundtrip(output->backend->remote_display);
 
 	wl_list_insert(&backend->outputs, &output->link);
-	wlr_output_update_enabled(wlr_output, true);
+	wlr_output_update_enabled(wlr_output);
 
 	wlr_signal_emit_safe(&backend->backend.events.new_output, wlr_output);
 

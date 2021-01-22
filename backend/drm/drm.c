@@ -785,7 +785,7 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 			realloc_crtcs(drm);
 			attempt_enable_needs_modeset(drm);
 		}
-		wlr_output_update_enabled(&conn->output, false);
+		wlr_output_update_disabled(&conn->output);
 		return true;
 	}
 
@@ -820,7 +820,7 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 	conn->state = WLR_DRM_CONN_CONNECTED;
 	conn->desired_mode = NULL;
 	wlr_output_update_mode(&conn->output, wlr_mode);
-	wlr_output_update_enabled(&conn->output, true);
+	wlr_output_update_enabled(&conn->output);
 	conn->desired_enabled = true;
 
 	// When switching VTs, the mode is not updated but the buffers become
@@ -1181,7 +1181,7 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 			if (prev_enabled) {
 				wlr_drm_conn_log(conn, WLR_DEBUG, "Output has lost its CRTC");
 				conn->state = WLR_DRM_CONN_NEEDS_MODESET;
-				wlr_output_update_enabled(&conn->output, false);
+				wlr_output_update_disabled(&conn->output);
 				conn->desired_mode = conn->output.current_mode;
 				wlr_output_update_mode(&conn->output, NULL);
 			}
@@ -1199,7 +1199,7 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 			(struct wlr_drm_mode *)conn->output.current_mode;
 		if (!drm_connector_init_renderer(conn, mode)) {
 			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer");
-			wlr_output_update_enabled(&conn->output, false);
+			wlr_output_update_disabled(&conn->output);
 			continue;
 		}
 
@@ -1410,7 +1410,11 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 
 			// TODO: this results in connectors being enabled without a mode
 			// set
-			wlr_output_update_enabled(&wlr_conn->output, wlr_conn->crtc != NULL);
+			if (wlr_conn->crtc != NULL) {
+				wlr_output_update_enabled(&wlr_conn->output);
+			} else {
+				wlr_output_update_disabled(&wlr_conn->output);
+			}
 			wlr_conn->desired_enabled = true;
 
 			wlr_conn->state = WLR_DRM_CONN_NEEDS_MODESET;
