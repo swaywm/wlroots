@@ -32,8 +32,6 @@
 struct wlr_egl_context {
 	EGLDisplay display;
 	EGLContext context;
-	EGLSurface draw_surface;
-	EGLSurface read_surface;
 };
 
 struct wlr_egl {

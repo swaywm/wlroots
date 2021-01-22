@@ -426,8 +426,6 @@ bool wlr_egl_is_current(struct wlr_egl *egl) {
 void wlr_egl_save_context(struct wlr_egl_context *context) {
 	context->display = eglGetCurrentDisplay();
 	context->context = eglGetCurrentContext();
-	context->draw_surface = eglGetCurrentSurface(EGL_DRAW);
-	context->read_surface = eglGetCurrentSurface(EGL_READ);
 }
 
 bool wlr_egl_restore_context(struct wlr_egl_context *context) {
@@ -444,8 +442,8 @@ bool wlr_egl_restore_context(struct wlr_egl_context *context) {
 		return true;
 	}
 
-	return eglMakeCurrent(display, context->draw_surface,
-			context->read_surface, context->context);
+	return eglMakeCurrent(display, EGL_NO_SURFACE,
+			EGL_NO_SURFACE, context->context);
 }
 
 EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
