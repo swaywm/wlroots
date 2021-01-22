@@ -804,8 +804,10 @@ static void subsurface_handle_place_above(struct wl_client *client,
 		return;
 	}
 
+	assert(sibling->parent == subsurface->parent);
+
 	wl_list_remove(&subsurface->parent_pending_link);
-	wl_list_insert(&sibling->parent_pending_link,
+	wl_list_insert(sibling->parent_pending_link.prev,
 		&subsurface->parent_pending_link);
 
 	subsurface->reordered = true;
@@ -831,8 +833,10 @@ static void subsurface_handle_place_below(struct wl_client *client,
 		return;
 	}
 
+	assert(sibling->parent == subsurface->parent);
+
 	wl_list_remove(&subsurface->parent_pending_link);
-	wl_list_insert(sibling->parent_pending_link.prev,
+	wl_list_insert(&sibling->parent_pending_link,
 		&subsurface->parent_pending_link);
 
 	subsurface->reordered = true;
