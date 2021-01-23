@@ -116,14 +116,32 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		}
 		break;
 	}
+	case XCB_UNMAP_NOTIFY: {
+		xcb_unmap_notify_event_t *ev = (xcb_unmap_notify_event_t *)event;
+		struct wlr_x11_output *output =
+			get_x11_output_from_window_id(x11, ev->window);
+		if (output != NULL) {
+			wlr_log(WLR_DEBUG, "Window unmapped, stopping updates");
+			output->mapped = false;
+		}
+		break;
+	}
+	case XCB_MAP_NOTIFY: {
+		xcb_unmap_notify_event_t *ev = (xcb_unmap_notify_event_t *)event;
+		struct wlr_x11_output *output =
+			get_x11_output_from_window_id(x11, ev->window);
+		if (output != NULL) {
+			wlr_log(WLR_DEBUG, "Window mapped, resuming updates");
+			output->mapped = true;
+			wlr_output_send_frame(&output->wlr_output);
+		}
+		break;
+	}
 	case 0: {
 		xcb_value_error_t *ev = (xcb_value_error_t *)event;
 		handle_x11_error(x11, ev);
 		break;
 	}
-	case XCB_UNMAP_NOTIFY:
-	case XCB_MAP_NOTIFY:
-		break;
 	default:
 		handle_x11_unknown_event(x11, event);
 		break;

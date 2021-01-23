@@ -600,6 +600,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	xcb_map_window(x11->xcb, output->win);
 	xcb_flush(x11->xcb);
 
+	output->mapped = true;
+
 	wl_list_insert(&x11->outputs, &output->link);
 
 	wlr_output_update_enabled(wlr_output, true);
@@ -740,7 +742,8 @@ void handle_x11_present_event(struct wlr_x11_backend *x11,
 		};
 		wlr_output_send_present(&output->wlr_output, &present_event);
 
-		wlr_output_send_frame(&output->wlr_output);
+		if (output->mapped)
+			wlr_output_send_frame(&output->wlr_output);
 		break;
 	default:
 		wlr_log(WLR_DEBUG, "Unhandled Present event %"PRIu16, event->event_type);

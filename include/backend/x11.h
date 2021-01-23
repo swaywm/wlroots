@@ -51,6 +51,7 @@ struct wlr_x11_output {
 	pixman_region32_t exposed;
 
 	uint64_t last_msc;
+	bool mapped;
 
 	struct {
 		struct wlr_swapchain *swapchain;
