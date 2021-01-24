@@ -486,9 +486,8 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 	assert(output->pending.committed & WLR_OUTPUT_STATE_BUFFER);
 	switch (output->pending.buffer_type) {
 	case WLR_OUTPUT_STATE_BUFFER_RENDER:
-		if (!drm_fb_lock_surface(&plane->pending_fb, drm, &plane->surf,
-				&plane->mgpu_surf)) {
-			wlr_drm_conn_log(conn, WLR_ERROR, "drm_fb_lock_surface failed");
+		if (!drm_plane_lock_surface(plane, drm)) {
+			wlr_drm_conn_log(conn, WLR_ERROR, "drm_plane_lock_surface failed");
 			return false;
 		}
 		break;
@@ -681,8 +680,7 @@ static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn) {
 		if (!drm_surface_render_black_frame(&plane->surf)) {
 			return false;
 		}
-		if (!drm_fb_lock_surface(&plane->pending_fb, drm, &plane->surf,
-				&plane->mgpu_surf)) {
+		if (!drm_plane_lock_surface(plane, drm)) {
 			return false;
 		}
 	}
@@ -949,8 +947,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		wlr_render_texture_with_matrix(rend, texture, matrix, 1.0);
 		wlr_renderer_end(rend);
 
-		if (!drm_fb_lock_surface(&plane->pending_fb, drm, &plane->surf,
-				&plane->mgpu_surf)) {
+		if (!drm_plane_lock_surface(plane, drm)) {
 			return false;
 		}
 

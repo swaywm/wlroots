@@ -46,8 +46,6 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer);
 bool drm_surface_make_current(struct wlr_drm_surface *surf, int *buffer_age);
 void drm_surface_unset_current(struct wlr_drm_surface *surf);
 
-bool drm_fb_lock_surface(struct wlr_drm_fb **fb, struct wlr_drm_backend *drm,
-		struct wlr_drm_surface *surf, struct wlr_drm_surface *mgpu);
 bool drm_fb_import(struct wlr_drm_fb **fb, struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, struct wlr_drm_surface *mgpu,
 		const struct wlr_drm_format_set *formats);
@@ -62,5 +60,7 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
 		uint32_t format, bool with_modifiers);
 void drm_plane_finish_surface(struct wlr_drm_plane *plane);
+bool drm_plane_lock_surface(struct wlr_drm_plane *plane,
+		struct wlr_drm_backend *drm);
 
 #endif

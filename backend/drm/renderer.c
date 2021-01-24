@@ -294,17 +294,17 @@ void drm_fb_clear(struct wlr_drm_fb **fb_ptr) {
 	*fb_ptr = NULL;
 }
 
-bool drm_fb_lock_surface(struct wlr_drm_fb **fb_ptr, struct wlr_drm_backend *drm,
-		struct wlr_drm_surface *surf, struct wlr_drm_surface *mgpu) {
-	assert(surf->back_buffer != NULL);
-
-	struct wlr_buffer *buffer = wlr_buffer_lock(surf->back_buffer);
+bool drm_plane_lock_surface(struct wlr_drm_plane *plane,
+		struct wlr_drm_backend *drm) {
+	assert(plane->surf.back_buffer != NULL);
+	struct wlr_buffer *buffer = wlr_buffer_lock(plane->surf.back_buffer);
 
 	// Unset the current EGL context ASAP, because other operations may require
 	// making another context current.
-	drm_surface_unset_current(surf);
+	drm_surface_unset_current(&plane->surf);
 
-	bool ok = drm_fb_import(fb_ptr, drm, buffer, mgpu, NULL);
+	bool ok = drm_fb_import(&plane->pending_fb, drm, buffer,
+		&plane->mgpu_surf, NULL);
 	wlr_buffer_unlock(buffer);
 	return ok;
 }
