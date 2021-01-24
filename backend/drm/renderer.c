@@ -297,15 +297,27 @@ void drm_fb_clear(struct wlr_drm_fb **fb_ptr) {
 bool drm_plane_lock_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm) {
 	assert(plane->surf.back_buffer != NULL);
-	struct wlr_buffer *buffer = wlr_buffer_lock(plane->surf.back_buffer);
+	struct wlr_buffer *buf = wlr_buffer_lock(plane->surf.back_buffer);
 
 	// Unset the current EGL context ASAP, because other operations may require
 	// making another context current.
 	drm_surface_unset_current(&plane->surf);
 
-	bool ok = drm_fb_import(&plane->pending_fb, drm, buffer,
-		&plane->mgpu_surf, NULL);
-	wlr_buffer_unlock(buffer);
+	struct wlr_buffer *local_buf;
+	if (drm->parent) {
+		// Perform a copy across GPUs
+		local_buf = drm_surface_blit(&plane->mgpu_surf, buf);
+		if (!local_buf) {
+			wlr_log(WLR_ERROR, "Failed to blit buffer across GPUs");
+			return false;
+		}
+	} else {
+		local_buf = wlr_buffer_lock(buf);
+	}
+	wlr_buffer_unlock(buf);
+
+	bool ok = drm_fb_import(&plane->pending_fb, drm, local_buf, NULL);
+	wlr_buffer_unlock(local_buf);
 	return ok;
 }
 
@@ -432,29 +444,16 @@ static struct wlr_drm_fb *drm_fb_get(struct wlr_drm_backend *drm,
 }
 
 bool drm_fb_import(struct wlr_drm_fb **fb_ptr, struct wlr_drm_backend *drm,
-		struct wlr_buffer *buf, struct wlr_drm_surface *mgpu,
-		const struct wlr_drm_format_set *formats) {
-	struct wlr_buffer *local_buf;
-	if (drm->parent && mgpu) {
-		// Perform a copy across GPUs
-		local_buf = drm_surface_blit(mgpu, buf);
-		if (!local_buf) {
-			wlr_log(WLR_ERROR, "Failed to blit buffer across GPUs");
-			return false;
-		}
-	} else {
-		local_buf = wlr_buffer_lock(buf);
-	}
-
-	struct wlr_drm_fb *fb = drm_fb_get(drm, local_buf);
+		struct wlr_buffer *buf, const struct wlr_drm_format_set *formats) {
+	struct wlr_drm_fb *fb = drm_fb_get(drm, buf);
 	if (!fb) {
-		fb = drm_fb_create(drm, local_buf, formats);
+		fb = drm_fb_create(drm, buf, formats);
 		if (!fb) {
-			wlr_buffer_unlock(local_buf);
 			return false;
 		}
 	}
 
+	wlr_buffer_lock(buf);
 	drm_fb_move(fb_ptr, &fb);
 	return true;
 }

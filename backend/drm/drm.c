@@ -496,7 +496,7 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 		if (!test_buffer(conn, output->pending.buffer)) {
 			return false;
 		}
-		if (!drm_fb_import(&plane->pending_fb, drm, buffer, NULL,
+		if (!drm_fb_import(&plane->pending_fb, drm, buffer,
 				&crtc->primary->formats)) {
 			return false;
 		}

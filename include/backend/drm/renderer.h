@@ -47,8 +47,7 @@ bool drm_surface_make_current(struct wlr_drm_surface *surf, int *buffer_age);
 void drm_surface_unset_current(struct wlr_drm_surface *surf);
 
 bool drm_fb_import(struct wlr_drm_fb **fb, struct wlr_drm_backend *drm,
-		struct wlr_buffer *buf, struct wlr_drm_surface *mgpu,
-		const struct wlr_drm_format_set *formats);
+		struct wlr_buffer *buf, const struct wlr_drm_format_set *formats);
 void drm_fb_destroy(struct wlr_drm_fb *fb);
 
 void drm_fb_clear(struct wlr_drm_fb **fb);
