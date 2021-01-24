@@ -20,7 +20,9 @@ struct wlr_drm_plane {
 	uint32_t type;
 	uint32_t id;
 
+	/* Local if this isn't a multi-GPU setup, on the parent otherwise. */
 	struct wlr_drm_surface surf;
+	/* Local, only initialized on multi-GPU setups. */
 	struct wlr_drm_surface mgpu_surf;
 
 	/* Buffer to be submitted to the kernel on the next page-flip */
