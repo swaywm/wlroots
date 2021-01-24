@@ -24,10 +24,10 @@ static int xwm_data_source_write(int fd, uint32_t mask, void *data) {
 
 	ssize_t len = write(fd, property + transfer->property_start, remainder);
 	if (len == -1) {
+		wlr_log_errno(WLR_ERROR, "write error to target fd %d", fd);
 		xwm_selection_transfer_destroy_property_reply(transfer);
 		xwm_selection_transfer_remove_source(transfer);
 		xwm_selection_transfer_close_source_fd(transfer);
-		wlr_log(WLR_ERROR, "write error to target fd: %m");
 		return 1;
 	}
 
