@@ -80,8 +80,8 @@ static void xwm_selection_transfer_destroy_outgoing(
 			xwm_selection_transfer_get_first(selection));
 	}
 
-	xwm_selection_transfer_remove_source(transfer);
-	xwm_selection_transfer_close_source_fd(transfer);
+	xwm_selection_transfer_remove_event_source(transfer);
+	xwm_selection_transfer_close_wl_client_fd(transfer);
 	wl_array_release(&transfer->source_data);
 	free(transfer);
 }
@@ -129,14 +129,14 @@ static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 			transfer->incr = true;
 			transfer->property_set = true;
 			transfer->flush_property_on_delete = true;
-			xwm_selection_transfer_remove_source(transfer);
+			xwm_selection_transfer_remove_event_source(transfer);
 			xwm_selection_send_notify(xwm, &transfer->request, true);
 		} else if (transfer->property_set) {
 			wlr_log(WLR_DEBUG, "got %zu bytes, waiting for property delete",
 				transfer->source_data.size);
 
 			transfer->flush_property_on_delete = true;
-			xwm_selection_transfer_remove_source(transfer);
+			xwm_selection_transfer_remove_event_source(transfer);
 		} else {
 			wlr_log(WLR_DEBUG, "got %zu bytes, property deleted, setting new "
 				"property", transfer->source_data.size);
@@ -159,8 +159,8 @@ static int xwm_data_source_read(int fd, uint32_t mask, void *data) {
 				"property", transfer->source_data.size);
 			xwm_selection_flush_source_data(transfer);
 		}
-		xwm_selection_transfer_remove_source(transfer);
-		xwm_selection_transfer_close_source_fd(transfer);
+		xwm_selection_transfer_remove_event_source(transfer);
+		xwm_selection_transfer_close_wl_client_fd(transfer);
 	} else {
 		wlr_log(WLR_DEBUG, "nothing happened, buffered the bytes");
 	}
@@ -183,7 +183,7 @@ void xwm_send_incr_chunk(struct wlr_xwm_selection_transfer *transfer) {
 		transfer->flush_property_on_delete = false;
 		int length = xwm_selection_flush_source_data(transfer);
 
-		if (transfer->source_fd >= 0) {
+		if (transfer->wl_client_fd >= 0) {
 			xwm_selection_transfer_start_outgoing(transfer);
 		} else if (length > 0) {
 			/* Transfer is all done, but queue a flush for
@@ -234,7 +234,7 @@ static void xwm_selection_transfer_start_outgoing(
 		wl_display_get_event_loop(xwm->xwayland->wl_display);
 	wlr_log(WLR_DEBUG, "Starting transfer %p", transfer);
 	assert(transfer == xwm_selection_transfer_get_first(transfer->selection));
-	transfer->source = wl_event_loop_add_fd(loop, transfer->source_fd,
+	transfer->event_source = wl_event_loop_add_fd(loop, transfer->wl_client_fd,
 		WL_EVENT_READABLE, xwm_data_source_read, transfer);
 }
 
@@ -312,7 +312,7 @@ static bool xwm_selection_send_data(struct wlr_xwm_selection *selection,
 	fcntl(p[1], F_SETFD, FD_CLOEXEC);
 	fcntl(p[1], F_SETFL, O_NONBLOCK);
 
-	transfer->source_fd = p[0];
+	transfer->wl_client_fd = p[0];
 
 	wlr_log(WLR_DEBUG, "Sending Wayland selection %u to Xwayland window with "
 		"MIME type %s, target %u, transfer %p", req->target, mime_type,

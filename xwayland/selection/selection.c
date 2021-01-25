@@ -11,19 +11,19 @@
 #include "xwayland/selection.h"
 #include "xwayland/xwm.h"
 
-void xwm_selection_transfer_remove_source(
+void xwm_selection_transfer_remove_event_source(
 		struct wlr_xwm_selection_transfer *transfer) {
-	if (transfer->source != NULL) {
-		wl_event_source_remove(transfer->source);
-		transfer->source = NULL;
+	if (transfer->event_source != NULL) {
+		wl_event_source_remove(transfer->event_source);
+		transfer->event_source = NULL;
 	}
 }
 
-void xwm_selection_transfer_close_source_fd(
+void xwm_selection_transfer_close_wl_client_fd(
 		struct wlr_xwm_selection_transfer *transfer) {
-	if (transfer->source_fd >= 0) {
-		close(transfer->source_fd);
-		transfer->source_fd = -1;
+	if (transfer->wl_client_fd >= 0) {
+		close(transfer->wl_client_fd);
+		transfer->wl_client_fd = -1;
 	}
 }
 

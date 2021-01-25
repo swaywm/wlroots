@@ -26,8 +26,8 @@ static int xwm_data_source_write(int fd, uint32_t mask, void *data) {
 	if (len == -1) {
 		wlr_log_errno(WLR_ERROR, "write error to target fd %d", fd);
 		xwm_selection_transfer_destroy_property_reply(transfer);
-		xwm_selection_transfer_remove_source(transfer);
-		xwm_selection_transfer_close_source_fd(transfer);
+		xwm_selection_transfer_remove_event_source(transfer);
+		xwm_selection_transfer_close_wl_client_fd(transfer);
 		return 1;
 	}
 
@@ -38,7 +38,7 @@ static int xwm_data_source_write(int fd, uint32_t mask, void *data) {
 	transfer->property_start += len;
 	if (len == remainder) {
 		xwm_selection_transfer_destroy_property_reply(transfer);
-		xwm_selection_transfer_remove_source(transfer);
+		xwm_selection_transfer_remove_event_source(transfer);
 
 		if (transfer->incr) {
 			wlr_log(WLR_DEBUG, "deleting property");
@@ -47,7 +47,7 @@ static int xwm_data_source_write(int fd, uint32_t mask, void *data) {
 			xcb_flush(xwm->xcb_conn);
 		} else {
 			wlr_log(WLR_DEBUG, "transfer complete");
-			xwm_selection_transfer_close_source_fd(transfer);
+			xwm_selection_transfer_close_wl_client_fd(transfer);
 		}
 	}
 
@@ -61,13 +61,13 @@ static void xwm_write_property(struct wlr_xwm_selection_transfer *transfer,
 	transfer->property_start = 0;
 	transfer->property_reply = reply;
 
-	xwm_data_source_write(transfer->source_fd, WL_EVENT_WRITABLE, transfer);
+	xwm_data_source_write(transfer->wl_client_fd, WL_EVENT_WRITABLE, transfer);
 
 	if (transfer->property_reply != NULL) {
 		struct wl_event_loop *loop =
 			wl_display_get_event_loop(xwm->xwayland->wl_display);
-		transfer->source = wl_event_loop_add_fd(loop,
-			transfer->source_fd, WL_EVENT_WRITABLE, xwm_data_source_write,
+		transfer->event_source = wl_event_loop_add_fd(loop,
+			transfer->wl_client_fd, WL_EVENT_WRITABLE, xwm_data_source_write,
 			transfer);
 	}
 }
@@ -99,7 +99,7 @@ void xwm_get_incr_chunk(struct wlr_xwm_selection_transfer *transfer) {
 		xwm_write_property(transfer, reply);
 	} else {
 		wlr_log(WLR_DEBUG, "transfer complete");
-		xwm_selection_transfer_close_source_fd(transfer);
+		xwm_selection_transfer_close_wl_client_fd(transfer);
 		free(reply);
 	}
 }
@@ -172,7 +172,7 @@ static void source_send(struct wlr_xwm_selection *selection,
 	xcb_flush(xwm->xcb_conn);
 
 	fcntl(fd, F_SETFL, O_WRONLY | O_NONBLOCK);
-	transfer->source_fd = fd;
+	transfer->wl_client_fd = fd;
 }
 
 struct x11_data_source {

@@ -18,8 +18,8 @@ struct wlr_xwm_selection_transfer {
 	bool flush_property_on_delete;
 	bool property_set;
 	struct wl_array source_data;
-	int source_fd;
-	struct wl_event_source *source;
+	int wl_client_fd;
+	struct wl_event_source *event_source;
 
 	// when sending to x11
 	xcb_selection_request_event_t request;
@@ -41,9 +41,9 @@ struct wlr_xwm_selection {
 	struct wl_list outgoing;
 };
 
-void xwm_selection_transfer_remove_source(
+void xwm_selection_transfer_remove_event_source(
 	struct wlr_xwm_selection_transfer *transfer);
-void xwm_selection_transfer_close_source_fd(
+void xwm_selection_transfer_close_wl_client_fd(
 	struct wlr_xwm_selection_transfer *transfer);
 void xwm_selection_transfer_destroy_property_reply(
 	struct wlr_xwm_selection_transfer *transfer);
