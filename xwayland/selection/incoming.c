@@ -158,6 +158,7 @@ static void source_send(struct wlr_xwm_selection *selection,
 	if (!found) {
 		wlr_log(WLR_DEBUG, "Cannot send X11 selection to Wayland: "
 			"unsupported MIME type");
+		close(fd);
 		return;
 	}
 
