@@ -131,9 +131,47 @@ static void handle_x11_event(struct wlr_x11_backend *x11,
 		struct wlr_x11_output *output =
 			get_x11_output_from_window_id(x11, ev->window);
 		if (output != NULL) {
-			wlr_log(WLR_DEBUG, "Window mapped, resuming updates");
+			wlr_log(WLR_DEBUG, "Window mapped%s", !output->hidden ? ", resuming updates" : "");
 			output->mapped = true;
-			wlr_output_send_frame(&output->wlr_output);
+			if (!output->hidden) {
+				wlr_output_send_frame(&output->wlr_output);
+			}
+		}
+		break;
+	}
+	case XCB_PROPERTY_NOTIFY: {
+		xcb_property_notify_event_t *ev = (xcb_property_notify_event_t *)event;
+		struct wlr_x11_output *output =
+			get_x11_output_from_window_id(x11, ev->window);
+		if (output == NULL) {
+			break;
+		}
+		if (ev->atom == x11->atoms.net_wm_state) {
+			xcb_get_property_cookie_t cookie =
+				xcb_get_property(x11->xcb, false, ev->window,
+					ev->atom, XCB_ATOM_ATOM, 0, 32);
+			xcb_get_property_reply_t *reply =
+				xcb_get_property_reply(x11->xcb, cookie, NULL);
+			if (reply->type != XCB_ATOM_ATOM) {
+				free(reply);
+				break;
+			}
+			xcb_atom_t *atoms = xcb_get_property_value(reply);
+			bool was_hidden = output->hidden;
+			output->hidden = false;
+			for (int i = 0; i < xcb_get_property_value_length(reply); i++) {
+				if (atoms[i] == x11->atoms.net_wm_state_hidden) {
+					wlr_log(WLR_DEBUG, "Window hidden, stopping updates");
+					output->hidden = true;
+				}
+			}
+			free(reply);
+			if (was_hidden && !output->hidden) {
+				wlr_log(WLR_DEBUG, "Window no longer hidden%s",  output->mapped ? ", resuming updates" : "");
+				if (output->mapped) {
+					wlr_output_send_frame(&output->wlr_output);
+				}
+			}
 		}
 		break;
 	}
@@ -432,6 +470,8 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	} atom[] = {
 		{ .name = "WM_PROTOCOLS", .atom = &x11->atoms.wm_protocols },
 		{ .name = "WM_DELETE_WINDOW", .atom = &x11->atoms.wm_delete_window },
+		{ .name = "_NET_WM_STATE", .atom = &x11->atoms.net_wm_state },
+		{ .name = "_NET_WM_STATE_HIDDEN", .atom = &x11->atoms.net_wm_state_hidden },
 		{ .name = "_NET_WM_NAME", .atom = &x11->atoms.net_wm_name },
 		{ .name = "UTF8_STRING", .atom = &x11->atoms.utf8_string },
 		{ .name = "_VARIABLE_REFRESH", .atom = &x11->atoms.variable_refresh },
