@@ -579,7 +579,7 @@ static void read_surface_hints(struct wlr_xwm *xwm,
 	if (xsurface->hints == NULL) {
 		return;
 	}
-	
+
 	memcpy(xsurface->hints, &hints, sizeof(struct wlr_xwayland_surface_hints));
 	xsurface->hints_urgency = xcb_icccm_wm_hints_get_urgency(&hints);
 
@@ -1165,26 +1165,26 @@ static void xwm_handle_net_wm_state_message(struct wlr_xwm *xwm,
 	for (size_t i = 0; i < 2; ++i) {
 		xcb_atom_t property = client_message->data.data32[1 + i];
 
-		if (property == xwm->atoms[NET_WM_STATE_MODAL] &&
-				update_state(action, &xsurface->modal)) {
-			xsurface_set_net_wm_state(xsurface);
-		} else if (property == xwm->atoms[NET_WM_STATE_FULLSCREEN] &&
-				update_state(action, &xsurface->fullscreen)) {
-			xsurface_set_net_wm_state(xsurface);
-		} else if (property == xwm->atoms[NET_WM_STATE_MAXIMIZED_VERT] &&
-				update_state(action, &xsurface->maximized_vert)) {
-			xsurface_set_net_wm_state(xsurface);
-		} else if (property == xwm->atoms[NET_WM_STATE_MAXIMIZED_HORZ] &&
-				update_state(action, &xsurface->maximized_horz)) {
-			xsurface_set_net_wm_state(xsurface);
-		} else if (property == xwm->atoms[NET_WM_STATE_HIDDEN] &&
-				update_state(action, &xsurface->minimized)) {
-			xsurface_set_net_wm_state(xsurface);
+		bool changed = false;
+		if (property == xwm->atoms[NET_WM_STATE_MODAL]) {
+			changed = update_state(action, &xsurface->modal);
+		} else if (property == xwm->atoms[NET_WM_STATE_FULLSCREEN]) {
+			changed = update_state(action, &xsurface->fullscreen);
+		} else if (property == xwm->atoms[NET_WM_STATE_MAXIMIZED_VERT]) {
+			changed = update_state(action, &xsurface->maximized_vert);
+		} else if (property == xwm->atoms[NET_WM_STATE_MAXIMIZED_HORZ]) {
+			changed = update_state(action, &xsurface->maximized_horz);
+		} else if (property == xwm->atoms[NET_WM_STATE_HIDDEN]) {
+			changed = update_state(action, &xsurface->minimized);
 		} else if (property != XCB_ATOM_NONE) {
 			char *prop_name = xwm_get_atom_name(xwm, property);
 			wlr_log(WLR_DEBUG, "Unhandled NET_WM_STATE property change "
 				"%"PRIu32" (%s)", property, prop_name ? prop_name : "(null)");
 			free(prop_name);
+		}
+
+		if (changed) {
+			xsurface_set_net_wm_state(xsurface);
 		}
 	}
 	// client_message->data.data32[3] is the source indication
