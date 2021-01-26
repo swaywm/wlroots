@@ -33,6 +33,13 @@ void xwm_selection_transfer_destroy_property_reply(
 	transfer->property_reply = NULL;
 }
 
+void xwm_selection_transfer_finish(
+		struct wlr_xwm_selection_transfer *transfer) {
+	xwm_selection_transfer_destroy_property_reply(transfer);
+	xwm_selection_transfer_remove_event_source(transfer);
+	xwm_selection_transfer_close_wl_client_fd(transfer);
+}
+
 bool xwm_selection_transfer_get_selection_property(
 		struct wlr_xwm_selection_transfer *transfer, bool delete) {
 	struct wlr_xwm *xwm = transfer->selection->xwm;
