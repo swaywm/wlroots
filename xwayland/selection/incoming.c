@@ -11,12 +11,21 @@
 #include "xwayland/selection.h"
 #include "xwayland/xwm.h"
 
+static void xwm_notify_ready_for_next_incr_chunk(
+		struct wlr_xwm_selection_transfer *transfer) {
+	struct wlr_xwm *xwm = transfer->selection->xwm;
+	assert(transfer->incr);
+	wlr_log(WLR_DEBUG, "deleting property");
+	xcb_delete_property(xwm->xcb_conn, transfer->selection->window,
+		xwm->atoms[WL_SELECTION]);
+	xcb_flush(xwm->xcb_conn);
+}
+
 /**
  * Write the X11 selection to a Wayland client.
  */
 static int xwm_data_source_write(int fd, uint32_t mask, void *data) {
 	struct wlr_xwm_selection_transfer *transfer = data;
-	struct wlr_xwm *xwm = transfer->selection->xwm;
 
 	char *property = xcb_get_property_value(transfer->property_reply);
 	int remainder = xcb_get_property_value_length(transfer->property_reply) -
@@ -35,16 +44,14 @@ static int xwm_data_source_write(int fd, uint32_t mask, void *data) {
 		transfer->property_start + len,
 		len, xcb_get_property_value_length(transfer->property_reply));
 
-	transfer->property_start += len;
-	if (len == remainder) {
+	if (len < remainder) {
+		transfer->property_start += len;
+	} else {
 		xwm_selection_transfer_destroy_property_reply(transfer);
 		xwm_selection_transfer_remove_event_source(transfer);
 
 		if (transfer->incr) {
-			wlr_log(WLR_DEBUG, "deleting property");
-			xcb_delete_property(xwm->xcb_conn, transfer->selection->window,
-				xwm->atoms[WL_SELECTION]);
-			xcb_flush(xwm->xcb_conn);
+			xwm_notify_ready_for_next_incr_chunk(transfer);
 		} else {
 			wlr_log(WLR_DEBUG, "transfer complete");
 			xwm_selection_transfer_close_wl_client_fd(transfer);
@@ -97,11 +104,20 @@ void xwm_get_incr_chunk(struct wlr_xwm_selection_transfer *transfer) {
 	//dump_property(xwm, xwm->atoms[WL_SELECTION], reply);
 
 	if (xcb_get_property_value_length(reply) > 0) {
-		/* Reply's ownership is transferred to xwm, which is responsible
-		 * for freeing it */
-		xwm_write_property(transfer, reply);
+		// Reply's ownership is transferred to xwm, which is responsible
+		// for freeing it.
+		if (transfer->wl_client_fd >= 0) {
+			// Wayland client is alive, property will be freed once it has finished
+			// reading it.
+			xwm_write_property(transfer, reply);
+		} else {
+			// Wayland client closed its pipe prematurely (or died). Continue draining
+			// the X11 client.
+			xwm_notify_ready_for_next_incr_chunk(transfer);
+			free(reply);
+		}
 	} else {
-		wlr_log(WLR_DEBUG, "transfer complete");
+		wlr_log(WLR_DEBUG, "incremental transfer complete");
 		xwm_selection_transfer_close_wl_client_fd(transfer);
 		free(reply);
 	}
