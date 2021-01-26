@@ -33,6 +33,32 @@ void xwm_selection_transfer_destroy_property_reply(
 	transfer->property_reply = NULL;
 }
 
+bool xwm_selection_transfer_get_selection_property(
+		struct wlr_xwm_selection_transfer *transfer, bool delete) {
+	struct wlr_xwm *xwm = transfer->selection->xwm;
+
+	xcb_get_property_cookie_t cookie = xcb_get_property(
+		xwm->xcb_conn,
+		delete,
+		transfer->selection->window,
+		xwm->atoms[WL_SELECTION],
+		XCB_GET_PROPERTY_TYPE_ANY,
+		0, // offset
+		0x1fffffff // length
+		);
+
+	transfer->property_start = 0;
+	transfer->property_reply =
+		xcb_get_property_reply(xwm->xcb_conn, cookie, NULL);
+
+	if (!transfer->property_reply) {
+		wlr_log(WLR_ERROR, "cannot get selection property");
+		return false;
+	}
+
+	return true;
+}
+
 xcb_atom_t xwm_mime_type_to_atom(struct wlr_xwm *xwm, char *mime_type) {
 	if (strcmp(mime_type, "text/plain;charset=utf-8") == 0) {
 		return xwm->atoms[UTF8_STRING];
