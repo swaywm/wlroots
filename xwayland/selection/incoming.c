@@ -61,9 +61,12 @@ static void xwm_write_property(struct wlr_xwm_selection_transfer *transfer,
 	transfer->property_start = 0;
 	transfer->property_reply = reply;
 
-	xwm_data_source_write(transfer->wl_client_fd, WL_EVENT_WRITABLE, transfer);
-
-	if (transfer->property_reply != NULL) {
+	bool wl_client_finished_consuming =
+		!xwm_data_source_write(transfer->wl_client_fd, WL_EVENT_WRITABLE, transfer);
+	if (!wl_client_finished_consuming) {
+		// Wrote out part of the property to the Wayland client, but the client was
+		// unable to accept all of it. Schedule an event to asynchronously complete
+		// the transfer.
 		struct wl_event_loop *loop =
 			wl_display_get_event_loop(xwm->xwayland->wl_display);
 		transfer->event_source = wl_event_loop_add_fd(loop,
