@@ -28,7 +28,7 @@ static int xwm_data_source_write(int fd, uint32_t mask, void *data) {
 		xwm_selection_transfer_destroy_property_reply(transfer);
 		xwm_selection_transfer_remove_event_source(transfer);
 		xwm_selection_transfer_close_wl_client_fd(transfer);
-		return 1;
+		return 0;
 	}
 
 	wlr_log(WLR_DEBUG, "wrote %zd (chunk size %zd) of %d bytes",
