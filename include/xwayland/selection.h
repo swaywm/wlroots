@@ -47,6 +47,7 @@ void xwm_selection_transfer_close_wl_client_fd(
 	struct wlr_xwm_selection_transfer *transfer);
 void xwm_selection_transfer_destroy_property_reply(
 	struct wlr_xwm_selection_transfer *transfer);
+void xwm_selection_transfer_finish(struct wlr_xwm_selection_transfer *transfer);
 bool xwm_selection_transfer_get_selection_property(
 	struct wlr_xwm_selection_transfer *transfer, bool delete);
 
