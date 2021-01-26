@@ -152,6 +152,7 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 	wl_signal_init(&surface->events.request_maximize);
 	wl_signal_init(&surface->events.request_fullscreen);
 	wl_signal_init(&surface->events.request_activate);
+	wl_signal_init(&surface->events.request_reload_configure);
 	wl_signal_init(&surface->events.map);
 	wl_signal_init(&surface->events.unmap);
 	wl_signal_init(&surface->events.set_class);
@@ -1118,7 +1119,9 @@ static void xwm_handle_net_wm_moveresize_message(struct wlr_xwm *xwm,
 #define _NET_WM_STATE_ADD 1
 #define _NET_WM_STATE_TOGGLE 2
 
-static bool update_state(int action, bool *state) {
+static bool update_state(struct wlr_xwayland_surface *xsurface, int action,
+		bool *state)
+{
 	int new_state, changed;
 
 	switch (action) {
@@ -1137,6 +1140,9 @@ static bool update_state(int action, bool *state) {
 
 	changed = (*state != new_state);
 	*state = new_state;
+
+	if (!changed)
+		wlr_signal_emit_safe(&xsurface->events.request_reload_configure, xsurface);
 
 	return changed;
 }
@@ -1165,21 +1171,21 @@ static void xwm_handle_net_wm_state_message(struct wlr_xwm *xwm,
 	for (size_t i = 0; i < 2; ++i) {
 		xcb_atom_t property = client_message->data.data32[1 + i];
 
-		if (property == xwm->atoms[NET_WM_STATE_MODAL] &&
-				update_state(action, &xsurface->modal)) {
-			xsurface_set_net_wm_state(xsurface);
-		} else if (property == xwm->atoms[NET_WM_STATE_FULLSCREEN] &&
-				update_state(action, &xsurface->fullscreen)) {
-			xsurface_set_net_wm_state(xsurface);
-		} else if (property == xwm->atoms[NET_WM_STATE_MAXIMIZED_VERT] &&
-				update_state(action, &xsurface->maximized_vert)) {
-			xsurface_set_net_wm_state(xsurface);
-		} else if (property == xwm->atoms[NET_WM_STATE_MAXIMIZED_HORZ] &&
-				update_state(action, &xsurface->maximized_horz)) {
-			xsurface_set_net_wm_state(xsurface);
-		} else if (property == xwm->atoms[NET_WM_STATE_HIDDEN] &&
-				update_state(action, &xsurface->minimized)) {
-			xsurface_set_net_wm_state(xsurface);
+		if (property == xwm->atoms[NET_WM_STATE_MODAL]) {
+			if (update_state(xsurface, action, &xsurface->modal))
+				xsurface_set_net_wm_state(xsurface);
+		} else if (property == xwm->atoms[NET_WM_STATE_FULLSCREEN]) {
+			if (update_state(xsurface, action, &xsurface->fullscreen))
+				xsurface_set_net_wm_state(xsurface);				
+		} else if (property == xwm->atoms[NET_WM_STATE_MAXIMIZED_VERT]) {
+			if (update_state(xsurface, action, &xsurface->maximized_vert))
+				xsurface_set_net_wm_state(xsurface);
+		} else if (property == xwm->atoms[NET_WM_STATE_MAXIMIZED_HORZ]) {
+			if (update_state(xsurface, action, &xsurface->maximized_horz))
+				xsurface_set_net_wm_state(xsurface);
+		} else if (property == xwm->atoms[NET_WM_STATE_HIDDEN]) {
+			if (update_state(xsurface, action, &xsurface->minimized))
+				xsurface_set_net_wm_state(xsurface);
 		} else if (property != XCB_ATOM_NONE) {
 			char *prop_name = xwm_get_atom_name(xwm, property);
 			wlr_log(WLR_DEBUG, "Unhandled NET_WM_STATE property change "
