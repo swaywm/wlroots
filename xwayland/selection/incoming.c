@@ -61,12 +61,8 @@ static int xwm_data_source_write(int fd, uint32_t mask, void *data) {
 	return 1;
 }
 
-static void xwm_write_property(struct wlr_xwm_selection_transfer *transfer,
-		xcb_get_property_reply_t *reply) {
+static void xwm_write_property(struct wlr_xwm_selection_transfer *transfer) {
 	struct wlr_xwm *xwm = transfer->selection->xwm;
-
-	transfer->property_start = 0;
-	transfer->property_reply = reply;
 
 	bool wl_client_finished_consuming =
 		!xwm_data_source_write(transfer->wl_client_fd, WL_EVENT_WRITABLE, transfer);
@@ -83,74 +79,48 @@ static void xwm_write_property(struct wlr_xwm_selection_transfer *transfer,
 }
 
 void xwm_get_incr_chunk(struct wlr_xwm_selection_transfer *transfer) {
-	struct wlr_xwm *xwm = transfer->selection->xwm;
 	wlr_log(WLR_DEBUG, "xwm_get_incr_chunk");
 
-	xcb_get_property_cookie_t cookie = xcb_get_property(xwm->xcb_conn,
-		0, // delete
-		transfer->selection->window,
-		xwm->atoms[WL_SELECTION],
-		XCB_GET_PROPERTY_TYPE_ANY,
-		0, // offset
-		0x1fffffff // length
-		);
-
-	xcb_get_property_reply_t *reply =
-		xcb_get_property_reply(xwm->xcb_conn, cookie, NULL);
-	if (reply == NULL) {
-		wlr_log(WLR_ERROR, "cannot get selection property");
+	if (!xwm_selection_transfer_get_selection_property(transfer, false)) {
 		return;
 	}
-	//dump_property(xwm, xwm->atoms[WL_SELECTION], reply);
 
-	if (xcb_get_property_value_length(reply) > 0) {
+	if (xcb_get_property_value_length(transfer->property_reply) > 0) {
 		// Reply's ownership is transferred to xwm, which is responsible
 		// for freeing it.
 		if (transfer->wl_client_fd >= 0) {
 			// Wayland client is alive, property will be freed once it has finished
 			// reading it.
-			xwm_write_property(transfer, reply);
+			xwm_write_property(transfer);
 		} else {
 			// Wayland client closed its pipe prematurely (or died). Continue draining
 			// the X11 client.
 			xwm_notify_ready_for_next_incr_chunk(transfer);
-			free(reply);
+			xwm_selection_transfer_destroy_property_reply(transfer);
 		}
 	} else {
 		wlr_log(WLR_DEBUG, "incremental transfer complete");
 		xwm_selection_transfer_close_wl_client_fd(transfer);
-		free(reply);
+		xwm_selection_transfer_destroy_property_reply(transfer);
 	}
 }
 
 static void xwm_selection_get_data(struct wlr_xwm_selection *selection) {
 	struct wlr_xwm *xwm = selection->xwm;
+	struct wlr_xwm_selection_transfer *transfer = &selection->incoming;
 
-	xcb_get_property_cookie_t cookie = xcb_get_property(xwm->xcb_conn,
-		1, // delete
-		selection->window,
-		xwm->atoms[WL_SELECTION],
-		XCB_GET_PROPERTY_TYPE_ANY,
-		0, // offset
-		0x1fffffff // length
-		);
-
-	xcb_get_property_reply_t *reply =
-		xcb_get_property_reply(xwm->xcb_conn, cookie, NULL);
-	if (reply == NULL) {
-		wlr_log(WLR_ERROR, "Cannot get selection property");
+	if (!xwm_selection_transfer_get_selection_property(transfer, true)) {
 		return;
 	}
 
-	struct wlr_xwm_selection_transfer *transfer = &selection->incoming;
-	if (reply->type == xwm->atoms[INCR]) {
+	if (transfer->property_reply->type == xwm->atoms[INCR]) {
 		transfer->incr = true;
-		free(reply);
+		xwm_selection_transfer_destroy_property_reply(transfer);
 	} else {
 		transfer->incr = false;
 		// reply's ownership is transferred to wm, which is responsible
 		// for freeing it
-		xwm_write_property(transfer, reply);
+		xwm_write_property(transfer);
 	}
 }
 

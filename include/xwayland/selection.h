@@ -47,6 +47,8 @@ void xwm_selection_transfer_close_wl_client_fd(
 	struct wlr_xwm_selection_transfer *transfer);
 void xwm_selection_transfer_destroy_property_reply(
 	struct wlr_xwm_selection_transfer *transfer);
+bool xwm_selection_transfer_get_selection_property(
+	struct wlr_xwm_selection_transfer *transfer, bool delete);
 
 xcb_atom_t xwm_mime_type_to_atom(struct wlr_xwm *xwm, char *mime_type);
 char *xwm_mime_type_from_atom(struct wlr_xwm *xwm, xcb_atom_t atom);
