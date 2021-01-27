@@ -39,6 +39,11 @@ wlroots reads these environment variables
 
 * *WLR_X11_OUTPUTS*: when using the X11 backend specifies the number of outputs
 
+## gles2 renderer
+
+* *WLR_RENDERER_ALLOW_SOFTWARE*: allows the gles2 renderer to use software
+  rendering
+
 # Generic
 
 * *DISPLAY*: if set probe X11 backend in `wlr_backend_autocreate`
