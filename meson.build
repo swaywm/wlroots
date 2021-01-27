@@ -180,6 +180,10 @@ if get_option('examples')
 	subdir('examples')
 endif
 
+if get_option('tinywl')
+	subdir('tinywl')
+endif
+
 pkgconfig = import('pkgconfig')
 pkgconfig.generate(lib_wlr,
 	version: meson.project_version(),
