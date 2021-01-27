@@ -272,6 +272,18 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display,
 			goto error;
 		}
 
+		if (check_egl_ext(device_exts_str, "EGL_MESA_device_software")) {
+			const char *allow_software = getenv("WLR_RENDERER_ALLOW_SOFTWARE");
+			if (strcmp(allow_software, "1") == 0) {
+				wlr_log(WLR_INFO, "Using software rendering");
+			} else {
+				wlr_log(WLR_ERROR, "Software rendering detected, please use "
+						"the WLR_RENDERER_ALLOW_SOFTWARE environment variable "
+						"to proceed");
+				goto error;
+			}
+		}
+
 		egl->exts.device_drm_ext =
 			check_egl_ext(device_exts_str, "EGL_EXT_device_drm");
 	}
