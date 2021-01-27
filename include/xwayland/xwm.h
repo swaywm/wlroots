@@ -88,12 +88,6 @@ enum atom_name {
 
 extern const char *atom_map[ATOM_LAST];
 
-enum net_wm_state_action {
-	NET_WM_STATE_REMOVE = 0,
-	NET_WM_STATE_ADD = 1,
-	NET_WM_STATE_TOGGLE = 2,
-};
-
 struct wlr_xwm {
 	struct wlr_xwayland *xwayland;
 	struct wl_event_source *event_source;
