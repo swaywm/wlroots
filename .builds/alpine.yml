@@ -17,15 +17,11 @@ sources:
 tasks:
   - setup: |
       cd wlroots
-      meson build -Dauto_features=enabled -Dlogind=disabled -Dlibseat=disabled -Dxcb-errors=disabled
+      meson build -Dauto_features=enabled -Dlogind=disabled -Dlibseat=disabled -Dxcb-errors=disabled -Dtinywl=true
   - build: |
       cd wlroots
       ninja -C build
-      sudo ninja -C build install
   - build-features-disabled: |
       cd wlroots
       meson build --reconfigure -Dauto_features=disabled
       ninja -C build
-  - tinywl: |
-      cd wlroots/tinywl
-      make

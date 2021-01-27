@@ -26,9 +26,5 @@ sources:
 tasks:
   - wlroots: |
       cd wlroots
-      meson build -Dauto_features=enabled -Dlogind=disabled
+      meson build -Dauto_features=enabled -Dlogind=disabled -Dtinywl=true
       ninja -C build
-      sudo ninja -C build install
-  - tinywl: |
-      cd wlroots/tinywl
-      gmake
