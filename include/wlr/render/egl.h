@@ -57,7 +57,6 @@ struct wlr_egl {
 
 	struct {
 		PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT;
-		PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC eglCreatePlatformWindowSurfaceEXT;
 		PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
 		PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
 		PFNEGLQUERYWAYLANDBUFFERWL eglQueryWaylandBufferWL;
@@ -99,12 +98,6 @@ void wlr_egl_destroy(struct wlr_egl *egl);
  * to it.
  */
 bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display);
-
-/**
- * Returns a surface for the given native window
- * The window must match the remote display the wlr_egl was created with.
- */
-EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window);
 
 /**
  * Creates an EGL image from the given wl_drm buffer resource.
@@ -163,8 +156,6 @@ void wlr_egl_save_context(struct wlr_egl_context *context);
  * Restore EGL context that was previously saved using wlr_egl_save_current().
  */
 bool wlr_egl_restore_context(struct wlr_egl_context *context);
-
-bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface);
 
 int wlr_egl_dup_drm_fd(struct wlr_egl *egl);
 
