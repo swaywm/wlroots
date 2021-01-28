@@ -174,8 +174,6 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display,
 	}
 	load_egl_proc(&egl->procs.eglGetPlatformDisplayEXT,
 		"eglGetPlatformDisplayEXT");
-	load_egl_proc(&egl->procs.eglCreatePlatformWindowSurfaceEXT,
-		"eglCreatePlatformWindowSurfaceEXT");
 
 	if (check_egl_ext(client_exts_str, "EGL_KHR_debug")) {
 		load_egl_proc(&egl->procs.eglDebugMessageControlKHR,
@@ -416,17 +414,6 @@ bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
 		return true;
 	}
 	return egl->procs.eglDestroyImageKHR(egl->display, image);
-}
-
-EGLSurface wlr_egl_create_surface(struct wlr_egl *egl, void *window) {
-	assert(egl->procs.eglCreatePlatformWindowSurfaceEXT);
-	EGLSurface surf = egl->procs.eglCreatePlatformWindowSurfaceEXT(
-		egl->display, egl->config, window, NULL);
-	if (surf == EGL_NO_SURFACE) {
-		wlr_log(WLR_ERROR, "Failed to create EGL surface");
-		return EGL_NO_SURFACE;
-	}
-	return surf;
 }
 
 bool wlr_egl_make_current(struct wlr_egl *egl) {
@@ -735,20 +722,6 @@ bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
 	attribs->height = height;
 	attribs->flags = flags;
 	return true;
-}
-
-bool wlr_egl_destroy_surface(struct wlr_egl *egl, EGLSurface surface) {
-	if (!surface) {
-		return true;
-	}
-	if (eglGetCurrentContext() == egl->context &&
-			eglGetCurrentSurface(EGL_DRAW) == surface) {
-		// Reset the current EGL surface in case it's the one we're destroying,
-		// otherwise the next wlr_egl_make_current call will result in a
-		// use-after-free.
-		wlr_egl_make_current(egl);
-	}
-	return eglDestroySurface(egl->display, surface);
 }
 
 static bool device_has_name(const drmDevice *device, const char *name) {
