@@ -550,8 +550,17 @@ static void xdg_toplevel_handle_configure(void *data,
 	if (width == 0 || height == 0) {
 		return;
 	}
-	// loop over states for maximized etc?
-	output_set_custom_mode(&output->wlr_output, width, height, 0);
+	if (width == output->wlr_output.width &&
+			height == output->wlr_output.height) {
+		return;
+	}
+
+	struct wlr_output_state state = {
+		.committed = WLR_OUTPUT_STATE_MODE,
+		.mode_type = WLR_OUTPUT_STATE_MODE_CUSTOM,
+		.custom_mode = { .width = width, .height = height },
+	};
+	wlr_output_send_request_state(&output->wlr_output, &state);
 }
 
 static void xdg_toplevel_handle_close(void *data,
