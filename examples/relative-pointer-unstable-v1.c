@@ -5,6 +5,7 @@
 #include <linux/input-event-codes.h>
 #include <wayland-egl.h>
 #include <wlr/render/egl.h>
+#include "egl_common.h"
 #include "pointer-constraints-unstable-v1-client-protocol.h"
 #include "relative-pointer-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
@@ -17,7 +18,6 @@
  */
 
 struct egl_info {
-	struct wlr_egl *egl;
 	struct wl_egl_window *egl_window;
 	struct wlr_egl_surface *egl_surface;
 	uint32_t width;
@@ -58,8 +58,8 @@ static struct wl_callback_listener surface_callback_listener = {
 };
 
 static void draw_init(struct egl_info *e) {
-	eglMakeCurrent(e->egl->display, e->egl_surface,
-		e->egl_surface, e->egl->context);
+	eglMakeCurrent(egl_display, e->egl_surface,
+		e->egl_surface, egl_context);
 	glViewport(0, 0, e->width, e->height);
 }
 
@@ -88,7 +88,7 @@ static void draw_end(struct egl_info *e) {
 	e->frame_callback = wl_surface_frame(e->surface);
 	wl_callback_add_listener(e->frame_callback, &surface_callback_listener, e);
 
-	eglSwapBuffers(e->egl->display, e->egl_surface);
+	eglSwapBuffers(egl_display, e->egl_surface);
 }
 
 
@@ -170,8 +170,7 @@ static void xdg_toplevel_handle_configure(void *data,
 
 static void xdg_toplevel_handle_close(void *data,
 		struct xdg_toplevel *xdg_toplevel) {
-	struct egl_info *e = data;
-	wlr_egl_destroy(e->egl);
+	egl_finish();
 	exit(EXIT_SUCCESS);
 }
 
@@ -442,8 +441,7 @@ int main(int argc, char **argv) {
 	struct egl_info *e = calloc(1, sizeof(struct egl_info));
 	e->width = e->height = 512;
 
-	EGLint attribs[] = { EGL_NONE };
-	e->egl = wlr_egl_create(EGL_PLATFORM_WAYLAND_EXT, display, attribs);
+	egl_init(display);
 
 	/* Create the surface and xdg_toplevels, and set listeners */
 
@@ -460,7 +458,8 @@ int main(int argc, char **argv) {
 	wl_surface_commit(surface);
 
 	e->egl_window = wl_egl_window_create(surface, e->width, e->height);
-	e->egl_surface = wlr_egl_create_surface(e->egl, e->egl_window);
+	e->egl_surface = eglCreatePlatformWindowSurfaceEXT(
+		egl_display, egl_config, e->egl_window, NULL);
 	e->surface = surface;
 
 	wl_display_roundtrip(display);
