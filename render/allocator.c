@@ -1,4 +1,3 @@
-#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <stdlib.h>
 #include <wlr/util/log.h>
@@ -7,6 +6,7 @@
 #include "render/allocator.h"
 #include "render/gbm_allocator.h"
 #include "render/shm_allocator.h"
+#include "render/drm_dumb_allocator.h"
 #include "render/wlr_renderer.h"
 #include "types/wlr_buffer.h"
 
@@ -41,6 +41,16 @@ struct wlr_allocator *allocator_autocreate_with_drm_fd(
 			return alloc;
 		}
 		wlr_log(WLR_DEBUG, "Failed to create shm allocator");
+	}
+
+	uint32_t drm_caps = WLR_BUFFER_CAP_DMABUF | WLR_BUFFER_CAP_DATA_PTR;
+	if ((backend_caps & drm_caps) && (renderer_caps & drm_caps)
+			&& drm_fd != -1) {
+		wlr_log(WLR_DEBUG, "Trying to create drm dumb allocator");
+		if ((alloc = wlr_drm_dumb_allocator_create(drm_fd)) != NULL) {
+			return alloc;
+		}
+		wlr_log(WLR_DEBUG, "Failed to create drm dumb allocator");
 	}
 
 	wlr_log(WLR_ERROR, "Failed to create allocator");
