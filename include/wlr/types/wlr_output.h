@@ -429,6 +429,13 @@ void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock);
  */
 void wlr_output_render_software_cursors(struct wlr_output *output,
 	pixman_region32_t *damage);
+/**
+ * Queue pending output state from `state`.
+ *
+ * Users need to call `wlr_output_commit` to apply the pending state.
+ */
+void wlr_output_queue_state(struct wlr_output *output,
+	const struct wlr_output_state *state);
 
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);
