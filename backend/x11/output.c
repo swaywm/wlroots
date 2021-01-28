@@ -39,19 +39,10 @@ static struct wlr_x11_output *get_x11_output_from_output(
 	return (struct wlr_x11_output *)wlr_output;
 }
 
-static void output_set_refresh(struct wlr_output *wlr_output, int32_t refresh) {
-	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
-
-	wlr_output_update_custom_mode(&output->wlr_output, wlr_output->width,
-		wlr_output->height, 0);
-}
-
 static bool output_set_custom_mode(struct wlr_output *wlr_output,
 		int32_t width, int32_t height, int32_t refresh) {
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
 	struct wlr_x11_backend *x11 = output->x11;
-
-	output_set_refresh(&output->wlr_output, refresh);
 
 	const uint32_t values[] = { width, height };
 	xcb_void_cookie_t cookie = xcb_configure_window_checked(
@@ -381,8 +372,6 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 		free(output);
 		return NULL;
 	}
-
-	output_set_refresh(&output->wlr_output, 0);
 
 	snprintf(wlr_output->name, sizeof(wlr_output->name), "X11-%zd",
 		++x11->last_output_num);
