@@ -150,8 +150,7 @@ out:
 	free(formats);
 }
 
-struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display,
-		const EGLint *config_attribs) {
+struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 	struct wlr_egl *egl = calloc(1, sizeof(struct wlr_egl));
 	if (egl == NULL) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
@@ -286,25 +285,11 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display,
 			check_egl_ext(device_exts_str, "EGL_EXT_device_drm");
 	}
 
-	if (config_attribs != NULL) {
-		EGLint matched = 0;
-		if (!eglChooseConfig(egl->display, config_attribs, &egl->config, 1,
-				&matched)) {
-			wlr_log(WLR_ERROR, "eglChooseConfig failed");
-			goto error;
-		}
-		if (matched == 0) {
-			wlr_log(WLR_ERROR, "Failed to match an EGL config");
-			goto error;
-		}
-	} else {
-		if (!check_egl_ext(display_exts_str, "EGL_KHR_no_config_context") &&
-				!check_egl_ext(display_exts_str, "EGL_MESA_configless_context")) {
-			wlr_log(WLR_ERROR, "EGL_KHR_no_config_context or "
-				"EGL_MESA_configless_context not supported");
-			goto error;
-		}
-		egl->config = EGL_NO_CONFIG_KHR;
+	if (!check_egl_ext(display_exts_str, "EGL_KHR_no_config_context") &&
+			!check_egl_ext(display_exts_str, "EGL_MESA_configless_context")) {
+		wlr_log(WLR_ERROR, "EGL_KHR_no_config_context or "
+			"EGL_MESA_configless_context not supported");
+		goto error;
 	}
 
 	wlr_log(WLR_INFO, "Using EGL %d.%d", (int)major, (int)minor);
@@ -339,7 +324,7 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display,
 	attribs[atti++] = EGL_NONE;
 	assert(atti <= sizeof(attribs)/sizeof(attribs[0]));
 
-	egl->context = eglCreateContext(egl->display, egl->config,
+	egl->context = eglCreateContext(egl->display, EGL_NO_CONFIG_KHR,
 		EGL_NO_CONTEXT, attribs);
 	if (egl->context == EGL_NO_CONTEXT) {
 		wlr_log(WLR_ERROR, "Failed to create EGL context");

@@ -38,7 +38,6 @@ struct wlr_egl_context {
 
 struct wlr_egl {
 	EGLDisplay display;
-	EGLConfig config; // may be EGL_NO_CONFIG
 	EGLContext context;
 	EGLDeviceEXT device; // may be EGL_NO_DEVICE_EXT
 	struct gbm_device *gbm_device;
@@ -80,11 +79,8 @@ struct wlr_egl {
 /**
  * Initializes an EGL context for the given platform and remote display.
  * Will attempt to load all possibly required api functions.
- *
- * If config_attribs is NULL, the EGL config is not created.
  */
-struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display,
-	const EGLint *config_attribs);
+struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display);
 
 /**
  * Frees all related EGL resources, makes the context not-current and

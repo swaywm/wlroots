@@ -466,9 +466,6 @@ static enum wl_shm_format gles2_preferred_read_format(
 		glGetRenderbufferParameteriv(GL_RENDERBUFFER,
 			GL_RENDERBUFFER_ALPHA_SIZE, &alpha_size);
 		glBindRenderbuffer(GL_RENDERBUFFER, 0);
-	} else if (renderer->egl->config != EGL_NO_CONFIG_KHR) {
-		eglGetConfigAttrib(renderer->egl->display, renderer->egl->config,
-			EGL_ALPHA_SIZE, &alpha_size);
 	}
 
 	const struct wlr_gles2_pixel_format *fmt =
