@@ -344,6 +344,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.mode);
 	wl_signal_init(&output->events.description);
+	wl_signal_init(&output->events.request_state);
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->pending.damage);
 
@@ -726,6 +727,15 @@ void wlr_output_send_present(struct wlr_output *output,
 	}
 
 	wlr_signal_emit_safe(&output->events.present, event);
+}
+
+void wlr_output_send_request_state(struct wlr_output *output,
+		const struct wlr_output_state *state) {
+	struct wlr_output_event_request_state event = {
+		.output = output,
+		.state = *state,
+	};
+	wlr_signal_emit_safe(&output->events.request_state, &event);
 }
 
 void wlr_output_queue_state(struct wlr_output *output,

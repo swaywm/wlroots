@@ -171,6 +171,7 @@ struct wlr_output {
 		struct wl_signal enable;
 		struct wl_signal mode;
 		struct wl_signal description;
+		struct wl_signal request_state;
 		struct wl_signal destroy;
 	} events;
 
@@ -236,6 +237,11 @@ struct wlr_output_event_present {
 struct wlr_output_event_bind {
 	struct wlr_output *output;
 	struct wl_resource *resource;
+};
+
+struct wlr_output_event_request_state {
+	struct wlr_output *output;
+	struct wlr_output_state state;
 };
 
 struct wlr_surface;

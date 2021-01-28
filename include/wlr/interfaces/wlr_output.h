@@ -138,5 +138,10 @@ void wlr_output_send_frame(struct wlr_output *output);
  */
 void wlr_output_send_present(struct wlr_output *output,
 	struct wlr_output_event_present *event);
+/**
+ * Request the compositor to apply new state.
+ */
+void wlr_output_send_request_state(struct wlr_output *output,
+	const struct wlr_output_state *state);
 
 #endif
