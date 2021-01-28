@@ -6,6 +6,7 @@
 #include <wayland-client.h>
 #include <wayland-egl.h>
 #include <wlr/render/egl.h>
+#include "egl_common.h"
 #include "wlr-input-inhibitor-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
@@ -18,12 +19,11 @@ static struct xdg_wm_base *wm_base = NULL;
 static struct zwlr_input_inhibit_manager_v1 *input_inhibit_manager = NULL;
 static struct zwlr_input_inhibitor_v1 *input_inhibitor = NULL;
 
-struct wlr_egl *egl;
 struct wl_egl_window *egl_window;
 struct wlr_egl_surface *egl_surface;
 
 static void render_frame(void) {
-	eglMakeCurrent(egl->display, egl_surface, egl_surface, egl->context);
+	eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context);
 
 	glViewport(0, 0, width, height);
 	if (keys) {
@@ -33,7 +33,7 @@ static void render_frame(void) {
 	}
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	eglSwapBuffers(egl->display, egl_surface);
+	eglSwapBuffers(egl_display, egl_surface);
 }
 
 static void xdg_surface_handle_configure(void *data,
@@ -157,8 +157,7 @@ int main(int argc, char **argv) {
 			input_inhibit_manager);
 	assert(input_inhibitor);
 
-	EGLint attribs[] = { EGL_NONE };
-	egl = wlr_egl_create(EGL_PLATFORM_WAYLAND_EXT, display, attribs);
+	egl_init(display);
 
 	struct wl_surface *surface = wl_compositor_create_surface(compositor);
 	assert(surface);
@@ -174,7 +173,8 @@ int main(int argc, char **argv) {
 	wl_surface_commit(surface);
 
 	egl_window = wl_egl_window_create(surface, width, height);
-	egl_surface = wlr_egl_create_surface(egl, egl_window);
+	egl_surface = eglCreatePlatformWindowSurfaceEXT(
+		egl_display, egl_config, egl_window, NULL);
 
 	wl_display_roundtrip(display);
 
