@@ -360,6 +360,8 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		}
 	}
 
+	wl_display_flush(output->backend->remote_display);
+
 	return true;
 }
 
@@ -460,6 +462,7 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 	}
 
 	update_wl_output_cursor(output);
+	wl_display_flush(backend->remote_display);
 	return true;
 }
 
@@ -494,6 +497,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 	xdg_toplevel_destroy(output->xdg_toplevel);
 	xdg_surface_destroy(output->xdg_surface);
 	wl_surface_destroy(output->surface);
+	wl_display_flush(output->backend->remote_display);
 	free(output);
 }
 
@@ -679,6 +683,7 @@ void wlr_wl_output_set_title(struct wlr_output *output, const char *title) {
 	}
 
 	xdg_toplevel_set_title(wl_output->xdg_toplevel, title);
+	wl_display_flush(wl_output->backend->remote_display);
 }
 
 struct wl_surface *wlr_wl_output_get_surface(struct wlr_output *output) {

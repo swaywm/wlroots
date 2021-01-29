@@ -324,6 +324,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	xdg_wm_base_destroy(wl->xdg_wm_base);
 	wl_compositor_destroy(wl->compositor);
 	wl_registry_destroy(wl->registry);
+	wl_display_flush(wl->remote_display);
 	wl_display_disconnect(wl->remote_display);
 	free(wl);
 }
