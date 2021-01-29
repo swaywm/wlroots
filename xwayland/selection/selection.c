@@ -35,6 +35,7 @@ void xwm_selection_transfer_destroy_property_reply(
 
 void xwm_selection_transfer_finish(
 		struct wlr_xwm_selection_transfer *transfer) {
+	transfer->incr = false;
 	xwm_selection_transfer_destroy_property_reply(transfer);
 	xwm_selection_transfer_remove_event_source(transfer);
 	xwm_selection_transfer_close_wl_client_fd(transfer);
