@@ -559,7 +559,7 @@ static void xdg_toplevel_handle_close(void *data,
 	struct wlr_wl_output *output = data;
 	assert(output && output->xdg_toplevel == xdg_toplevel);
 
-	wlr_output_destroy((struct wlr_output *)output);
+	wlr_output_destroy(&output->wlr_output);
 }
 
 static struct xdg_toplevel_listener xdg_toplevel_listener = {
