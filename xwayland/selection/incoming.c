@@ -150,6 +150,21 @@ static void source_send(struct wlr_xwm_selection *selection,
 		return;
 	}
 
+	// FIXME: we currently can't handle two X11-to-Wayland transfers at once due
+	// to reusing the same X11 window. Proceeding further here would lead us to
+	// lose track of the current `transfer->wl_client_fd` and use-after-free
+	// during cleanup. This doesn't happen often, but bail now to avoid a
+	// compositor crash later.
+	if (transfer->wl_client_fd > 0) {
+		wlr_log(WLR_ERROR, "source_send fd %d, but %d already in progress", fd,
+			transfer->wl_client_fd);
+		if (transfer->wl_client_fd != fd) {
+			close(fd);
+		}
+
+		return;
+	}
+
 	xcb_convert_selection(xwm->xcb_conn,
 		selection->window,
 		selection->atom,
