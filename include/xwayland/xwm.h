@@ -56,6 +56,8 @@ enum atom_name {
 	TIMESTAMP,
 	DELETE,
 	NET_STARTUP_ID,
+	NET_STARTUP_INFO,
+	NET_STARTUP_INFO_BEGIN,
 	NET_WM_WINDOW_TYPE_NORMAL,
 	NET_WM_WINDOW_TYPE_UTILITY,
 	NET_WM_WINDOW_TYPE_TOOLTIP,
@@ -113,6 +115,7 @@ struct wlr_xwm {
 	// Surfaces in bottom-to-top stacking order, for _NET_CLIENT_LIST_STACKING
 	struct wl_list surfaces_in_stack_order; // wlr_xwayland_surface::stack_link
 	struct wl_list unpaired_surfaces; // wlr_xwayland_surface::unpaired_link
+	struct wl_list pending_startup_ids; // pending_startup_id
 
 	struct wlr_drag *drag;
 	struct wlr_xwayland_surface *drag_focus;
