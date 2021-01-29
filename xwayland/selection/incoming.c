@@ -397,11 +397,14 @@ void xwm_handle_selection_notify(struct wlr_xwm *xwm,
 
 	if (event->property == XCB_ATOM_NONE) {
 		wlr_log(WLR_ERROR, "convert selection failed");
+		xwm_selection_transfer_finish(&selection->incoming);
 	} else if (event->target == xwm->atoms[TARGETS]) {
 		// No xwayland surface focused, deny access to clipboard
 		if (xwm->focus_surface == NULL) {
 			wlr_log(WLR_DEBUG, "denying write access to clipboard: "
 				"no xwayland surface focused");
+			// Would leak this transfer otherwise. Should never happen.
+			assert(selection->incoming.wl_client_fd <= 0);
 			return;
 		}
 
