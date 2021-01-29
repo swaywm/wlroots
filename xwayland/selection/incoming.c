@@ -100,8 +100,8 @@ void xwm_get_incr_chunk(struct wlr_xwm_selection_transfer *transfer) {
 	if (xcb_get_property_value_length(transfer->property_reply) > 0) {
 		xwm_write_selection_property_to_wl_client(transfer);
 	} else {
-		xwm_selection_transfer_finish(transfer);
 		wlr_log(WLR_DEBUG, "incremental transfer complete");
+		xwm_selection_transfer_finish(transfer);
 	}
 }
 
@@ -117,7 +117,6 @@ static void xwm_selection_get_data(struct wlr_xwm_selection *selection) {
 		transfer->incr = true;
 		xwm_selection_transfer_destroy_property_reply(transfer);
 	} else {
-		transfer->incr = false;
 		// Reply's ownership is transferred to wm, which is responsible for freeing
 		// it.
 		xwm_write_selection_property_to_wl_client(transfer);
