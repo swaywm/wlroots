@@ -81,8 +81,7 @@ bool egl_init(struct wl_display *display) {
 		goto error;
 	}
 
-	EGLint major, minor;
-	if (eglInitialize(egl_display, &major, &minor) == EGL_FALSE) {
+	if (eglInitialize(egl_display, NULL, NULL) == EGL_FALSE) {
 		wlr_log(WLR_ERROR, "Failed to initialize EGL");
 		goto error;
 	}
