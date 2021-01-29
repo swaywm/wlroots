@@ -31,6 +31,10 @@ void wlr_input_device_destroy(struct wlr_input_device *dev) {
 		return;
 	}
 
+	if (dev->_device && dev->type == WLR_INPUT_DEVICE_KEYBOARD) {
+		wlr_keyboard_release_keys(dev->keyboard);
+	}
+
 	wlr_signal_emit_safe(&dev->events.destroy, dev);
 
 	if (dev->_device) {

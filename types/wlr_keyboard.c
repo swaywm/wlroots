@@ -1,7 +1,9 @@
+#define _POSIX_C_SOURCE 200809L
 #include "util/array.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <wayland-server-core.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/types/wlr_keyboard.h>
@@ -122,6 +124,22 @@ void wlr_keyboard_init(struct wlr_keyboard *kb,
 	// Sane defaults
 	kb->repeat_info.rate = 25;
 	kb->repeat_info.delay = 600;
+}
+
+void wlr_keyboard_release_keys(struct wlr_keyboard *kb) {
+	// This is a while loop rather than a for loop because releasing keys
+	// can make some keys pressed
+	while (kb->num_keycodes > 0) {
+		struct timespec now;
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		struct wlr_event_keyboard_key event = {
+			.time_msec = (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000,
+			.keycode = kb->keycodes[0],
+			.update_state = false,
+			.state = WL_KEYBOARD_KEY_STATE_RELEASED,
+		};
+		wlr_keyboard_notify_key(kb, &event);
+	}
 }
 
 void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
