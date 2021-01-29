@@ -61,6 +61,8 @@ const char *const atom_map[ATOM_LAST] = {
 	[TIMESTAMP] = "TIMESTAMP",
 	[DELETE] = "DELETE",
 	[NET_STARTUP_ID] = "_NET_STARTUP_ID",
+	[NET_STARTUP_INFO] = "_NET_STARTUP_INFO",
+	[NET_STARTUP_INFO_BEGIN] = "_NET_STARTUP_INFO_BEGIN",
 	[NET_WM_WINDOW_TYPE_NORMAL] = "_NET_WM_WINDOW_TYPE_NORMAL",
 	[NET_WM_WINDOW_TYPE_UTILITY] = "_NET_WM_WINDOW_TYPE_UTILITY",
 	[NET_WM_WINDOW_TYPE_TOOLTIP] = "_NET_WM_WINDOW_TYPE_TOOLTIP",
@@ -87,6 +89,14 @@ const char *const atom_map[ATOM_LAST] = {
 	[DND_ACTION_PRIVATE] = "XdndActionPrivate",
 	[NET_CLIENT_LIST] = "_NET_CLIENT_LIST",
 	[NET_CLIENT_LIST_STACKING] = "_NET_CLIENT_LIST_STACKING",
+};
+
+#define STARTUP_INFO_REMOVE_PREFIX "remove: ID="
+struct pending_startup_id {
+	char *msg;
+	size_t len;
+	xcb_window_t window;
+	struct wl_list link;
 };
 
 static const struct wlr_surface_role xwayland_surface_role;
@@ -1361,6 +1371,73 @@ static void xwm_handle_net_active_window_message(struct wlr_xwm *xwm,
 	wlr_signal_emit_safe(&surface->events.request_activate, surface);
 }
 
+static void pending_startup_id_destroy(struct pending_startup_id *pending) {
+	wl_list_remove(&pending->link);
+	free(pending->msg);
+	free(pending);
+}
+
+static void xwm_handle_net_startup_info_message(struct wlr_xwm *xwm,
+		xcb_client_message_event_t *ev) {
+	struct pending_startup_id *pending, *curr = NULL;
+	wl_list_for_each(pending, &xwm->pending_startup_ids, link) {
+		if (pending->window == ev->window) {
+			curr = pending;
+			break;
+		}
+	}
+
+	char *start;
+	size_t buf_len = sizeof(ev->data);
+	if (curr) {
+		curr->msg = realloc(curr->msg, curr->len + buf_len);
+		if (!curr->msg) {
+			pending_startup_id_destroy(curr);
+			return;
+		}
+		start = curr->msg + curr->len;
+		curr->len += buf_len;
+	} else {
+		curr = calloc(1, sizeof(struct pending_startup_id));
+		if (!curr)
+			return;
+		curr->window = ev->window;
+		curr->msg = malloc(buf_len);
+		if (!curr->msg) {
+			free(curr);
+			return;
+		}
+		start = curr->msg;
+		curr->len = buf_len;
+		wl_list_insert(&xwm->pending_startup_ids, &curr->link);
+	}
+
+	char *id = NULL;
+	const char *data = (const char *)ev->data.data8;
+	for (size_t i = 0; i < buf_len; i++) {
+		start[i] = data[i];
+		if (start[i] == '\0') {
+			if (strncmp(curr->msg, STARTUP_INFO_REMOVE_PREFIX,
+					strlen(STARTUP_INFO_REMOVE_PREFIX)) == 0 &&
+					strlen(curr->msg) > strlen(STARTUP_INFO_REMOVE_PREFIX)) {
+				id = curr->msg + strlen(STARTUP_INFO_REMOVE_PREFIX);
+				break;
+			} else {
+				wlr_log(WLR_ERROR, "Unhandled message '%s'\n", curr->msg);
+				pending_startup_id_destroy(curr);
+				return;
+			}
+		}
+	}
+
+	if (id) {
+		struct wlr_xwayland_remove_startup_info_event data = { id, ev->window };
+		wlr_log(WLR_DEBUG, "Got startup id: %s", id);
+		wlr_signal_emit_safe(&xwm->xwayland->events.remove_startup_info, &data);
+		pending_startup_id_destroy(curr);
+	}
+}
+
 static void xwm_handle_wm_change_state_message(struct wlr_xwm *xwm,
 		xcb_client_message_event_t *ev) {
 	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
@@ -1399,6 +1476,9 @@ static void xwm_handle_client_message(struct wlr_xwm *xwm,
 		xwm_handle_wm_protocols_message(xwm, ev);
 	} else if (ev->type == xwm->atoms[NET_ACTIVE_WINDOW]) {
 		xwm_handle_net_active_window_message(xwm, ev);
+	} else if (ev->type == xwm->atoms[NET_STARTUP_INFO] ||
+			ev->type == xwm->atoms[NET_STARTUP_INFO_BEGIN]) {
+		xwm_handle_net_startup_info_message(xwm, ev);
 	} else if (ev->type == xwm->atoms[WM_CHANGE_STATE]) {
 		xwm_handle_wm_change_state_message(xwm, ev);
 	} else if (!xwm_handle_selection_client_message(xwm, ev)) {
@@ -1718,6 +1798,11 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	wl_list_remove(&xwm->compositor_destroy.link);
 	xcb_disconnect(xwm->xcb_conn);
 
+	struct pending_startup_id *pending, *next;
+	wl_list_for_each_safe(pending, next, &xwm->pending_startup_ids, link) {
+		pending_startup_id_destroy(pending);
+	}
+
 	xwm->xwayland->xwm = NULL;
 	free(xwm);
 }
@@ -1958,6 +2043,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 	wl_list_init(&xwm->surfaces);
 	wl_list_init(&xwm->surfaces_in_stack_order);
 	wl_list_init(&xwm->unpaired_surfaces);
+	wl_list_init(&xwm->pending_startup_ids);
 	xwm->ping_timeout = 10000;
 
 	xwm->xcb_conn = xcb_connect_to_fd(wm_fd, NULL);
