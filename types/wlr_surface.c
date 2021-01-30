@@ -986,6 +986,9 @@ static void subsurface_handle_parent_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_subsurface *subsurface =
 		wl_container_of(listener, subsurface, parent_destroy);
+	assert(data == subsurface->parent);
+	assert(subsurface->surface != subsurface->parent);
+
 	subsurface_unmap(subsurface);
 	wl_list_remove(&subsurface->parent_link);
 	wl_list_remove(&subsurface->parent_pending_link);
