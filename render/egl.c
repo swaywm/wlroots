@@ -292,6 +292,12 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 		goto error;
 	}
 
+	if (!check_egl_ext(display_exts_str, "EGL_KHR_surfaceless_context")) {
+		wlr_log(WLR_ERROR, 
+			"EGL_KHR_surfaceless_context not supported");
+		goto error;
+	}
+
 	wlr_log(WLR_INFO, "Using EGL %d.%d", (int)major, (int)minor);
 	wlr_log(WLR_INFO, "Supported EGL client extensions: %s", client_exts_str);
 	wlr_log(WLR_INFO, "Supported EGL display extensions: %s", display_exts_str);
