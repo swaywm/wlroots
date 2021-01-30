@@ -66,7 +66,7 @@ static struct wlr_xwm_selection_transfer *xwm_selection_transfer_get_first(
 	return first;
 }
 
-static void xwm_selection_transfer_destroy_outgoing(
+void xwm_selection_transfer_destroy_outgoing(
 		struct wlr_xwm_selection_transfer *transfer) {
 	struct wlr_xwm_selection *selection = transfer->selection;
 	bool was_first = transfer == xwm_selection_transfer_get_first(selection);
