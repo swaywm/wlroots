@@ -297,6 +297,7 @@ static bool xwm_selection_send_data(struct wlr_xwm_selection *selection,
 		return false;
 	}
 
+	xwm_selection_transfer_init(transfer);
 	transfer->selection = selection;
 	transfer->request = *req;
 	wl_array_init(&transfer->source_data);

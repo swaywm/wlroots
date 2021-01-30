@@ -32,6 +32,10 @@ void xwm_selection_transfer_destroy_property_reply(
 	transfer->property_reply = NULL;
 }
 
+void xwm_selection_transfer_init(struct wlr_xwm_selection_transfer *transfer) {
+	transfer->wl_client_fd = -1;
+}
+
 void xwm_selection_transfer_finish(
 		struct wlr_xwm_selection_transfer *transfer) {
 	transfer->incr = false;
@@ -182,6 +186,7 @@ static void selection_init(struct wlr_xwm *xwm,
 	selection->window = xwm->selection_window;
 	selection->incoming.selection = selection;
 	wl_list_init(&selection->outgoing);
+	xwm_selection_transfer_init(&selection->incoming);
 
 	uint32_t mask =
 		XCB_XFIXES_SELECTION_EVENT_MASK_SET_SELECTION_OWNER |

@@ -155,7 +155,7 @@ static void source_send(struct wlr_xwm_selection *selection,
 	// lose track of the current `transfer->wl_client_fd` and use-after-free
 	// during cleanup. This doesn't happen often, but bail now to avoid a
 	// compositor crash later.
-	if (transfer->wl_client_fd > 0) {
+	if (transfer->wl_client_fd >= 0) {
 		wlr_log(WLR_ERROR, "source_send fd %d, but %d already in progress", fd,
 			transfer->wl_client_fd);
 		if (transfer->wl_client_fd != fd) {
@@ -404,7 +404,7 @@ void xwm_handle_selection_notify(struct wlr_xwm *xwm,
 			wlr_log(WLR_DEBUG, "denying write access to clipboard: "
 				"no xwayland surface focused");
 			// Would leak this transfer otherwise. Should never happen.
-			assert(selection->incoming.wl_client_fd <= 0);
+			assert(selection->incoming.wl_client_fd < 0);
 			return;
 		}
 
