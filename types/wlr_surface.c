@@ -1039,8 +1039,8 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 	subsurface->parent = parent;
 	wl_signal_add(&parent->events.destroy, &subsurface->parent_destroy);
 	subsurface->parent_destroy.notify = subsurface_handle_parent_destroy;
-	wl_list_insert(parent->subsurfaces.prev, &subsurface->parent_link);
-	wl_list_insert(parent->subsurface_pending_list.prev,
+	wl_list_insert(&parent->subsurfaces, &subsurface->parent_link);
+	wl_list_insert(&parent->subsurface_pending_list,
 		&subsurface->parent_pending_link);
 
 	surface->role_data = subsurface;
