@@ -5,7 +5,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <wlr/types/wlr_data_device.h>
-#include <wlr/types/wlr_primary_selection.h>
 #include <wlr/util/log.h>
 #include <xcb/xfixes.h>
 #include "xwayland/selection.h"
@@ -245,53 +244,18 @@ void xwm_selection_init(struct wlr_xwm *xwm) {
 	selection_init(xwm, &xwm->dnd_selection, xwm->atoms[DND_SELECTION]);
 }
 
-void xwm_selection_finish(struct wlr_xwm *xwm) {
-	if (!xwm) {
+void xwm_selection_finish(struct wlr_xwm_selection *selection) {
+	if (!selection) {
 		return;
 	}
 
-	struct wlr_xwm_selection *selections[] = {
-		&xwm->clipboard_selection,
-		&xwm->primary_selection,
-		&xwm->dnd_selection,
-	};
-
-	for (size_t i = 0; i < sizeof(selections)/sizeof(selections[0]); i++) {
-		struct wlr_xwm_selection *selection = selections[i];
-
-		struct wlr_xwm_selection_transfer *outgoing, *tmp;
-		wl_list_for_each_safe(outgoing, tmp, &selection->outgoing, outgoing_link) {
-			wlr_log(WLR_INFO, "destroyed pending transfer %ld/%p", i, outgoing);
-			xwm_selection_transfer_destroy_outgoing(outgoing);
-		}
-
-		xwm_selection_transfer_finish(&selection->incoming);
+	struct wlr_xwm_selection_transfer *outgoing, *tmp;
+	wl_list_for_each_safe(outgoing, tmp, &selection->outgoing, outgoing_link) {
+		wlr_log(WLR_INFO, "destroyed pending transfer %p", outgoing);
+		xwm_selection_transfer_destroy_outgoing(outgoing);
 	}
 
-	if (xwm->selection_window) {
-		xcb_destroy_window(xwm->xcb_conn, xwm->selection_window);
-	}
-
-	if (xwm->dnd_window) {
-		xcb_destroy_window(xwm->xcb_conn, xwm->dnd_window);
-	}
-
-	if (xwm->seat) {
-		if (xwm->seat->selection_source &&
-				data_source_is_xwayland(xwm->seat->selection_source)) {
-			wlr_seat_set_selection(xwm->seat, NULL,
-				wl_display_next_serial(xwm->xwayland->wl_display));
-		}
-
-		if (xwm->seat->primary_selection_source &&
-				primary_selection_source_is_xwayland(
-					xwm->seat->primary_selection_source)) {
-			wlr_seat_set_primary_selection(xwm->seat, NULL,
-				wl_display_next_serial(xwm->xwayland->wl_display));
-		}
-
-		wlr_xwayland_set_seat(xwm->xwayland, NULL);
-	}
+	xwm_selection_transfer_finish(&selection->incoming);
 }
 
 static void xwm_selection_set_owner(struct wlr_xwm_selection *selection,
