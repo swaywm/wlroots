@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <wlr/config.h>
+#include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/edges.h>
 #include <wlr/util/log.h>
@@ -1581,7 +1583,36 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	if (!xwm) {
 		return;
 	}
-	xwm_selection_finish(xwm);
+
+	xwm_selection_finish(&xwm->clipboard_selection);
+	xwm_selection_finish(&xwm->primary_selection);
+	xwm_selection_finish(&xwm->dnd_selection);
+
+	if (xwm->selection_window) {
+		xcb_destroy_window(xwm->xcb_conn, xwm->selection_window);
+	}
+
+	if (xwm->dnd_window) {
+		xcb_destroy_window(xwm->xcb_conn, xwm->dnd_window);
+	}
+
+	if (xwm->seat) {
+		if (xwm->seat->selection_source &&
+				data_source_is_xwayland(xwm->seat->selection_source)) {
+			wlr_seat_set_selection(xwm->seat, NULL,
+				wl_display_next_serial(xwm->xwayland->wl_display));
+		}
+
+		if (xwm->seat->primary_selection_source &&
+				primary_selection_source_is_xwayland(
+					xwm->seat->primary_selection_source)) {
+			wlr_seat_set_primary_selection(xwm->seat, NULL,
+				wl_display_next_serial(xwm->xwayland->wl_display));
+		}
+
+		wlr_xwayland_set_seat(xwm->xwayland, NULL);
+	}
+
 	if (xwm->cursor) {
 		xcb_free_cursor(xwm->xcb_conn, xwm->cursor);
 	}
