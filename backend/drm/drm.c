@@ -328,28 +328,27 @@ static void drm_plane_set_committed(struct wlr_drm_plane *plane) {
 	}
 }
 
-static bool drm_crtc_commit(struct wlr_drm_connector *conn, uint32_t flags) {
+static bool drm_crtc_commit(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state) {
 	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
-	bool ok = drm->iface->crtc_commit(drm, conn, flags);
-	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
-		memcpy(&crtc->current, &crtc->pending, sizeof(struct wlr_drm_crtc_state));
+	bool ok = drm->iface->crtc_commit(drm, conn, state);
+	if (ok) {
 		drm_plane_set_committed(crtc->primary);
 		if (crtc->cursor != NULL) {
 			drm_plane_set_committed(crtc->cursor);
 		}
 	} else {
-		memcpy(&crtc->pending, &crtc->current, sizeof(struct wlr_drm_crtc_state));
 		drm_fb_clear(&crtc->primary->pending_fb);
 		if (crtc->cursor != NULL) {
 			drm_fb_clear(&crtc->cursor->pending_fb);
 		}
 	}
-	crtc->pending_modeset = false;
 	return ok;
 }
 
-static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
+static bool drm_crtc_page_flip(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state) {
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	assert(crtc != NULL);
 
@@ -357,15 +356,16 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 	// page-flip, either a blocking modeset. When performing a blocking modeset
 	// we'll wait for all queued page-flips to complete, so we don't need this
 	// safeguard.
-	if (conn->pending_page_flip_crtc && !crtc->pending_modeset) {
+	if (conn->pending_page_flip_crtc &&
+			!drm_connector_state_allow_modeset(state)) {
 		wlr_drm_conn_log(conn, WLR_ERROR, "Failed to page-flip output: "
 			"a page-flip is already pending");
 		return false;
 	}
 
-	assert(crtc->pending.active);
+	assert(drm_connector_state_active(conn, state));
 	assert(plane_get_next_fb(crtc->primary));
-	if (!drm_crtc_commit(conn, DRM_MODE_PAGE_FLIP_EVENT)) {
+	if (!drm_crtc_commit(conn, state)) {
 		return false;
 	}
 
@@ -480,7 +480,7 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 		break;
 	}
 
-	if (!drm_crtc_page_flip(conn)) {
+	if (!drm_crtc_page_flip(conn, &conn->output.pending)) {
 		return false;
 	}
 
@@ -643,7 +643,8 @@ struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
 	return plane->current_fb;
 }
 
-static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn) {
+static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state) {
 	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	if (!crtc) {
@@ -662,11 +663,11 @@ static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn) {
 		}
 	}
 
-	return drm_crtc_page_flip(conn);
+	return drm_crtc_page_flip(conn, state);
 }
 
 static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
-		struct wlr_drm_mode *mode) {
+		struct wlr_output_state *state) {
 	struct wlr_drm_backend *drm = conn->backend;
 
 	if (conn->state != WLR_DRM_CONN_CONNECTED &&
@@ -684,17 +685,15 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	crtc->pending_modeset = true;
-	crtc->pending.active = true;
-	crtc->pending.mode = mode;
-
-	int width = mode->wlr_mode.width;
-	int height = mode->wlr_mode.height;
+	drmModeModeInfo *mode = drm_connector_state_mode(conn, state);
+	assert(mode != NULL);
+	int width = mode->hdisplay;
+	int height = mode->vdisplay;
 	uint32_t format = DRM_FORMAT_ARGB8888;
 
 	bool modifiers = drm->addfb2_modifiers;
 	if (!drm_plane_init_surface(plane, drm, width, height, format, modifiers) ||
-			!drm_connector_pageflip_renderer(conn)) {
+			!drm_connector_pageflip_renderer(conn, state)) {
 		if (!modifiers) {
 			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer:"
 				"initial page-flip failed");
@@ -708,15 +707,11 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 			"retrying without modifiers");
 		modifiers = false;
 
-		crtc->pending_modeset = true;
-		crtc->pending.active = true;
-		crtc->pending.mode = mode;
-
 		if (!drm_plane_init_surface(plane, drm, width, height, format,
 				modifiers)) {
 			return false;
 		}
-		if (!drm_connector_pageflip_renderer(conn)) {
+		if (!drm_connector_pageflip_renderer(conn, state)) {
 			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer:"
 				"initial page-flip failed");
 			return false;
@@ -750,11 +745,15 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 	conn->desired_enabled = wlr_mode != NULL;
 	conn->desired_mode = wlr_mode;
 
+	struct wlr_output_state state = conn->output.pending;
+	state.committed |= WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_ENABLED;
+	state.enabled = wlr_mode != NULL;
+	state.mode_type = WLR_OUTPUT_STATE_MODE_FIXED;
+	state.mode = wlr_mode;
+
 	if (wlr_mode == NULL) {
 		if (conn->crtc != NULL) {
-			conn->crtc->pending_modeset = true;
-			conn->crtc->pending.active = false;
-			if (!drm_crtc_commit(conn, 0)) {
+			if (!drm_crtc_commit(conn, &state)) {
 				return false;
 			}
 			realloc_crtcs(drm);
@@ -785,8 +784,7 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 		"Modesetting with '%" PRId32 "x%" PRId32 "@%" PRId32 "mHz'",
 		wlr_mode->width, wlr_mode->height, wlr_mode->refresh);
 
-	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)wlr_mode;
-	if (!drm_connector_init_renderer(conn, mode)) {
+	if (!drm_connector_init_renderer(conn, &state)) {
 		wlr_drm_conn_log(conn, WLR_ERROR,
 			"Failed to initialize renderer for plane");
 		return false;
@@ -1038,6 +1036,33 @@ uint32_t wlr_drm_connector_get_id(struct wlr_output *output) {
 	return conn->id;
 }
 
+bool drm_connector_state_allow_modeset(const struct wlr_output_state *state) {
+	return state->committed &
+		(WLR_OUTPUT_STATE_ENABLED | WLR_OUTPUT_STATE_MODE);
+}
+
+bool drm_connector_state_active(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state) {
+	if (state->committed & WLR_OUTPUT_STATE_ENABLED) {
+		return state->enabled;
+	}
+	return conn->output.enabled;
+}
+
+drmModeModeInfo *drm_connector_state_mode(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state) {
+	if (!drm_connector_state_active(conn, state)) {
+		return NULL;
+	}
+	struct wlr_output_mode *wlr_mode = conn->output.current_mode;
+	if (state->committed & WLR_OUTPUT_STATE_MODE) {
+		assert(state->mode_type == WLR_OUTPUT_STATE_MODE_FIXED);
+		wlr_mode = state->mode;
+	}
+	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)wlr_mode;
+	return &mode->drm_mode;
+}
+
 static const int32_t subpixel_map[] = {
 	[DRM_MODE_SUBPIXEL_UNKNOWN] = WL_OUTPUT_SUBPIXEL_UNKNOWN,
 	[DRM_MODE_SUBPIXEL_HORIZONTAL_RGB] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB,
@@ -1056,9 +1081,11 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 	wlr_drm_conn_log(conn, WLR_DEBUG, "De-allocating CRTC %zu",
 		conn->crtc - drm->crtcs);
 
-	conn->crtc->pending_modeset = true;
-	conn->crtc->pending.active = false;
-	if (!drm_crtc_commit(conn, 0)) {
+	struct wlr_output_state state = {
+		.committed = WLR_OUTPUT_STATE_ENABLED,
+		.enabled = false,
+	};
+	if (!drm_crtc_commit(conn, &state)) {
 		return;
 	}
 
@@ -1182,9 +1209,12 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 			continue;
 		}
 
-		struct wlr_drm_mode *mode =
-			(struct wlr_drm_mode *)conn->output.current_mode;
-		if (!drm_connector_init_renderer(conn, mode)) {
+		struct wlr_output_state state = {
+			.committed = WLR_OUTPUT_STATE_MODE,
+			.mode_type = WLR_OUTPUT_STATE_MODE_FIXED,
+			.mode = conn->output.current_mode,
+		};
+		if (!drm_connector_init_renderer(conn, &state)) {
 			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer");
 			wlr_output_update_enabled(&conn->output, false);
 			continue;

@@ -53,13 +53,15 @@ static void atomic_add(struct atomic *atom, uint32_t id, uint32_t prop, uint64_t
 }
 
 static bool create_mode_blob(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, uint32_t *blob_id) {
-	if (!crtc->pending.active) {
+		struct wlr_drm_connector *conn, const struct wlr_output_state *state,
+		uint32_t *blob_id) {
+	drmModeModeInfo *mode = drm_connector_state_mode(conn, state);
+	if (mode == NULL) {
 		*blob_id = 0;
 		return true;
 	}
 
-	if (drmModeCreatePropertyBlob(drm->fd, &crtc->pending.mode->drm_mode,
+	if (drmModeCreatePropertyBlob(drm->fd, mode,
 			sizeof(drmModeModeInfo), blob_id)) {
 		wlr_log_errno(WLR_ERROR, "Unable to create mode property blob");
 		return false;
@@ -162,31 +164,34 @@ error:
 }
 
 static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, uint32_t flags) {
+		struct wlr_drm_connector *conn, const struct wlr_output_state *state) {
 	struct wlr_output *output = &conn->output;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
+	bool allow_modeset = drm_connector_state_allow_modeset(state);
+	bool active = drm_connector_state_active(conn, state);
+
 	uint32_t mode_id = crtc->mode_id;
-	if (crtc->pending_modeset) {
-		if (!create_mode_blob(drm, crtc, &mode_id)) {
+	if (allow_modeset) {
+		if (!create_mode_blob(drm, conn, state, &mode_id)) {
 			return false;
 		}
 	}
 
 	uint32_t gamma_lut = crtc->gamma_lut;
-	if (output->pending.committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
+	if (state->committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
 		// Fallback to legacy gamma interface when gamma properties are not
 		// available (can happen on older Intel GPUs that support gamma but not
 		// degamma).
 		if (crtc->props.gamma_lut == 0) {
 			if (!drm_legacy_crtc_set_gamma(drm, crtc,
-					output->pending.gamma_lut_size,
-					output->pending.gamma_lut)) {
+					state->gamma_lut_size,
+					state->gamma_lut)) {
 				return false;
 			}
 		} else {
-			if (!create_gamma_lut_blob(drm, output->pending.gamma_lut_size,
-					output->pending.gamma_lut, &gamma_lut)) {
+			if (!create_gamma_lut_blob(drm, state->gamma_lut_size,
+					state->gamma_lut, &gamma_lut)) {
 				return false;
 			}
 		}
@@ -195,12 +200,16 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	bool prev_vrr_enabled =
 		output->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED;
 	bool vrr_enabled = prev_vrr_enabled;
-	if ((output->pending.committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) &&
+	if ((state->committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) &&
 			drm_connector_supports_vrr(conn)) {
-		vrr_enabled = output->pending.adaptive_sync_enabled;
+		vrr_enabled = state->adaptive_sync_enabled;
 	}
 
-	if (crtc->pending_modeset) {
+	uint32_t flags = 0;
+	if (active) {
+		flags |= DRM_MODE_PAGE_FLIP_EVENT;
+	}
+	if (allow_modeset) {
 		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
 	} else {
 		flags |= DRM_MODE_ATOMIC_NONBLOCK;
@@ -208,16 +217,14 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 
 	struct atomic atom;
 	atomic_begin(&atom);
-	atomic_add(&atom, conn->id, conn->props.crtc_id,
-		crtc->pending.active ? crtc->id : 0);
-	if (crtc->pending_modeset && crtc->pending.active &&
-			conn->props.link_status != 0) {
+	atomic_add(&atom, conn->id, conn->props.crtc_id, active ? crtc->id : 0);
+	if (allow_modeset && active && conn->props.link_status != 0) {
 		atomic_add(&atom, conn->id, conn->props.link_status,
 			DRM_MODE_LINK_STATUS_GOOD);
 	}
 	atomic_add(&atom, crtc->id, crtc->props.mode_id, mode_id);
-	atomic_add(&atom, crtc->id, crtc->props.active, crtc->pending.active);
-	if (crtc->pending.active) {
+	atomic_add(&atom, crtc->id, crtc->props.active, active);
+	if (active) {
 		if (crtc->props.gamma_lut != 0) {
 			atomic_add(&atom, crtc->id, crtc->props.gamma_lut, gamma_lut);
 		}
