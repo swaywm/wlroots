@@ -468,6 +468,9 @@ static struct wlr_output_mode *drm_connector_get_pending_mode(
 			output->pending.custom_mode.height,
 			(float)output->pending.custom_mode.refresh / 1000, false, false);
 		mode.type = DRM_MODE_TYPE_USERDEF;
+		if (conn->hot_plug_mode) {
+			return &wlr_drm_connector_create_mode(output, &mode)->wlr_mode;
+		}
 		return wlr_drm_connector_add_mode(output, &mode);
 	}
 	abort();
@@ -536,6 +539,26 @@ bool drm_connector_supports_vrr(struct wlr_drm_connector *conn) {
 	return true;
 }
 
+bool drm_connector_has_hotplug_mode(struct wlr_drm_connector *conn) {
+	uint64_t hotplug_mode_update = 0;
+	struct wlr_drm_backend *drm = conn->backend;
+	get_drm_prop(drm->fd, conn->id, conn->props.hotplug_mode_update,
+		&hotplug_mode_update);
+	return hotplug_mode_update == 1;
+}
+
+bool drm_connector_get_preferred_mode(drmModeConnector *drm_conn,
+		drmModeModeInfo *drm_mode) {
+	bool found = false;
+	for (int i = 0; i < drm_conn->count_modes; ++i) {
+		if (drm_conn->modes[i].type & DRM_MODE_TYPE_PREFERRED) {
+			found = true;
+			*drm_mode = drm_conn->modes[i];
+		}
+	}
+	return found;
+}
+
 static bool drm_connector_commit(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = conn->backend;
@@ -567,6 +590,10 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		}
 
 		if (!drm_connector_set_mode(conn, wlr_mode)) {
+			if (conn->hot_plug_mode) {
+				struct wlr_drm_mode *drm_mode = (struct wlr_drm_mode *)wlr_mode;
+				free(drm_mode);
+			}
 			return false;
 		}
 	} else if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
@@ -763,7 +790,9 @@ static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
 				"Output has a desired mode and a CRTC, requesting a modeset");
 			struct wlr_output_state state = {
 				.committed = WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_ENABLED,
-				.mode_type = WLR_OUTPUT_STATE_MODE_FIXED,
+				.mode_type = conn->hot_plug_mode
+					? WLR_OUTPUT_STATE_MODE_CUSTOM
+					: WLR_OUTPUT_STATE_MODE_FIXED,
 				.mode = conn->desired_mode,
 				.enabled = true,
 			};
@@ -823,7 +852,12 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 
 	conn->state = WLR_DRM_CONN_CONNECTED;
 	conn->desired_mode = NULL;
+	struct wlr_output_mode *previous_mode = conn->output.current_mode;
 	wlr_output_update_mode(&conn->output, wlr_mode);
+	if (previous_mode != NULL && conn->hot_plug_mode) {
+		struct wlr_drm_mode *drm_mode = (struct wlr_drm_mode *)previous_mode;
+		free(drm_mode);
+	}
 	wlr_output_update_enabled(&conn->output, true);
 	conn->desired_enabled = true;
 
@@ -832,6 +866,20 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 	wlr_output_damage_whole(&conn->output);
 
 	return true;
+}
+
+struct wlr_drm_mode *wlr_drm_connector_create_mode(struct wlr_output *output,
+		const drmModeModeInfo *modeinfo) {
+	struct wlr_drm_mode *mode = calloc(1, sizeof(*mode));
+	if (!mode) {
+		return NULL;
+	}
+	memcpy(&mode->drm_mode, modeinfo, sizeof(*modeinfo));
+
+	mode->wlr_mode.width = mode->drm_mode.hdisplay;
+	mode->wlr_mode.height = mode->drm_mode.vdisplay;
+	mode->wlr_mode.refresh = calculate_refresh_rate(modeinfo);
+	return mode;
 }
 
 struct wlr_output_mode *wlr_drm_connector_add_mode(struct wlr_output *output,
@@ -850,15 +898,7 @@ struct wlr_output_mode *wlr_drm_connector_add_mode(struct wlr_output *output,
 		}
 	}
 
-	struct wlr_drm_mode *mode = calloc(1, sizeof(*mode));
-	if (!mode) {
-		return NULL;
-	}
-	memcpy(&mode->drm_mode, modeinfo, sizeof(*modeinfo));
-
-	mode->wlr_mode.width = mode->drm_mode.hdisplay;
-	mode->wlr_mode.height = mode->drm_mode.vdisplay;
-	mode->wlr_mode.refresh = calculate_refresh_rate(modeinfo);
+	struct wlr_drm_mode *mode = wlr_drm_connector_create_mode(output, modeinfo);
 
 	wlr_drm_conn_log(conn, WLR_INFO, "Registered custom mode "
 			"%"PRId32"x%"PRId32"@%"PRId32,
@@ -1020,7 +1060,15 @@ static void drm_connector_destroy_output(struct wlr_output *output) {
 
 	conn->state = WLR_DRM_CONN_DISCONNECTED;
 	conn->desired_enabled = false;
+	if (conn->desired_mode != NULL && conn->hot_plug_mode) {
+		struct wlr_drm_mode *drm_mode = (struct wlr_drm_mode *)conn->desired_mode;
+		free(drm_mode);
+	}
 	conn->desired_mode = NULL;
+	if (output->current_mode != NULL && conn->hot_plug_mode) {
+		struct wlr_drm_mode *drm_mode = (struct wlr_drm_mode *)output->current_mode;
+		free(drm_mode);
+	}
 	conn->possible_crtcs = 0;
 	conn->pending_page_flip_crtc = 0;
 
@@ -1186,7 +1234,12 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 				conn->state = WLR_DRM_CONN_NEEDS_MODESET;
 				wlr_output_update_enabled(&conn->output, false);
 				conn->desired_mode = conn->output.current_mode;
+				struct wlr_output_mode *previous_mode = conn->output.current_mode;
 				wlr_output_update_mode(&conn->output, NULL);
+				if (previous_mode != NULL && conn->hot_plug_mode) {
+					struct wlr_drm_mode *drm_mode = (struct wlr_drm_mode *)previous_mode;
+					free(drm_mode);
+				}
 			}
 			continue;
 		}
@@ -1331,6 +1384,44 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			}
 		}
 
+		if ((wlr_conn->state == WLR_DRM_CONN_CONNECTED
+				|| wlr_conn->state == WLR_DRM_CONN_NEEDS_MODESET) &&
+				drm_conn->connection == DRM_MODE_CONNECTED &&
+				wlr_conn->hot_plug_mode) {
+			wlr_log(WLR_INFO, "Scanning '%s' for hot plugged mode", wlr_conn->name);
+			drmModeModeInfo drm_mode;
+			if (!drm_connector_get_preferred_mode(drm_conn, &drm_mode)) {
+				wlr_log(WLR_ERROR,
+					"%s supports hotplug_mode_update but has no preferred mode",
+					wlr_conn->name);
+				return;
+			}
+
+			int32_t width = drm_mode.hdisplay;
+			int32_t height = drm_mode.vdisplay;
+			int32_t refresh = calculate_refresh_rate(&drm_mode);
+			if (width == wlr_conn->output.width &&
+					height == wlr_conn->output.height &&
+					refresh == wlr_conn->output.refresh) {
+				wlr_log(WLR_INFO, "No changes");
+				return;
+			}
+
+			wlr_log(WLR_INFO,
+					"Preferred mode changed to: %"PRId32"x%"PRId32"@%"PRId32"",
+					width, height, refresh);
+			struct wlr_output_state state = {
+				.committed = WLR_OUTPUT_STATE_MODE,
+				.mode_type = WLR_OUTPUT_STATE_MODE_CUSTOM,
+				.custom_mode = {
+					.width = width,
+					.height = height,
+					.refresh = refresh,
+				},
+			};
+			wlr_output_send_request_state(&wlr_conn->output, &state);
+		}
+
 		if (wlr_conn->state == WLR_DRM_CONN_DISCONNECTED &&
 				drm_conn->connection == DRM_MODE_CONNECTED) {
 			wlr_log(WLR_INFO, "'%s' connected", wlr_conn->name);
@@ -1350,6 +1441,8 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			wlr_conn->output.subpixel = subpixel_map[drm_conn->subpixel];
 
 			get_drm_connector_props(drm->fd, wlr_conn->id, &wlr_conn->props);
+
+			wlr_conn->hot_plug_mode = drm_connector_has_hotplug_mode(wlr_conn);
 
 			size_t edid_len = 0;
 			uint8_t *edid = get_drm_prop_blob(drm->fd,
@@ -1376,34 +1469,49 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 
 			free(subconnector);
 
-			wlr_log(WLR_INFO, "Detected modes:");
-
-			for (int i = 0; i < drm_conn->count_modes; ++i) {
-				struct wlr_drm_mode *mode = calloc(1, sizeof(*mode));
-				if (!mode) {
-					wlr_log_errno(WLR_ERROR, "Allocation failed");
-					continue;
+			if (wlr_conn->hot_plug_mode) {
+				drmModeModeInfo drm_mode;
+				if (!drm_connector_get_preferred_mode(drm_conn, &drm_mode)) {
+					wlr_log(WLR_ERROR,
+						"%s supports hotplug_mode_update but has no preferred mode",
+						wlr_conn->name);
+					abort();
 				}
+				wlr_log(WLR_INFO, "Detected hot pluggable mode");
+				int32_t width = drm_mode.hdisplay;
+				int32_t height = drm_mode.vdisplay;
+				int32_t refresh = calculate_refresh_rate(&drm_mode);
+				wlr_output_set_custom_mode(output, width, height, refresh);
+			} else {
+				wlr_log(WLR_INFO, "Detected modes:");
 
-				if (drm_conn->modes[i].flags & DRM_MODE_FLAG_INTERLACE) {
-					free(mode);
-					continue;
+				for (int i = 0; i < drm_conn->count_modes; ++i) {
+					struct wlr_drm_mode *mode = calloc(1, sizeof(*mode));
+					if (!mode) {
+						wlr_log_errno(WLR_ERROR, "Allocation failed");
+						continue;
+					}
+
+					if (drm_conn->modes[i].flags & DRM_MODE_FLAG_INTERLACE) {
+						free(mode);
+						continue;
+					}
+
+					mode->drm_mode = drm_conn->modes[i];
+					mode->wlr_mode.width = mode->drm_mode.hdisplay;
+					mode->wlr_mode.height = mode->drm_mode.vdisplay;
+					mode->wlr_mode.refresh = calculate_refresh_rate(&mode->drm_mode);
+					if (mode->drm_mode.type & DRM_MODE_TYPE_PREFERRED) {
+						mode->wlr_mode.preferred = true;
+					}
+
+					wlr_log(WLR_INFO, "  %"PRId32"x%"PRId32"@%"PRId32" %s",
+						mode->wlr_mode.width, mode->wlr_mode.height,
+						mode->wlr_mode.refresh,
+						mode->wlr_mode.preferred ? "(preferred)" : "");
+
+					wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
 				}
-
-				mode->drm_mode = drm_conn->modes[i];
-				mode->wlr_mode.width = mode->drm_mode.hdisplay;
-				mode->wlr_mode.height = mode->drm_mode.vdisplay;
-				mode->wlr_mode.refresh = calculate_refresh_rate(&mode->drm_mode);
-				if (mode->drm_mode.type & DRM_MODE_TYPE_PREFERRED) {
-					mode->wlr_mode.preferred = true;
-				}
-
-				wlr_log(WLR_INFO, "  %"PRId32"x%"PRId32"@%"PRId32" %s",
-					mode->wlr_mode.width, mode->wlr_mode.height,
-					mode->wlr_mode.refresh,
-					mode->wlr_mode.preferred ? "(preferred)" : "");
-
-				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
 			}
 
 			wlr_conn->possible_crtcs = get_possible_crtcs(drm->fd, res, drm_conn);

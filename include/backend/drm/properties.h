@@ -18,6 +18,7 @@ union wlr_drm_connector_props {
 		uint32_t path;
 		uint32_t vrr_capable; // not guaranteed to exist
 		uint32_t subconnector; // not guaranteed to exist
+		uint32_t hotplug_mode_update; // not guaranteed to exist
 
 		// atomic-modesetting only
 
