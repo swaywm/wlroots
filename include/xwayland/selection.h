@@ -77,7 +77,8 @@ bool primary_selection_source_is_xwayland(
 
 void xwm_seat_handle_start_drag(struct wlr_xwm *xwm, struct wlr_drag *drag);
 
-void xwm_selection_init(struct wlr_xwm *xwm);
+void xwm_selection_init(struct wlr_xwm_selection *selection,
+	struct wlr_xwm *xwm, xcb_atom_t atom);
 void xwm_selection_finish(struct wlr_xwm_selection *selection);
 
 #endif
