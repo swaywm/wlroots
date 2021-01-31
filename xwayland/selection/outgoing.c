@@ -59,8 +59,7 @@ static struct wlr_xwm_selection_transfer *xwm_selection_transfer_get_first(
 		struct wlr_xwm_selection *selection) {
 	struct wlr_xwm_selection_transfer *first = NULL;
 	if (!wl_list_empty(&selection->outgoing)) {
-		first = wl_container_of(selection->outgoing.prev, first,
-			outgoing_link);
+		first = wl_container_of(selection->outgoing.prev, first, link);
 	}
 
 	return first;
@@ -70,7 +69,7 @@ void xwm_selection_transfer_destroy_outgoing(
 		struct wlr_xwm_selection_transfer *transfer) {
 	struct wlr_xwm_selection *selection = transfer->selection;
 	bool was_first = transfer == xwm_selection_transfer_get_first(selection);
-	wl_list_remove(&transfer->outgoing_link);
+	wl_list_remove(&transfer->link);
 	wlr_log(WLR_DEBUG, "Destroying transfer %p", transfer);
 
 	// Start next queued transfer if we just removed the active one.
@@ -297,8 +296,7 @@ static bool xwm_selection_send_data(struct wlr_xwm_selection *selection,
 		return false;
 	}
 
-	xwm_selection_transfer_init(transfer);
-	transfer->selection = selection;
+	xwm_selection_transfer_init(transfer, selection);
 	transfer->request = *req;
 	wl_array_init(&transfer->source_data);
 
@@ -325,7 +323,7 @@ static bool xwm_selection_send_data(struct wlr_xwm_selection *selection,
 	// from it. It appears to only ever read from the latest, so purge stale
 	// transfers to prevent clipboard hangs.
 	struct wlr_xwm_selection_transfer *outgoing, *tmp;
-	wl_list_for_each_safe(outgoing, tmp, &selection->outgoing, outgoing_link) {
+	wl_list_for_each_safe(outgoing, tmp, &selection->outgoing, link) {
 		if (transfer->request.requestor == outgoing->request.requestor) {
 			wlr_log(WLR_DEBUG, "Destroying stale transfer %p", outgoing);
 			xwm_selection_send_notify(selection->xwm, &outgoing->request, false);
@@ -333,7 +331,7 @@ static bool xwm_selection_send_data(struct wlr_xwm_selection *selection,
 		}
 	}
 
-	wl_list_insert(&selection->outgoing, &transfer->outgoing_link);
+	wl_list_insert(&selection->outgoing, &transfer->link);
 
 	// We can only handle one transfer at a time
 	if (wl_list_length(&selection->outgoing) == 1) {
@@ -341,7 +339,7 @@ static bool xwm_selection_send_data(struct wlr_xwm_selection *selection,
 		xwm_selection_transfer_start_outgoing(transfer);
 	} else {
 		struct wlr_xwm_selection_transfer *outgoing;
-		wl_list_for_each(outgoing, &selection->outgoing, outgoing_link) {
+		wl_list_for_each(outgoing, &selection->outgoing, link) {
 			wlr_log(WLR_DEBUG, "Transfer %p still queued", outgoing);
 		}
 	}
@@ -477,7 +475,7 @@ void xwm_handle_selection_destroy_notify(struct wlr_xwm *xwm,
 		struct wlr_xwm_selection *selection = selections[i];
 
 		struct wlr_xwm_selection_transfer *outgoing, *tmp;
-		wl_list_for_each_safe(outgoing, tmp, &selection->outgoing, outgoing_link) {
+		wl_list_for_each_safe(outgoing, tmp, &selection->outgoing, link) {
 			if (event->window == outgoing->request.requestor) {
 				xwm_selection_transfer_destroy_outgoing(outgoing);
 			}

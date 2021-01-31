@@ -32,42 +32,30 @@ void xwm_selection_transfer_destroy_property_reply(
 	transfer->property_reply = NULL;
 }
 
-void xwm_selection_transfer_init(struct wlr_xwm_selection_transfer *transfer) {
+void xwm_selection_transfer_init(struct wlr_xwm_selection_transfer *transfer,
+		struct wlr_xwm_selection *selection) {
+	transfer->selection = selection;
 	transfer->wl_client_fd = -1;
 }
 
-void xwm_selection_transfer_finish(
+void xwm_selection_transfer_destroy(
 		struct wlr_xwm_selection_transfer *transfer) {
-	transfer->incr = false;
+	if (!transfer) {
+		return;
+	}
+
 	xwm_selection_transfer_destroy_property_reply(transfer);
 	xwm_selection_transfer_remove_event_source(transfer);
 	xwm_selection_transfer_close_wl_client_fd(transfer);
-}
 
-bool xwm_selection_transfer_get_selection_property(
-		struct wlr_xwm_selection_transfer *transfer, bool delete) {
-	struct wlr_xwm *xwm = transfer->selection->xwm;
-
-	xcb_get_property_cookie_t cookie = xcb_get_property(
-		xwm->xcb_conn,
-		delete,
-		transfer->selection->window,
-		xwm->atoms[WL_SELECTION],
-		XCB_GET_PROPERTY_TYPE_ANY,
-		0, // offset
-		0x1fffffff // length
-		);
-
-	transfer->property_start = 0;
-	transfer->property_reply =
-		xcb_get_property_reply(xwm->xcb_conn, cookie, NULL);
-
-	if (!transfer->property_reply) {
-		wlr_log(WLR_ERROR, "cannot get selection property");
-		return false;
+	if (transfer->incoming_window) {
+		struct wlr_xwm *xwm = transfer->selection->xwm;
+		xcb_destroy_window(xwm->xcb_conn, transfer->incoming_window);
+		xcb_flush(xwm->xcb_conn);
 	}
 
-	return true;
+	wl_list_remove(&transfer->link);
+	free(transfer);
 }
 
 xcb_atom_t xwm_mime_type_to_atom(struct wlr_xwm *xwm, char *mime_type) {
@@ -123,17 +111,22 @@ static int xwm_handle_selection_property_notify(struct wlr_xwm *xwm,
 	for (size_t i = 0; i < sizeof(selections)/sizeof(selections[0]); ++i) {
 		struct wlr_xwm_selection *selection = selections[i];
 
-		if (event->window == selection->window) {
-			if (event->state == XCB_PROPERTY_NEW_VALUE &&
-					event->atom == xwm->atoms[WL_SELECTION] &&
-					selection->incoming.incr) {
-				xwm_get_incr_chunk(&selection->incoming);
+		if (event->state == XCB_PROPERTY_NEW_VALUE &&
+				event->atom == xwm->atoms[WL_SELECTION]) {
+			struct wlr_xwm_selection_transfer *transfer =
+				xwm_selection_find_incoming_transfer_by_window(selection,
+						event->window);
+			if (transfer) {
+				if (transfer->incr) {
+					xwm_get_incr_chunk(transfer);
+				}
+
+				return 1;
 			}
-			return 1;
 		}
 
 		struct wlr_xwm_selection_transfer *outgoing;
-		wl_list_for_each(outgoing, &selection->outgoing, outgoing_link) {
+		wl_list_for_each(outgoing, &selection->outgoing, link) {
 			if (event->window == outgoing->request.requestor) {
 				if (event->state == XCB_PROPERTY_DELETE &&
 						event->atom == outgoing->request.property &&
@@ -184,9 +177,8 @@ void xwm_selection_init(struct wlr_xwm_selection *selection,
 	selection->xwm = xwm;
 	selection->atom = atom;
 	selection->window = xwm->selection_window;
-	selection->incoming.selection = selection;
+	wl_list_init(&selection->incoming);
 	wl_list_init(&selection->outgoing);
-	xwm_selection_transfer_init(&selection->incoming);
 
 	uint32_t mask =
 		XCB_XFIXES_SELECTION_EVENT_MASK_SET_SELECTION_OWNER |
@@ -202,12 +194,15 @@ void xwm_selection_finish(struct wlr_xwm_selection *selection) {
 	}
 
 	struct wlr_xwm_selection_transfer *outgoing, *tmp;
-	wl_list_for_each_safe(outgoing, tmp, &selection->outgoing, outgoing_link) {
+	wl_list_for_each_safe(outgoing, tmp, &selection->outgoing, link) {
 		wlr_log(WLR_INFO, "destroyed pending transfer %p", outgoing);
 		xwm_selection_transfer_destroy_outgoing(outgoing);
 	}
 
-	xwm_selection_transfer_finish(&selection->incoming);
+	struct wlr_xwm_selection_transfer *incoming;
+	wl_list_for_each_safe(incoming, tmp, &selection->incoming, link) {
+		xwm_selection_transfer_destroy(incoming);
+	}
 }
 
 static void xwm_selection_set_owner(struct wlr_xwm_selection *selection,
