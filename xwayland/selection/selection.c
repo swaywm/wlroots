@@ -179,8 +179,8 @@ int xwm_handle_selection_event(struct wlr_xwm *xwm,
 	return 0;
 }
 
-static void selection_init(struct wlr_xwm *xwm,
-		struct wlr_xwm_selection *selection, xcb_atom_t atom) {
+void xwm_selection_init(struct wlr_xwm_selection *selection,
+		struct wlr_xwm *xwm, xcb_atom_t atom) {
 	selection->xwm = xwm;
 	selection->atom = atom;
 	selection->window = xwm->selection_window;
@@ -194,59 +194,6 @@ static void selection_init(struct wlr_xwm *xwm,
 		XCB_XFIXES_SELECTION_EVENT_MASK_SELECTION_CLIENT_CLOSE;
 	xcb_xfixes_select_selection_input(xwm->xcb_conn, selection->window,
 		selection->atom, mask);
-}
-
-void xwm_selection_init(struct wlr_xwm *xwm) {
-	// Clipboard and primary selection
-	uint32_t selection_values[] = {
-		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE
-	};
-	xwm->selection_window = xcb_generate_id(xwm->xcb_conn);
-	xcb_create_window(xwm->xcb_conn,
-		XCB_COPY_FROM_PARENT,
-		xwm->selection_window,
-		xwm->screen->root,
-		0, 0,
-		10, 10,
-		0,
-		XCB_WINDOW_CLASS_INPUT_OUTPUT,
-		xwm->screen->root_visual,
-		XCB_CW_EVENT_MASK, selection_values);
-
-	xcb_set_selection_owner(xwm->xcb_conn,
-		xwm->selection_window,
-		xwm->atoms[CLIPBOARD_MANAGER],
-		XCB_TIME_CURRENT_TIME);
-
-	selection_init(xwm, &xwm->clipboard_selection, xwm->atoms[CLIPBOARD]);
-	selection_init(xwm, &xwm->primary_selection, xwm->atoms[PRIMARY]);
-
-	// Drag'n'drop
-	uint32_t dnd_values[] = {
-		XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE
-	};
-	xwm->dnd_window = xcb_generate_id(xwm->xcb_conn);
-	xcb_create_window(xwm->xcb_conn,
-		XCB_COPY_FROM_PARENT,
-		xwm->dnd_window,
-		xwm->screen->root,
-		0, 0,
-		8192, 8192,
-		0,
-		XCB_WINDOW_CLASS_INPUT_ONLY,
-		xwm->screen->root_visual,
-		XCB_CW_EVENT_MASK, dnd_values);
-
-	uint32_t version = XDND_VERSION;
-	xcb_change_property(xwm->xcb_conn,
-		XCB_PROP_MODE_REPLACE,
-		xwm->dnd_window,
-		xwm->atoms[DND_AWARE],
-		XCB_ATOM_ATOM,
-		32, // format
-		1, &version);
-
-	selection_init(xwm, &xwm->dnd_selection, xwm->atoms[DND_SELECTION]);
 }
 
 void xwm_selection_finish(struct wlr_xwm_selection *selection) {
