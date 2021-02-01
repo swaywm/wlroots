@@ -164,6 +164,8 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 	glGenTextures(1, &texture->tex);
 	glBindTexture(GL_TEXTURE_2D, texture->tex);
 
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride / (fmt->bpp / 8));
 	glTexImage2D(GL_TEXTURE_2D, 0, fmt->gl_format, width, height, 0,
 		fmt->gl_format, fmt->gl_type, data);
@@ -232,6 +234,8 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 
 	glGenTextures(1, &texture->tex);
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture->tex);
+	glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	renderer->procs.glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
 		texture->image);
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
@@ -311,6 +315,8 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 
 	glGenTextures(1, &texture->tex);
 	glBindTexture(texture->target, texture->tex);
+	glTexParameteri(texture->target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(texture->target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	renderer->procs.glEGLImageTargetTexture2DOES(texture->target, texture->image);
 	glBindTexture(texture->target, 0);
 
