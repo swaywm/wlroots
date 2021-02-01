@@ -104,6 +104,7 @@ static void init_dmabuf_formats(struct wlr_egl *egl) {
 		return;
 	}
 
+	bool has_modifiers = false;
 	for (int i = 0; i < formats_len; i++) {
 		uint32_t fmt = formats[i];
 
@@ -114,6 +115,8 @@ static void init_dmabuf_formats(struct wlr_egl *egl) {
 		if (modifiers_len < 0) {
 			continue;
 		}
+
+		has_modifiers = has_modifiers || modifiers_len > 0;
 
 		if (modifiers_len == 0) {
 			wlr_drm_format_set_add(&egl->dmabuf_texture_formats, fmt,
@@ -143,7 +146,9 @@ static void init_dmabuf_formats(struct wlr_egl *egl) {
 		snprintf(&str_formats[i*5], (formats_len - i) * 5 + 1, "%.4s ",
 			(char*)&formats[i]);
 	}
-	wlr_log(WLR_DEBUG, "Supported dmabuf buffer formats: %s", str_formats);
+	wlr_log(WLR_DEBUG, "Supported DMA-BUF formats: %s", str_formats);
+	wlr_log(WLR_DEBUG, "EGL DMA-BUF format modifiers %s",
+		has_modifiers ? "supported" : "unsupported");
 	free(str_formats);
 
 out:
