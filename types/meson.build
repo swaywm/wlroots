@@ -21,6 +21,7 @@ wlr_files += files(
 	'wlr_compositor.c',
 	'wlr_cursor.c',
 	'wlr_data_control_v1.c',
+	'wlr_drm.c',
 	'wlr_export_dmabuf_v1.c',
 	'wlr_foreign_toplevel_management_v1.c',
 	'wlr_fullscreen_shell_v1.c',
