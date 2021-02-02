@@ -112,10 +112,6 @@ bool wlr_resource_get_buffer_size(struct wl_resource *resource,
 	if (shm_buf != NULL) {
 		*width = wl_shm_buffer_get_width(shm_buf);
 		*height = wl_shm_buffer_get_height(shm_buf);
-	} else if (wlr_renderer_resource_is_wl_drm_buffer(renderer,
-			resource)) {
-		wlr_renderer_wl_drm_buffer_get_size(renderer, resource,
-			width, height);
 	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
 		struct wlr_dmabuf_v1_buffer *dmabuf =
 			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
@@ -240,8 +236,6 @@ struct wlr_client_buffer *wlr_client_buffer_import(
 		// The renderer is responsible for releasing the buffer when
 		// appropriate
 		resource_released = true;
-	} else if (wlr_renderer_resource_is_wl_drm_buffer(renderer, resource)) {
-		texture = wlr_texture_from_wl_drm(renderer, resource);
 	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
 		struct wlr_dmabuf_v1_buffer *dmabuf =
 			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);

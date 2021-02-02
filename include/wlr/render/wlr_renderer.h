@@ -81,16 +81,6 @@ void wlr_render_quad_with_matrix(struct wlr_renderer *r,
 const uint32_t *wlr_renderer_get_shm_texture_formats(
 	struct wlr_renderer *r, size_t *len);
 /**
- * Returns true if this wl_buffer is a wl_drm buffer.
- */
-bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *renderer,
-	struct wl_resource *buffer);
-/**
- * Gets the width and height of a wl_drm buffer.
- */
-void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *renderer,
-	struct wl_resource *buffer, int *width, int *height);
-/**
  * Get the DMA-BUF formats supporting sampling usage. Buffers allocated with
  * a format from this list may be imported via wlr_texture_from_dmabuf.
  */
