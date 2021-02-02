@@ -45,14 +45,6 @@ struct wlr_texture *wlr_texture_from_pixels(struct wlr_renderer *renderer,
 	return texture;
 }
 
-struct wlr_texture *wlr_texture_from_wl_drm(struct wlr_renderer *renderer,
-		struct wl_resource *data) {
-	if (!renderer->impl->texture_from_wl_drm) {
-		return NULL;
-	}
-	return renderer->impl->texture_from_wl_drm(renderer, data);
-}
-
 struct wlr_texture *wlr_texture_from_dmabuf(struct wlr_renderer *renderer,
 		struct wlr_dmabuf_attributes *attribs) {
 	struct wlr_dmabuf_buffer *buffer = dmabuf_buffer_create(attribs);
