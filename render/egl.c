@@ -246,16 +246,6 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 			"eglQueryDmaBufModifiersEXT");
 	}
 
-	if (check_egl_ext(display_exts_str, "EGL_WL_bind_wayland_display")) {
-		egl->exts.bind_wayland_display_wl = true;
-		load_egl_proc(&egl->procs.eglBindWaylandDisplayWL,
-			"eglBindWaylandDisplayWL");
-		load_egl_proc(&egl->procs.eglUnbindWaylandDisplayWL,
-			"eglUnbindWaylandDisplayWL");
-		load_egl_proc(&egl->procs.eglQueryWaylandBufferWL,
-			"eglQueryWaylandBufferWL");
-	}
-
 	const char *device_exts_str = NULL, *driver_name = NULL;
 	if (check_egl_ext(client_exts_str, "EGL_EXT_device_query")) {
 		load_egl_proc(&egl->procs.eglQueryDisplayAttribEXT,
@@ -387,10 +377,6 @@ void wlr_egl_destroy(struct wlr_egl *egl) {
 	wlr_drm_format_set_finish(&egl->dmabuf_texture_formats);
 
 	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-	if (egl->wl_display) {
-		assert(egl->exts.bind_wayland_display_wl);
-		egl->procs.eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
-	}
 
 	eglDestroyContext(egl->display, egl->context);
 	eglTerminate(egl->display);
@@ -401,19 +387,6 @@ void wlr_egl_destroy(struct wlr_egl *egl) {
 	}
 
 	free(egl);
-}
-
-bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display) {
-	if (!egl->exts.bind_wayland_display_wl) {
-		return false;
-	}
-
-	if (egl->procs.eglBindWaylandDisplayWL(egl->display, local_display)) {
-		egl->wl_display = local_display;
-		return true;
-	}
-
-	return false;
 }
 
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
@@ -471,37 +444,6 @@ bool wlr_egl_restore_context(struct wlr_egl_context *context) {
 
 	return eglMakeCurrent(display, context->draw_surface,
 			context->read_surface, context->context);
-}
-
-EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
-		struct wl_resource *data, EGLint *fmt, int *width, int *height,
-		bool *inverted_y) {
-	if (!egl->exts.bind_wayland_display_wl || !egl->exts.image_base_khr) {
-		return NULL;
-	}
-
-	if (!egl->procs.eglQueryWaylandBufferWL(egl->display, data,
-			EGL_TEXTURE_FORMAT, fmt)) {
-		return NULL;
-	}
-
-	egl->procs.eglQueryWaylandBufferWL(egl->display, data, EGL_WIDTH, width);
-	egl->procs.eglQueryWaylandBufferWL(egl->display, data, EGL_HEIGHT, height);
-
-	EGLint _inverted_y;
-	if (egl->procs.eglQueryWaylandBufferWL(egl->display, data,
-			EGL_WAYLAND_Y_INVERTED_WL, &_inverted_y)) {
-		*inverted_y = !!_inverted_y;
-	} else {
-		*inverted_y = false;
-	}
-
-	const EGLint attribs[] = {
-		EGL_WAYLAND_PLANE_WL, 0,
-		EGL_NONE,
-	};
-	return egl->procs.eglCreateImageKHR(egl->display, egl->context,
-		EGL_WAYLAND_BUFFER_WL, data, attribs);
 }
 
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
