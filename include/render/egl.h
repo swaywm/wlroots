@@ -24,20 +24,6 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd);
 void wlr_egl_destroy(struct wlr_egl *egl);
 
 /**
- * Binds the given display to the EGL instance.
- * This will allow clients to create EGL surfaces from wayland ones and render
- * to it.
- */
-bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display);
-
-/**
- * Creates an EGL image from the given wl_drm buffer resource.
- */
-EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
-	struct wl_resource *data, EGLint *fmt, int *width, int *height,
-	bool *inverted_y);
-
-/**
  * Creates an EGL image from the given dmabuf attributes. Check usability
  * of the dmabuf with wlr_egl_check_import_dmabuf once first.
  */
