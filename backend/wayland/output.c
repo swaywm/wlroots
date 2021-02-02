@@ -535,6 +535,7 @@ static void xdg_surface_handle_configure(void *data,
 	xdg_surface_ack_configure(xdg_surface, serial);
 
 	// nothing else?
+	(void)output;
 }
 
 static struct xdg_surface_listener xdg_surface_listener = {
