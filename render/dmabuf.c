@@ -13,7 +13,7 @@ void wlr_dmabuf_attributes_finish(struct wlr_dmabuf_attributes *attribs) {
 }
 
 bool wlr_dmabuf_attributes_copy(struct wlr_dmabuf_attributes *dst,
-		struct wlr_dmabuf_attributes *src) {
+		const struct wlr_dmabuf_attributes *src) {
 	memcpy(dst, src, sizeof(struct wlr_dmabuf_attributes));
 
 	int i;

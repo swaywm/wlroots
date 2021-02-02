@@ -40,6 +40,6 @@ void wlr_dmabuf_attributes_finish(struct wlr_dmabuf_attributes *attribs);
  * Clones the DMA-BUF attributes.
  */
 bool wlr_dmabuf_attributes_copy(struct wlr_dmabuf_attributes *dst,
-	struct wlr_dmabuf_attributes *src);
+	const struct wlr_dmabuf_attributes *src);
 
 #endif
