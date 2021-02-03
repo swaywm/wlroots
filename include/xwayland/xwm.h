@@ -103,13 +103,8 @@ struct wlr_xwm {
 	xcb_render_pictformat_t render_format_id;
 	xcb_cursor_t cursor;
 
-	// FIXME: need one per selection to simultaneously request both mimetypes,
-	// I think.
-	xcb_window_t selection_window;
 	struct wlr_xwm_selection clipboard_selection;
 	struct wlr_xwm_selection primary_selection;
-
-	xcb_window_t dnd_window;
 	struct wlr_xwm_selection dnd_selection;
 
 	struct wlr_xwayland_surface *focus_surface;

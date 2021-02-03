@@ -174,11 +174,64 @@ int xwm_handle_selection_event(struct wlr_xwm *xwm,
 
 void xwm_selection_init(struct wlr_xwm_selection *selection,
 		struct wlr_xwm *xwm, xcb_atom_t atom) {
-	selection->xwm = xwm;
-	selection->atom = atom;
-	selection->window = xwm->selection_window;
 	wl_list_init(&selection->incoming);
 	wl_list_init(&selection->outgoing);
+
+	selection->xwm = xwm;
+	selection->atom = atom;
+	selection->window = xcb_generate_id(xwm->xcb_conn);
+
+	if (atom == xwm->atoms[DND_SELECTION]) {
+		xcb_create_window(
+			xwm->xcb_conn,
+			XCB_COPY_FROM_PARENT,
+			selection->window,
+			xwm->screen->root,
+			0, 0,
+			8192, 8192,
+			0,
+			XCB_WINDOW_CLASS_INPUT_ONLY,
+			xwm->screen->root_visual,
+			XCB_CW_EVENT_MASK,
+			(uint32_t[]){
+				XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE
+			}
+		);
+
+		xcb_change_property(
+			xwm->xcb_conn,
+			XCB_PROP_MODE_REPLACE,
+			selection->window,
+			xwm->atoms[DND_AWARE],
+			XCB_ATOM_ATOM,
+			32, // format
+			1,
+			&(uint32_t){XDND_VERSION}
+		);
+	} else {
+		xcb_create_window(
+			xwm->xcb_conn,
+			XCB_COPY_FROM_PARENT,
+			selection->window,
+			xwm->screen->root,
+			0, 0,
+			10, 10,
+			0,
+			XCB_WINDOW_CLASS_INPUT_OUTPUT,
+			xwm->screen->root_visual,
+			XCB_CW_EVENT_MASK,
+			(uint32_t[]){
+				XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE
+			}
+		);
+
+		if (atom == xwm->atoms[CLIPBOARD]) {
+			xcb_set_selection_owner(xwm->xcb_conn, selection->window,
+				xwm->atoms[CLIPBOARD_MANAGER], XCB_TIME_CURRENT_TIME);
+		} else {
+			assert(atom == xwm->atoms[PRIMARY]);
+		}
+	}
 
 	uint32_t mask =
 		XCB_XFIXES_SELECTION_EVENT_MASK_SET_SELECTION_OWNER |
@@ -203,6 +256,8 @@ void xwm_selection_finish(struct wlr_xwm_selection *selection) {
 	wl_list_for_each_safe(incoming, tmp, &selection->incoming, link) {
 		xwm_selection_transfer_destroy(incoming);
 	}
+
+	xcb_destroy_window(selection->xwm->xcb_conn, selection->window);
 }
 
 static void xwm_selection_set_owner(struct wlr_xwm_selection *selection,
