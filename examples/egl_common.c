@@ -19,7 +19,7 @@ EGLContext egl_context;
 PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT;
 PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC eglCreatePlatformWindowSurfaceEXT;
 
-EGLint config_attribs[] = {
+const EGLint config_attribs[] = {
 	EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
 	EGL_RED_SIZE, 1,
 	EGL_GREEN_SIZE, 1,
@@ -29,7 +29,7 @@ EGLint config_attribs[] = {
 	EGL_NONE,
 };
 
-EGLint context_attribs[] = {
+const EGLint context_attribs[] = {
 	EGL_CONTEXT_CLIENT_VERSION, 2,
 	EGL_NONE,
 };
