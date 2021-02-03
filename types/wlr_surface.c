@@ -172,7 +172,7 @@ static void surface_state_finalize(struct wlr_surface *surface,
 	if ((state->committed & WLR_SURFACE_STATE_BUFFER)) {
 		if (state->buffer_resource != NULL) {
 			wlr_resource_get_buffer_size(state->buffer_resource,
-				surface->renderer, &state->buffer_width, &state->buffer_height);
+				&state->buffer_width, &state->buffer_height);
 		} else {
 			state->buffer_width = state->buffer_height = 0;
 		}

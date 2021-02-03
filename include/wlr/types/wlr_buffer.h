@@ -151,7 +151,7 @@ bool wlr_resource_is_buffer(struct wl_resource *resource);
  * Get the size of a wl_buffer resource.
  */
 bool wlr_resource_get_buffer_size(struct wl_resource *resource,
-	struct wlr_renderer *renderer, int *width, int *height);
+	int *width, int *height);
 /**
  * Import a client buffer and lock it.
  *

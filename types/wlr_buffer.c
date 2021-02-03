@@ -105,7 +105,7 @@ bool wlr_resource_is_buffer(struct wl_resource *resource) {
 }
 
 bool wlr_resource_get_buffer_size(struct wl_resource *resource,
-		struct wlr_renderer *renderer, int *width, int *height) {
+		int *width, int *height) {
 	assert(wlr_resource_is_buffer(resource));
 
 	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
