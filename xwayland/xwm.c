@@ -864,8 +864,9 @@ static void xsurface_unmap(struct wlr_xwayland_surface *surface) {
 static void xwm_handle_create_notify(struct wlr_xwm *xwm,
 		xcb_create_notify_event_t *ev) {
 	if (ev->window == xwm->window ||
-			ev->window == xwm->selection_window ||
-			ev->window == xwm->dnd_window) {
+			ev->window == xwm->primary_selection.window ||
+			ev->window == xwm->clipboard_selection.window ||
+			ev->window == xwm->dnd_selection.window) {
 		return;
 	}
 
@@ -1588,14 +1589,6 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	xwm_selection_finish(&xwm->primary_selection);
 	xwm_selection_finish(&xwm->dnd_selection);
 
-	if (xwm->selection_window) {
-		xcb_destroy_window(xwm->xcb_conn, xwm->selection_window);
-	}
-
-	if (xwm->dnd_window) {
-		xcb_destroy_window(xwm->xcb_conn, xwm->dnd_window);
-	}
-
 	if (xwm->seat) {
 		if (xwm->seat->selection_source &&
 				data_source_is_xwayland(xwm->seat->selection_source)) {
@@ -1927,56 +1920,8 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 
 	xwm_set_net_active_window(xwm, XCB_WINDOW_NONE);
 
-	// Clipboard and primary selection
-	xwm->selection_window = xcb_generate_id(xwm->xcb_conn);
-	xcb_create_window(
-		xwm->xcb_conn,
-		XCB_COPY_FROM_PARENT,
-		xwm->selection_window,
-		xwm->screen->root,
-		0, 0,
-		10, 10,
-		0,
-		XCB_WINDOW_CLASS_INPUT_OUTPUT,
-		xwm->screen->root_visual,
-		XCB_CW_EVENT_MASK, (uint32_t[]){
-			XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE
-		}
-	);
-
-	xcb_set_selection_owner(xwm->xcb_conn, xwm->selection_window,
-		xwm->atoms[CLIPBOARD_MANAGER], XCB_TIME_CURRENT_TIME);
-
 	xwm_selection_init(&xwm->clipboard_selection, xwm, xwm->atoms[CLIPBOARD]);
 	xwm_selection_init(&xwm->primary_selection, xwm, xwm->atoms[PRIMARY]);
-
-	// Drag'n'drop
-	xwm->dnd_window = xcb_generate_id(xwm->xcb_conn);
-	xcb_create_window(
-		xwm->xcb_conn,
-		XCB_COPY_FROM_PARENT,
-		xwm->dnd_window,
-		xwm->screen->root,
-		0, 0,
-		8192, 8192,
-		0,
-		XCB_WINDOW_CLASS_INPUT_ONLY,
-		xwm->screen->root_visual,
-		XCB_CW_EVENT_MASK, (uint32_t[]){
-			XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE
-		}
-	);
-
-	xcb_change_property(
-		xwm->xcb_conn,
-		XCB_PROP_MODE_REPLACE,
-		xwm->dnd_window,
-		xwm->atoms[DND_AWARE],
-		XCB_ATOM_ATOM,
-		32, // format
-		1, &(uint32_t){XDND_VERSION}
-	);
-
 	xwm_selection_init(&xwm->dnd_selection, xwm, xwm->atoms[DND_SELECTION]);
 
 	xwm->compositor_new_surface.notify = handle_compositor_new_surface;

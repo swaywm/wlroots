@@ -64,7 +64,7 @@ static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
 	struct wl_array *mime_types = &drag->source->mime_types;
 
 	xcb_client_message_data_t data = { 0 };
-	data.data32[0] = xwm->dnd_window;
+	data.data32[0] = xwm->dnd_selection.window;
 	data.data32[1] = XDND_VERSION << 24;
 
 	// If we have 3 MIME types or less, we can send them directly in the
@@ -94,7 +94,7 @@ static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
 
 		xcb_change_property(xwm->xcb_conn,
 			XCB_PROP_MODE_REPLACE,
-			xwm->dnd_window,
+			xwm->dnd_selection.window,
 			xwm->atoms[DND_TYPE_LIST],
 			XCB_ATOM_ATOM,
 			32, // format
@@ -110,7 +110,7 @@ static void xwm_dnd_send_position(struct wlr_xwm *xwm, uint32_t time, int16_t x,
 	assert(drag != NULL);
 
 	xcb_client_message_data_t data = { 0 };
-	data.data32[0] = xwm->dnd_window;
+	data.data32[0] = xwm->dnd_selection.window;
 	data.data32[2] = (x << 16) | y;
 	data.data32[3] = time;
 	data.data32[4] =
@@ -126,7 +126,7 @@ static void xwm_dnd_send_drop(struct wlr_xwm *xwm, uint32_t time) {
 	assert(dest != NULL);
 
 	xcb_client_message_data_t data = { 0 };
-	data.data32[0] = xwm->dnd_window;
+	data.data32[0] = xwm->dnd_selection.window;
 	data.data32[2] = time;
 
 	xwm_dnd_send_event(xwm, xwm->atoms[DND_DROP], &data);
@@ -139,7 +139,7 @@ static void xwm_dnd_send_leave(struct wlr_xwm *xwm) {
 	assert(dest != NULL);
 
 	xcb_client_message_data_t data = { 0 };
-	data.data32[0] = xwm->dnd_window;
+	data.data32[0] = xwm->dnd_selection.window;
 
 	xwm_dnd_send_event(xwm, xwm->atoms[DND_LEAVE], &data);
 }
@@ -151,7 +151,7 @@ static void xwm_dnd_send_leave(struct wlr_xwm *xwm) {
 	assert(dest != NULL);
 
 	xcb_client_message_data_t data = { 0 };
-	data.data32[0] = xwm->dnd_window;
+	data.data32[0] = xwm->dnd_selection.window;
 	data.data32[1] = drag->source->accepted;
 
 	if (drag->source->accepted) {
