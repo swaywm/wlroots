@@ -18,7 +18,7 @@
 #include "util/signal.h"
 #include "xwayland/xwm.h"
 
-const char *atom_map[ATOM_LAST] = {
+const char *const atom_map[ATOM_LAST] = {
 	[WL_SURFACE_ID] = "WL_SURFACE_ID",
 	[WM_DELETE_WINDOW] = "WM_DELETE_WINDOW",
 	[WM_PROTOCOLS] = "WM_PROTOCOLS",
