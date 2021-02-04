@@ -67,7 +67,7 @@ If you choose to enable X11 support:
 * xcb-render
 * x11-xcb
 * xcb-errors (optional, for improved error reporting)
-* x11-icccm (optional, for improved Xwayland introspection)
+* xcb-icccm (optional, for improved Xwayland introspection)
 
 Run these commands:
 
