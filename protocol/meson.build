@@ -1,4 +1,4 @@
-wayland_protos = dependency('wayland-protocols', version: '>=1.17')
+wayland_protos = dependency('wayland-protocols', version: '>=1.21')
 wl_protocol_dir = wayland_protos.get_variable(pkgconfig: 'pkgdatadir')
 
 wayland_scanner_dep = dependency('wayland-scanner', native: true)
@@ -23,6 +23,7 @@ protocols = {
 	'relative-pointer-unstable-v1': wl_protocol_dir / 'unstable/relative-pointer/relative-pointer-unstable-v1.xml',
 	'tablet-unstable-v2': wl_protocol_dir / 'unstable/tablet/tablet-unstable-v2.xml',
 	'text-input-unstable-v3': wl_protocol_dir / 'unstable/text-input/text-input-unstable-v3.xml',
+	'xdg-activation-v1': wl_protocol_dir / 'staging/xdg-activation/xdg-activation-v1.xml',
 	'xdg-decoration-unstable-v1': wl_protocol_dir / 'unstable/xdg-decoration/xdg-decoration-unstable-v1.xml',
 	'xdg-foreign-unstable-v1': wl_protocol_dir / 'unstable/xdg-foreign/xdg-foreign-unstable-v1.xml',
 	'xdg-foreign-unstable-v2': wl_protocol_dir / 'unstable/xdg-foreign/xdg-foreign-unstable-v2.xml',

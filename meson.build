@@ -105,7 +105,6 @@ pixman = dependency('pixman-1')
 math = cc.find_library('m')
 rt = cc.find_library('rt')
 
-
 wlr_files = []
 wlr_deps = [
 	wayland_server,
