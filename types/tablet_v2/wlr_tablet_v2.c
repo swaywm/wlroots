@@ -86,7 +86,7 @@ static void tablet_seat_handle_destroy(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
-static struct zwp_tablet_seat_v2_interface seat_impl = {
+static const struct zwp_tablet_seat_v2_interface seat_impl = {
 	.destroy = tablet_seat_handle_destroy,
 };
 
@@ -212,7 +212,7 @@ static void get_tablet_seat(struct wl_client *wl_client, struct wl_resource *res
 	}
 }
 
-static struct zwp_tablet_manager_v2_interface manager_impl = {
+static const struct zwp_tablet_manager_v2_interface manager_impl = {
 	.get_tablet_seat = get_tablet_seat,
 	.destroy = tablet_manager_destroy,
 };

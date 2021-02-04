@@ -5,7 +5,7 @@
 #include <wlr/types/wlr_tablet_tool.h>
 
 void wlr_tablet_init(struct wlr_tablet *tablet,
-		struct wlr_tablet_impl *impl) {
+		const struct wlr_tablet_impl *impl) {
 	tablet->impl = impl;
 	wl_signal_init(&tablet->events.axis);
 	wl_signal_init(&tablet->events.proximity);

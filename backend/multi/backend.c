@@ -110,7 +110,7 @@ static int multi_backend_get_drm_fd(struct wlr_backend *backend) {
 	return -1;
 }
 
-struct wlr_backend_impl backend_impl = {
+static const struct wlr_backend_impl backend_impl = {
 	.start = multi_backend_start,
 	.destroy = multi_backend_destroy,
 	.get_renderer = multi_backend_get_renderer,

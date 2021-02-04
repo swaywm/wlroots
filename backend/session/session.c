@@ -25,7 +25,7 @@ extern const struct session_impl session_logind;
 extern const struct session_impl session_direct;
 extern const struct session_impl session_noop;
 
-static const struct session_impl *impls[] = {
+static const struct session_impl *const impls[] = {
 #if WLR_HAS_LIBSEAT
 	&session_libseat,
 #endif
@@ -137,7 +137,7 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 				env_wlr_session);
 		}
 	} else {
-		const struct session_impl **iter;
+		const struct session_impl *const *iter;
 		for (iter = impls; !session && *iter; ++iter) {
 			session = (*iter)->create(disp);
 		}

@@ -541,7 +541,7 @@ static void xdg_surface_handle_configure(void *data,
 	// nothing else?
 }
 
-static struct xdg_surface_listener xdg_surface_listener = {
+static const struct xdg_surface_listener xdg_surface_listener = {
 	.configure = xdg_surface_handle_configure,
 };
 
@@ -566,7 +566,7 @@ static void xdg_toplevel_handle_close(void *data,
 	wlr_output_destroy(&output->wlr_output);
 }
 
-static struct xdg_toplevel_listener xdg_toplevel_listener = {
+static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 	.configure = xdg_toplevel_handle_configure,
 	.close = xdg_toplevel_handle_close,
 };
