@@ -56,6 +56,7 @@ Install dependencies:
 
 If you choose to enable X11 support:
 
+* xwayland (build-time only, optional at runtime)
 * xcb
 * xcb-composite
 * xcb-xfixes

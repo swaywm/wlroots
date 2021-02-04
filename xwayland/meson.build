@@ -18,6 +18,19 @@ if not get_option('xwayland').disabled()
 	msg += 'Required for Xwayland support.'
 endif
 
+xwayland = dependency('xwayland', required: false)
+if not xwayland.found()
+	# There's no Xwayland release with the pkg-config file shipped yet.
+	xwayland_prog = find_program('Xwayland', required: false)
+	if not xwayland_prog.found()
+		if get_option('xwayland').enabled()
+			error('\n'.join(msg).format('xwayland'))
+		else
+			subdir_done()
+		endif
+	endif
+endif
+
 foreach lib : xwayland_required
 	dep = dependency(lib,
 		required: get_option('xwayland'),
