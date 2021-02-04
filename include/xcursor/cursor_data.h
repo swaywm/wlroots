@@ -27,7 +27,7 @@
 
 #include <stdint.h>
 
-static uint32_t cursor_data[] = {
+static const uint32_t cursor_data[] = {
 	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0x00000000, 0x00000000,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0xffffffff, 0xff000000,
@@ -532,7 +532,7 @@ static uint32_t cursor_data[] = {
 	0x00000000, 0x00000000,
 };
 
-static struct cursor_metadata {
+static const struct cursor_metadata {
 	char *name;
 	int width, height;
 	int hotspot_x, hotspot_y;

@@ -46,7 +46,7 @@ static void xcursor_destroy(struct wlr_xcursor *cursor) {
 #include "xcursor/cursor_data.h"
 
 static struct wlr_xcursor *xcursor_create_from_data(
-		struct cursor_metadata *metadata, struct wlr_xcursor_theme *theme) {
+		const struct cursor_metadata *metadata, struct wlr_xcursor_theme *theme) {
 	struct wlr_xcursor *cursor;
 	struct wlr_xcursor_image *image;
 	int size;
