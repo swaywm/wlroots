@@ -6,6 +6,8 @@ if not features.get('x11-backend')
 endif
 if not features.get('xwayland')
 	exclude_files += 'xwayland.h'
+else
+	subdir('xwayland')
 endif
 if not features.get('xdg-foreign')
 	exclude_files += [
