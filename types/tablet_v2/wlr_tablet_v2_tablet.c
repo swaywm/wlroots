@@ -30,7 +30,7 @@ static void handle_tablet_v2_destroy(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
-static struct zwp_tablet_v2_interface tablet_impl = {
+static const struct zwp_tablet_v2_interface tablet_impl = {
 	.destroy = handle_tablet_v2_destroy,
 };
 

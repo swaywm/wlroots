@@ -61,7 +61,7 @@ struct wlr_tablet_tool {
 struct wlr_tablet_impl;
 
 struct wlr_tablet {
-	struct wlr_tablet_impl *impl;
+	const struct wlr_tablet_impl *impl;
 
 	struct {
 		struct wl_signal axis;

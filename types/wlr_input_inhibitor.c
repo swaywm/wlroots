@@ -7,7 +7,7 @@
 #include "util/signal.h"
 
 static const struct zwlr_input_inhibit_manager_v1_interface inhibit_manager_implementation;
-static struct zwlr_input_inhibitor_v1_interface input_inhibitor_implementation;
+static const struct zwlr_input_inhibitor_v1_interface input_inhibitor_implementation;
 
 static struct wlr_input_inhibit_manager *input_inhibit_manager_from_resource(
 		struct wl_resource *resource) {
@@ -44,7 +44,7 @@ static void input_inhibitor_resource_destroy(struct wl_resource *resource) {
 	input_inhibit_manager_deactivate(manager);
 }
 
-static struct zwlr_input_inhibitor_v1_interface input_inhibitor_implementation = {
+static const struct zwlr_input_inhibitor_v1_interface input_inhibitor_implementation = {
 	.destroy = input_inhibitor_destroy,
 };
 

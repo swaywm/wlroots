@@ -13,7 +13,7 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
-static struct wlr_tablet_impl tablet_impl;
+static const struct wlr_tablet_impl tablet_impl;
 
 static bool tablet_is_libinput(struct wlr_tablet *tablet) {
 	return tablet->impl == &tablet_impl;
@@ -71,7 +71,7 @@ static void destroy_tablet(struct wlr_tablet *wlr_tablet) {
 	free(tablet);
 }
 
-static struct wlr_tablet_impl tablet_impl = {
+static const struct wlr_tablet_impl tablet_impl = {
 	.destroy = destroy_tablet,
 };
 

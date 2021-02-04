@@ -281,7 +281,7 @@ static void keyboard_handle_repeat_info(void *data,
 	// This space is intentionally left blank
 }
 
-static struct wl_keyboard_listener keyboard_listener = {
+static const struct wl_keyboard_listener keyboard_listener = {
 	.keymap = keyboard_handle_keymap,
 	.enter = keyboard_handle_enter,
 	.leave = keyboard_handle_leave,
@@ -369,7 +369,7 @@ static void touch_handle_orientation(void *data, struct wl_touch *wl_touch,
 	// no-op
 }
 
-static struct wl_touch_listener touch_listener = {
+static const struct wl_touch_listener touch_listener = {
 	.down = touch_handle_down,
 	.up = touch_handle_up,
 	.motion = touch_handle_motion,
@@ -441,7 +441,7 @@ static void input_device_destroy(struct wlr_input_device *wlr_dev) {
 	free(dev);
 }
 
-static struct wlr_input_device_impl input_device_impl = {
+static const struct wlr_input_device_impl input_device_impl = {
 	.destroy = input_device_destroy,
 };
 
@@ -474,7 +474,7 @@ struct wlr_wl_input_device *create_wl_input_device(
 	return dev;
 }
 
-static struct wlr_pointer_impl pointer_impl;
+static const struct wlr_pointer_impl pointer_impl;
 
 struct wlr_wl_pointer *pointer_get_wl(struct wlr_pointer *wlr_pointer) {
 	assert(wlr_pointer->impl == &pointer_impl);
@@ -497,7 +497,7 @@ static void pointer_destroy(struct wlr_pointer *wlr_pointer) {
 	free(pointer);
 }
 
-static struct wlr_pointer_impl pointer_impl = {
+static const struct wlr_pointer_impl pointer_impl = {
 	.destroy = pointer_destroy,
 };
 
@@ -544,7 +544,7 @@ static void gesture_swipe_end(void *data,
 	wlr_signal_emit_safe(&wlr_dev->pointer->events.swipe_end, &wlr_event);
 }
 
-static struct zwp_pointer_gesture_swipe_v1_listener gesture_swipe_impl = {
+static const struct zwp_pointer_gesture_swipe_v1_listener gesture_swipe_impl = {
 	.begin = gesture_swipe_begin,
 	.update = gesture_swipe_update,
 	.end = gesture_swipe_end,
@@ -595,7 +595,7 @@ static void gesture_pinch_end(void *data,
 	wlr_signal_emit_safe(&wlr_dev->pointer->events.pinch_end, &wlr_event);
 }
 
-static struct zwp_pointer_gesture_pinch_v1_listener gesture_pinch_impl = {
+static const struct zwp_pointer_gesture_pinch_v1_listener gesture_pinch_impl = {
 	.begin = gesture_pinch_begin,
 	.update = gesture_pinch_update,
 	.end = gesture_pinch_end,
