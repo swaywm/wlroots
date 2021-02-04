@@ -5,7 +5,6 @@
 
 #include <stdbool.h>
 
-#include <X11/Xlib-xcb.h>
 #include <wayland-server-core.h>
 #include <xcb/xcb.h>
 #include <xcb/present.h>
@@ -69,7 +68,6 @@ struct wlr_x11_backend {
 	struct wl_display *wl_display;
 	bool started;
 
-	Display *xlib_conn;
 	xcb_connection_t *xcb;
 	xcb_screen_t *screen;
 	xcb_depth_t *depth;

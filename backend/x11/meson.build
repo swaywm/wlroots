@@ -1,6 +1,5 @@
 x11_libs = []
 x11_required = [
-	'x11-xcb',
 	'xcb',
 	'xcb-dri3',
 	'xcb-present',

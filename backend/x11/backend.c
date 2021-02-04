@@ -12,7 +12,6 @@
 #include <wlr/config.h>
 
 #include <drm_fourcc.h>
-#include <X11/Xlib-xcb.h>
 #include <wayland-server-core.h>
 #include <xcb/xcb.h>
 #include <xcb/dri3.h>
@@ -197,10 +196,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 #endif
 
 	close(x11->drm_fd);
-
-	if (x11->xlib_conn) {
-		XCloseDisplay(x11->xlib_conn);
-	}
+	xcb_disconnect(x11->xcb);
 	free(x11);
 }
 
@@ -393,19 +389,11 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	x11->wl_display = display;
 	wl_list_init(&x11->outputs);
 
-	x11->xlib_conn = XOpenDisplay(x11_display);
-	if (!x11->xlib_conn) {
-		wlr_log(WLR_ERROR, "Failed to open X connection");
-		goto error_x11;
-	}
-
-	x11->xcb = XGetXCBConnection(x11->xlib_conn);
+	x11->xcb = xcb_connect(x11_display, NULL);
 	if (!x11->xcb || xcb_connection_has_error(x11->xcb)) {
 		wlr_log(WLR_ERROR, "Failed to open xcb connection");
-		goto error_display;
+		goto error_x11;
 	}
-
-	XSetEventQueueOwner(x11->xlib_conn, XCBOwnsEventQueue);
 
 	struct {
 		const char *name;
@@ -668,7 +656,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 error_event:
 	wl_event_source_remove(x11->event_source);
 error_display:
-	XCloseDisplay(x11->xlib_conn);
+	xcb_disconnect(x11->xcb);
 error_x11:
 	free(x11);
 	return NULL;
