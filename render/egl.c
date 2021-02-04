@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <gbm.h>
 #include <wlr/render/egl.h>
@@ -64,24 +65,6 @@ static void egl_log(EGLenum error, const char *command, EGLint msg_type,
 	_wlr_log(egl_log_importance_to_wlr(msg_type),
 		"[EGL] command: %s, error: %s (0x%x), message: \"%s\"",
 		command, egl_error_str(error), error, msg);
-}
-
-static bool check_egl_ext(const char *exts, const char *ext) {
-	size_t extlen = strlen(ext);
-	const char *end = exts + strlen(exts);
-
-	while (exts < end) {
-		if (*exts == ' ') {
-			exts++;
-			continue;
-		}
-		size_t n = strcspn(exts, " ");
-		if (n == extlen && strncmp(ext, exts, n) == 0) {
-			return true;
-		}
-		exts += n;
-	}
-	return false;
 }
 
 static void load_egl_proc(void *proc_ptr, const char *name) {
@@ -172,14 +155,14 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 		return NULL;
 	}
 
-	if (!check_egl_ext(client_exts_str, "EGL_EXT_platform_base")) {
+	if (!strstr(client_exts_str, "EGL_EXT_platform_base")) {
 		wlr_log(WLR_ERROR, "EGL_EXT_platform_base not supported");
 		return NULL;
 	}
 	load_egl_proc(&egl->procs.eglGetPlatformDisplayEXT,
 		"eglGetPlatformDisplayEXT");
 
-	if (check_egl_ext(client_exts_str, "EGL_KHR_debug")) {
+	if (strstr(client_exts_str, "EGL_KHR_debug")) {
 		load_egl_proc(&egl->procs.eglDebugMessageControlKHR,
 			"eglDebugMessageControlKHR");
 
@@ -217,15 +200,15 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 		return NULL;
 	}
 
-	if (check_egl_ext(display_exts_str, "EGL_KHR_image_base")) {
+	if (strstr(display_exts_str, "EGL_KHR_image_base")) {
 		egl->exts.image_base_khr = true;
 		load_egl_proc(&egl->procs.eglCreateImageKHR, "eglCreateImageKHR");
 		load_egl_proc(&egl->procs.eglDestroyImageKHR, "eglDestroyImageKHR");
 	}
 
 	egl->exts.image_dmabuf_import_ext =
-		check_egl_ext(display_exts_str, "EGL_EXT_image_dma_buf_import");
-	if (check_egl_ext(display_exts_str,
+		strstr(display_exts_str, "EGL_EXT_image_dma_buf_import");
+	if (strstr(display_exts_str,
 			"EGL_EXT_image_dma_buf_import_modifiers")) {
 		egl->exts.image_dmabuf_import_modifiers_ext = true;
 		load_egl_proc(&egl->procs.eglQueryDmaBufFormatsEXT,
@@ -234,7 +217,7 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 			"eglQueryDmaBufModifiersEXT");
 	}
 
-	if (check_egl_ext(display_exts_str, "EGL_MESA_image_dma_buf_export")) {
+	if (strstr(display_exts_str, "EGL_MESA_image_dma_buf_export")) {
 		egl->exts.image_dma_buf_export_mesa = true;
 		load_egl_proc(&egl->procs.eglExportDMABUFImageQueryMESA,
 			"eglExportDMABUFImageQueryMESA");
@@ -242,7 +225,7 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 			"eglExportDMABUFImageMESA");
 	}
 
-	if (check_egl_ext(display_exts_str, "EGL_WL_bind_wayland_display")) {
+	if (strstr(display_exts_str, "EGL_WL_bind_wayland_display")) {
 		egl->exts.bind_wayland_display_wl = true;
 		load_egl_proc(&egl->procs.eglBindWaylandDisplayWL,
 			"eglBindWaylandDisplayWL");
@@ -253,7 +236,7 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 	}
 
 	const char *device_exts_str = NULL;
-	if (check_egl_ext(client_exts_str, "EGL_EXT_device_query")) {
+	if (strstr(client_exts_str, "EGL_EXT_device_query")) {
 		load_egl_proc(&egl->procs.eglQueryDisplayAttribEXT,
 			"eglQueryDisplayAttribEXT");
 		load_egl_proc(&egl->procs.eglQueryDeviceStringEXT,
@@ -274,7 +257,7 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 			goto error;
 		}
 
-		if (check_egl_ext(device_exts_str, "EGL_MESA_device_software")) {
+		if (strstr(device_exts_str, "EGL_MESA_device_software")) {
 			const char *allow_software = getenv("WLR_RENDERER_ALLOW_SOFTWARE");
 			if (allow_software != NULL && strcmp(allow_software, "1") == 0) {
 				wlr_log(WLR_INFO, "Using software rendering");
@@ -287,17 +270,18 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 		}
 
 		egl->exts.device_drm_ext =
-			check_egl_ext(device_exts_str, "EGL_EXT_device_drm");
+			strstr(device_exts_str, "EGL_EXT_device_drm");
 	}
 
-	if (!check_egl_ext(display_exts_str, "EGL_KHR_no_config_context") &&
-			!check_egl_ext(display_exts_str, "EGL_MESA_configless_context")) {
+	if (!strstr(display_exts_str, "EGL_KHR_no_config_context") 
+			&& !strstr(display_exts_str, 
+				"EGL_MESA_configless_context")) {
 		wlr_log(WLR_ERROR, "EGL_KHR_no_config_context or "
 			"EGL_MESA_configless_context not supported");
 		goto error;
 	}
 
-	if (!check_egl_ext(display_exts_str, "EGL_KHR_surfaceless_context")) {
+	if (!strstr(display_exts_str, "EGL_KHR_surfaceless_context")) {
 		wlr_log(WLR_ERROR, 
 			"EGL_KHR_surfaceless_context not supported");
 		goto error;
@@ -314,7 +298,7 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 	init_dmabuf_formats(egl);
 
 	bool ext_context_priority =
-		check_egl_ext(display_exts_str, "EGL_IMG_context_priority");
+		strstr(display_exts_str, "EGL_IMG_context_priority");
 
 	size_t atti = 0;
 	EGLint attribs[5];
