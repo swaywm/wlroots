@@ -65,7 +65,6 @@ If you choose to enable X11 support:
 * xcb-xinput
 * xcb-image
 * xcb-render
-* x11-xcb
 * xcb-errors (optional, for improved error reporting)
 * x11-icccm (optional, for improved Xwayland introspection)
 
