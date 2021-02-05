@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <drm_fourcc.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <stdint.h>
@@ -267,18 +266,6 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 		wlr_log(WLR_ERROR, "Cannot create DMA-BUF texture: EGL extension "
 			"unavailable");
 		return NULL;
-	}
-
-	switch (attribs->format & ~DRM_FORMAT_BIG_ENDIAN) {
-	case WL_SHM_FORMAT_YUYV:
-	case WL_SHM_FORMAT_YVYU:
-	case WL_SHM_FORMAT_UYVY:
-	case WL_SHM_FORMAT_VYUY:
-	case WL_SHM_FORMAT_AYUV:
-		// TODO: YUV based formats not yet supported, require multiple images
-		return false;
-	default:
-		break;
 	}
 
 	struct wlr_gles2_texture *texture =
