@@ -475,6 +475,19 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 	if (texture != NULL) {
 		width = texture->width * wlr_output->scale / scale;
 		height = texture->height * wlr_output->scale / scale;
+
+		if (hotspot_x < 0) {
+			hotspot_x = 0;
+		}
+		if ((uint32_t)hotspot_x > texture->width) {
+			hotspot_x = texture->width;
+		}
+		if (hotspot_y < 0) {
+			hotspot_y = 0;
+		}
+		if ((uint32_t)hotspot_y > texture->height) {
+			hotspot_y = texture->height;
+		}
 	}
 
 	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
