@@ -34,6 +34,9 @@ void handle_xdg_surface_popup_committed(struct wlr_xdg_surface *surface);
 struct wlr_xdg_popup_grab *get_xdg_shell_popup_grab_from_seat(
 	struct wlr_xdg_shell *shell, struct wlr_seat *seat);
 
+void xdg_popup_for_each_surface(struct wlr_xdg_popup *popup,
+		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data);
+
 void create_xdg_toplevel(struct wlr_xdg_surface *xdg_surface,
 	uint32_t id);
 void handle_xdg_surface_toplevel_committed(struct wlr_xdg_surface *surface);

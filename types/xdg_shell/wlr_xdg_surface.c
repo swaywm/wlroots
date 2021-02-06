@@ -570,10 +570,12 @@ void wlr_xdg_popup_destroy(struct wlr_xdg_surface *surface) {
 
 static void xdg_popup_get_position(struct wlr_xdg_popup *popup,
 		double *popup_sx, double *popup_sy) {
-	struct wlr_xdg_surface *parent =
-		wlr_xdg_surface_from_wlr_surface(popup->parent);
-	struct wlr_box parent_geo;
-	wlr_xdg_surface_get_geometry(parent, &parent_geo);
+	struct wlr_box parent_geo = {0};
+	if (wlr_surface_is_xdg_surface(popup->parent)) {
+		struct wlr_xdg_surface *parent =
+			wlr_xdg_surface_from_wlr_surface(popup->parent);
+		wlr_xdg_surface_get_geometry(parent, &parent_geo);
+	}
 	*popup_sx = parent_geo.x + popup->geometry.x -
 		popup->base->geometry.x;
 	*popup_sy = parent_geo.y + popup->geometry.y -
@@ -628,29 +630,34 @@ static void xdg_surface_iterator(struct wlr_surface *surface,
 
 static void xdg_surface_for_each_popup_surface(struct wlr_xdg_surface *surface,
 		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data) {
-	struct wlr_xdg_popup *popup_state;
-	wl_list_for_each(popup_state, &surface->popups, link) {
-		struct wlr_xdg_surface *popup = popup_state->base;
-		if (!popup->configured) {
-			continue;
-		}
-
-		double popup_sx, popup_sy;
-		xdg_popup_get_position(popup_state, &popup_sx, &popup_sy);
-
-		struct xdg_surface_iterator_data data = {
-			.user_iterator = iterator,
-			.user_data = user_data,
-			.x = x + popup_sx, .y = y + popup_sy,
-		};
-		wlr_surface_for_each_surface(popup->surface, xdg_surface_iterator,
-			&data);
-
-		xdg_surface_for_each_popup_surface(popup,
-			x + popup_sx,
-			y + popup_sy,
-			iterator, user_data);
+	struct wlr_xdg_popup *popup;
+	wl_list_for_each(popup, &surface->popups, link) {
+		xdg_popup_for_each_surface(popup, x, y, iterator, user_data);
 	}
+}
+
+void xdg_popup_for_each_surface(struct wlr_xdg_popup *popup,
+		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data) {
+	struct wlr_xdg_surface *surface = popup->base;
+	if (!surface->configured) {
+		return;
+	}
+
+	double popup_sx, popup_sy;
+	xdg_popup_get_position(popup, &popup_sx, &popup_sy);
+
+	struct xdg_surface_iterator_data data = {
+		.user_iterator = iterator,
+		.user_data = user_data,
+		.x = x + popup_sx, .y = y + popup_sy,
+	};
+	wlr_surface_for_each_surface(surface->surface, xdg_surface_iterator,
+		&data);
+
+	xdg_surface_for_each_popup_surface(surface,
+		x + popup_sx,
+		y + popup_sy,
+		iterator, user_data);
 }
 
 void wlr_xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
