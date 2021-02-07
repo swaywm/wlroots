@@ -848,6 +848,7 @@ void wlr_tablet_tool_v2_start_implicit_grab(
 	}
 
 	state->original = tool->focused_surface;
+	state->focused = tool->focused_surface;
 	grab->data = state;
 
 	wlr_tablet_tool_v2_start_grab(tool, grab);
