@@ -4,7 +4,6 @@
 #include <GLES2/gl2.h>
 #include <linux/input-event-codes.h>
 #include <wayland-egl.h>
-#include <wlr/render/egl.h>
 #include "egl_common.h"
 #include "pointer-constraints-unstable-v1-client-protocol.h"
 #include "relative-pointer-unstable-v1-client-protocol.h"

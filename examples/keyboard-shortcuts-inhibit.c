@@ -4,7 +4,6 @@
 #include <string.h>
 #include <wayland-client.h>
 #include <wayland-egl.h>
-#include <wlr/render/egl.h>
 #include "egl_common.h"
 #include "keyboard-shortcuts-inhibit-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
