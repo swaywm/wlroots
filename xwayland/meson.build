@@ -45,7 +45,7 @@ foreach lib, desc : xwayland_optional
 	)
 	if dep.found()
 		xwayland_libs += dep
-		conf_data.set10('WLR_HAS_' + lib.underscorify().to_upper(), true)
+		features += { lib: true }
 	endif
 endforeach
 
@@ -60,4 +60,4 @@ wlr_files += files(
 	'xwm.c',
 )
 wlr_deps += xwayland_libs
-conf_data.set10('WLR_HAS_XWAYLAND', true)
+features += { 'xwayland': true }
