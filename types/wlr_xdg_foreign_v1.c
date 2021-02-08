@@ -159,6 +159,7 @@ static void finish_imported(struct wlr_xdg_imported_v1 *imported) {
 
 	wl_list_remove(&imported->link);
 	wl_list_init(&imported->link);
+	wl_resource_set_user_data(imported->resource, NULL);
 	free(imported);
 }
 
@@ -167,6 +168,7 @@ static void finish_exported(struct wlr_xdg_exported_v1 *exported) {
 
 	wl_list_remove(&exported->xdg_surface_destroy.link);
 	wl_list_remove(&exported->link);
+	wl_resource_set_user_data(exported->resource, NULL);
 	free(exported);
 }
 
@@ -185,7 +187,6 @@ static void handle_xdg_surface_destroy(
 	struct wlr_xdg_exported_v1 *exported =
 		wl_container_of(listener, exported, xdg_surface_destroy);
 
-	wl_resource_set_user_data(exported->resource, NULL);
 	finish_exported(exported);
 }
 
