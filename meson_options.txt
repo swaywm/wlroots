@@ -8,3 +8,4 @@ option('x11-backend', type: 'feature', value: 'auto', description: 'Enable X11 b
 option('examples', type: 'boolean', value: true, description: 'Build example applications')
 option('icon_directory', description: 'Location used to look for cursors (default: ${datadir}/icons)', type: 'string', value: '')
 option('xdg-foreign', type: 'feature', value: 'auto', description: 'Enable xdg-foreign protocol')
+option('gles2-renderer', type: 'feature', value: 'enabled', description: 'Enable GLES2 renderer')
