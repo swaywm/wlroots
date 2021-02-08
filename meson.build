@@ -153,7 +153,7 @@ lib_wlr = library(
 	dependencies: wlr_deps,
 	include_directories: [wlr_inc, proto_inc],
 	install: true,
-	link_args : symbols_flag,
+	link_args: symbols_flag,
 	link_depends: symbols_file,
 )
 
