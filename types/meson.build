@@ -67,7 +67,7 @@ wlr_files += files(
 	'wlr_xdg_output_v1.c',
 )
 
-if conf_data.get('WLR_HAS_XDG_FOREIGN', 0) == 1
+if features.get('xdg-foreign')
 	wlr_files += files(
 		'wlr_xdg_foreign_v1.c',
 		'wlr_xdg_foreign_v2.c',
