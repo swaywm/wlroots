@@ -5,7 +5,6 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <wayland-client.h>
-#include <wlr/util/log.h>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -35,80 +34,77 @@ const EGLint context_attribs[] = {
 };
 
 bool egl_init(struct wl_display *display) {
-	const char *client_exts_str = 
+	const char *client_exts_str =
 		eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
 	if (client_exts_str == NULL) {
 		if (eglGetError() == EGL_BAD_DISPLAY) {
-			wlr_log(WLR_ERROR, 
-				"EGL_EXT_client_extensions not supported");
+			fprintf(stderr, "EGL_EXT_client_extensions not supported\n");
 		} else {
-			wlr_log(WLR_ERROR, 
-				"Failed to query EGL client extensions");
+			fprintf(stderr, "Failed to query EGL client extensions\n");
 		}
 		return false;
 	}
 
 	if (!strstr(client_exts_str, "EGL_EXT_platform_base")) {
-		wlr_log(WLR_ERROR, "EGL_EXT_platform_base not supported");
+		fprintf(stderr, "EGL_EXT_platform_base not supported\n");
 		return false;
 	}
 
 	if (!strstr(client_exts_str, "EGL_EXT_platform_wayland")) {
-		wlr_log(WLR_ERROR, "EGL_EXT_platform_wayland not supported");
+		fprintf(stderr, "EGL_EXT_platform_wayland not supported\n");
 		return false;
 	}
 
-	eglGetPlatformDisplayEXT = 
+	eglGetPlatformDisplayEXT =
 		(void *)eglGetProcAddress("eglGetPlatformDisplayEXT");
 	if (eglGetPlatformDisplayEXT == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get eglGetPlatformDisplayEXT");
+		fprintf(stderr, "Failed to get eglGetPlatformDisplayEXT\n");
 		return false;
 	}
 
-	eglCreatePlatformWindowSurfaceEXT = 
+	eglCreatePlatformWindowSurfaceEXT =
 		(void *)eglGetProcAddress("eglCreatePlatformWindowSurfaceEXT");
 	if (eglCreatePlatformWindowSurfaceEXT == NULL) {
-		wlr_log(WLR_ERROR, 
-			"Failed to get eglCreatePlatformWindowSurfaceEXT");
+		fprintf(stderr, "Failed to get eglCreatePlatformWindowSurfaceEXT\n");
 		return false;
 	}
 
-	egl_display = 
-		eglGetPlatformDisplayEXT(EGL_PLATFORM_WAYLAND_EXT, 
+	egl_display =
+		eglGetPlatformDisplayEXT(EGL_PLATFORM_WAYLAND_EXT,
 			display, NULL);
 	if (egl_display == EGL_NO_DISPLAY) {
-		wlr_log(WLR_ERROR, "Failed to create EGL display");
+		fprintf(stderr, "Failed to create EGL display\n");
 		goto error;
 	}
 
 	if (eglInitialize(egl_display, NULL, NULL) == EGL_FALSE) {
-		wlr_log(WLR_ERROR, "Failed to initialize EGL");
+		fprintf(stderr, "Failed to initialize EGL\n");
 		goto error;
 	}
 
 	EGLint matched = 0;
-	if (!eglChooseConfig(egl_display, config_attribs, 
+	if (!eglChooseConfig(egl_display, config_attribs,
 			&egl_config, 1, &matched)) {
-		wlr_log(WLR_ERROR, "eglChooseConfig failed");
+		fprintf(stderr, "eglChooseConfig failed\n");
 		goto error;
 	}
 	if (matched == 0) {
-		wlr_log(WLR_ERROR, "Failed to match an EGL config");
+		fprintf(stderr, "Failed to match an EGL config\n");
 		goto error;
 	}
 
-	egl_context = 
-		eglCreateContext(egl_display, egl_config, 
+	egl_context =
+		eglCreateContext(egl_display, egl_config,
 			EGL_NO_CONTEXT, context_attribs);
 	if (egl_context == EGL_NO_CONTEXT) {
-		wlr_log(WLR_ERROR, "Failed to create EGL context");
+		fprintf(stderr, "Failed to create EGL context\n");
 		goto error;
 	}
 
 	return true;
 
 error:
-	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, 
+	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE,
 		EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	if (egl_display) {
 		eglTerminate(egl_display);
@@ -118,7 +114,7 @@ error:
 }
 
 void egl_finish(void) {
-	eglMakeCurrent(egl_display, EGL_NO_SURFACE, 
+	eglMakeCurrent(egl_display, EGL_NO_SURFACE,
 		EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	eglDestroyContext(egl_display, egl_context);
 	eglTerminate(egl_display);
