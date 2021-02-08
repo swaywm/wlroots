@@ -11,7 +11,6 @@
 #include <wayland-client.h>
 #include <wayland-cursor.h>
 #include <wayland-egl.h>
-#include <wlr/render/egl.h>
 #include <wlr/util/log.h>
 #include "egl_common.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
