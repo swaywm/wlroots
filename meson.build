@@ -158,10 +158,16 @@ lib_wlr = library(
 	link_depends: symbols_file,
 )
 
+wlr_vars = {}
+foreach name, have : features
+	wlr_vars += { 'have_' + name.underscorify(): have.to_string() }
+endforeach
+
 wlroots = declare_dependency(
 	link_with: lib_wlr,
 	dependencies: wlr_deps,
 	include_directories: wlr_inc,
+	variables: wlr_vars,
 )
 
 meson.override_dependency('wlroots', wlroots)
