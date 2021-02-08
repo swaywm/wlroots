@@ -184,4 +184,5 @@ pkgconfig.generate(lib_wlr,
 	filebase: meson.project_name(),
 	name: meson.project_name(),
 	description: 'Wayland compositor library',
+	variables: wlr_vars,
 )
