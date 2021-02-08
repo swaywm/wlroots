@@ -145,7 +145,7 @@ static struct wlr_xdg_foreign_v2 *xdg_foreign_from_exporter_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-static void finish_imported(struct wlr_xdg_imported_v2 *imported) {
+static void destroy_imported(struct wlr_xdg_imported_v2 *imported) {
 	imported->exported = NULL;
 	struct wlr_xdg_imported_child_v2 *child, *child_tmp;
 	wl_list_for_each_safe(child, child_tmp, &imported->children, link) {
@@ -163,7 +163,7 @@ static void finish_imported(struct wlr_xdg_imported_v2 *imported) {
 	free(imported);
 }
 
-static void finish_exported(struct wlr_xdg_exported_v2 *exported) {
+static void destroy_exported(struct wlr_xdg_exported_v2 *exported) {
 	wlr_xdg_foreign_exported_finish(&exported->base);
 
 	wl_list_remove(&exported->xdg_surface_destroy.link);
@@ -178,7 +178,7 @@ static void xdg_exported_handle_resource_destroy(
 		xdg_exported_from_resource(resource);
 
 	if (exported) {
-		finish_exported(exported);
+		destroy_exported(exported);
 	}
 }
 
@@ -187,7 +187,7 @@ static void handle_xdg_surface_destroy(
 	struct wlr_xdg_exported_v2 *exported =
 		wl_container_of(listener, exported, xdg_surface_destroy);
 
-	finish_exported(exported);
+	destroy_exported(exported);
 }
 
 static void xdg_exporter_handle_export(struct wl_client *wl_client,
@@ -277,7 +277,7 @@ static void xdg_imported_handle_resource_destroy(
 		return;
 	}
 
-	finish_imported(imported);
+	destroy_imported(imported);
 }
 
 static void xdg_imported_handle_exported_destroy(struct wl_listener *listener,
@@ -285,7 +285,7 @@ static void xdg_imported_handle_exported_destroy(struct wl_listener *listener,
 	struct wlr_xdg_imported_v2 *imported =
 		wl_container_of(listener, imported, exported_destroyed);
 	zxdg_imported_v2_send_destroyed(imported->resource);
-	finish_imported(imported);
+	destroy_imported(imported);
 }
 
 static void xdg_importer_handle_import(struct wl_client *wl_client,
