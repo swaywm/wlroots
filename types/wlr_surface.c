@@ -230,7 +230,7 @@ static void surface_update_damage(pixman_region32_t *buffer_damage,
 		pixman_region32_copy(&surface_damage, &pending->surface_damage);
 
 		if (pending->viewport.has_dst) {
-			int src_width, src_height;
+			int src_width = 0, src_height = 0;
 			surface_state_viewport_src_size(pending, &src_width, &src_height);
 			float scale_x = (float)pending->viewport.dst_width / src_width;
 			float scale_y = (float)pending->viewport.dst_height / src_height;
@@ -1287,7 +1287,7 @@ void wlr_surface_get_effective_damage(struct wlr_surface *surface,
 		crop_region(damage, damage, &src_box);
 	}
 	if (surface->current.viewport.has_dst) {
-		int src_width, src_height;
+		int src_width = 0, src_height = 0;
 		surface_state_viewport_src_size(&surface->current,
 			&src_width, &src_height);
 		float scale_x = (float)surface->current.viewport.dst_width / src_width;
