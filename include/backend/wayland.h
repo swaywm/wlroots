@@ -38,10 +38,12 @@ struct wlr_wl_backend {
 	struct zxdg_decoration_manager_v1 *zxdg_decoration_manager_v1;
 	struct zwp_pointer_gestures_v1 *zwp_pointer_gestures_v1;
 	struct wp_presentation *presentation;
+	struct wl_shm *shm;
 	struct zwp_linux_dmabuf_v1 *zwp_linux_dmabuf_v1;
 	struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1;
 	struct wl_list seats; // wlr_wl_seat.link
 	struct zwp_tablet_manager_v2 *tablet_manager;
+	struct wlr_drm_format_set shm_formats;
 	struct wlr_drm_format_set linux_dmabuf_v1_formats;
 	struct wl_drm *legacy_drm;
 	char *drm_render_name;
