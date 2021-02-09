@@ -21,6 +21,7 @@
 #include "render/drm_format_set.h"
 #include "render/gbm_allocator.h"
 #include "render/pixel_format.h"
+#include "render/shm_allocator.h"
 #include "render/wlr_renderer.h"
 #include "util/signal.h"
 
@@ -424,11 +425,6 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 			"Remote Wayland compositor does not support xdg-shell");
 		goto error_registry;
 	}
-	if (!wl->drm_render_name) {
-		wlr_log(WLR_ERROR, "Failed to get DRM render node from remote Wayland "
-			"compositor wl_drm interface");
-		goto error_registry;
-	}
 
 	struct wl_event_loop *loop = wl_display_get_event_loop(wl->local_display);
 	int fd = wl_display_get_fd(wl->remote_display);
@@ -440,27 +436,38 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}
 	wl_event_source_check(wl->remote_display_src);
 
-	wlr_log(WLR_DEBUG, "Opening DRM render node %s", wl->drm_render_name);
-	wl->drm_fd = open(wl->drm_render_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
-	if (wl->drm_fd < 0) {
-		wlr_log_errno(WLR_ERROR, "Failed to open DRM render node %s",
-			wl->drm_render_name);
-		goto error_remote_display_src;
-	}
+	wl->drm_fd = -1;
+	if (wl->drm_render_name != NULL) {
+		wlr_log(WLR_DEBUG, "Opening DRM render node %s", wl->drm_render_name);
+		wl->drm_fd = open(wl->drm_render_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+		if (wl->drm_fd < 0) {
+			wlr_log_errno(WLR_ERROR, "Failed to open DRM render node %s",
+				wl->drm_render_name);
+			goto error_remote_display_src;
+		}
 
-	int drm_fd = fcntl(wl->drm_fd, F_DUPFD_CLOEXEC, 0);
-	if (drm_fd < 0) {
-		wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
-		goto error_drm_fd;
-	}
+		int drm_fd = fcntl(wl->drm_fd, F_DUPFD_CLOEXEC, 0);
+		if (drm_fd < 0) {
+			wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+			goto error_drm_fd;
+		}
 
-	struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
-	if (gbm_alloc == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
-		close(drm_fd);
-		goto error_drm_fd;
+		struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
+		if (gbm_alloc == NULL) {
+			wlr_log(WLR_ERROR, "Failed to create GBM allocator");
+			close(drm_fd);
+			goto error_drm_fd;
+		}
+		wl->allocator = &gbm_alloc->base;
+	} else {
+		wlr_log(WLR_DEBUG, "No render node found, falling back to shared memory");
+		struct wlr_shm_allocator *shm_alloc = wlr_shm_allocator_create();
+		if (shm_alloc == NULL) {
+			wlr_log(WLR_ERROR, "Failed to create shared memory allocator");
+			goto error_remote_display_src;
+		}
+		wl->allocator = &shm_alloc->base;
 	}
-	wl->allocator = &gbm_alloc->base;
 
 	wl->renderer = wlr_renderer_autocreate(&wl->backend);
 	if (wl->renderer == NULL) {
@@ -468,21 +475,30 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		goto error_allocator;
 	}
 
-	uint32_t fmt = DRM_FORMAT_ARGB8888;
-	const struct wlr_drm_format *remote_format =
-		wlr_drm_format_set_get(&wl->linux_dmabuf_v1_formats, fmt);
-	if (remote_format == NULL) {
-		wlr_log(WLR_ERROR, "Remote compositor doesn't support format "
-			"0x%"PRIX32" via linux-dmabuf-unstable-v1", fmt);
+	const struct wlr_drm_format_set *remote_formats;
+	const struct wlr_drm_format_set *render_formats;
+	if (wl->drm_fd >= 0) {
+		remote_formats = &wl->linux_dmabuf_v1_formats;
+		render_formats = wlr_renderer_get_dmabuf_render_formats(wl->renderer);
+	} else {
+		remote_formats = &wl->shm_formats;
+		render_formats = NULL; // TODO
+	}
+	if (render_formats == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get available render-capable formats");
 		goto error_renderer;
 	}
 
-	const struct wlr_drm_format_set *render_formats =
-		wlr_renderer_get_dmabuf_render_formats(wl->renderer);
-	if (render_formats == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get available DMA-BUF formats from renderer");
+	uint32_t fmt = DRM_FORMAT_ARGB8888;
+
+	const struct wlr_drm_format *remote_format =
+		wlr_drm_format_set_get(remote_formats, fmt);
+	if (remote_format == NULL) {
+		wlr_log(WLR_ERROR, "Remote compositor doesn't support DRM format "
+			"0x%"PRIX32, fmt);
 		goto error_renderer;
 	}
+
 	const struct wlr_drm_format *render_format =
 		wlr_drm_format_set_get(render_formats, fmt);
 	if (render_format == NULL) {
