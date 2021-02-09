@@ -74,6 +74,14 @@ bool buffer_get_data_ptr(struct wlr_buffer *buffer, void **data,
 	return buffer->impl->get_data_ptr(buffer, data, size);
 }
 
+bool wlr_buffer_get_shm(struct wlr_buffer *buffer,
+		struct wlr_shm_attributes *attribs) {
+	if (!buffer->impl->get_shm) {
+		return false;
+	}
+	return buffer->impl->get_shm(buffer, attribs);
+}
+
 bool wlr_resource_is_buffer(struct wl_resource *resource) {
 	return strcmp(wl_resource_get_class(resource), wl_buffer_interface.name) == 0;
 }

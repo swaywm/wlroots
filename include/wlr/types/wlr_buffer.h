@@ -15,12 +15,21 @@
 
 struct wlr_buffer;
 
+struct wlr_shm_attributes {
+	int fd;
+	uint32_t format;
+	int width, height, stride;
+	off_t offset;
+};
+
 struct wlr_buffer_impl {
 	void (*destroy)(struct wlr_buffer *buffer);
 	bool (*get_dmabuf)(struct wlr_buffer *buffer,
 		struct wlr_dmabuf_attributes *attribs);
 	bool (*get_data_ptr)(struct wlr_buffer *buffer, void **data,
 		size_t *stride);
+	bool (*get_shm)(struct wlr_buffer *buffer,
+		struct wlr_shm_attributes *attribs);
 };
 
 /**
@@ -78,6 +87,16 @@ void wlr_buffer_unlock(struct wlr_buffer *buffer);
  */
 bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
 	struct wlr_dmabuf_attributes *attribs);
+/**
+ * Read shared memory attributes of the buffer. If this buffer isn't shared
+ * memory, returns false.
+ *
+ * The returned shared memory attributes are valid for the lifetime of the
+ * wlr_buffer. The caller isn't responsible for cleaning up the shared memory
+ * attributes.
+ */
+bool wlr_buffer_get_shm(struct wlr_buffer *buffer,
+	struct wlr_shm_attributes *attribs);
 
 /**
  * A client buffer.
