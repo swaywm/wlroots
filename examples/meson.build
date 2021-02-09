@@ -32,18 +32,23 @@ compositors = {
 	},
 	'touch': {
 		'src': ['touch.c', 'cat.c'],
+		'dep': [glesv2],
 	},
 	'tablet': {
 		'src': 'tablet.c',
+		'dep': [glesv2],
 	},
 	'rotation': {
 		'src': ['rotation.c', 'cat.c'],
+		'dep': [glesv2],
 	},
 	'multi-pointer': {
 		'src': 'multi-pointer.c',
+		'dep': [glesv2],
 	},
 	'output-layout': {
 		'src': ['output-layout.c', 'cat.c'],
+		'dep': [glesv2],
 	},
 	'fullscreen-shell': {
 		'src': 'fullscreen-shell.c',
@@ -193,7 +198,7 @@ foreach name, info : compositors
 	executable(
 		name,
 		[info.get('src'), extra_src],
-		dependencies: [wlroots, libdrm],
+		dependencies: [wlroots, libdrm, info.get('dep', [])],
 		include_directories: [wlr_inc, proto_inc],
 		build_by_default: get_option('examples'),
 	)
