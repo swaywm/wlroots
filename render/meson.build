@@ -5,6 +5,7 @@ wlr_files += files(
 	'drm_format_set.c',
 	'gbm_allocator.c',
 	'pixel_format.c',
+	'shm_allocator.c',
 	'swapchain.c',
 	'wlr_renderer.c',
 	'wlr_texture.c',
