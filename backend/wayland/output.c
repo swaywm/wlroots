@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <drm_fourcc.h>
 #include <wayland-client.h>
 
 #include <wlr/interfaces/wlr_output.h>
@@ -15,6 +16,7 @@
 #include <wlr/util/log.h>
 
 #include "backend/wayland.h"
+#include "render/pixel_format.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
 #include "util/signal.h"
@@ -161,17 +163,58 @@ static void buffer_handle_buffer_destroy(struct wl_listener *listener,
 
 static bool test_buffer(struct wlr_wl_backend *wl,
 		struct wlr_buffer *wlr_buffer) {
-	struct wlr_dmabuf_attributes attribs;
-	if (!wlr_buffer_get_dmabuf(wlr_buffer, &attribs)) {
+	struct wlr_dmabuf_attributes dmabuf;
+	struct wlr_shm_attributes shm;
+	if (wlr_buffer_get_dmabuf(wlr_buffer, &dmabuf)) {
+		return wlr_drm_format_set_has(&wl->linux_dmabuf_v1_formats,
+			dmabuf.format, dmabuf.modifier);
+	} else if (wlr_buffer_get_shm(wlr_buffer, &shm)) {
+		return wlr_drm_format_set_has(&wl->shm_formats, shm.format,
+			DRM_FORMAT_MOD_INVALID);
+	} else {
 		return false;
 	}
+}
 
-	if (!wlr_drm_format_set_has(&wl->linux_dmabuf_v1_formats,
-			attribs.format, attribs.modifier)) {
-		return false;
+static struct wl_buffer *import_dmabuf(struct wlr_wl_backend *wl,
+		struct wlr_dmabuf_attributes *dmabuf) {
+	uint32_t modifier_hi = dmabuf->modifier >> 32;
+	uint32_t modifier_lo = (uint32_t)dmabuf->modifier;
+	struct zwp_linux_buffer_params_v1 *params =
+		zwp_linux_dmabuf_v1_create_params(wl->zwp_linux_dmabuf_v1);
+	for (int i = 0; i < dmabuf->n_planes; i++) {
+		zwp_linux_buffer_params_v1_add(params, dmabuf->fd[i], i,
+			dmabuf->offset[i], dmabuf->stride[i], modifier_hi, modifier_lo);
 	}
 
-	return true;
+	uint32_t flags = 0;
+	if (dmabuf->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) {
+		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT;
+	}
+	if (dmabuf->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_INTERLACED) {
+		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_INTERLACED;
+	}
+	if (dmabuf->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_BOTTOM_FIRST) {
+		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_BOTTOM_FIRST;
+	}
+	struct wl_buffer *wl_buffer = zwp_linux_buffer_params_v1_create_immed(
+		params, dmabuf->width, dmabuf->height, dmabuf->format, flags);
+	// TODO: handle create() errors
+	return wl_buffer;
+}
+
+static struct wl_buffer *import_shm(struct wlr_wl_backend *wl,
+		struct wlr_shm_attributes *shm) {
+	enum wl_shm_format wl_shm_format = convert_drm_format_to_wl_shm(shm->format);
+	uint32_t size = shm->stride * shm->height;
+	struct wl_shm_pool *pool = wl_shm_create_pool(wl->shm, shm->fd, size);
+	if (pool == NULL) {
+		return NULL;
+	}
+	struct wl_buffer *wl_buffer = wl_shm_pool_create_buffer(pool, shm->offset,
+		shm->width, shm->height, shm->stride, wl_shm_format);
+	wl_shm_pool_destroy(pool);
+	return wl_buffer;
 }
 
 static struct wlr_wl_buffer *create_wl_buffer(struct wlr_wl_backend *wl,
@@ -180,33 +223,19 @@ static struct wlr_wl_buffer *create_wl_buffer(struct wlr_wl_backend *wl,
 		return NULL;
 	}
 
-	struct wlr_dmabuf_attributes attribs;
-	if (!wlr_buffer_get_dmabuf(wlr_buffer, &attribs)) {
+	struct wlr_dmabuf_attributes dmabuf;
+	struct wlr_shm_attributes shm;
+	struct wl_buffer *wl_buffer;
+	if (wlr_buffer_get_dmabuf(wlr_buffer, &dmabuf)) {
+		wl_buffer = import_dmabuf(wl, &dmabuf);
+	} else if (wlr_buffer_get_shm(wlr_buffer, &shm)) {
+		wl_buffer = import_shm(wl, &shm);
+	} else {
 		return NULL;
 	}
-
-	uint32_t modifier_hi = attribs.modifier >> 32;
-	uint32_t modifier_lo = (uint32_t)attribs.modifier;
-	struct zwp_linux_buffer_params_v1 *params =
-		zwp_linux_dmabuf_v1_create_params(wl->zwp_linux_dmabuf_v1);
-	for (int i = 0; i < attribs.n_planes; i++) {
-		zwp_linux_buffer_params_v1_add(params, attribs.fd[i], i,
-			attribs.offset[i], attribs.stride[i], modifier_hi, modifier_lo);
+	if (wl_buffer == NULL) {
+		return NULL;
 	}
-
-	uint32_t flags = 0;
-	if (attribs.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) {
-		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT;
-	}
-	if (attribs.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_INTERLACED) {
-		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_INTERLACED;
-	}
-	if (attribs.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_BOTTOM_FIRST) {
-		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_BOTTOM_FIRST;
-	}
-	struct wl_buffer *wl_buffer = zwp_linux_buffer_params_v1_create_immed(
-		params, attribs.width, attribs.height, attribs.format, flags);
-	// TODO: handle create() errors
 
 	struct wlr_wl_buffer *buffer = calloc(1, sizeof(struct wlr_wl_buffer));
 	if (buffer == NULL) {
