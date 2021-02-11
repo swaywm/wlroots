@@ -392,9 +392,22 @@ void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		goto fail_notify_requestor;
 	}
 
-	if (selection->window != req->owner) {
-		wlr_log(WLR_DEBUG, "received selection request with invalid owner");
+	if (req->requestor == selection->window) {
+		wlr_log(WLR_ERROR, "selection request should have been caught before");
 		goto fail_notify_requestor;
+	}
+
+	if (selection->window != req->owner) {
+		if (req->time != XCB_CURRENT_TIME && req->time < selection->timestamp) {
+			wlr_log(WLR_DEBUG, "ignored old request from timestamp %d; expected > %d",
+					req->time, selection->timestamp);
+			goto fail_notify_requestor;
+		}
+
+		wlr_log(WLR_DEBUG, "received selection request with invalid owner");
+		// Don't fail (`goto fail_notify_requestor`) the selection request if we're
+		// no longer the selection owner.
+		return;
 	}
 
 	// No xwayland surface focused, deny access to clipboard
