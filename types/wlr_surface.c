@@ -232,6 +232,7 @@ static void surface_update_damage(pixman_region32_t *buffer_damage,
 		if (pending->viewport.has_dst) {
 			int src_width = -1, src_height = -1;
 			surface_state_viewport_src_size(pending, &src_width, &src_height);
+                      assert(src_width != -1 && src_height != -1);
 			float scale_x = (float)pending->viewport.dst_width / src_width;
 			float scale_y = (float)pending->viewport.dst_height / src_height;
 			wlr_region_scale_xy(&surface_damage, &surface_damage,
