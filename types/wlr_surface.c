@@ -1288,7 +1288,7 @@ void wlr_surface_get_effective_damage(struct wlr_surface *surface,
 		crop_region(damage, damage, &src_box);
 	}
 	if (surface->current.viewport.has_dst) {
-		int src_width = 1, src_height = 1;
+		int src_width = -1, src_height = -1;
 		surface_state_viewport_src_size(&surface->current,
 			&src_width, &src_height);
 		float scale_x = (float)surface->current.viewport.dst_width / src_width;
