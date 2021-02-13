@@ -513,9 +513,14 @@ int xwm_handle_xfixes_selection_notify(struct wlr_xwm *xwm,
 		return 1;
 	}
 
+	if (selection->owner == selection->window &&
+			event->owner != selection->owner) {
+		wlr_log(WLR_DEBUG, "proxy window lost selection ownership");
+	}
+
 	selection->owner = event->owner;
 
-	if (event->owner == selection->window) {
+	if (selection->owner == selection->window) {
 		// We have to use XCB_TIME_CURRENT_TIME when we claim the selection, so
 		// grab the actual timestamp here so we can answer TIMESTAMP conversion
 		// requests correctly.
