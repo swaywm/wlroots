@@ -182,9 +182,12 @@ static bool surface_state_finalize(struct wlr_surface *surface,
 	if (!state->viewport.has_src &&
 			(state->buffer_width % state->scale != 0 ||
 			state->buffer_height % state->scale != 0)) {
-		wl_resource_post_error(surface->resource,
-			WL_SURFACE_ERROR_INVALID_SIZE,
-			"Buffer size not divisible by scale");
+		// TODO: send WL_SURFACE_ERROR_INVALID_SIZE error once this issue is
+		// resolved:
+		// https://gitlab.freedesktop.org/wayland/wayland/-/issues/194
+		wlr_log(WLR_DEBUG, "Client bug: submitted a buffer whose size (%dx%d) "
+			"is not divisible by scale (%d)", state->buffer_width,
+			state->buffer_height, state->scale);
 		return false;
 	}
 
