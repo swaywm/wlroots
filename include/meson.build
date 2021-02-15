@@ -1,13 +1,13 @@
 subdir('wlr')
 
 exclude_files = ['meson.build', 'config.h.in', 'version.h.in']
-if conf_data.get('WLR_HAS_X11_BACKEND', 0) != 1
+if not features.get('x11-backend')
 	exclude_files += 'backend/x11.h'
 endif
-if conf_data.get('WLR_HAS_XWAYLAND', 0) != 1
+if not features.get('xwayland')
 	exclude_files += 'xwayland.h'
 endif
-if conf_data.get('WLR_HAS_XDG_FOREIGN', 0) != 1
+if not features.get('xdg-foreign')
 	exclude_files += [
 		'types/wlr_xdg_foreign_v1.h',
 		'types/wlr_xdg_foreign_v2.h',
