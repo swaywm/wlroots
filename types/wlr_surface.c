@@ -145,22 +145,17 @@ static void surface_set_input_region(struct wl_client *client,
  * rectangle) but before applying the viewport scaling (via the viewport's
  * destination rectangle).
  */
-static bool surface_state_viewport_src_size(struct wlr_surface_state *state,
+static void surface_state_viewport_src_size(struct wlr_surface_state *state,
 		int *out_width, int *out_height) {
 	if (state->buffer_width == 0 && state->buffer_height == 0) {
 		*out_width = *out_height = 0;
-		return true;
+		return;
 	}
 
 	if (state->viewport.has_src) {
 		*out_width = state->viewport.src.width;
 		*out_height = state->viewport.src.height;
 	} else {
-		if (state->buffer_width % state->scale != 0 ||
-				state->buffer_height % state->scale != 0) {
-			return false;
-		}
-
 		int width = state->buffer_width / state->scale;
 		int height = state->buffer_height / state->scale;
 		if ((state->transform & WL_OUTPUT_TRANSFORM_90) != 0) {
@@ -171,8 +166,6 @@ static bool surface_state_viewport_src_size(struct wlr_surface_state *state,
 		*out_width = width;
 		*out_height = height;
 	}
-
-	return true;
 }
 
 static bool surface_state_finalize(struct wlr_surface *surface,
@@ -186,6 +179,15 @@ static bool surface_state_finalize(struct wlr_surface *surface,
 		}
 	}
 
+	if (!state->viewport.has_src &&
+			(state->buffer_width % state->scale != 0 ||
+			state->buffer_height % state->scale != 0)) {
+		wl_resource_post_error(surface->resource,
+			WL_SURFACE_ERROR_INVALID_SIZE,
+			"Buffer size not divisible by scale");
+		return false;
+	}
+
 	if (state->viewport.has_dst) {
 		if (state->buffer_width == 0 && state->buffer_height == 0) {
 			state->width = state->height = 0;
@@ -194,13 +196,7 @@ static bool surface_state_finalize(struct wlr_surface *surface,
 			state->height = state->viewport.dst_height;
 		}
 	} else {
-		if (!surface_state_viewport_src_size(state,
-				&state->width, &state->height)) {
-			wl_resource_post_error(surface->resource,
-				WL_SURFACE_ERROR_INVALID_SIZE,
-				"Buffer size not divisible by scale");
-			return false;
-		}
+		surface_state_viewport_src_size(state, &state->width, &state->height);
 	}
 
 	pixman_region32_intersect_rect(&state->surface_damage,
