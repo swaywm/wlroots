@@ -107,11 +107,10 @@ struct wlr_gles2_texture {
 	bool has_alpha;
 
 	// Only affects target == GL_TEXTURE_2D
-	enum wl_shm_format wl_format; // used to interpret upload data
+	uint32_t drm_format; // used to interpret upload data
 };
 
-const struct wlr_gles2_pixel_format *get_gles2_format_from_wl(
-	enum wl_shm_format fmt);
+const struct wlr_gles2_pixel_format *get_gles2_format_from_drm(uint32_t fmt);
 const struct wlr_gles2_pixel_format *get_gles2_format_from_gl(
 	GLint gl_format, GLint gl_type, bool alpha);
 const enum wl_shm_format *get_gles2_wl_formats(size_t *len);
