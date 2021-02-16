@@ -10,7 +10,7 @@
 #define WLR_RENDER_WLR_RENDERER_H
 
 #include <stdint.h>
-#include <wayland-server-protocol.h>
+#include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_box.h>
