@@ -15,7 +15,6 @@
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
-#include "render/shm_format.h"
 
 static const GLfloat verts[] = {
 	1, 0, // top right
