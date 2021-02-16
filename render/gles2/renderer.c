@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -501,12 +502,28 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 
 	push_gles2_debug(renderer);
 
-	// Make sure any pending drawing is finished before we try to read it
-	glFinish();
-
 	glGetError(); // Clear the error flag
 
-	unsigned char *p = (unsigned char *)data + dst_y * stride;
+	unsigned char *out = (unsigned char *)data + dst_y * stride;
+	unsigned char *read_pixels_out = out;
+
+	wlr_log(WLR_DEBUG, "create PBO");
+
+	GLuint pbo = 0;
+	if (renderer->exts.pixel_buffer_object_nv && renderer->exts.mapbuffer_oes &&
+			renderer->exts.map_buffer_range_ext) {
+		// Ideally we should use the GL_STREAM_READ usage instead of
+		// GL_STREAM_DRAW, however it's not available in GLES2. It's just a
+		// hint and it's in general ignored by GL implementations, see:
+		// https://github.com/KhronosGroup/OpenGL-API/issues/66
+		glGenBuffers(1, &pbo);
+		glBindBuffer(GL_PIXEL_PACK_BUFFER_NV, pbo);
+		glBufferData(GL_PIXEL_PACK_BUFFER_NV, stride * height, NULL,
+			GL_STREAM_DRAW);
+
+		read_pixels_out = NULL;
+	}
+
 	uint32_t pack_stride = width * fmt->bpp / 8;
 	if (pack_stride == stride && dst_x == 0 && flags != NULL) {
 		// Under these particular conditions, we can read the pixels with only
@@ -517,7 +534,8 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 			y = renderer->viewport_height - height - src_y;
 		}
 
-		glReadPixels(src_x, y, width, height, fmt->gl_format, fmt->gl_type, p);
+		glReadPixels(src_x, y, width, height, fmt->gl_format, fmt->gl_type,
+			read_pixels_out);
 
 		if (renderer->current_buffer != NULL) {
 			*flags = 0;
@@ -533,13 +551,37 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 				y = renderer->viewport_height - src_y - i - 1;
 			}
 
-			glReadPixels(src_x, y, width, 1, fmt->gl_format,
-				fmt->gl_type, p + i * stride + dst_x * fmt->bpp / 8);
+			glReadPixels(src_x, y, width, 1, fmt->gl_format, fmt->gl_type,
+				read_pixels_out + i * stride + dst_x * fmt->bpp / 8);
 		}
 
 		if (flags != NULL) {
 			*flags = 0;
 		}
+	}
+
+	if (pbo != 0) {
+		EGLSyncKHR sync = wlr_egl_create_sync(renderer->egl, -1);
+		int fence_fd = wlr_egl_dup_fence_fd(renderer->egl, sync);
+		wlr_egl_destroy_sync(renderer->egl, sync);
+
+		struct pollfd pollfd = { .fd = fence_fd, .events = POLLIN };
+		if (poll(&pollfd, 1, -1) <= 0) {
+			wlr_log(WLR_ERROR, "poll failed");
+		}
+
+		close(fence_fd);
+
+		// glMapBufferOES doesn't allow for read access, so we need to use
+		// glMapBufferRangeEXT instead
+		unsigned char *in = renderer->procs.glMapBufferRangeEXT(
+			GL_PIXEL_PACK_BUFFER_NV, 0, stride * height, GL_MAP_READ_BIT_EXT);
+		// TODO: error handling
+
+		memcpy(out, in, stride * height);
+
+		renderer->procs.glUnmapBufferOES(GL_PIXEL_PACK_BUFFER_NV);
+		glBindBuffer(GL_PIXEL_PACK_BUFFER_NV, 0);
 	}
 
 	pop_gles2_debug(renderer);
@@ -926,6 +968,19 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 		renderer->exts.egl_image_oes = true;
 		load_gl_proc(&renderer->procs.glEGLImageTargetRenderbufferStorageOES,
 			"glEGLImageTargetRenderbufferStorageOES");
+	}
+
+	renderer->exts.pixel_buffer_object_nv =
+		check_gl_ext(exts_str, "GL_NV_pixel_buffer_object");
+
+	if (check_gl_ext(exts_str, "GL_OES_mapbuffer")) {
+		renderer->exts.mapbuffer_oes = true;
+		load_gl_proc(&renderer->procs.glUnmapBufferOES, "glUnmapBufferOES");
+	}
+	if (check_gl_ext(exts_str, "GL_EXT_map_buffer_range")) {
+		renderer->exts.map_buffer_range_ext = true;
+		load_gl_proc(&renderer->procs.glMapBufferRangeEXT,
+			"glMapBufferRangeEXT");
 	}
 
 	if (renderer->exts.debug_khr) {
