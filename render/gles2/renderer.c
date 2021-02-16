@@ -14,6 +14,7 @@
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
+#include "render/shm_format.h"
 
 static const GLfloat verts[] = {
 	1, 0, // top right
@@ -455,7 +456,7 @@ static enum wl_shm_format gles2_preferred_read_format(
 	const struct wlr_gles2_pixel_format *fmt =
 		get_gles2_format_from_gl(gl_format, gl_type, alpha_size > 0);
 	if (fmt != NULL) {
-		return fmt->wl_format;
+		return convert_drm_format_to_wl_shm(fmt->drm_format);
 	}
 
 	if (renderer->exts.read_format_bgra_ext) {

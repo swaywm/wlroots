@@ -11,6 +11,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
+#include "render/shm_format.h"
 #include "util/signal.h"
 
 static const struct wlr_texture_impl texture_impl;
@@ -175,7 +176,7 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 	texture->renderer = renderer;
 	texture->target = GL_TEXTURE_2D;
 	texture->has_alpha = fmt->has_alpha;
-	texture->wl_format = fmt->wl_format;
+	texture->wl_format = convert_drm_format_to_wl_shm(fmt->drm_format);
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_save_context(&prev_ctx);

@@ -15,7 +15,7 @@
 #include <wlr/util/log.h>
 
 struct wlr_gles2_pixel_format {
-	enum wl_shm_format wl_format;
+	uint32_t drm_format;
 	GLint gl_format, gl_type;
 	int depth, bpp;
 	bool has_alpha;
