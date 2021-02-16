@@ -467,14 +467,14 @@ static uint32_t gles2_preferred_read_format(
 }
 
 static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
-		enum wl_shm_format wl_fmt, uint32_t *flags, uint32_t stride,
+		uint32_t drm_format, uint32_t *flags, uint32_t stride,
 		uint32_t width, uint32_t height, uint32_t src_x, uint32_t src_y,
 		uint32_t dst_x, uint32_t dst_y, void *data) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
 
 	const struct wlr_gles2_pixel_format *fmt =
-		get_gles2_format_from_drm(convert_wl_shm_format_to_drm(wl_fmt));
+		get_gles2_format_from_drm(drm_format);
 	if (fmt == NULL) {
 		wlr_log(WLR_ERROR, "Cannot read pixels: unsupported pixel format");
 		return false;

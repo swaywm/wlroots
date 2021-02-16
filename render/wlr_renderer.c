@@ -189,7 +189,7 @@ const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_render_formats(
 	return r->impl->get_dmabuf_render_formats(r);
 }
 
-bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
+bool wlr_renderer_read_pixels(struct wlr_renderer *r, uint32_t fmt,
 		uint32_t *flags, uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
 		void *data) {

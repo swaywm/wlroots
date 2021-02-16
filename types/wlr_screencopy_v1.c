@@ -233,7 +233,8 @@ static void frame_handle_output_precommit(struct wl_listener *listener,
 	int x = frame->box.x;
 	int y = frame->box.y;
 
-	enum wl_shm_format fmt = wl_shm_buffer_get_format(shm_buffer);
+	enum wl_shm_format wl_shm_format = wl_shm_buffer_get_format(shm_buffer);
+	uint32_t drm_format = convert_wl_shm_format_to_drm(wl_shm_format);
 	int32_t width = wl_shm_buffer_get_width(shm_buffer);
 	int32_t height = wl_shm_buffer_get_height(shm_buffer);
 	int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
@@ -241,7 +242,7 @@ static void frame_handle_output_precommit(struct wl_listener *listener,
 	wl_shm_buffer_begin_access(shm_buffer);
 	void *data = wl_shm_buffer_get_data(shm_buffer);
 	uint32_t renderer_flags = 0;
-	bool ok = wlr_renderer_read_pixels(renderer, fmt, &renderer_flags,
+	bool ok = wlr_renderer_read_pixels(renderer, drm_format, &renderer_flags,
 		stride, width, height, x, y, 0, 0, data);
 	uint32_t flags = renderer_flags & WLR_RENDERER_READ_PIXELS_Y_INVERT ?
 		ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT : 0;

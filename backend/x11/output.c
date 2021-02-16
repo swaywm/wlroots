@@ -427,7 +427,7 @@ static bool output_cursor_to_picture(struct wlr_x11_output *output,
 	wlr_renderer_end(x11->renderer);
 
 	bool result = wlr_renderer_read_pixels(
-		x11->renderer, WL_SHM_FORMAT_ARGB8888, NULL,
+		x11->renderer, DRM_FORMAT_ARGB8888, NULL,
 		width * 4, width, height, 0, 0, 0, 0,
 		data);
 
