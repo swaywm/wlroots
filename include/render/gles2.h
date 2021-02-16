@@ -121,7 +121,7 @@ struct wlr_gles2_texture *gles2_get_texture(
 	struct wlr_texture *wlr_texture);
 
 struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
-	enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width, uint32_t height,
+	uint32_t fmt, uint32_t stride, uint32_t width, uint32_t height,
 	const void *data);
 struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 	struct wl_resource *data);

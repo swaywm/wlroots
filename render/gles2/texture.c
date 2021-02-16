@@ -12,7 +12,6 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
-#include "render/shm_format.h"
 #include "util/signal.h"
 
 static const struct wlr_texture_impl texture_impl;
@@ -153,14 +152,14 @@ static const struct wlr_texture_impl texture_impl = {
 };
 
 struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
-		enum wl_shm_format wl_fmt, uint32_t stride, uint32_t width,
+		uint32_t drm_format, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
 	const struct wlr_gles2_pixel_format *fmt =
-		get_gles2_format_from_drm(convert_wl_shm_format_to_drm(wl_fmt));
+		get_gles2_format_from_drm(drm_format);
 	if (fmt == NULL) {
-		wlr_log(WLR_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
+		wlr_log(WLR_ERROR, "Unsupported pixel format 0x%"PRIX32, drm_format);
 		return NULL;
 	}
 
