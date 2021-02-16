@@ -43,6 +43,9 @@ struct wlr_gles2_renderer {
 		bool debug_khr;
 		bool egl_image_external_oes;
 		bool egl_image_oes;
+		bool pixel_buffer_object_nv;
+		bool mapbuffer_oes;
+		bool map_buffer_range_ext;
 	} exts;
 
 	struct {
@@ -52,6 +55,8 @@ struct wlr_gles2_renderer {
 		PFNGLPOPDEBUGGROUPKHRPROC glPopDebugGroupKHR;
 		PFNGLPUSHDEBUGGROUPKHRPROC glPushDebugGroupKHR;
 		PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC glEGLImageTargetRenderbufferStorageOES;
+		PFNGLMAPBUFFERRANGEEXTPROC glMapBufferRangeEXT;
+		PFNGLUNMAPBUFFEROESPROC glUnmapBufferOES;
 	} procs;
 
 	struct {
