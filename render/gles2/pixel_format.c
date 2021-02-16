@@ -2,7 +2,6 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include "render/gles2.h"
-#include "render/shm_format.h"
 
 /*
  * The DRM formats are little endian while the GL formats are big endian,
@@ -66,11 +65,11 @@ const struct wlr_gles2_pixel_format *get_gles2_format_from_gl(
 	return NULL;
 }
 
-const enum wl_shm_format *get_gles2_wl_formats(size_t *len) {
-	static enum wl_shm_format wl_formats[sizeof(formats) / sizeof(formats[0])];
+const uint32_t *get_gles2_shm_formats(size_t *len) {
+	static uint32_t shm_formats[sizeof(formats) / sizeof(formats[0])];
 	*len = sizeof(formats) / sizeof(formats[0]);
 	for (size_t i = 0; i < sizeof(formats) / sizeof(formats[0]); i++) {
-		wl_formats[i] = convert_drm_format_to_wl_shm(formats[i].drm_format);
+		shm_formats[i] = formats[i].drm_format;
 	}
-	return wl_formats;
+	return shm_formats;
 }

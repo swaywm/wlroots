@@ -9,6 +9,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
+#include "render/shm_format.h"
 #include "render/wlr_renderer.h"
 #include "backend/backend.h"
 
@@ -151,8 +152,8 @@ void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
 	r->impl->render_ellipse_with_matrix(r, color, matrix);
 }
 
-const enum wl_shm_format *wlr_renderer_get_shm_texture_formats(
-		struct wlr_renderer *r, size_t *len) {
+const uint32_t *wlr_renderer_get_shm_texture_formats(struct wlr_renderer *r,
+		size_t *len) {
 	return r->impl->get_shm_texture_formats(r, len);
 }
 
@@ -217,8 +218,7 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	}
 
 	size_t len;
-	const enum wl_shm_format *formats =
-		wlr_renderer_get_shm_texture_formats(r, &len);
+	const uint32_t *formats = wlr_renderer_get_shm_texture_formats(r, &len);
 	if (formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to initialize shm: cannot get formats");
 		return false;
@@ -228,7 +228,8 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	for (size_t i = 0; i < len; ++i) {
 		// ARGB8888 and XRGB8888 must be supported and are implicitly
 		// advertised by wl_display_init_shm
-		switch (formats[i]) {
+		enum wl_shm_format fmt = convert_drm_format_to_wl_shm(formats[i]);
+		switch (fmt) {
 		case WL_SHM_FORMAT_ARGB8888:
 			argb8888 = true;
 			break;
@@ -236,7 +237,7 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 			xrgb8888 = true;
 			break;
 		default:
-			wl_display_add_shm_format(wl_display, formats[i]);
+			wl_display_add_shm_format(wl_display, fmt);
 		}
 	}
 	assert(argb8888 && xrgb8888);

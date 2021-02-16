@@ -389,9 +389,9 @@ static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
 	pop_gles2_debug(renderer);
 }
 
-static const enum wl_shm_format *gles2_get_shm_texture_formats(
+static const uint32_t *gles2_get_shm_texture_formats(
 		struct wlr_renderer *wlr_renderer, size_t *len) {
-	return get_gles2_wl_formats(len);
+	return get_gles2_shm_formats(len);
 }
 
 static bool gles2_resource_is_wl_drm_buffer(struct wlr_renderer *wlr_renderer,
