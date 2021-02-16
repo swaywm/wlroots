@@ -45,10 +45,9 @@ static const struct wlr_gles2_pixel_format formats[] = {
 
 // TODO: more pixel formats
 
-const struct wlr_gles2_pixel_format *get_gles2_format_from_wl(
-		enum wl_shm_format fmt) {
+const struct wlr_gles2_pixel_format *get_gles2_format_from_drm(uint32_t fmt) {
 	for (size_t i = 0; i < sizeof(formats) / sizeof(*formats); ++i) {
-		if (convert_drm_format_to_wl_shm(formats[i].drm_format) == fmt) {
+		if (formats[i].drm_format == fmt) {
 			return &formats[i];
 		}
 	}

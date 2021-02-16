@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <drm_fourcc.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <stdint.h>
@@ -58,7 +59,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	}
 
 	const struct wlr_gles2_pixel_format *fmt =
-		get_gles2_format_from_wl(texture->wl_format);
+		get_gles2_format_from_drm(texture->drm_format);
 	assert(fmt);
 
 	if (!check_stride(fmt, stride, width)) {
@@ -156,7 +157,8 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 		uint32_t height, const void *data) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
-	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
+	const struct wlr_gles2_pixel_format *fmt =
+		get_gles2_format_from_drm(convert_wl_shm_format_to_drm(wl_fmt));
 	if (fmt == NULL) {
 		wlr_log(WLR_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
 		return NULL;
@@ -176,7 +178,7 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 	texture->renderer = renderer;
 	texture->target = GL_TEXTURE_2D;
 	texture->has_alpha = fmt->has_alpha;
-	texture->wl_format = convert_drm_format_to_wl_shm(fmt->drm_format);
+	texture->drm_format = fmt->drm_format;
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_save_context(&prev_ctx);
@@ -234,7 +236,7 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 	wlr_texture_init(&texture->wlr_texture, &texture_impl, width, height);
 	texture->renderer = renderer;
 
-	texture->wl_format = 0xFFFFFFFF; // texture can't be written anyways
+	texture->drm_format = DRM_FORMAT_INVALID; // texture can't be written anyways
 	texture->image = image;
 	texture->inverted_y = inverted_y;
 
@@ -302,7 +304,7 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 		attribs->width, attribs->height);
 	texture->renderer = renderer;
 	texture->has_alpha = true;
-	texture->wl_format = 0xFFFFFFFF; // texture can't be written anyways
+	texture->drm_format = DRM_FORMAT_INVALID; // texture can't be written anyways
 	texture->inverted_y =
 		(attribs->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) != 0;
 
