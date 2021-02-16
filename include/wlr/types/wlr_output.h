@@ -340,8 +340,7 @@ void wlr_output_attach_buffer(struct wlr_output *output,
  * Get the preferred format for reading pixels.
  * This function might change the current rendering context.
  */
-bool wlr_output_preferred_read_format(struct wlr_output *output,
-	enum wl_shm_format *fmt);
+uint32_t wlr_output_preferred_read_format(struct wlr_output *output);
 /**
  * Set the damage region for the frame to be submitted. This is the region of
  * the screen that has changed since the last frame.

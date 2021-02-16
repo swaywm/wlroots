@@ -8,6 +8,7 @@
 #include <wlr/backend.h>
 #include <wlr/util/log.h>
 #include "wlr-screencopy-unstable-v1-protocol.h"
+#include "render/shm_format.h"
 #include "util/signal.h"
 
 #define SCREENCOPY_MANAGER_VERSION 3
@@ -551,12 +552,14 @@ static void capture_output(struct wl_client *wl_client,
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	assert(renderer);
 
-	if (!wlr_output_preferred_read_format(frame->output, &frame->format)) {
+	uint32_t drm_format = wlr_output_preferred_read_format(frame->output);
+	if (drm_format == DRM_FORMAT_INVALID) {
 		wlr_log(WLR_ERROR,
 			"Failed to capture output: no read format supported by renderer");
 		goto error;
 	}
 
+	frame->format = convert_drm_format_to_wl_shm(drm_format);
 	frame->fourcc = get_output_fourcc(output);
 
 	struct wlr_box buffer_box = {0};
