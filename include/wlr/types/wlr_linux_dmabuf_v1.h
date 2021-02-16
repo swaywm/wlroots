@@ -10,7 +10,7 @@
 #define WLR_TYPES_WLR_LINUX_DMABUF_H
 
 #include <stdint.h>
-#include <wayland-server-protocol.h>
+#include <wayland-server-core.h>
 #include <wlr/render/dmabuf.h>
 
 struct wlr_dmabuf_v1_buffer {

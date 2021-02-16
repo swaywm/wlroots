@@ -10,7 +10,7 @@
 #define WLR_RENDER_WLR_TEXTURE_H
 
 #include <stdint.h>
-#include <wayland-server-protocol.h>
+#include <wayland-server-core.h>
 #include <wlr/render/dmabuf.h>
 
 struct wlr_renderer;
