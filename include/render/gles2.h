@@ -113,7 +113,7 @@ struct wlr_gles2_texture {
 const struct wlr_gles2_pixel_format *get_gles2_format_from_drm(uint32_t fmt);
 const struct wlr_gles2_pixel_format *get_gles2_format_from_gl(
 	GLint gl_format, GLint gl_type, bool alpha);
-const enum wl_shm_format *get_gles2_wl_formats(size_t *len);
+const uint32_t *get_gles2_shm_formats(size_t *len);
 
 struct wlr_gles2_renderer *gles2_get_renderer(
 	struct wlr_renderer *wlr_renderer);
