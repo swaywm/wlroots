@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <drm_fourcc.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <stdint.h>
@@ -434,7 +435,7 @@ static const struct wlr_drm_format_set *gles2_get_dmabuf_render_formats(
 	return wlr_egl_get_dmabuf_render_formats(renderer->egl);
 }
 
-static enum wl_shm_format gles2_preferred_read_format(
+static uint32_t gles2_preferred_read_format(
 		struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
@@ -456,13 +457,13 @@ static enum wl_shm_format gles2_preferred_read_format(
 	const struct wlr_gles2_pixel_format *fmt =
 		get_gles2_format_from_gl(gl_format, gl_type, alpha_size > 0);
 	if (fmt != NULL) {
-		return convert_drm_format_to_wl_shm(fmt->drm_format);
+		return fmt->drm_format;
 	}
 
 	if (renderer->exts.read_format_bgra_ext) {
-		return WL_SHM_FORMAT_XRGB8888;
+		return DRM_FORMAT_XRGB8888;
 	}
-	return WL_SHM_FORMAT_XBGR8888;
+	return DRM_FORMAT_XBGR8888;
 }
 
 static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,

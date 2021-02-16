@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <drm_fourcc.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tgmath.h>
@@ -450,19 +451,18 @@ bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age) {
 	return true;
 }
 
-bool wlr_output_preferred_read_format(struct wlr_output *output,
-		enum wl_shm_format *fmt) {
+uint32_t wlr_output_preferred_read_format(struct wlr_output *output) {
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	if (!renderer->impl->preferred_read_format || !renderer->impl->read_pixels) {
-		return false;
+		return DRM_FORMAT_INVALID;
 	}
 
 	if (!output->impl->attach_render(output, NULL)) {
-		return false;
+		return DRM_FORMAT_INVALID;
 	}
-	*fmt = renderer->impl->preferred_read_format(renderer);
+	uint32_t fmt = renderer->impl->preferred_read_format(renderer);
 	output->impl->rollback_render(output);
-	return true;
+	return fmt;
 }
 
 void wlr_output_set_damage(struct wlr_output *output,
