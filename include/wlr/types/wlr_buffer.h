@@ -19,6 +19,8 @@ struct wlr_buffer_impl {
 	void (*destroy)(struct wlr_buffer *buffer);
 	bool (*get_dmabuf)(struct wlr_buffer *buffer,
 		struct wlr_dmabuf_attributes *attribs);
+	bool (*get_data_ptr)(struct wlr_buffer *buffer, void **data,
+		size_t *stride);
 };
 
 /**
