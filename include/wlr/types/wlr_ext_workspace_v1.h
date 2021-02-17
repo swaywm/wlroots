@@ -57,6 +57,8 @@ struct wlr_ext_workspace_group_handle_v1_output {
 enum wlr_ext_workspace_handle_v1_state
 {
 	WLR_EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE = 1 << 0,
+	WLR_EXT_WORKSPACE_HANDLE_V1_STATE_URGENT = 1 << 1,
+	WLR_EXT_WORKSPACE_HANDLE_V1_STATE_HIDDEN = 1 << 2,
 };
 
 struct wlr_ext_workspace_handle_v1 {
@@ -118,5 +120,11 @@ void wlr_ext_workspace_handle_v1_set_coordinates(
 
 void wlr_ext_workspace_handle_v1_set_active(
 		struct wlr_ext_workspace_handle_v1 *workspace, bool active);
+
+void wlr_ext_workspace_handle_v1_set_urgent(
+		struct wlr_ext_workspace_handle_v1 *workspace, bool urgent);
+
+void wlr_ext_workspace_handle_v1_set_hidden(
+		struct wlr_ext_workspace_handle_v1 *workspace, bool hidden);
 
 #endif

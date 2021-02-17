@@ -70,14 +70,28 @@ static void workspace_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
+static bool push_entry_in_array(struct wl_array *array, uint32_t entry) {
+	uint32_t *index = wl_array_add(array, sizeof(uint32_t));
+	if (index == NULL) {
+		return false;
+	}
+	*index = entry;
+	return true;
+}
+
 static bool fill_array_from_workspace_state(struct wl_array *array,
 		uint32_t state) {
-	if (state & WLR_EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE) {
-		uint32_t *index = wl_array_add(array, sizeof(uint32_t));
-		if (index == NULL) {
-			return false;
-		}
-		*index = ZEXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE;
+	if ((state & WLR_EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE) &&
+			!push_entry_in_array(array, ZEXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE)) {
+		return false;
+	}
+	if ((state & WLR_EXT_WORKSPACE_HANDLE_V1_STATE_URGENT) &&
+			!push_entry_in_array(array, ZEXT_WORKSPACE_HANDLE_V1_STATE_URGENT)) {
+		return false;
+	}
+	if ((state & WLR_EXT_WORKSPACE_HANDLE_V1_STATE_HIDDEN) &&
+			!push_entry_in_array(array, ZEXT_WORKSPACE_HANDLE_V1_STATE_HIDDEN)) {
+		return false;
 	}
 
 	return true;
@@ -136,14 +150,7 @@ void wlr_ext_workspace_handle_v1_set_coordinates(
 	workspace_manager_update_idle_source(workspace->group->manager);
 }
 
-void wlr_ext_workspace_handle_v1_set_active(
-		struct wlr_ext_workspace_handle_v1 *workspace, bool activate) {
-	if (activate) {
-		workspace->server_state |= WLR_EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE;
-	} else {
-		workspace->server_state &= ~WLR_EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE;
-	}
-
+static void workspace_send_state(struct wlr_ext_workspace_handle_v1 *workspace) {
 	struct wl_array state;
 	wl_array_init(&state);
 
@@ -164,6 +171,39 @@ void wlr_ext_workspace_handle_v1_set_active(
 
 	wl_array_release(&state);
 	workspace_manager_update_idle_source(workspace->group->manager);
+}
+
+void wlr_ext_workspace_handle_v1_set_active(
+		struct wlr_ext_workspace_handle_v1 *workspace, bool activate) {
+	if (activate) {
+		workspace->server_state |= WLR_EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE;
+	} else {
+		workspace->server_state &= ~WLR_EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE;
+	}
+
+	workspace_send_state(workspace);
+}
+
+void wlr_ext_workspace_handle_v1_set_urgent(
+		struct wlr_ext_workspace_handle_v1 *workspace, bool urgent) {
+	if (urgent) {
+		workspace->server_state |= WLR_EXT_WORKSPACE_HANDLE_V1_STATE_URGENT;
+	} else {
+		workspace->server_state &= ~WLR_EXT_WORKSPACE_HANDLE_V1_STATE_URGENT;
+	}
+
+	workspace_send_state(workspace);
+}
+
+void wlr_ext_workspace_handle_v1_set_hidden(
+		struct wlr_ext_workspace_handle_v1 *workspace, bool hidden) {
+	if (hidden) {
+		workspace->server_state |= WLR_EXT_WORKSPACE_HANDLE_V1_STATE_HIDDEN;
+	} else {
+		workspace->server_state &= ~WLR_EXT_WORKSPACE_HANDLE_V1_STATE_HIDDEN;
+	}
+
+	workspace_send_state(workspace);
 }
 
 static struct wl_resource *create_workspace_resource_for_group_resource(
