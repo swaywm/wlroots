@@ -188,7 +188,7 @@ clients = {
 	'wlr-workspace': {
 		'src': 'wlr-workspace.c',
 		'dep': [wlroots],
-		'proto': ['wlr-workspace-unstable-v1'],
+		'proto': ['ext-workspace-unstable-v1'],
 	},
 }
 
