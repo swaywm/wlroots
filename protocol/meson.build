@@ -43,7 +43,7 @@ protocols = {
 	'wlr-output-power-management-unstable-v1': 'wlr-output-power-management-unstable-v1.xml',
 	'wlr-screencopy-unstable-v1': 'wlr-screencopy-unstable-v1.xml',
 	'wlr-virtual-pointer-unstable-v1': 'wlr-virtual-pointer-unstable-v1.xml',
-	'wlr-workspace-unstable-v1': 'wlr-workspace-unstable-v1.xml',
+	'ext-workspace-unstable-v1': 'ext-workspace-unstable-v1.xml',
 }
 
 protocols_code = {}
