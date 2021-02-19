@@ -267,12 +267,14 @@ static void xwm_selection_set_owner(struct wlr_xwm_selection *selection,
 			selection->window,
 			selection->atom,
 			XCB_TIME_CURRENT_TIME);
+		xcb_flush(selection->xwm->xcb_conn);
 	} else {
 		if (selection->owner == selection->window) {
 			xcb_set_selection_owner(selection->xwm->xcb_conn,
 				XCB_WINDOW_NONE,
 				selection->atom,
 				selection->timestamp);
+			xcb_flush(selection->xwm->xcb_conn);
 		}
 	}
 }

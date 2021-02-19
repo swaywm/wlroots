@@ -9,7 +9,7 @@ wlr_files += files(
 )
 
 
-if conf_data.get('WLR_HAS_XDG_FOREIGN', 0) == 1
+if features.get('xdg-foreign')
 	if uuid.found()
 		wlr_deps += uuid
 		add_project_arguments('-DHAS_LIBUUID=1', language: 'c')

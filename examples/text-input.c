@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <wayland-client.h>
 #include <wayland-egl.h>
-#include <wlr/render/egl.h>
 #include "egl_common.h"
 #include "text-input-unstable-v3-client-protocol.h"
 #include "xdg-shell-client-protocol.h"

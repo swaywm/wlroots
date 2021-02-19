@@ -46,11 +46,13 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 	wlr_buffer_unlock(output->back_buffer);
 	output->back_buffer = wlr_swapchain_acquire(output->swapchain, buffer_age);
 	if (!output->back_buffer) {
+		wlr_log(WLR_ERROR, "Failed to acquire swapchain buffer");
 		return false;
 	}
 
 	if (!wlr_renderer_bind_buffer(output->backend->renderer,
 			output->back_buffer)) {
+		wlr_log(WLR_ERROR, "Failed to bind buffer to renderer");
 		return false;
 	}
 
