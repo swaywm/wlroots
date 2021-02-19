@@ -163,6 +163,19 @@ wlroots = declare_dependency(
 	include_directories: wlr_inc,
 )
 
+lib_wlr_static = static_library(
+	meson.project_name(), wlr_files,
+	dependencies: wlr_deps,
+	include_directories: [wlr_inc, proto_inc],
+	install: true,
+)
+
+wlroots_static = declare_dependency(
+	link_with: lib_wlr_static,
+	dependencies: wlr_deps,
+	include_directories: wlr_inc,
+)
+
 meson.override_dependency('wlroots', wlroots)
 
 summary({
