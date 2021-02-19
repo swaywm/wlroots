@@ -30,6 +30,21 @@ static bool gles2_texture_is_opaque(struct wlr_texture *wlr_texture) {
 	return !texture->has_alpha;
 }
 
+static bool check_stride(const struct wlr_gles2_pixel_format *fmt,
+		uint32_t stride, uint32_t width) {
+	if (stride % (fmt->bpp / 8) != 0) {
+		wlr_log(WLR_ERROR, "Invalid stride %d (incompatible with %d "
+			"bytes-per-pixel)", stride, fmt->bpp / 8);
+		return false;
+	}
+	if (stride < width * (fmt->bpp / 8)) {
+		wlr_log(WLR_ERROR, "Invalid stride %d (too small for %d "
+			"bytes-per-pixel and width %d)", stride, fmt->bpp / 8, width);
+		return false;
+	}
+	return true;
+}
+
 static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 		uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
@@ -44,6 +59,10 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	const struct wlr_gles2_pixel_format *fmt =
 		get_gles2_format_from_wl(texture->wl_format);
 	assert(fmt);
+
+	if (!check_stride(fmt, stride, width)) {
+		return false;
+	}
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_save_context(&prev_ctx);
@@ -139,6 +158,10 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 	const struct wlr_gles2_pixel_format *fmt = get_gles2_format_from_wl(wl_fmt);
 	if (fmt == NULL) {
 		wlr_log(WLR_ERROR, "Unsupported pixel format %"PRIu32, wl_fmt);
+		return NULL;
+	}
+
+	if (!check_stride(fmt, stride, width)) {
 		return NULL;
 	}
 
