@@ -288,7 +288,7 @@ static ssize_t explicit_find_gpus(struct wlr_session *session,
 
 	size_t i = 0;
 	char *save;
-	char *ptr = strtok_r(gpus, ":", &save);
+	char *ptr = strtok_r(gpus, ",", &save);
 	do {
 		if (i >= ret_len) {
 			break;
@@ -300,7 +300,7 @@ static ssize_t explicit_find_gpus(struct wlr_session *session,
 		} else {
 			++i;
 		}
-	} while ((ptr = strtok_r(NULL, ":", &save)));
+	} while ((ptr = strtok_r(NULL, ",", &save)));
 
 	free(gpus);
 	return i;
