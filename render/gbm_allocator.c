@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <wlr/util/log.h>
+#include <wlr/render/interface.h>
 #include <xf86drm.h>
 #include "render/gbm_allocator.h"
 

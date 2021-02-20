@@ -13,6 +13,7 @@
 #include <xf86drm.h>
 #include "backend/drm/drm.h"
 #include "util/signal.h"
+#include "render/gbm_allocator.h"
 
 struct wlr_drm_backend *get_drm_backend_from_backend(
 		struct wlr_backend *wlr_backend) {
@@ -87,12 +88,18 @@ static int backend_get_drm_fd(struct wlr_backend *backend) {
 	}
 }
 
+static struct wlr_allocator *backend_get_allocator(struct wlr_backend *backend) {
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
+	return &drm->renderer.allocator->base;
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.get_presentation_clock = backend_get_presentation_clock,
 	.get_drm_fd = backend_get_drm_fd,
+	.get_allocator = backend_get_allocator,
 };
 
 bool wlr_backend_is_drm(struct wlr_backend *b) {

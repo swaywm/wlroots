@@ -92,11 +92,17 @@ static int backend_get_drm_fd(struct wlr_backend *wlr_backend) {
 	return backend->drm_fd;
 }
 
+static struct wlr_allocator *backend_get_allocator(struct wlr_backend *wlr_backend) {
+	struct wlr_headless_backend *backend = headless_backend_from_backend(wlr_backend);
+	return backend->allocator;
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.get_drm_fd = backend_get_drm_fd,
+	.get_allocator = backend_get_allocator,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {

@@ -339,11 +339,17 @@ static int backend_get_drm_fd(struct wlr_backend *backend) {
 	return wl->drm_fd;
 }
 
+static struct wlr_allocator *backend_get_allocator(struct wlr_backend *backend) {
+	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
+	return wl->allocator;
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.get_drm_fd = backend_get_drm_fd,
+	.get_allocator = backend_get_allocator,
 };
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {

@@ -80,4 +80,15 @@ struct wlr_texture_impl {
 void wlr_texture_init(struct wlr_texture *texture,
 	const struct wlr_texture_impl *impl, uint32_t width, uint32_t height);
 
+struct wlr_drm_format;
+struct wlr_allocator_interface {
+	struct wlr_buffer *(*create_buffer)(struct wlr_allocator *alloc,
+		int width, int height, const struct wlr_drm_format *format);
+	void (*destroy)(struct wlr_allocator *alloc);
+};
+
+// For wlr_allocator implementors
+void wlr_allocator_init(struct wlr_allocator *alloc,
+	const struct wlr_allocator_interface *impl);
+
 #endif

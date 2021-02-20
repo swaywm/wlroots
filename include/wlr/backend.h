@@ -58,4 +58,9 @@ struct wlr_session *wlr_backend_get_session(struct wlr_backend *backend);
  */
 clockid_t wlr_backend_get_presentation_clock(struct wlr_backend *backend);
 
+/**
+  * Obtains the wlr_allocator reference this backend is using.
+  */
+struct wlr_allocator *wlr_backend_get_allocator(struct wlr_backend *backend);
+
 #endif

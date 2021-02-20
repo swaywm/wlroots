@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
-#include "render/allocator.h"
+#include <wlr/render/allocator.h>
+#include <wlr/render/interface.h>
 
 void wlr_allocator_init(struct wlr_allocator *alloc,
 		const struct wlr_allocator_interface *impl) {

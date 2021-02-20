@@ -322,3 +322,11 @@ error:
 	wlr_backend_destroy(backend);
 	return NULL;
 }
+
+struct wlr_allocator *wlr_backend_get_allocator(struct wlr_backend *backend) {
+	if (!backend->impl->get_allocator) {
+		return NULL;
+	}
+
+	return backend->impl->get_allocator(backend);
+}
