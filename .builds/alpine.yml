@@ -2,11 +2,14 @@ image: alpine/edge
 packages:
   - eudev-dev
   - ffmpeg-dev
+  - glslang
   - libinput-dev
   - libxkbcommon-dev
   - mesa-dev
   - meson
   - pixman-dev
+  - vulkan-headers
+  - vulkan-loader-dev
   - wayland-dev
   - wayland-protocols
   - xcb-util-image-dev

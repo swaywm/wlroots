@@ -15,6 +15,9 @@ packages:
   - xcb-util-wm
   - xorg-xwayland
   - seatd
+  - vulkan-icd-loader
+  - vulkan-headers
+  - glslang
 sources:
   - https://github.com/swaywm/wlroots
 tasks:

@@ -5,9 +5,12 @@ packages:
   - devel/libudev-devd
   - devel/meson # implies ninja
   - devel/pkgconf
+  - graphics/glslang
   - graphics/libdrm
   - graphics/mesa-libs
   - graphics/png
+  - graphics/vulkan-headers
+  - graphics/vulkan-loader
   - graphics/wayland
   - graphics/wayland-protocols
   - multimedia/ffmpeg
