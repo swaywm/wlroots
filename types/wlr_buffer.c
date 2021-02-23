@@ -4,6 +4,7 @@
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
+#include "render/shm_format.h"
 #include "util/signal.h"
 
 void wlr_buffer_init(struct wlr_buffer *buffer,
@@ -182,14 +183,15 @@ struct wlr_client_buffer *wlr_client_buffer_import(
 
 	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
 	if (shm_buf != NULL) {
-		enum wl_shm_format fmt = wl_shm_buffer_get_format(shm_buf);
+		enum wl_shm_format wl_shm_format = wl_shm_buffer_get_format(shm_buf);
+		uint32_t drm_format = convert_wl_shm_format_to_drm(wl_shm_format);
 		int32_t stride = wl_shm_buffer_get_stride(shm_buf);
 		int32_t width = wl_shm_buffer_get_width(shm_buf);
 		int32_t height = wl_shm_buffer_get_height(shm_buf);
 
 		wl_shm_buffer_begin_access(shm_buf);
 		void *data = wl_shm_buffer_get_data(shm_buf);
-		texture = wlr_texture_from_pixels(renderer, fmt, stride,
+		texture = wlr_texture_from_pixels(renderer, drm_format, stride,
 			width, height, data);
 		wl_shm_buffer_end_access(shm_buf);
 
