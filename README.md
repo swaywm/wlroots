@@ -70,12 +70,12 @@ If you choose to enable X11 support:
 
 Run these commands:
 
-    meson build
-    ninja -C build
+    meson build/
+    ninja -C build/
 
 Install like so:
 
-	sudo ninja -C build install
+    sudo ninja -C build/ install
 
 ## Contributing
 
