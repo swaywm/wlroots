@@ -1,8 +1,7 @@
 # wlroots
 
-Pluggable, composable, unopinionated modules for building a
-[Wayland](http://wayland.freedesktop.org/) compositor; or about 50,000 lines of
-code you were going to write anyway.
+Pluggable, composable, unopinionated modules for building a [Wayland]
+compositor; or about 50,000 lines of code you were going to write anyway.
 
 - wlroots provides backends that abstract the underlying display and input
   hardware, including KMS/DRM, libinput, Wayland, X11, and headless backends,
@@ -30,13 +29,11 @@ development tools - or any subset of these features you like, because all of
 them work independently of one another and freely compose with anything you want
 to implement yourself.
 
-Check out our [wiki](https://github.com/swaywm/wlroots/wiki/Getting-started) to
-get started with wlroots.
+Check out our [wiki] to get started with wlroots.
 
-wlroots is developed under the direction of the
-[sway](https://github.com/swaywm/sway) project. A variety of wrapper libraries
-[are available](https://github.com/swaywm) for using it with your favorite
-programming language.
+wlroots is developed under the direction of the [sway] project. A variety of
+[wrapper libraries] are available for using it with your favorite programming
+language.
 
 ## Building
 
@@ -79,4 +76,10 @@ Install like so:
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/swaywm/wlroots/blob/master/CONTRIBUTING.md).
+See [CONTRIBUTING.md].
+
+[Wayland]: https://wayland.freedesktop.org/
+[wiki]: https://github.com/swaywm/wlroots/wiki/Getting-started
+[Sway]: https://github.com/swaywm/sway
+[wrapper libraries]: https://github.com/search?q=topic%3Abindings+org%3Aswaywm&type=Repositories
+[CONTRIBUTING.md]: https://github.com/swaywm/wlroots/blob/master/CONTRIBUTING.md
