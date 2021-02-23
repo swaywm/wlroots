@@ -1044,7 +1044,7 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	cursor->enabled = false;
 	if (pixels != NULL) {
 		cursor->texture = wlr_texture_from_pixels(renderer,
-			WL_SHM_FORMAT_ARGB8888, stride, width, height, pixels);
+			DRM_FORMAT_ARGB8888, stride, width, height, pixels);
 		if (cursor->texture == NULL) {
 			return false;
 		}

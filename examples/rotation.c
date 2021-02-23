@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
+#include <drm_fourcc.h>
 #include <GLES2/gl2.h>
 #include <getopt.h>
 #include <math.h>
@@ -259,7 +260,7 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 	state.cat_texture = wlr_texture_from_pixels(state.renderer,
-		WL_SHM_FORMAT_ABGR8888, cat_tex.width * 4, cat_tex.width, cat_tex.height,
+		DRM_FORMAT_ABGR8888, cat_tex.width * 4, cat_tex.width, cat_tex.height,
 		cat_tex.pixel_data);
 	if (!state.cat_texture) {
 		wlr_log(WLR_ERROR, "Could not start compositor, OOM");
