@@ -766,7 +766,12 @@ static char *get_render_name(const char *name) {
 	if (match == NULL) {
 		wlr_log(WLR_ERROR, "Cannot find DRM device %s", name);
 	} else if (!(match->available_nodes & (1 << DRM_NODE_RENDER))) {
-		wlr_log(WLR_ERROR, "DRM device %s has no render node", name);
+		// Likely a split display/render setup. Pick the primary node and hope
+		// Mesa will open the right render node under-the-hood.
+		wlr_log(WLR_DEBUG, "DRM device %s has no render node, "
+			"falling back to primary node", name);
+		assert(match->available_nodes & (1 << DRM_NODE_PRIMARY));
+		render_name = strdup(match->nodes[DRM_NODE_PRIMARY]);
 	} else {
 		render_name = strdup(match->nodes[DRM_NODE_RENDER]);
 	}
