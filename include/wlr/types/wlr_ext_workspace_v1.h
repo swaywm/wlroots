@@ -40,10 +40,17 @@ struct wlr_ext_workspace_group_handle_v1 {
 	struct wlr_ext_workspace_manager_v1 *manager;
 
 	struct {
+		// wlr_ext_workspace_group_handle_v1_create_workspace_event
+		struct wl_signal create_workspace_request;
 		struct wl_signal destroy;
 	} events;
 
 	void *data;
+};
+
+struct wlr_ext_workspace_group_handle_v1_create_workspace_event {
+	struct wlr_ext_workspace_group_handle_v1 *workspace_group;
+	const char *name;
 };
 
 struct wlr_ext_workspace_group_handle_v1_output {
@@ -77,6 +84,7 @@ struct wlr_ext_workspace_handle_v1 {
 	struct wl_array coordinates;
 
 	struct {
+		struct wl_signal remove_request;
 		struct wl_signal destroy;
 	} events;
 

@@ -185,8 +185,8 @@ clients = {
 			'input-method-unstable-v2',
 		],
 	},
-	'wlr-workspace': {
-		'src': 'wlr-workspace.c',
+	'ext-workspace': {
+		'src': 'ext-workspace.c',
 		'dep': [wlroots],
 		'proto': ['ext-workspace-unstable-v1'],
 	},

@@ -33,11 +33,21 @@ static void workspace_manager_update_idle_source(
 }
 
 static const struct zext_workspace_handle_v1_interface workspace_handle_impl;
+static const struct zext_workspace_group_handle_v1_interface workspace_group_impl;
+
 static struct wlr_ext_workspace_handle_v1 *workspace_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource,
 			&zext_workspace_handle_v1_interface,
 			&workspace_handle_impl));
+	return wl_resource_get_user_data(resource);
+}
+
+static struct wlr_ext_workspace_group_handle_v1 *workspace_group_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource,
+			&zext_workspace_group_handle_v1_interface,
+			&workspace_group_impl));
 	return wl_resource_get_user_data(resource);
 }
 
@@ -54,6 +64,16 @@ static void workspace_handle_activate(struct wl_client *client,
 	}
 
 	workspace->pending |= WLR_EXT_WORKSPACE_HANDLE_V1_STATE_ACTIVE;
+}
+
+static void workspace_handle_remove(struct wl_client *client,
+		struct wl_resource *resource) {
+	struct wlr_ext_workspace_handle_v1 *workspace = workspace_from_resource(resource);
+	if (!workspace) {
+		return;
+	}
+
+	wlr_signal_emit_safe(&workspace->events.remove_request, NULL);
 }
 
 static void workspace_handle_deactivate(struct wl_client *client,
@@ -123,6 +143,7 @@ static const struct zext_workspace_handle_v1_interface workspace_handle_impl = {
 	.destroy    = workspace_handle_destroy,
 	.activate   = workspace_handle_activate,
 	.deactivate = workspace_handle_deactivate,
+	.remove     = workspace_handle_remove,
 };
 
 void wlr_ext_workspace_handle_v1_set_name(struct wlr_ext_workspace_handle_v1 *workspace,
@@ -240,6 +261,7 @@ struct wlr_ext_workspace_handle_v1 *wlr_ext_workspace_handle_v1_create(
 	wl_list_insert(&group->workspaces, &workspace->link);
 	wl_array_init(&workspace->coordinates);
 	wl_list_init(&workspace->resources);
+	wl_signal_init(&workspace->events.remove_request);
 	wl_signal_init(&workspace->events.destroy);
 
 	struct wl_resource *tmp, *group_resource;
@@ -274,13 +296,25 @@ void wlr_ext_workspace_handle_v1_destroy(
 	free(workspace->name);
 }
 
+static void workspace_group_handle_handle_create_workspace(struct wl_client *client,
+		struct wl_resource *resource, const char *arg) {
+	struct wlr_ext_workspace_group_handle_v1 *group =
+		workspace_group_from_resource(resource);
+
+	struct wlr_ext_workspace_group_handle_v1_create_workspace_event event;
+	event.workspace_group = group;
+	event.name = arg;
+	wlr_signal_emit_safe(&group->events.create_workspace_request, &event);
+}
+
 static void workspace_group_handle_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
 }
 
-const struct zext_workspace_group_handle_v1_interface workspace_group_impl = {
-	.destroy = workspace_group_handle_handle_destroy,
+static const struct zext_workspace_group_handle_v1_interface workspace_group_impl = {
+	.create_workspace = workspace_group_handle_handle_create_workspace,
+	.destroy          = workspace_group_handle_handle_destroy,
 };
 
 static void workspace_group_resource_destroy(struct wl_resource *resource) {
@@ -428,6 +462,7 @@ struct wlr_ext_workspace_group_handle_v1 *wlr_ext_workspace_group_handle_v1_crea
 	wl_list_init(&group->outputs);
 	wl_list_init(&group->resources);
 	wl_list_init(&group->workspaces);
+	wl_signal_init(&group->events.create_workspace_request);
 	wl_signal_init(&group->events.destroy);
 
 	struct wl_resource *tmp, *manager_resource;
