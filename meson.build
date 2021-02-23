@@ -36,6 +36,8 @@ add_project_arguments(cc.get_supported_arguments([
 	'-Wstrict-aliasing=2',
 	'-Woverflow',
 	'-Wmissing-prototypes',
+	'-Wformat=2',
+	'-Walloca',
 
 	'-Wno-missing-braces',
 	'-Wno-missing-field-initializers',
