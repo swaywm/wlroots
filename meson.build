@@ -98,6 +98,7 @@ egl = dependency('egl')
 glesv2 = dependency('glesv2')
 drm = dependency('libdrm', version: '>=2.4.95')
 gbm = dependency('gbm', version: '>=17.1.0')
+liftoff = dependency('libliftoff', fallback: ['libliftoff', 'liftoff'])
 libinput = dependency('libinput', version: '>=1.14.0')
 xkbcommon = dependency('xkbcommon')
 udev = dependency('libudev')
@@ -125,6 +126,7 @@ wlr_deps = [
 	glesv2,
 	drm,
 	gbm,
+	liftoff,
 	libinput,
 	xkbcommon,
 	udev,

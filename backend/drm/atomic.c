@@ -1,4 +1,5 @@
 #include <gbm.h>
+#include <libliftoff.h>
 #include <stdlib.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
@@ -123,42 +124,33 @@ static void rollback_blob(struct wlr_drm_backend *drm,
 }
 
 static void plane_disable(struct atomic *atom, struct wlr_drm_plane *plane) {
-	uint32_t id = plane->id;
-	const union wlr_drm_plane_props *props = &plane->props;
-	atomic_add(atom, id, props->fb_id, 0);
-	atomic_add(atom, id, props->crtc_id, 0);
+	struct liftoff_layer *layer = plane->liftoff_layer;
+	liftoff_layer_set_property(layer, "FB_ID", 0);
 }
 
 static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
 		struct wlr_drm_plane *plane, uint32_t crtc_id, int32_t x, int32_t y) {
-	uint32_t id = plane->id;
-	const union wlr_drm_plane_props *props = &plane->props;
 	struct wlr_drm_fb *fb = plane_get_next_fb(plane);
 	if (fb == NULL) {
 		wlr_log(WLR_ERROR, "Failed to acquire FB");
-		goto error;
+		atom->failed = true;
+		return;
 	}
 
 	uint32_t width = gbm_bo_get_width(fb->bo);
 	uint32_t height = gbm_bo_get_height(fb->bo);
 
 	// The src_* properties are in 16.16 fixed point
-	atomic_add(atom, id, props->src_x, 0);
-	atomic_add(atom, id, props->src_y, 0);
-	atomic_add(atom, id, props->src_w, (uint64_t)width << 16);
-	atomic_add(atom, id, props->src_h, (uint64_t)height << 16);
-	atomic_add(atom, id, props->crtc_w, width);
-	atomic_add(atom, id, props->crtc_h, height);
-	atomic_add(atom, id, props->fb_id, fb->id);
-	atomic_add(atom, id, props->crtc_id, crtc_id);
-	atomic_add(atom, id, props->crtc_x, (uint64_t)x);
-	atomic_add(atom, id, props->crtc_y, (uint64_t)y);
-
-	return;
-
-error:
-	wlr_log(WLR_ERROR, "Failed to set plane %"PRIu32" properties", plane->id);
-	atom->failed = true;
+	struct liftoff_layer *layer = plane->liftoff_layer;
+	liftoff_layer_set_property(layer, "SRC_X", 0);
+	liftoff_layer_set_property(layer, "SRC_Y", 0);
+	liftoff_layer_set_property(layer, "SRC_W", (uint64_t)width << 16);
+	liftoff_layer_set_property(layer, "SRC_H", (uint64_t)height << 16);
+	liftoff_layer_set_property(layer, "CRTC_X", (uint64_t)x);
+	liftoff_layer_set_property(layer, "CRTC_Y", (uint64_t)y);
+	liftoff_layer_set_property(layer, "CRTC_W", width);
+	liftoff_layer_set_property(layer, "CRTC_H", height);
+	liftoff_layer_set_property(layer, "FB_ID", fb->id);
 }
 
 static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
@@ -240,8 +232,16 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 		}
 	}
 
-	bool ok = atomic_commit(&atom, conn, flags);
+	bool ok = liftoff_output_apply(crtc->liftoff, atom.req, flags);
+	ok = ok && atomic_commit(&atom, conn, flags);
 	atomic_finish(&atom);
+
+	if (crtc->pending.active) {
+		ok = ok && liftoff_layer_get_plane_id(crtc->primary->liftoff_layer) != 0;
+		if (crtc->cursor && drm_connector_is_cursor_visible(conn)) {
+			ok = ok && liftoff_layer_get_plane_id(crtc->cursor->liftoff_layer) != 0;
+		}
+	}
 
 	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
 		commit_blob(drm, &crtc->mode_id, mode_id);

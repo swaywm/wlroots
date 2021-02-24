@@ -39,6 +39,9 @@ struct wlr_drm_plane {
 	int32_t cursor_hotspot_x, cursor_hotspot_y;
 
 	union wlr_drm_plane_props props;
+
+	// TODO: shouldn't be part of wlr_drm_plane
+	struct liftoff_layer *liftoff_layer;
 };
 
 struct wlr_drm_crtc_state {
@@ -63,6 +66,8 @@ struct wlr_drm_crtc {
 	struct wlr_drm_plane *cursor;
 
 	union wlr_drm_crtc_props props;
+
+	struct liftoff_output *liftoff;
 };
 
 struct wlr_drm_backend {
@@ -93,6 +98,7 @@ struct wlr_drm_backend {
 
 	struct wlr_drm_renderer renderer;
 	struct wlr_session *session;
+	struct liftoff_device *liftoff;
 };
 
 enum wlr_drm_connector_state {
