@@ -331,6 +331,31 @@ static bool gles2_render_subtexture_with_matrix(
 	return true;
 }
 
+static bool gles2_render_texture(struct wlr_renderer *wlr_renderer,
+		struct wlr_texture *wlr_texture, enum wl_output_transform transform,
+		struct wlr_box *box, float alpha) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
+
+	float matrix[9];
+	if (renderer->has_transform) {
+		wlr_matrix_project_box(matrix, box, transform, 0,
+			renderer->transform_matrix);
+	} else {
+		wlr_matrix_projection(matrix, box->width, box->height, transform);
+	}
+
+	struct wlr_fbox fbox = {
+		.x = 0,
+		.y = 0,
+		.width = box->width,
+		.height = box->height,
+	};
+
+	return gles2_render_subtexture_with_matrix(wlr_renderer, wlr_texture,
+			&fbox, matrix, alpha);
+}
+
 static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 		const float color[static 4], const float matrix[static 9]) {
 	struct wlr_gles2_renderer *renderer =
@@ -694,6 +719,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.clear = gles2_clear,
 	.set_transform = gles2_set_transform,
 	.scissor = gles2_scissor,
+	.render_texture = gles2_render_texture,
 	.render_subtexture_with_matrix = gles2_render_subtexture_with_matrix,
 	.render_quad_with_matrix = gles2_render_quad_with_matrix,
 	.render_ellipse_with_matrix = gles2_render_ellipse_with_matrix,
