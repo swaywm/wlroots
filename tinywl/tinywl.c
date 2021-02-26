@@ -575,26 +575,20 @@ static void render_surface(struct wlr_surface *surface,
 		.height = surface->current.height * output->scale,
 	};
 
-	/*
-	 * Those familiar with OpenGL are also familiar with the role of matricies
-	 * in graphics programming. We need to prepare a matrix to render the view
-	 * with. wlr_matrix_project_box is a helper which takes a box with a desired
-	 * x, y coordinates, width and height, and an output geometry, then
-	 * prepares an orthographic projection and multiplies the necessary
-	 * transforms to produce a model-view-projection matrix.
+	enum wl_output_transform transform =
+		wlr_output_transform_invert(surface->current.transform);
+
+	/* This takes the texture, the transform and our box to perform the
+	 * rendering.
+	 *
+	 * If the rendering is done on the GPU, the projection matrix will be
+	 * calculated inside the renderer from the data provided in the
+	 * `wlr_renderer_set_transform` call.
 	 *
 	 * Naturally you can do this any way you like, for example to make a 3D
 	 * compositor.
 	 */
-	float matrix[9];
-	enum wl_output_transform transform =
-		wlr_output_transform_invert(surface->current.transform);
-	wlr_matrix_project_box(matrix, &box, transform, 0,
-		output->transform_matrix);
-
-	/* This takes our matrix, the texture, and an alpha, and performs the actual
-	 * rendering on the GPU. */
-	wlr_render_texture_with_matrix(rdata->renderer, texture, matrix, 1);
+	wlr_render_texture(rdata->renderer, texture, transform, &box, 1.f);
 
 	/* This lets the client know that we've displayed that frame and it can
 	 * prepare another one now if it likes. */
@@ -623,6 +617,16 @@ static void output_frame(struct wl_listener *listener, void *data) {
 
 	float color[4] = {0.3, 0.3, 0.3, 1.0};
 	wlr_renderer_clear(renderer, color);
+
+	/*
+	 * Those familiar with OpenGL are also familiar with the role of matricies
+	 * in graphics programming. We need to prepare a matrix to render the view
+	 * with.
+	 * If the rendering is done on the GPU, the following function will compute
+	 * the transform matrix with the width and height provided in the
+	 * `wlr_renderer_begin` call. If not, the call will be ignored.
+	 */
+	wlr_renderer_set_transform(renderer, output->wlr_output->transform);
 
 	/* Each subsequent window we render is rendered on top of the last. Because
 	 * our view list is ordered front-to-back, we iterate over it backwards. */
