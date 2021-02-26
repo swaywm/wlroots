@@ -14,7 +14,6 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_box.h>
-#include <wlr/types/wlr_output.h>
 #include <wlr/render/dmabuf.h>
 
 struct wlr_renderer_impl {
@@ -24,7 +23,7 @@ struct wlr_renderer_impl {
 		uint32_t height);
 	void (*end)(struct wlr_renderer *renderer);
 	void (*clear)(struct wlr_renderer *renderer, const float color[static 4]);
-	void (*set_transform)(struct wlr_renderer *r, int width, int height,
+	void (*set_transform)(struct wlr_renderer *r,
 		enum wl_output_transform transform);
 	void (*scissor)(struct wlr_renderer *renderer, struct wlr_box *box);
 	bool (*render_subtexture_with_matrix)(struct wlr_renderer *renderer,

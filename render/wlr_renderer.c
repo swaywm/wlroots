@@ -73,11 +73,11 @@ void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]) {
 	r->impl->clear(r, color);
 }
 
-void wlr_renderer_set_transform(struct wlr_renderer *r, int width, int height,
+void wlr_renderer_set_transform(struct wlr_renderer *r,
 		enum wl_output_transform transform) {
 	assert(r->rendering);
 	if (r->impl->set_transform) {
-		r->impl->set_transform(r, width, height, transform);
+		r->impl->set_transform(r, transform);
 	}
 }
 
