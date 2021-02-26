@@ -22,9 +22,6 @@
 #include <xkbcommon/xkbcommon.h>
 #include "cat.h"
 
-/* Temp workaround */
-#include "render/gles2.h"
-
 struct sample_state {
 	struct wl_display *display;
 	struct wl_listener new_output;
@@ -124,10 +121,6 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 	wlr_renderer_set_transform(sample->renderer, wlr_output->transform);
 
-	/* Temp workaround */
-	struct wlr_gles2_renderer *gles2_renderer =
-		(struct wlr_gles2_renderer *)sample->renderer;
-
 	animate_cat(sample, output->output);
 
 	struct wlr_box box = {
@@ -141,8 +134,8 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 		wlr_output_layout_output_coords(sample->layout, output->output,
 			&local_x, &local_y);
 
-		wlr_render_texture_at(sample->renderer, sample->cat_texture,
-			gles2_renderer->transform_matrix, local_x, local_y, 1.0f);
+		wlr_render_texture(sample->renderer, sample->cat_texture,
+			WL_OUTPUT_TRANSFORM_NORMAL, &box, 1.f);
 	}
 
 	wlr_renderer_end(sample->renderer);

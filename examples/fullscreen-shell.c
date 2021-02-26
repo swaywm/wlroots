@@ -16,9 +16,6 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 
-/* Temp workaround */
-#include "render/gles2.h"
-
 /**
  * A minimal fullscreen-shell server. It only supports rendering.
  */
@@ -70,17 +67,10 @@ static void render_surface(struct wlr_surface *surface,
 		.height = surface->current.height * output->scale,
 	};
 
-	/* Temp workaround */
-	struct wlr_gles2_renderer *gles2_renderer =
-		(struct wlr_gles2_renderer *)rdata->renderer;
-
-	float matrix[9];
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(surface->current.transform);
-	wlr_matrix_project_box(matrix, &box, transform, 0,
-		gles2_renderer->transform_matrix);
 
-	wlr_render_texture_with_matrix(rdata->renderer, texture, matrix, 1);
+	wlr_render_texture(rdata->renderer, texture, transform, &box, 1.f);
 
 	wlr_surface_send_frame_done(surface, rdata->when);
 }

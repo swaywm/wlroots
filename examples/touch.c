@@ -22,9 +22,6 @@
 #include <xkbcommon/xkbcommon.h>
 #include "cat.h"
 
-/* Temp workaround */
-#include "render/gles2.h"
-
 struct sample_state {
 	struct wl_display *display;
 	struct wlr_renderer *renderer;
@@ -84,16 +81,19 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 	wlr_renderer_set_transform(sample->renderer, wlr_output->transform);
 
-	/* Temp workaround */
-	struct wlr_gles2_renderer *gles2_renderer =
-		(struct wlr_gles2_renderer *)sample->renderer;
+	struct wlr_box box = {
+		.width = sample->cat_texture->width,
+		.height = sample->cat_texture->height,
+	};
 
 	struct touch_point *p;
 	wl_list_for_each(p, &sample->touch_points, link) {
-		int x = (int)(p->x * width) - sample->cat_texture->width / 2;
-		int y = (int)(p->y * height) - sample->cat_texture->height / 2;
-		wlr_render_texture_at(sample->renderer, sample->cat_texture,
-			gles2_renderer->transform_matrix, x, y, 1.0f);
+		box.x = (int)(p->x * width) - sample->cat_texture->width / 2;
+		box.y = (int)(p->y * height) - sample->cat_texture->height / 2;
+
+		// TODO use wlr_render_texture_at once the api has changed
+		wlr_render_texture(sample->renderer, sample->cat_texture,
+			WL_OUTPUT_TRANSFORM_NORMAL, &box, 1.f);
 	}
 
 	wlr_renderer_end(sample->renderer);
