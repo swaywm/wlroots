@@ -39,6 +39,11 @@ void wlr_renderer_begin(struct wlr_renderer *r, uint32_t width, uint32_t height)
 void wlr_renderer_end(struct wlr_renderer *r);
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
 /**
+ * TODO
+ */
+void wlr_renderer_set_transform(struct wlr_renderer *r, int width, int height,
+	enum wl_output_transform transform);
+/**
  * Defines a scissor box. Only pixels that lie within the scissor box can be
  * modified by drawing functions. Providing a NULL `box` disables the scissor
  * box.
