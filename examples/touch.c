@@ -22,6 +22,9 @@
 #include <xkbcommon/xkbcommon.h>
 #include "cat.h"
 
+/* Temp workaround */
+#include "render/gles2.h"
+
 struct sample_state {
 	struct wl_display *display;
 	struct wlr_renderer *renderer;
@@ -79,12 +82,18 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_renderer_begin(sample->renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
+	wlr_renderer_set_transform(sample->renderer, wlr_output->transform);
+
+	/* Temp workaround */
+	struct wlr_gles2_renderer *gles2_renderer =
+		(struct wlr_gles2_renderer *)sample->renderer;
+
 	struct touch_point *p;
 	wl_list_for_each(p, &sample->touch_points, link) {
 		int x = (int)(p->x * width) - sample->cat_texture->width / 2;
 		int y = (int)(p->y * height) - sample->cat_texture->height / 2;
 		wlr_render_texture(sample->renderer, sample->cat_texture,
-			wlr_output->transform_matrix, x, y, 1.0f);
+			gles2_renderer->transform_matrix, x, y, 1.0f);
 	}
 
 	wlr_renderer_end(sample->renderer);

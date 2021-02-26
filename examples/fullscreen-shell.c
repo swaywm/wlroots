@@ -16,6 +16,9 @@
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 
+/* Temp workaround */
+#include "render/gles2.h"
+
 /**
  * A minimal fullscreen-shell server. It only supports rendering.
  */
@@ -67,11 +70,15 @@ static void render_surface(struct wlr_surface *surface,
 		.height = surface->current.height * output->scale,
 	};
 
+	/* Temp workaround */
+	struct wlr_gles2_renderer *gles2_renderer =
+		(struct wlr_gles2_renderer *)rdata->renderer;
+
 	float matrix[9];
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(surface->current.transform);
 	wlr_matrix_project_box(matrix, &box, transform, 0,
-		output->transform_matrix);
+		gles2_renderer->transform_matrix);
 
 	wlr_render_texture_with_matrix(rdata->renderer, texture, matrix, 1);
 
@@ -96,6 +103,8 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 
 	float color[4] = {0.3, 0.3, 0.3, 1.0};
 	wlr_renderer_clear(renderer, color);
+
+	wlr_renderer_set_transform(renderer, output->wlr_output->transform);
 
 	if (output->surface != NULL) {
 		struct render_data rdata = {

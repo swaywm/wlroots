@@ -20,6 +20,9 @@
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 
+/* Temp workaround */
+#include "render/gles2.h"
+
 struct sample_state {
 	struct wl_display *display;
 	struct wlr_renderer *renderer;
@@ -90,6 +93,12 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wlr_renderer_begin(sample->renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(sample->renderer, (float[]){0.25f, 0.25f, 0.25f, 1});
 
+	wlr_renderer_set_transform(sample->renderer, wlr_output->transform);
+
+	/* Temp workaround */
+	struct wlr_gles2_renderer *gles2_renderer =
+		(struct wlr_gles2_renderer *)sample->renderer;
+
 	float distance = 0.8f * (1 - sample->distance);
 	float tool_color[4] = { distance, distance, distance, 1 };
 	for (size_t i = 0; sample->button && i < 4; ++i) {
@@ -106,7 +115,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 		.width = pad_width, .height = pad_height,
 	};
 	wlr_render_rect(sample->renderer, &box, sample->pad_color,
-		wlr_output->transform_matrix);
+		gles2_renderer->transform_matrix);
 
 	if (sample->proximity) {
 		struct wlr_box box = {
@@ -117,7 +126,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 		};
 		float matrix[9];
 		wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL,
-			sample->ring, wlr_output->transform_matrix);
+			sample->ring, gles2_renderer->transform_matrix);
 		wlr_render_quad_with_matrix(sample->renderer, tool_color, matrix);
 
 		box.x += sample->x_tilt;
@@ -125,7 +134,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 		box.width /= 2;
 		box.height /= 2;
 		wlr_render_rect(sample->renderer, &box, tool_color,
-			wlr_output->transform_matrix);
+			gles2_renderer->transform_matrix);
 	}
 
 	wlr_renderer_end(sample->renderer);

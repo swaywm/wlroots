@@ -18,6 +18,7 @@
 #include <wlr/util/region.h>
 #include "util/global.h"
 #include "util/signal.h"
+#include "render/gles2.h"
 
 #define OUTPUT_VERSION 3
 
@@ -140,11 +141,6 @@ void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
 	wlr_signal_emit_safe(&output->events.enable, output);
 }
 
-static void output_update_matrix(struct wlr_output *output) {
-	wlr_matrix_projection(output->transform_matrix, output->width,
-		output->height, output->transform);
-}
-
 void wlr_output_enable(struct wlr_output *output, bool enable) {
 	if (output->enabled == enable) {
 		output->pending.committed &= ~WLR_OUTPUT_STATE_ENABLED;
@@ -214,7 +210,6 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 
 	output->width = width;
 	output->height = height;
-	output_update_matrix(output);
 
 	output->refresh = refresh;
 
@@ -619,7 +614,6 @@ bool wlr_output_commit(struct wlr_output *output) {
 
 	if (output->pending.committed & WLR_OUTPUT_STATE_TRANSFORM) {
 		output->transform = output->pending.transform;
-		output_update_matrix(output);
 	}
 
 	bool geometry_updated = output->pending.committed &
@@ -878,9 +872,12 @@ static void output_cursor_render(struct wlr_output_cursor *cursor,
 		goto surface_damage_finish;
 	}
 
+	/* Temp workaround */
+	struct wlr_gles2_renderer *gles2_renderer = gles2_get_renderer(renderer);
+
 	float matrix[9];
 	wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
-		cursor->output->transform_matrix);
+		gles2_renderer->transform_matrix);
 
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&surface_damage, &nrects);

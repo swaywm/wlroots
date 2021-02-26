@@ -144,7 +144,6 @@ struct wlr_output {
 	bool needs_frame;
 	// damage for cursors and fullscreen surface, in output-local coordinates
 	bool frame_pending;
-	float transform_matrix[9];
 
 	struct wlr_output_state pending;
 
