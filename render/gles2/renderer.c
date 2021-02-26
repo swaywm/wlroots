@@ -196,8 +196,9 @@ static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-	// XXX: maybe we should save output projection and remove some of the need
-	// for users to sling matricies themselves
+	// clear the local transform matrix
+	renderer->has_transform = false;
+	memset(renderer->transform_matrix, 0.f, sizeof(renderer->transform_matrix));
 
 	pop_gles2_debug(renderer);
 }
@@ -216,6 +217,16 @@ static void gles2_clear(struct wlr_renderer *wlr_renderer,
 	glClearColor(color[0], color[1], color[2], color[3]);
 	glClear(GL_COLOR_BUFFER_BIT);
 	pop_gles2_debug(renderer);
+}
+
+static void gles2_set_transform(struct wlr_renderer *wlr_renderer,
+		enum wl_output_transform transform) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
+
+	wlr_matrix_projection(renderer->transform_matrix, renderer->viewport_width,
+		renderer->viewport_height, transform);
+	renderer->has_transform = true;
 }
 
 static void gles2_scissor(struct wlr_renderer *wlr_renderer,
@@ -681,6 +692,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.begin = gles2_begin,
 	.end = gles2_end,
 	.clear = gles2_clear,
+	.set_transform = gles2_set_transform,
 	.scissor = gles2_scissor,
 	.render_subtexture_with_matrix = gles2_render_subtexture_with_matrix,
 	.render_quad_with_matrix = gles2_render_quad_with_matrix,
