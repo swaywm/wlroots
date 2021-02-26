@@ -18,6 +18,7 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->begin);
 	assert(impl->clear);
 	assert(impl->scissor);
+	assert(impl->render_texture);
 	assert(impl->render_subtexture_with_matrix);
 	assert(impl->render_quad_with_matrix);
 	assert(impl->render_ellipse_with_matrix);
@@ -100,6 +101,12 @@ bool wlr_render_texture_at(struct wlr_renderer *r, struct wlr_texture *texture,
 		projection);
 
 	return wlr_render_texture_with_matrix(r, texture, matrix, alpha);
+}
+
+bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
+		enum wl_output_transform transform, struct wlr_box *box, float alpha) {
+	assert(r->rendering);
+	return r->impl->render_texture(r, texture, transform, box, alpha);
 }
 
 bool wlr_render_texture_with_matrix(struct wlr_renderer *r,

@@ -56,6 +56,11 @@ void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box);
 bool wlr_render_texture_at(struct wlr_renderer *r, struct wlr_texture *texture,
 	const float projection[static 9], int x, int y, float alpha);
 /**
+ * Renders the requested texture with the provided box.
+ */
+bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
+	enum wl_output_transform transform, struct wlr_box *box, float alpha);
+/**
  * Renders the requested texture using the provided matrix.
  */
 bool wlr_render_texture_with_matrix(struct wlr_renderer *r,
