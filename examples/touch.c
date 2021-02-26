@@ -92,7 +92,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	wl_list_for_each(p, &sample->touch_points, link) {
 		int x = (int)(p->x * width) - sample->cat_texture->width / 2;
 		int y = (int)(p->y * height) - sample->cat_texture->height / 2;
-		wlr_render_texture(sample->renderer, sample->cat_texture,
+		wlr_render_texture_at(sample->renderer, sample->cat_texture,
 			gles2_renderer->transform_matrix, x, y, 1.0f);
 	}
 

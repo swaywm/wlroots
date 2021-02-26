@@ -75,7 +75,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 	for (int y = -128 + (int)sample_output->y_offs; y < height; y += 128) {
 		for (int x = -128 + (int)sample_output->x_offs; x < width; x += 128) {
-			wlr_render_texture(sample->renderer, sample->cat_texture,
+			wlr_render_texture_at(sample->renderer, sample->cat_texture,
 				gles2_renderer->transform_matrix, x, y, 1.0f);
 		}
 	}

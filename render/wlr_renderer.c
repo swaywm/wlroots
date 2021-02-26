@@ -86,7 +86,7 @@ void wlr_renderer_scissor(struct wlr_renderer *r, struct wlr_box *box) {
 	r->impl->scissor(r, box);
 }
 
-bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
+bool wlr_render_texture_at(struct wlr_renderer *r, struct wlr_texture *texture,
 		const float projection[static 9], int x, int y, float alpha) {
 	struct wlr_box box = {
 		.x = x,

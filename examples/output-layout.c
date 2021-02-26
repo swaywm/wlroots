@@ -141,7 +141,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 		wlr_output_layout_output_coords(sample->layout, output->output,
 			&local_x, &local_y);
 
-		wlr_render_texture(sample->renderer, sample->cat_texture,
+		wlr_render_texture_at(sample->renderer, sample->cat_texture,
 			gles2_renderer->transform_matrix, local_x, local_y, 1.0f);
 	}
 
