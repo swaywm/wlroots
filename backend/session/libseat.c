@@ -74,6 +74,18 @@ static enum wlr_log_importance libseat_log_level_to_wlr(
 	}
 }
 
+static enum libseat_log_level wlr_log_importance_to_libseat(
+		enum wlr_log_importance importance) {
+	switch (importance) {
+	case WLR_ERROR:
+		return LIBSEAT_LOG_LEVEL_ERROR;
+	case WLR_INFO:
+		return LIBSEAT_LOG_LEVEL_INFO;
+	default:
+		return LIBSEAT_LOG_LEVEL_DEBUG;
+	}
+}
+
 static void log_libseat(enum libseat_log_level level,
 		const char *fmt, va_list args) {
 	enum wlr_log_importance importance = libseat_log_level_to_wlr(level);
@@ -94,8 +106,10 @@ static struct wlr_session *libseat_session_create(struct wl_display *disp) {
 	session_init(&session->base);
 	wl_list_init(&session->devices);
 
+	enum libseat_log_level log_level = wlr_log_importance_to_libseat(
+		wlr_log_get_verbosity());
 	libseat_set_log_handler(log_libseat);
-	libseat_set_log_level(LIBSEAT_LOG_LEVEL_ERROR);
+	libseat_set_log_level(log_level);
 
 	// libseat will take care of updating the logind state if necessary
 	setenv("XDG_SESSION_TYPE", "wayland", 1);
