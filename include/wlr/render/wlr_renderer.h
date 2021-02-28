@@ -75,8 +75,8 @@ bool wlr_render_subtexture_with_matrix(struct wlr_renderer *r,
 /**
  * Renders a solid rectangle in the specified color.
  */
-void wlr_render_rect(struct wlr_renderer *r, const struct wlr_box *box,
-	const float color[static 4], const float projection[static 9]);
+bool wlr_render_rect(struct wlr_renderer *r, struct wlr_box *box,
+	float color[static 4], enum wl_output_transform transform, float rotation);
 /**
  * Renders a solid quadrangle in the specified color with the specified matrix.
  */

@@ -31,6 +31,9 @@ struct wlr_renderer_impl {
 	bool (*render_subtexture_with_matrix)(struct wlr_renderer *renderer,
 		struct wlr_texture *texture, const struct wlr_fbox *box,
 		const float matrix[static 9], float alpha);
+	bool (*render_rect)(struct wlr_renderer *r, struct wlr_box *box,
+		float color[static 4], enum wl_output_transform transform,
+		float rotation);
 	void (*render_quad_with_matrix)(struct wlr_renderer *renderer,
 		const float color[static 4], const float matrix[static 9]);
 	void (*render_ellipse_with_matrix)(struct wlr_renderer *renderer,
