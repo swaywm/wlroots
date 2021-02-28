@@ -110,12 +110,12 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	float pad_height = sample->height_mm * scale;
 	float left = width / 2.0f - pad_width / 2.0f;
 	float top = height / 2.0f - pad_height / 2.0f;
-	const struct wlr_box box = {
+	struct wlr_box box = {
 		.x = left, .y = top,
 		.width = pad_width, .height = pad_height,
 	};
 	wlr_render_rect(sample->renderer, &box, sample->pad_color,
-		gles2_renderer->transform_matrix);
+		WL_OUTPUT_TRANSFORM_NORMAL, 0.f);
 
 	if (sample->proximity) {
 		struct wlr_box box = {
@@ -127,14 +127,15 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 		float matrix[9];
 		wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL,
 			sample->ring, gles2_renderer->transform_matrix);
-		wlr_render_quad_with_matrix(sample->renderer, tool_color, matrix);
+		wlr_render_rect(sample->renderer, &box, tool_color,
+			WL_OUTPUT_TRANSFORM_NORMAL, 0.f);
 
 		box.x += sample->x_tilt;
 		box.y += sample->y_tilt;
 		box.width /= 2;
 		box.height /= 2;
 		wlr_render_rect(sample->renderer, &box, tool_color,
-			gles2_renderer->transform_matrix);
+			WL_OUTPUT_TRANSFORM_NORMAL, 0.f);
 	}
 
 	wlr_renderer_end(sample->renderer);
