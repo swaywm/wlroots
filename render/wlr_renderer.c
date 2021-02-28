@@ -12,6 +12,7 @@
 #include "render/shm_format.h"
 #include "render/wlr_renderer.h"
 #include "backend/backend.h"
+#include "backend/drm/drm.h"
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
 		const struct wlr_renderer_impl *impl) {
@@ -252,20 +253,32 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 }
 
 struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
-	struct gbm_device *gbm_device = gbm_create_device(drm_fd);
-	if (!gbm_device) {
-		wlr_log(WLR_ERROR, "Failed to create GBM device");
-		return NULL;
+	bool is_eglstreams = drm_is_eglstreams(drm_fd);
+	struct wlr_egl *egl = NULL; 
+	if (is_eglstreams)
+	{
+		egl = wlr_egl_create(EGL_PLATFORM_DEVICE_EXT, (void *)(long)drm_fd);
+		egl->gbm_device = NULL;
+		if (egl == NULL) {
+			wlr_log(WLR_ERROR, "Can't initialize EGL for EGL_PLATFORM_DEVICE_EXT");
+			return NULL;
+		}
+	} else {
+		struct gbm_device *gbm_device = gbm_create_device(drm_fd);
+		if (!gbm_device) {
+			wlr_log(WLR_ERROR, "Failed to create GBM device");
+			return NULL;
+		}
+	
+		egl = wlr_egl_create(EGL_PLATFORM_GBM_KHR, gbm_device);
+		if (egl == NULL) {
+			wlr_log(WLR_ERROR, "Could not initialize EGL");
+			gbm_device_destroy(gbm_device);
+			return NULL;
+		}
+	
+		egl->gbm_device = gbm_device;
 	}
-
-	struct wlr_egl *egl = wlr_egl_create(EGL_PLATFORM_GBM_KHR, gbm_device);
-	if (egl == NULL) {
-		wlr_log(WLR_ERROR, "Could not initialize EGL");
-		gbm_device_destroy(gbm_device);
-		return NULL;
-	}
-
-	egl->gbm_device = gbm_device;
 
 	struct wlr_renderer *renderer = wlr_gles2_renderer_create(egl);
 	if (!renderer) {
@@ -291,4 +304,40 @@ int wlr_renderer_get_drm_fd(struct wlr_renderer *r) {
 		return -1;
 	}
 	return r->impl->get_drm_fd(r);
+}
+
+struct wlr_egl *wlr_renderer_get_egl(struct wlr_renderer *r) {
+	if (!r->impl->get_egl) {
+		return NULL;
+	}
+	return r->impl->get_egl(r);
+} 
+
+bool wlr_renderer_wl_buffer_get_params(struct wlr_renderer *r,
+	struct wl_resource *buffer, int *width, int *height, int *inverted_y) {
+	assert(wlr_resource_is_buffer(buffer));
+
+	struct wlr_egl *egl = wlr_renderer_get_egl(r);
+	if (!egl) {
+		return false;
+	}
+
+	if (width && egl->procs.eglQueryWaylandBufferWL(egl->display,
+			buffer, EGL_WIDTH, width) != EGL_TRUE) {
+		wlr_log(WLR_ERROR, "Failed to get resource width");
+		return false;
+	}
+	if (height && egl->procs.eglQueryWaylandBufferWL(egl->display,
+			buffer, EGL_HEIGHT, height) != EGL_TRUE) {
+		wlr_log(WLR_ERROR, "Failed to get resource height");
+		return false;
+	}
+	if (inverted_y && egl->procs.eglQueryWaylandBufferWL(egl->display,
+			buffer, EGL_WAYLAND_Y_INVERTED_WL,
+			inverted_y) != EGL_TRUE) {
+		wlr_log(WLR_ERROR, "Failed to get resource inverted_y");
+		return false;
+	}
+
+	return width || height || inverted_y;
 }

@@ -15,7 +15,7 @@ static void swapchain_handle_allocator_destroy(struct wl_listener *listener,
 
 struct wlr_swapchain *wlr_swapchain_create(
 		struct wlr_allocator *alloc, int width, int height,
-		const struct wlr_drm_format *format) {
+		const struct wlr_drm_format *format, void *backend_data) {
 	struct wlr_swapchain *swapchain = calloc(1, sizeof(*swapchain));
 	if (swapchain == NULL) {
 		return NULL;
@@ -23,6 +23,7 @@ struct wlr_swapchain *wlr_swapchain_create(
 	swapchain->allocator = alloc;
 	swapchain->width = width;
 	swapchain->height = height;
+	swapchain->backend_data = backend_data;
 
 	swapchain->format = wlr_drm_format_dup(format);
 	if (swapchain->format == NULL) {
@@ -104,7 +105,8 @@ struct wlr_buffer *wlr_swapchain_acquire(struct wlr_swapchain *swapchain,
 
 	wlr_log(WLR_DEBUG, "Allocating new swapchain buffer");
 	free_slot->buffer = wlr_allocator_create_buffer(swapchain->allocator,
-		swapchain->width, swapchain->height, swapchain->format);
+		swapchain->width, swapchain->height, swapchain->format,
+		swapchain->backend_data);
 	if (free_slot->buffer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to allocate buffer");
 		return NULL;
@@ -126,6 +128,12 @@ static bool swapchain_has_buffer(struct wlr_swapchain *swapchain,
 void wlr_swapchain_set_buffer_submitted(struct wlr_swapchain *swapchain,
 		struct wlr_buffer *buffer) {
 	assert(buffer != NULL);
+
+	if (buffer->egl_stream) {
+		// Let EGL implementation manage buffer age.
+		// See wlr_egl_flip_eglstreams_page for details.
+		return;
+	}
 
 	if (!swapchain_has_buffer(swapchain, buffer)) {
 		return;

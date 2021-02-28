@@ -139,4 +139,14 @@ int wlr_renderer_get_drm_fd(struct wlr_renderer *r);
  */
 void wlr_renderer_destroy(struct wlr_renderer *renderer);
 
+/**
+ * Gets underlying wlr_elg if defined.
+ */
+struct wlr_egl *wlr_renderer_get_egl(struct wlr_renderer *renderer);
+
+/**
+ * Gets the parameters of wayland buffer.
+ */
+bool wlr_renderer_wl_buffer_get_params(struct wlr_renderer *renderer,
+	struct wl_resource *buffer, int *width, int *height, int *inverted_y);
 #endif

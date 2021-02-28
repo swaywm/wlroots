@@ -18,6 +18,6 @@ void wlr_allocator_destroy(struct wlr_allocator *alloc) {
 }
 
 struct wlr_buffer *wlr_allocator_create_buffer(struct wlr_allocator *alloc,
-		int width, int height, const struct wlr_drm_format *format) {
-	return alloc->impl->create_buffer(alloc, width, height, format);
+		int width, int height, const struct wlr_drm_format *format, void *data) {
+	return alloc->impl->create_buffer(alloc, width, height, format, data);
 }

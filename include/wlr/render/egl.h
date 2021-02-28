@@ -29,6 +29,41 @@
 #include <wlr/render/dmabuf.h>
 #include <wlr/render/drm_format_set.h>
 
+#ifndef EGL_NV_stream_attrib
+#define EGL_NV_stream_attrib 1
+typedef EGLStreamKHR (EGLAPIENTRYP PFNEGLCREATESTREAMATTRIBNVPROC)(EGLDisplay dpy, const EGLAttrib *attrib_list);
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLSETSTREAMATTRIBNVPROC)(EGLDisplay dpy, EGLStreamKHR stream, EGLenum attribute, EGLAttrib value);
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLQUERYSTREAMATTRIBNVPROC)(EGLDisplay dpy, EGLStreamKHR stream, EGLenum attribute, EGLAttrib *value);
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLSTREAMCONSUMERACQUIREATTRIBNVPROC)(EGLDisplay dpy, EGLStreamKHR stream, const EGLAttrib *attrib_list);
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLSTREAMCONSUMERRELEASEATTRIBNVPROC)(EGLDisplay dpy, EGLStreamKHR stream, const EGLAttrib *attrib_list);
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLQUERYSTREAMATTRIBNV)(EGLDisplay, EGLStreamKHR, EGLenum, EGLAttrib *);
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLSTREAMCONSUMERRELEASEKHR)(EGLDisplay, EGLStreamKHR);
+#endif /* EGL_NV_stream_attrib */
+
+#ifndef EGL_EXT_stream_acquire_mode
+#define EGL_EXT_stream_acquire_mode 1
+#define EGL_CONSUMER_AUTO_ACQUIRE_EXT 0x332B
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLSTREAMCONSUMERACQUIREATTRIBEXTPROC)(EGLDisplay dpy, EGLStreamKHR stream, const EGLAttrib *attrib_list);
+#endif /* EGL_EXT_stream_acquire_mode */
+
+#ifndef EGL_NV_output_drm_flip_event
+#define EGL_NV_output_drm_flip_event 1
+#define EGL_DRM_FLIP_EVENT_DATA_NV 0x333E
+#endif /* EGL_NV_output_drm_flip_event */
+
+#ifndef EGL_DRM_MASTER_FD_EXT
+#define EGL_DRM_MASTER_FD_EXT 0x333C
+#endif /* EGL_DRM_MASTER_FD_EXT */
+
+#ifndef EGL_WL_wayland_eglstream
+#define EGL_WL_wayland_eglstream 1
+#define EGL_WAYLAND_EGLSTREAM_WL 0x334B
+#endif /* EGL_WL_wayland_eglstream */
+
+#ifndef EGL_RESOURCE_BUSY_EXT
+#define EGL_RESOURCE_BUSY_EXT 0x3353
+#endif /* EGL_RESOURCE_BUSY_EXT */
+
 struct wlr_egl_context {
 	EGLDisplay display;
 	EGLContext context;
@@ -36,11 +71,21 @@ struct wlr_egl_context {
 	EGLSurface read_surface;
 };
 
+struct wlr_eglstream {
+	struct wlr_drm_backend *drm;
+	struct wlr_egl *egl;
+	EGLStreamKHR stream;
+	EGLSurface surface;
+	bool busy; // true for e.g. modeset in progress
+};
+
 struct wlr_egl {
 	EGLDisplay display;
 	EGLContext context;
 	EGLDeviceEXT device; // may be EGL_NO_DEVICE_EXT
 	struct gbm_device *gbm_device;
+	EGLConfig egl_config; // For setting up EGLStreams context
+	struct wlr_eglstream *current_eglstream; // Non-null for EGLStream frame
 
 	struct {
 		// Display extensions
@@ -68,6 +113,19 @@ struct wlr_egl {
 		PFNEGLDEBUGMESSAGECONTROLKHRPROC eglDebugMessageControlKHR;
 		PFNEGLQUERYDISPLAYATTRIBEXTPROC eglQueryDisplayAttribEXT;
 		PFNEGLQUERYDEVICESTRINGEXTPROC eglQueryDeviceStringEXT;
+		// EGLStreams
+		PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT;
+		PFNEGLGETOUTPUTLAYERSEXTPROC eglGetOutputLayersEXT;
+		PFNEGLCREATESTREAMKHRPROC eglCreateStreamKHR;
+		PFNEGLDESTROYSTREAMKHRPROC eglDestroyStreamKHR;
+		PFNEGLSTREAMCONSUMEROUTPUTEXTPROC eglStreamConsumerOutputEXT;
+		PFNEGLCREATESTREAMPRODUCERSURFACEKHRPROC eglCreateStreamProducerSurfaceKHR;
+		PFNEGLSTREAMCONSUMERACQUIREATTRIBNVPROC eglStreamConsumerAcquireAttribNV;
+		PFNEGLQUERYSTREAMATTRIBNV eglQueryStreamAttribNV;
+		PFNEGLSTREAMCONSUMERRELEASEKHR eglStreamConsumerReleaseKHR;
+		PFNEGLQUERYSTREAMKHRPROC eglQueryStreamKHR;
+		PFNEGLCREATESTREAMATTRIBNVPROC eglCreateStreamAttribNV;
+		PFNEGLSTREAMCONSUMERGLTEXTUREEXTERNALKHRPROC eglStreamConsumerGLTextureExternalKHR;
 	} procs;
 
 	struct wl_display *wl_display;
@@ -154,5 +212,36 @@ void wlr_egl_save_context(struct wlr_egl_context *context);
 bool wlr_egl_restore_context(struct wlr_egl_context *context);
 
 int wlr_egl_dup_drm_fd(struct wlr_egl *egl);
+
+/**
+ * Sets up EGLSurface for passed egl_stream
+ * Expects egl_stream->drm and egl_stream->egl to be valid
+ */
+bool wlr_egl_create_eglstreams_surface(struct wlr_eglstream *egl_stream,
+		uint32_t plane_id, int width, int height);
+
+/**
+ * Destroys egl_stream and frees resources used
+ */
+void wlr_egl_destroy_eglstreams_surface(struct wlr_eglstream *egl_stream);
+
+/**
+ * Flips EGLStream for presentation. Updated buffers ages.
+ * Expects EGLStream surface to be current
+ */
+struct wlr_output;
+bool wlr_egl_flip_eglstreams_page(struct wlr_output *output);
+
+/**
+ * Flips source transform around X axis to match EGL co-ordinate system.
+ */
+enum wl_output_transform
+wlr_egl_normalize_output_transform(enum wl_output_transform source_transform);
+
+/**
+ * Load and initialized nvidia eglstream controller.
+ * for mapping client EGL surfaces.
+ */
+void init_eglstream_controller(struct wl_display *display);
 
 #endif

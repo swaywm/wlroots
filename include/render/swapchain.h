@@ -20,6 +20,7 @@ struct wlr_swapchain {
 
 	int width, height;
 	struct wlr_drm_format *format;
+	void *backend_data;
 
 	struct wlr_swapchain_slot slots[WLR_SWAPCHAIN_CAP];
 
@@ -28,7 +29,7 @@ struct wlr_swapchain {
 
 struct wlr_swapchain *wlr_swapchain_create(
 	struct wlr_allocator *alloc, int width, int height,
-	const struct wlr_drm_format *format);
+	const struct wlr_drm_format *format, void *backend_data);
 void wlr_swapchain_destroy(struct wlr_swapchain *swapchain);
 /**
  * Acquire a buffer from the swap chain.

@@ -36,6 +36,9 @@ struct wlr_drm_fb {
 	struct gbm_bo *bo;
 	uint32_t id;
 
+	struct wlr_drm_backend *backend;
+	uint32_t handle;
+
 	struct wl_listener wlr_buf_destroy;
 };
 

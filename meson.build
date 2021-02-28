@@ -19,6 +19,8 @@ soversion = 7
 
 add_project_arguments([
 	'-DWLR_USE_UNSTABLE',
+	# Allow clients to die on their own, be not so strict
+	'-DWLR_RELAXED_CLIENT_HANDLING'
 ], language: 'c')
 
 cc = meson.get_compiler('c')
@@ -104,6 +106,7 @@ udev = dependency('libudev')
 pixman = dependency('pixman-1')
 math = cc.find_library('m')
 rt = cc.find_library('rt')
+dlfcn = cc.find_library('dl') # for libnvidia-egl-wayland.so.1 dynamic loading
 
 if not get_option('xdg-foreign').disabled()
 	uuid = dependency('uuid', required: false)
@@ -131,6 +134,7 @@ wlr_deps = [
 	pixman,
 	math,
 	rt,
+	dlfcn
 ]
 
 subdir('protocol')

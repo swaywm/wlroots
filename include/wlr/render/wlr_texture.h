@@ -52,6 +52,16 @@ struct wlr_texture *wlr_texture_from_dmabuf(struct wlr_renderer *renderer,
 	struct wlr_dmabuf_attributes *attribs);
 
 /**
+ * Create a new texture from a EGLSTREAM_WL resource. The returned texture is
+ * immutable.
+ *
+ * Should not be called in a rendering block like renderer_begin()/end() or
+ * between attaching a renderer to an output and committing it.
+ */
+struct wlr_texture *wlr_texture_from_wl_eglstream(struct wlr_renderer *renderer,
+	struct wl_resource *data);
+
+/**
  * Get the texture width and height.
  *
  * This function is deprecated. Access wlr_texture's width and height fields

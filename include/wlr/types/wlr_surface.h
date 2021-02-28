@@ -140,6 +140,9 @@ struct wlr_surface {
 	struct wl_listener renderer_destroy;
 
 	void *data;
+
+	// To handle transform y flipping
+	bool is_eglstream;
 };
 
 struct wlr_subsurface_state {

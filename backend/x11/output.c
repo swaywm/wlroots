@@ -389,7 +389,7 @@ static bool output_cursor_to_picture(struct wlr_x11_output *output,
 		wlr_swapchain_destroy(output->cursor.swapchain);
 		output->cursor.swapchain = wlr_swapchain_create(
 			x11->allocator, width, height,
-			x11->drm_format);
+			x11->drm_format, NULL);
 		if (output->cursor.swapchain == NULL) {
 			return false;
 		}
@@ -540,7 +540,7 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	wlr_output_update_custom_mode(wlr_output, 1024, 768, 0);
 
 	output->swapchain = wlr_swapchain_create(x11->allocator,
-		wlr_output->width, wlr_output->height, x11->drm_format);
+		wlr_output->width, wlr_output->height, x11->drm_format, NULL);
 	if (!output->swapchain) {
 		wlr_log(WLR_ERROR, "Failed to create swapchain");
 		free(output);
@@ -643,7 +643,7 @@ void handle_x11_configure_notify(struct wlr_x11_output *output,
 			output->swapchain->height != ev->height) {
 		struct wlr_swapchain *swapchain = wlr_swapchain_create(
 			output->x11->allocator, ev->width, ev->height,
-			output->x11->drm_format);
+			output->x11->drm_format, NULL);
 		if (!swapchain) {
 			return;
 		}

@@ -61,6 +61,9 @@ struct wlr_renderer_impl {
 		struct wlr_dmabuf_attributes *dst,
 		struct wlr_dmabuf_attributes *src);
 	int (*get_drm_fd)(struct wlr_renderer *renderer);
+	struct wlr_texture *(*texture_from_wl_eglstream)(struct wlr_renderer *renderer,
+		struct wl_resource *data);
+	struct wlr_egl *(*get_egl)(struct wlr_renderer *renderer);
 };
 
 void wlr_renderer_init(struct wlr_renderer *renderer,

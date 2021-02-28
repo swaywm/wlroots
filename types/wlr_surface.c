@@ -374,6 +374,13 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 		wlr_buffer_unlock(&surface->buffer->base);
 	}
 	surface->buffer = buffer;
+	if (surface->is_eglstream) {
+		// Let eglstream to do damage tracking
+		pixman_region32_union_rect(
+			&surface->buffer_damage, &surface->buffer_damage, 0, 0,
+			buffer->texture->width, buffer->texture->height);
+
+	}
 }
 
 static void surface_update_opaque_region(struct wlr_surface *surface) {
@@ -528,6 +535,9 @@ static void surface_set_buffer_transform(struct wl_client *client,
 		return;
 	}
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
+	if (surface->is_eglstream) {
+		transform = wlr_egl_normalize_output_transform(transform);
+	}
 	surface->pending.committed |= WLR_SURFACE_STATE_TRANSFORM;
 	surface->pending.transform = transform;
 }
@@ -685,8 +695,6 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
 	wl_resource_set_implementation(surface->resource, &surface_interface,
 		surface, surface_handle_resource_destroy);
 
-	wlr_log(WLR_DEBUG, "New wlr_surface %p (res %p)", surface, surface->resource);
-
 	surface->renderer = renderer;
 
 	surface_state_init(&surface->current);
@@ -712,6 +720,8 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
 	} else {
 		wl_list_init(resource_link);
 	}
+
+	surface->is_eglstream = false;
 
 	return surface;
 }

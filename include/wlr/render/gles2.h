@@ -17,7 +17,6 @@ struct wlr_egl;
 
 struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl);
 
-struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *renderer);
 bool wlr_gles2_renderer_check_ext(struct wlr_renderer *renderer,
 	const char *ext);
 
@@ -32,5 +31,7 @@ struct wlr_gles2_texture_attribs {
 bool wlr_texture_is_gles2(struct wlr_texture *texture);
 void wlr_gles2_texture_get_attribs(struct wlr_texture *texture,
 	struct wlr_gles2_texture_attribs *attribs);
+
+struct wlr_egl *gles2_renderer_get_egl(struct wlr_renderer *renderer);
 
 #endif

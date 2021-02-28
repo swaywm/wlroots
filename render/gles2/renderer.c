@@ -42,21 +42,23 @@ static struct wlr_gles2_renderer *gles2_get_renderer_in_context(
 static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
 	wl_list_remove(&buffer->link);
 	wl_list_remove(&buffer->buffer_destroy.link);
+	// EGLStreams buffers do not use FBOs
+	if (!buffer->buffer->egl_stream) {
+		struct wlr_egl_context prev_ctx;
+		wlr_egl_save_context(&prev_ctx);
+		wlr_egl_make_current(buffer->renderer->egl);
 
-	struct wlr_egl_context prev_ctx;
-	wlr_egl_save_context(&prev_ctx);
-	wlr_egl_make_current(buffer->renderer->egl);
+		push_gles2_debug(buffer->renderer);
 
-	push_gles2_debug(buffer->renderer);
+		glDeleteFramebuffers(1, &buffer->fbo);
+		glDeleteRenderbuffers(1, &buffer->rbo);
 
-	glDeleteFramebuffers(1, &buffer->fbo);
-	glDeleteRenderbuffers(1, &buffer->rbo);
+		pop_gles2_debug(buffer->renderer);
 
-	pop_gles2_debug(buffer->renderer);
-
-	wlr_egl_destroy_image(buffer->renderer->egl, buffer->image);
-
-	wlr_egl_restore_context(&prev_ctx);
+		wlr_egl_destroy_image(buffer->renderer->egl, buffer->image);
+	
+		wlr_egl_restore_context(&prev_ctx);
+	}
 
 	free(buffer);
 }
@@ -87,48 +89,54 @@ static struct wlr_gles2_buffer *create_buffer(struct wlr_gles2_renderer *rendere
 	}
 	buffer->buffer = wlr_buffer;
 	buffer->renderer = renderer;
+	if (buffer->buffer->egl_stream) {
+		// We're rendering to a EGL surface,
+		// No need for special wrapping magic here.
+		assert(buffer->buffer->egl_stream->surface);
+		buffer->fbo = 0;
+		buffer->rbo = 0;
+	} else {
+		struct wlr_dmabuf_attributes dmabuf = {0};
+		if (!wlr_buffer_get_dmabuf(wlr_buffer, &dmabuf)) {
+			goto error_buffer;
+		}
 
-	struct wlr_dmabuf_attributes dmabuf = {0};
-	if (!wlr_buffer_get_dmabuf(wlr_buffer, &dmabuf)) {
-		goto error_buffer;
-	}
+		bool external_only;
+		buffer->image = wlr_egl_create_image_from_dmabuf(renderer->egl,
+			&dmabuf, &external_only);
+		if (buffer->image == EGL_NO_IMAGE_KHR) {
+			goto error_buffer;
+		}
 
-	bool external_only;
-	buffer->image = wlr_egl_create_image_from_dmabuf(renderer->egl,
-		&dmabuf, &external_only);
-	if (buffer->image == EGL_NO_IMAGE_KHR) {
-		goto error_buffer;
-	}
+		push_gles2_debug(renderer);
 
-	push_gles2_debug(renderer);
+		glGenRenderbuffers(1, &buffer->rbo);
+		glBindRenderbuffer(GL_RENDERBUFFER, buffer->rbo);
+		renderer->procs.glEGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER,
+			buffer->image);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-	glGenRenderbuffers(1, &buffer->rbo);
-	glBindRenderbuffer(GL_RENDERBUFFER, buffer->rbo);
-	renderer->procs.glEGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER,
-		buffer->image);
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+		glGenFramebuffers(1, &buffer->fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, buffer->fbo);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+			GL_RENDERBUFFER, buffer->rbo);
+		GLenum fb_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	glGenFramebuffers(1, &buffer->fbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, buffer->fbo);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-		GL_RENDERBUFFER, buffer->rbo);
-	GLenum fb_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		pop_gles2_debug(renderer);
 
-	pop_gles2_debug(renderer);
-
-	if (fb_status != GL_FRAMEBUFFER_COMPLETE) {
-		wlr_log(WLR_ERROR, "Failed to create FBO");
-		goto error_image;
+		if (fb_status != GL_FRAMEBUFFER_COMPLETE) {
+			wlr_log(WLR_ERROR, "Failed to create FBO");
+			goto error_image;
+		}
+		wlr_log(WLR_DEBUG, "Created GL FBO for buffer %dx%d",
+			wlr_buffer->width, wlr_buffer->height);
 	}
 
 	buffer->buffer_destroy.notify = handle_buffer_destroy;
 	wl_signal_add(&wlr_buffer->events.destroy, &buffer->buffer_destroy);
 
 	wl_list_insert(&renderer->buffers, &buffer->link);
-
-	wlr_log(WLR_DEBUG, "Created GL FBO for buffer %dx%d",
-		wlr_buffer->width, wlr_buffer->height);
 
 	return buffer;
 
@@ -159,6 +167,9 @@ static bool gles2_bind_buffer(struct wlr_renderer *wlr_renderer,
 		wlr_egl_unset_current(renderer->egl);
 		return true;
 	}
+
+	// Used for setting up current EGL context for a frame.
+	renderer->egl->current_eglstream = wlr_buffer->egl_stream;
 
 	wlr_egl_make_current(renderer->egl);
 
@@ -248,7 +259,6 @@ static bool gles2_render_subtexture_with_matrix(
 		gles2_get_texture(wlr_texture);
 
 	struct wlr_gles2_tex_shader *shader = NULL;
-
 	switch (texture->target) {
 	case GL_TEXTURE_2D:
 		if (texture->has_alpha) {
@@ -526,6 +536,15 @@ static bool gles2_blit_dmabuf(struct wlr_renderer *wlr_renderer,
 		return false;
 	}
 
+	if(!renderer->egl->gbm_device) {
+		// gdm_device is null for EGLStreams mode.
+		// TODO: Blitting for EGLStreams if required.
+		// TODO(danvd): Test with 2 GPU combinations (I've got some).
+		// Note: This will be greatly simplified when nvidia 
+		// dms-buf support is ready.
+		return false;
+	}
+
 	struct wlr_egl_context old_context;
 	wlr_egl_save_context(&old_context);
 
@@ -635,7 +654,7 @@ static int gles2_get_drm_fd(struct wlr_renderer *wlr_renderer) {
 	return renderer->drm_fd;
 }
 
-struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *wlr_renderer) {
+struct wlr_egl *gles2_renderer_get_egl(struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer(wlr_renderer);
 	return renderer->egl;
@@ -697,6 +716,8 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.init_wl_display = gles2_init_wl_display,
 	.blit_dmabuf = gles2_blit_dmabuf,
 	.get_drm_fd = gles2_get_drm_fd,
+	.texture_from_wl_eglstream = gles2_texture_from_wl_eglstream,
+	.get_egl = gles2_renderer_get_egl
 };
 
 void push_gles2_debug_(struct wlr_gles2_renderer *renderer,
@@ -850,6 +871,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	wlr_renderer_init(&renderer->wlr_renderer, &renderer_impl);
 
 	wl_list_init(&renderer->buffers);
+	wl_list_init(&renderer->client_streams);
 
 	renderer->egl = egl;
 	renderer->exts_str = exts_str;

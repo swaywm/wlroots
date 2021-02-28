@@ -139,8 +139,12 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
 		goto error;
 	}
 
-	uint32_t width = gbm_bo_get_width(fb->bo);
-	uint32_t height = gbm_bo_get_height(fb->bo);
+	bool is_eglstreams = drm->is_eglstreams;
+
+	uint32_t width = is_eglstreams ?
+		(uint32_t)fb->wlr_buf->width : gbm_bo_get_width(fb->bo);
+	uint32_t height = is_eglstreams ?
+		(uint32_t)fb->wlr_buf->height : gbm_bo_get_height(fb->bo);
 
 	// The src_* properties are in 16.16 fixed point
 	atomic_add(atom, id, props->src_x, 0);

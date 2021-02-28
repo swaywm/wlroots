@@ -17,15 +17,17 @@
 #include "render/gbm_allocator.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
+#include "render/eglstreams_allocator.h"
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer) {
 	renderer->backend = drm;
-
-	renderer->gbm = gbm_create_device(drm->fd);
-	if (!renderer->gbm) {
-		wlr_log(WLR_ERROR, "Failed to create GBM device");
-		return false;
+	if (!drm->is_eglstreams) {
+		renderer->gbm = gbm_create_device(drm->fd);
+		if (!renderer->gbm) {
+			wlr_log(WLR_ERROR, "Failed to create GBM device");
+			return false;
+		}
 	}
 
 	renderer->wlr_rend = wlr_renderer_autocreate_with_drm_fd(drm->fd);
@@ -34,25 +36,36 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		goto error_gbm;
 	}
 
-	int alloc_fd = fcntl(drm->fd, F_DUPFD_CLOEXEC, 0);
-	if (alloc_fd < 0) {
-		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
-		goto error_wlr_rend;
-	}
+	if (drm->is_eglstreams) {
+		renderer->allocator = wlr_eglstreams_allocator_create(drm);
+		if (renderer->allocator == NULL) {
+			goto error_allocator;
+		}
+		init_eglstream_controller(drm->display);
+	} else {
+		int alloc_fd = fcntl(drm->fd, F_DUPFD_CLOEXEC, 0);
+		if (alloc_fd < 0) {
+			wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+			goto error_wlr_rend;
+		}
 
-	renderer->allocator = wlr_gbm_allocator_create(alloc_fd);
-	if (renderer->allocator == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create allocator");
-		close(alloc_fd);
-		goto error_wlr_rend;
+		renderer->allocator = wlr_gbm_allocator_create(alloc_fd);
+		if (renderer->allocator == NULL) {
+			close(alloc_fd);
+			goto error_allocator;
+		}
 	}
 
 	return true;
 
+error_allocator:
+	wlr_log(WLR_ERROR, "Failed to create allocator");
 error_wlr_rend:
 	wlr_renderer_destroy(renderer->wlr_rend);
 error_gbm:
-	gbm_device_destroy(renderer->gbm);
+	if(!drm->is_eglstreams) {
+		gbm_device_destroy(renderer->gbm);
+	}
 	return false;
 }
 
@@ -63,12 +76,15 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 
 	wlr_allocator_destroy(&renderer->allocator->base);
 	wlr_renderer_destroy(renderer->wlr_rend);
-	gbm_device_destroy(renderer->gbm);
+	if(!renderer->backend->is_eglstreams) {
+		gbm_device_destroy(renderer->gbm);
+	}
 }
 
 static bool init_drm_surface(struct wlr_drm_surface *surf,
 		struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
-		const struct wlr_drm_format *drm_format) {
+		const struct wlr_drm_format *drm_format,
+		const struct wlr_drm_plane *plane) {
 	if (surf->width == width && surf->height == height) {
 		return true;
 	}
@@ -83,7 +99,7 @@ static bool init_drm_surface(struct wlr_drm_surface *surf,
 	surf->swapchain = NULL;
 
 	surf->swapchain = wlr_swapchain_create(&renderer->allocator->base,
-		width, height, drm_format);
+		width, height, drm_format, (void *)(unsigned long)plane->id);
 	if (surf->swapchain == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create swapchain");
 		memset(surf, 0, sizeof(*surf));
@@ -214,42 +230,51 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 	if (!wlr_drm_format_set_has(&plane->formats, format, DRM_FORMAT_MOD_INVALID)) {
 		format = strip_alpha_channel(format);
 	}
-	const struct wlr_drm_format *plane_format =
-		wlr_drm_format_set_get(&plane->formats, format);
-	if (plane_format == NULL) {
-		wlr_log(WLR_ERROR, "Plane %"PRIu32" doesn't support format 0x%"PRIX32,
-			plane->id, format);
-		return false;
-	}
-
-	const struct wlr_drm_format_set *render_formats =
-		wlr_renderer_get_dmabuf_render_formats(drm->renderer.wlr_rend);
-	if (render_formats == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get render formats");
-		return false;
-	}
-	const struct wlr_drm_format *render_format =
-		wlr_drm_format_set_get(render_formats, format);
-	if (render_format == NULL) {
-		wlr_log(WLR_ERROR, "Renderer doesn't support format 0x%"PRIX32,
-			format);
-		return false;
-	}
-
+	struct wlr_drm_format *drm_format = NULL;
 	struct wlr_drm_format *format_implicit_modifier = NULL;
-	if (!with_modifiers) {
-		format_implicit_modifier = wlr_drm_format_create(format);
-		render_format = format_implicit_modifier;
-	}
 
-	struct wlr_drm_format *drm_format =
-		wlr_drm_format_intersect(plane_format, render_format);
-	if (drm_format == NULL) {
-		wlr_log(WLR_ERROR,
-			"Failed to intersect plane and render formats 0x%"PRIX32,
-			format);
-		free(format_implicit_modifier);
-		return false;
+	if (drm->is_eglstreams) {
+		// EGLStreams format is defined indirectly
+		// No need to do complex things here
+		drm_format = calloc(1, sizeof(*drm_format));
+		memset(drm_format, 0, sizeof(*drm_format));
+		drm_format->format = format;
+	} else {
+		const struct wlr_drm_format *plane_format =
+			wlr_drm_format_set_get(&plane->formats, format);
+		if (plane_format == NULL) {
+			wlr_log(WLR_ERROR, "Plane %"PRIu32" doesn't support format 0x%"PRIX32,
+				plane->id, format);
+			return false;
+		}
+
+		const struct wlr_drm_format_set *render_formats =
+			wlr_renderer_get_dmabuf_render_formats(drm->renderer.wlr_rend);
+		if (render_formats == NULL) {
+			wlr_log(WLR_ERROR, "Failed to get render formats");
+			return false;
+		}
+		const struct wlr_drm_format *render_format =
+			wlr_drm_format_set_get(render_formats, format);
+		if (render_format == NULL) {
+			wlr_log(WLR_ERROR, "Renderer doesn't support format 0x%"PRIX32,
+				format);
+			return false;
+		}
+
+		if (!with_modifiers) {
+			format_implicit_modifier = wlr_drm_format_create(format);
+			render_format = format_implicit_modifier;
+		}
+
+		drm_format = wlr_drm_format_intersect(plane_format, render_format);
+		if (drm_format == NULL) {
+			wlr_log(WLR_ERROR,
+				"Failed to intersect plane and render formats 0x%"PRIX32,
+				format);
+			free(format_implicit_modifier);
+			return false;
+		}
 	}
 
 	drm_plane_finish_surface(plane);
@@ -257,7 +282,7 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 	bool ok = true;
 	if (!drm->parent) {
 		ok = init_drm_surface(&plane->surf, &drm->renderer,
-			width, height, drm_format);
+			width, height, drm_format, plane);
 	} else {
 		struct wlr_drm_format *drm_format_linear = create_linear_format(format);
 		if (drm_format_linear == NULL) {
@@ -267,11 +292,11 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		}
 
 		ok = init_drm_surface(&plane->surf, &drm->parent->renderer,
-			width, height, drm_format_linear);
+			width, height, drm_format_linear, plane);
 		free(drm_format_linear);
 
 		if (ok && !init_drm_surface(&plane->mgpu_surf, &drm->renderer,
-				width, height, drm_format)) {
+				width, height, drm_format, plane)) {
 			finish_drm_surface(&plane->surf);
 			ok = false;
 		}
@@ -364,43 +389,89 @@ static void drm_fb_handle_wlr_buf_destroy(struct wl_listener *listener,
 	drm_fb_destroy(fb);
 }
 
+static bool  
+create_dumb_fb(int drm_fd, uint32_t width, uint32_t height,
+		uint32_t *handle, uint32_t *id)
+{
+	struct drm_mode_destroy_dumb destroy_request = { 0 };
+	struct drm_mode_create_dumb create_request = { 0 };
+	create_request.width = width;
+	create_request.height = height;
+	create_request.bpp = 32; /* RGBX8888 */
+	*handle = 0;
+	*id = 0;
+
+	if (drmIoctl(drm_fd, DRM_IOCTL_MODE_CREATE_DUMB, &create_request) < 0) {
+		wlr_log(WLR_INFO, "Failed ioctl to create dumb fb");
+		return false;
+	}
+
+	uint32_t fd;
+	if (drmModeAddFB(drm_fd, width, height, 24, 32, create_request.pitch, create_request.handle, &fd)) {
+		goto fail_add_fb;
+	}
+
+	*handle = create_request.handle;
+	*id = fd;
+
+	// No need to map and clear. It won't be displayed anyway.
+
+	return true;
+
+fail_add_fb:
+	wlr_log(WLR_INFO, "Failed to add dumb fb");
+	destroy_request.handle = create_request.handle;
+	drmIoctl(drm_fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy_request);
+	return false;
+}
+
 static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, const struct wlr_drm_format_set *formats) {
 	struct wlr_drm_fb *fb = calloc(1, sizeof(*fb));
 	if (!fb) {
 		return NULL;
 	}
+	fb->backend = drm;
 
-	struct wlr_dmabuf_attributes attribs;
-	if (!wlr_buffer_get_dmabuf(buf, &attribs)) {
-		wlr_log(WLR_ERROR, "Failed to get DMA-BUF from buffer");
-		goto error_get_dmabuf;
-	}
-
-	if (formats && !wlr_drm_format_set_has(formats, attribs.format,
-			attribs.modifier)) {
-		// The format isn't supported by the plane. Try stripping the alpha
-		// channel, if any.
-		uint32_t format = strip_alpha_channel(attribs.format);
-		if (wlr_drm_format_set_has(formats, format, attribs.modifier)) {
-			attribs.format = format;
-		} else {
-			wlr_log(WLR_ERROR, "Buffer format 0x%"PRIX32" cannot be scanned out",
-				attribs.format);
+	if(drm->is_eglstreams) {
+		// EGLStreams do not use FBs directly to renderer.
+		// Though fake FB is needed for modesetting.
+		fb->bo = NULL;
+		if (!create_dumb_fb(drm->fd, buf->width, buf->height,
+				&fb->handle, &fb->id)) {
+			goto error_create_dumb_fb;
+		}
+	} else {
+		struct wlr_dmabuf_attributes attribs;
+		if (!wlr_buffer_get_dmabuf(buf, &attribs)) {
+			wlr_log(WLR_ERROR, "Failed to get DMA-BUF from buffer");
 			goto error_get_dmabuf;
 		}
-	}
-
-	fb->bo = get_bo_for_dmabuf(drm->renderer.gbm, &attribs);
-	if (!fb->bo) {
-		wlr_log(WLR_ERROR, "Failed to import DMA-BUF in GBM");
-		goto error_get_dmabuf;
-	}
-
-	fb->id = get_fb_for_bo(fb->bo, drm->addfb2_modifiers);
-	if (!fb->id) {
-		wlr_log(WLR_ERROR, "Failed to import GBM BO in KMS");
-		goto error_get_fb_for_bo;
+		if (formats && !wlr_drm_format_set_has(formats, attribs.format,
+				attribs.modifier)) {
+			// The format isn't supported by the plane. Try stripping the alpha
+			// channel, if any.
+			uint32_t format = strip_alpha_channel(attribs.format);
+			if (wlr_drm_format_set_has(formats, format, attribs.modifier)) {
+				attribs.format = format;
+			} else {
+				wlr_log(WLR_ERROR, "Buffer format 0x%"PRIX32" cannot be scanned out",
+					attribs.format);
+				goto error_get_dmabuf;
+			}
+		}
+	
+		fb->bo = get_bo_for_dmabuf(drm->renderer.gbm, &attribs);
+		if (!fb->bo) {
+			wlr_log(WLR_ERROR, "Failed to import DMA-BUF in GBM");
+			goto error_get_dmabuf;
+		}
+	
+		fb->id = get_fb_for_bo(fb->bo, drm->addfb2_modifiers);
+		if (!fb->id) {
+			wlr_log(WLR_ERROR, "Failed to import GBM BO in KMS");
+			goto error_get_fb_for_bo;
+		}
 	}
 
 	fb->wlr_buf = buf;
@@ -415,6 +486,7 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 error_get_fb_for_bo:
 	gbm_bo_destroy(fb->bo);
 error_get_dmabuf:
+error_create_dumb_fb:
 	free(fb);
 	return NULL;
 }
@@ -422,13 +494,28 @@ error_get_dmabuf:
 void drm_fb_destroy(struct wlr_drm_fb *fb) {
 	wl_list_remove(&fb->link);
 	wl_list_remove(&fb->wlr_buf_destroy.link);
-
-	struct gbm_device *gbm = gbm_bo_get_device(fb->bo);
-	if (drmModeRmFB(gbm_device_get_fd(gbm), fb->id) != 0) {
-		wlr_log(WLR_ERROR, "drmModeRmFB failed");
+	
+	if (fb->backend->is_eglstreams && fb->handle) {
+		// Despite of FB being dumb it must be properly deallocated.
+		// nvidia driver won't do this for us even on process exit :-(.
+		// Ignoring this step will lead to driver out-of-resources eventually.
+		int drm_fd = fb->backend->fd;
+		struct drm_mode_destroy_dumb destroy_request = { fb->handle };
+		if (drmModeRmFB(drm_fd, fb->id) != 0) {
+			wlr_log(WLR_ERROR, "drmModeRmFB failed for EGLStream dumb FB");
+		}
+		if (destroy_request.handle &&
+			drmIoctl(drm_fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy_request) != 0) {
+			wlr_log(WLR_ERROR, "drmIoctl destroy failed for EGLStream dumb FB");
+		}
+	} else if (fb->bo) {
+		struct gbm_device *gbm = gbm_bo_get_device(fb->bo);
+		if (drmModeRmFB(gbm_device_get_fd(gbm), fb->id) != 0) {
+			wlr_log(WLR_ERROR, "drmModeRmFB failed");
+		}
+		gbm_bo_destroy(fb->bo);
 	}
 
-	gbm_bo_destroy(fb->bo);
 	free(fb);
 }
 

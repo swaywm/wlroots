@@ -93,6 +93,7 @@ struct wlr_drm_backend {
 
 	struct wlr_drm_renderer renderer;
 	struct wlr_session *session;
+	bool is_eglstreams;
 };
 
 enum wlr_drm_connector_state {
@@ -157,6 +158,8 @@ size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc);
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane);
+
+bool drm_is_eglstreams(int drm_fd);
 
 #define wlr_drm_conn_log(conn, verb, fmt, ...) \
 	wlr_log(verb, "connector %s: " fmt, conn->name, ##__VA_ARGS__)

@@ -10,8 +10,24 @@
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include <xf86drm.h>
+#include <dlfcn.h>
+#include <wlr/types/wlr_surface.h>
+#include "backend/drm/drm.h"
+#include "render/swapchain.h"
+#include "render/eglstreams_allocator.h"
+#include "wayland-eglstream-controller-protocol.h"
 
-static enum wlr_log_importance egl_log_importance_to_wlr(EGLint type) {
+static enum wlr_log_importance egl_log_importance_to_wlr(EGLint type,
+		EGLint error) {
+	switch (error) {
+		// Do not spam about EGLStream errors
+		case EGL_BAD_STATE_KHR:
+		case EGL_BAD_STREAM_KHR:
+			return WLR_DEBUG;
+		default:
+			break;
+	}
+
 	switch (type) {
 	case EGL_DEBUG_MSG_CRITICAL_KHR: return WLR_ERROR;
 	case EGL_DEBUG_MSG_ERROR_KHR:    return WLR_ERROR;
@@ -55,13 +71,17 @@ static const char *egl_error_str(EGLint error) {
 		return "EGL_BAD_NATIVE_WINDOW";
 	case EGL_CONTEXT_LOST:
 		return "EGL_CONTEXT_LOST";
+	case EGL_BAD_STREAM_KHR:
+		return "EGL_BAD_STREAM_KHR";
+	case EGL_BAD_STATE_KHR:
+		return "EGL_BAD_STATE_KHR";
 	}
 	return "unknown error";
 }
 
 static void egl_log(EGLenum error, const char *command, EGLint msg_type,
 		EGLLabelKHR thread, EGLLabelKHR obj, const char *msg) {
-	_wlr_log(egl_log_importance_to_wlr(msg_type),
+	_wlr_log(egl_log_importance_to_wlr(msg_type, error),
 		"[EGL] command: %s, error: %s (0x%x), message: \"%s\"",
 		command, egl_error_str(error), error, msg);
 }
@@ -198,8 +218,99 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 		goto error;
 	}
 
+	EGLint *attribsDisplay = NULL;
+
+	// Is EGLStreams mode all dmabuf-related functiobality must be disabled.
+	// Else native clients may fail to start.
+	bool is_eglstreams = false;
+	if (platform == EGL_PLATFORM_DEVICE_EXT) {
+		is_eglstreams = true;
+		int drm_fd = (int)(long)remote_display;
+		remote_display = NULL;
+		const char *extensions = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
+		if (!check_egl_ext(extensions, "EGL_EXT_device_base") &&
+			(!check_egl_ext(extensions, "EGL_EXT_device_enumeration") ||
+			!check_egl_ext(extensions, "EGL_EXT_device_query"))) {
+			wlr_log(WLR_ERROR, "Failed to query needed EGL extensions"
+					" for EGL_PLATFORM_DEVICE_EXT");
+			goto error;
+		}
+
+
+		load_egl_proc(&egl->procs.eglQueryDeviceStringEXT,
+				"eglQueryDeviceStringEXT");
+		load_egl_proc(&egl->procs.eglQueryDevicesEXT,
+				"eglQueryDevicesEXT");
+		load_egl_proc(&egl->procs.eglGetOutputLayersEXT,
+				"eglGetOutputLayersEXT");
+		load_egl_proc(&egl->procs.eglCreateStreamKHR,
+				"eglCreateStreamKHR");
+		load_egl_proc(&egl->procs.eglDestroyStreamKHR,
+				"eglDestroyStreamKHR");
+		load_egl_proc(&egl->procs.eglStreamConsumerOutputEXT,
+				"eglStreamConsumerOutputEXT");
+		load_egl_proc(&egl->procs.eglCreateStreamProducerSurfaceKHR,
+				"eglCreateStreamProducerSurfaceKHR");
+		load_egl_proc(&egl->procs.eglStreamConsumerAcquireAttribNV,
+				"eglStreamConsumerAcquireAttribNV");
+		load_egl_proc(&egl->procs.eglQueryStreamAttribNV,
+				"eglQueryStreamAttribNV");
+		load_egl_proc(&egl->procs.eglStreamConsumerReleaseKHR,
+				"eglStreamConsumerReleaseKHR");
+		load_egl_proc(&egl->procs.eglQueryStreamKHR,
+				"eglQueryStreamKHR");
+		load_egl_proc(&egl->procs.eglCreateStreamAttribNV,
+				"eglCreateStreamAttribNV");
+		load_egl_proc(&egl->procs.eglStreamConsumerGLTextureExternalKHR,
+				"eglStreamConsumerGLTextureExternalKHR");
+
+		EGLint num_devices;
+		if (!egl->procs.eglQueryDevicesEXT(0, NULL, &num_devices) || num_devices < 1) {
+			wlr_log(WLR_ERROR, "No devices found for EGL_PLATFORM_DEVICE_EXT");
+			goto error;
+		}
+
+		num_devices = num_devices > 255 ? 255 : num_devices;
+
+		EGLDeviceEXT devices[255];
+		if (!egl->procs.eglQueryDevicesEXT(num_devices, devices, &num_devices)) {
+			wlr_log(WLR_ERROR, "Failed get EGLDevice pointers"
+					" for EGL_PLATFORM_DEVICE_EXT");
+			goto error;
+		}
+
+		const char *drmDeviceFile = drmGetDeviceNameFromFd2(drm_fd);
+
+		for (int i = 0; i < num_devices; i++) {
+			EGLDeviceEXT device = devices[i];
+			const char *device_extensions =
+				egl->procs.eglQueryDeviceStringEXT(device, EGL_EXTENSIONS);
+			if (check_egl_ext(device_extensions, "EGL_EXT_device_drm") &&
+					device != EGL_NO_DEVICE_EXT) {
+				const char *currentDeviceFile =
+					egl->procs.eglQueryDeviceStringEXT(device, EGL_DRM_DEVICE_FILE_EXT);
+				if (strcmp(drmDeviceFile, currentDeviceFile) == 0) {
+					remote_display = device;
+					break;
+				}
+			}
+		}
+
+		if (remote_display == NULL) {
+			wlr_log(WLR_ERROR, "Can't get EGLDevice for drm device %s "
+					"to setup EGLStreams mode", drmDeviceFile);
+			goto error;
+		}
+		attribsDisplay = calloc(3, sizeof(EGLint));
+		attribsDisplay[0] = EGL_DRM_MASTER_FD_EXT;
+		attribsDisplay[1] = drm_fd;
+		attribsDisplay[2] = EGL_NONE;
+	}
+
 	egl->display = egl->procs.eglGetPlatformDisplayEXT(platform,
-		remote_display, NULL);
+		remote_display, attribsDisplay);
+	free(attribsDisplay);
+
 	if (egl->display == EGL_NO_DISPLAY) {
 		wlr_log(WLR_ERROR, "Failed to create EGL display");
 		goto error;
@@ -223,23 +334,27 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 		load_egl_proc(&egl->procs.eglDestroyImageKHR, "eglDestroyImageKHR");
 	}
 
-	egl->exts.image_dmabuf_import_ext =
-		check_egl_ext(display_exts_str, "EGL_EXT_image_dma_buf_import");
-	if (check_egl_ext(display_exts_str,
-			"EGL_EXT_image_dma_buf_import_modifiers")) {
-		egl->exts.image_dmabuf_import_modifiers_ext = true;
-		load_egl_proc(&egl->procs.eglQueryDmaBufFormatsEXT,
-			"eglQueryDmaBufFormatsEXT");
-		load_egl_proc(&egl->procs.eglQueryDmaBufModifiersEXT,
-			"eglQueryDmaBufModifiersEXT");
-	}
+	// Disable all dmf-buf functionality for EGLStreams.
+	// TODO: Enable when nvidia driver is ready.
+	if (!is_eglstreams) {
+		egl->exts.image_dmabuf_import_ext = 
+			check_egl_ext(display_exts_str, "EGL_EXT_image_dma_buf_import");
+		if (check_egl_ext(display_exts_str,
+				"EGL_EXT_image_dma_buf_import_modifiers")) {
+			egl->exts.image_dmabuf_import_modifiers_ext = true;
+			load_egl_proc(&egl->procs.eglQueryDmaBufFormatsEXT,
+				"eglQueryDmaBufFormatsEXT");
+			load_egl_proc(&egl->procs.eglQueryDmaBufModifiersEXT,
+				"eglQueryDmaBufModifiersEXT");
+		}
 
-	if (check_egl_ext(display_exts_str, "EGL_MESA_image_dma_buf_export")) {
-		egl->exts.image_dma_buf_export_mesa = true;
-		load_egl_proc(&egl->procs.eglExportDMABUFImageQueryMESA,
-			"eglExportDMABUFImageQueryMESA");
-		load_egl_proc(&egl->procs.eglExportDMABUFImageMESA,
-			"eglExportDMABUFImageMESA");
+		if (check_egl_ext(display_exts_str, "EGL_MESA_image_dma_buf_export")) {
+			egl->exts.image_dma_buf_export_mesa = true;
+			load_egl_proc(&egl->procs.eglExportDMABUFImageQueryMESA,
+				"eglExportDMABUFImageQueryMESA");
+			load_egl_proc(&egl->procs.eglExportDMABUFImageMESA,
+				"eglExportDMABUFImageMESA");
+		}
 	}
 
 	if (check_egl_ext(display_exts_str, "EGL_WL_bind_wayland_display")) {
@@ -250,6 +365,50 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 			"eglUnbindWaylandDisplayWL");
 		load_egl_proc(&egl->procs.eglQueryWaylandBufferWL,
 			"eglQueryWaylandBufferWL");
+	}
+
+	egl->egl_config = EGL_NO_CONFIG_KHR;
+	if (is_eglstreams) {
+		if (!check_egl_ext(display_exts_str, "EGL_EXT_output_base") ||
+			!check_egl_ext(display_exts_str,
+				"EGL_EXT_output_drm") ||
+			!check_egl_ext(display_exts_str,
+				"EGL_KHR_stream") ||
+			!check_egl_ext(display_exts_str,
+				"EGL_KHR_stream_producer_eglsurface") ||
+			!check_egl_ext(display_exts_str,
+				"EGL_EXT_stream_consumer_egloutput") ||
+			!check_egl_ext(display_exts_str,
+				"EGL_NV_stream_attrib") ||
+			!check_egl_ext(display_exts_str,
+				"EGL_EXT_stream_acquire_mode") ||
+			!check_egl_ext(display_exts_str,
+				"EGL_KHR_stream_consumer_gltexture") ||
+			!check_egl_ext(display_exts_str,
+				"EGL_WL_wayland_eglstream")) {
+			wlr_log(WLR_ERROR, "Some required display extensions for "
+					"EGLStreams are missing");
+			goto error;
+
+		}
+		EGLint config_attribs [] = {
+			EGL_SURFACE_TYPE,         EGL_STREAM_BIT_KHR,
+			EGL_RED_SIZE,             1,
+			EGL_GREEN_SIZE,           1,
+			EGL_BLUE_SIZE,            1,
+			EGL_RENDERABLE_TYPE,      EGL_OPENGL_ES2_BIT,
+			EGL_CONFIG_CAVEAT,        EGL_NONE,
+			EGL_NONE,
+		};
+
+		EGLint egl_num_configs;
+		if (!eglChooseConfig(egl->display, config_attribs,
+			&egl->egl_config, 1, &egl_num_configs) ||
+				egl_num_configs < 1) {
+			wlr_log(WLR_ERROR,
+				"No EGL configs foung for EGLStreams setup");
+			goto error;
+		}
 	}
 
 	const char *device_exts_str = NULL;
@@ -265,7 +424,16 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 			wlr_log(WLR_ERROR, "eglQueryDisplayAttribEXT(EGL_DEVICE_EXT) failed");
 			goto error;
 		}
-		egl->device = (EGLDeviceEXT)device_attrib;
+		EGLDeviceEXT displayDevice = (EGLDeviceEXT)device_attrib;
+
+		if(egl->device && egl->device != displayDevice) {
+			wlr_log(WLR_ERROR,
+				"Queried EGL display device is different "
+				"from one display was created from");
+			goto error;
+		}
+
+		egl->device = displayDevice; 
 
 		device_exts_str =
 			egl->procs.eglQueryDeviceStringEXT(egl->device, EGL_EXTENSIONS);
@@ -323,7 +491,7 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 
 	// On DRM, request a high priority context if possible
 	bool request_high_priority = ext_context_priority &&
-		platform == EGL_PLATFORM_GBM_MESA;
+		(platform == EGL_PLATFORM_GBM_MESA || platform == EGL_PLATFORM_DEVICE_EXT);
 
 	// Try to reschedule all of our rendering to be completed first. If it
 	// fails, it will fallback to the default priority (MEDIUM).
@@ -335,7 +503,7 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 	attribs[atti++] = EGL_NONE;
 	assert(atti <= sizeof(attribs)/sizeof(attribs[0]));
 
-	egl->context = eglCreateContext(egl->display, EGL_NO_CONFIG_KHR,
+	egl->context = eglCreateContext(egl->display, egl->egl_config,
 		EGL_NO_CONTEXT, attribs);
 	if (egl->context == EGL_NO_CONTEXT) {
 		wlr_log(WLR_ERROR, "Failed to create EGL context");
@@ -413,8 +581,10 @@ bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
 }
 
 bool wlr_egl_make_current(struct wlr_egl *egl) {
-	if (!eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
-			egl->context)) {
+	EGLSurface surface = egl->current_eglstream ?
+		egl->current_eglstream->surface : EGL_NO_SURFACE;
+
+	if (!eglMakeCurrent(egl->display, surface, surface, egl->context)) {
 		wlr_log(WLR_ERROR, "eglMakeCurrent failed");
 		return false;
 	}
@@ -422,6 +592,7 @@ bool wlr_egl_make_current(struct wlr_egl *egl) {
 }
 
 bool wlr_egl_unset_current(struct wlr_egl *egl) {
+	egl->current_eglstream = NULL;
 	if (!eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
 			EGL_NO_CONTEXT)) {
 		wlr_log(WLR_ERROR, "eglMakeCurrent failed");
@@ -807,3 +978,318 @@ int wlr_egl_dup_drm_fd(struct wlr_egl *egl) {
 
 	return render_fd;
 }
+
+bool wlr_egl_create_eglstreams_surface(struct wlr_eglstream *egl_stream,
+		uint32_t plane_id, int width, int height) {
+
+	EGLAttrib layer_attribs[] = {
+		EGL_DRM_PLANE_EXT,
+		plane_id,
+		EGL_NONE,
+	};
+
+	EGLint stream_attribs[] = {
+		// Mailbox mode - presenting the most recent frame.
+		EGL_STREAM_FIFO_LENGTH_KHR, 0,
+		EGL_CONSUMER_AUTO_ACQUIRE_EXT, EGL_FALSE,
+		EGL_NONE
+	};
+
+	EGLint surface_attribs[] = {
+		EGL_WIDTH, width,
+		EGL_HEIGHT, height,
+		EGL_NONE
+	};
+
+	EGLOutputLayerEXT egl_layer;
+	EGLint n_layers = 0;
+	struct wlr_egl *egl = egl_stream->egl;
+	if (!egl) {
+		return false;
+	}
+
+	EGLBoolean res = egl->procs.eglGetOutputLayersEXT(egl->display,
+				layer_attribs, &egl_layer, 1, &n_layers);
+	if (!res || !n_layers) {
+		wlr_log(WLR_ERROR, "Error getting egl output layer for plane %d", plane_id);
+		return false;
+	}
+
+	egl_stream->stream = NULL;
+	egl_stream->surface = NULL;
+	egl_stream->busy = false;
+
+	egl_stream->stream = egl->procs.eglCreateStreamKHR(egl->display, stream_attribs);
+    
+	if (egl_stream->stream == EGL_NO_STREAM_KHR) {
+		wlr_log(WLR_ERROR, "Unable to create egl stream");
+		goto error;
+	}
+
+	if (!egl->procs.eglStreamConsumerOutputEXT(egl->display, egl_stream->stream, egl_layer)) {
+		wlr_log(WLR_ERROR, "Unable to create egl stream consumer");
+		goto error;
+	}
+
+	egl_stream->surface = egl->procs.eglCreateStreamProducerSurfaceKHR(egl->display,
+			egl->egl_config, egl_stream->stream, surface_attribs);
+
+	if (!egl_stream->surface) {
+		wlr_log(WLR_ERROR, "Failed to create egl stream producer surface");
+		goto error;
+	}
+
+	wlr_log(WLR_INFO, "EGLStream for plane %u (%dx%d) has been set up", plane_id,
+		width, height);
+
+	return true;
+
+error:
+	if (egl_stream->stream) {
+		egl->procs.eglDestroyStreamKHR(egl->display, egl_stream->stream);
+	}
+	if (egl_stream->surface) {
+		eglDestroySurface(egl->display, egl_stream->surface);
+	}
+
+	return false;
+}
+
+void wlr_egl_destroy_eglstreams_surface(struct wlr_eglstream *egl_stream) {
+	if (egl_stream->surface) {
+		eglDestroySurface(egl_stream->egl->display, egl_stream->surface);
+		egl_stream->surface = NULL;
+	}
+	if (egl_stream->stream) {
+		egl_stream->egl->procs.eglDestroyStreamKHR(egl_stream->egl->display,
+			egl_stream->stream);
+		egl_stream->stream = NULL;
+	}
+}
+
+bool wlr_egl_flip_eglstreams_page(struct wlr_output *output) {
+	assert(wlr_output_is_drm(output));
+	struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
+	assert(conn);
+	if (!conn) {
+		return false;
+	}
+	struct wlr_drm_backend *drm = conn->backend;
+
+	struct wlr_drm_crtc *crtc = conn->crtc;
+	assert(crtc);
+	if (!crtc) {
+		return false;
+	}
+	struct wlr_drm_plane *plane = crtc->primary;
+	assert(plane);
+	if (!plane) {
+		return false;
+	}
+	struct wlr_drm_surface *surf = drm->parent ?
+		&plane->mgpu_surf : &plane->surf;
+	struct wlr_swapchain *swapchain = surf->swapchain; 
+	assert(swapchain);
+	if (!swapchain) {
+		return false;
+	}
+	struct wlr_eglstream_plane *egl_stream_plane = 
+		wlr_eglstream_plane_for_id(swapchain->allocator, plane->id);
+	assert(egl_stream_plane);
+	if (!egl_stream_plane) {
+		return false;
+	}
+	struct wlr_eglstream *egl_stream = &egl_stream_plane->stream;
+	struct wlr_egl *egl = egl_stream->egl;
+
+	struct wlr_egl_context old_ctx;
+	wlr_egl_save_context(&old_ctx);
+	eglMakeCurrent(egl->display, egl_stream->surface, egl_stream->surface, egl->context);
+
+	// Update buffer age.
+	// Note: this is needed for wlr damage tracking to work properly.
+	// Swapchain's implementation is skipped for EGLStreams buffers.
+	EGLint buffer_age;
+	if (eglQuerySurface(egl->display, egl_stream->surface,
+		EGL_BUFFER_AGE_KHR, &buffer_age) != EGL_TRUE) {
+		wlr_log(WLR_ERROR, "EGLstream buffer age couldn't be queried!"
+				"Full frame area will be updated!");
+		buffer_age = 0;
+	}
+	// Every buffer is EGLStreams mode is just a wrapper
+	// around the only one real EGLStream. 
+	// Swapchain works inside EGL.
+	for (size_t i = 0; i < WLR_SWAPCHAIN_CAP; i++) {
+		struct wlr_swapchain_slot *slot = &swapchain->slots[i];
+		if (slot->buffer) {
+			slot->age = buffer_age;
+		}
+	}
+
+	// My experiments show that nvidia driver uses some kind of fast path
+	// for damage/buffer age tracking, thus making eglSwapBuffersWithDamage and
+	// eglSetDamageRegion useless.
+	// Tip: Do not swap if stream is marked busy to avoid deadlock.
+	if (!egl_stream->busy && eglSwapBuffers(egl->display, egl_stream->surface) != EGL_TRUE) {
+		wlr_log(WLR_ERROR, "Swap buffers for EGLStream failed");
+	}
+
+
+	EGLAttrib acquire_attribs[] = {
+		EGL_DRM_FLIP_EVENT_DATA_NV, (EGLAttrib)egl_stream->drm,
+		EGL_NONE
+	};
+	EGLBoolean ok = egl->procs.eglStreamConsumerAcquireAttribNV(egl->display,
+			egl_stream->stream, acquire_attribs);
+
+	egl_stream->busy = ok == EGL_FALSE && eglGetError() == EGL_RESOURCE_BUSY_EXT;
+
+	wlr_egl_restore_context(&old_ctx);
+
+	return ok == EGL_TRUE || egl_stream->busy;
+
+}
+
+enum wl_output_transform
+wlr_egl_normalize_output_transform(enum wl_output_transform source_transform) {
+	enum wl_output_transform result_transform = source_transform;
+	switch (source_transform) {
+		case WL_OUTPUT_TRANSFORM_NORMAL:
+			result_transform = WL_OUTPUT_TRANSFORM_FLIPPED_180;
+			break;
+		case WL_OUTPUT_TRANSFORM_90:
+			result_transform = WL_OUTPUT_TRANSFORM_FLIPPED_90;
+			break;
+		case WL_OUTPUT_TRANSFORM_180:
+			result_transform = WL_OUTPUT_TRANSFORM_FLIPPED;
+			break;
+		case WL_OUTPUT_TRANSFORM_270:
+			result_transform = WL_OUTPUT_TRANSFORM_FLIPPED_270;
+			break;
+		case WL_OUTPUT_TRANSFORM_FLIPPED:
+			result_transform = WL_OUTPUT_TRANSFORM_180;
+			break;
+		case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+			result_transform = WL_OUTPUT_TRANSFORM_90;
+			break;
+		case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+			result_transform = WL_OUTPUT_TRANSFORM_NORMAL;
+			break;
+		case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+			result_transform = WL_OUTPUT_TRANSFORM_270;
+			break;
+		default:
+			assert(false);
+			break;
+
+	}
+	return result_transform;
+}
+
+
+static struct wl_interface *eglstream_controller_interface = NULL;
+
+static void
+attach_eglstream_consumer_attribs(struct wl_client *client,
+			  struct wl_resource *resource,
+			  struct wl_resource *wl_surface,
+			  struct wl_resource *wl_eglstream,
+			  struct wl_array *attribs)
+{
+	struct wlr_surface *surface = wlr_surface_from_resource(wl_surface);
+	if (!surface->is_eglstream) {
+		// egl surface should be y flipped opposed to drm surfaces
+		surface->is_eglstream = true;
+		surface->pending.committed |= WLR_SURFACE_STATE_TRANSFORM;
+		surface->pending.transform =
+			wlr_egl_normalize_output_transform(surface->current.transform); 
+	}
+	assert(surface);
+	struct wlr_texture *texture =
+		wlr_texture_from_wl_eglstream(surface->renderer, wl_eglstream);
+	if (texture == NULL) {
+		wlr_log(WLR_ERROR, "Failed to upload buffer");
+		// Failing to attach stream here leads to a deadlock in 
+		// nvidia driver. Abort.
+		abort();
+		return;
+	}
+	// stream is cached now
+	wlr_texture_destroy(texture);
+}
+
+static void
+attach_eglstream_consumer(struct wl_client *client,
+			  struct wl_resource *resource,
+			  struct wl_resource *wl_surface,
+			  struct wl_resource *wl_eglstream) {
+	attach_eglstream_consumer_attribs(client, resource,
+			wl_surface, wl_eglstream, NULL);
+}
+
+static const struct wl_eglstream_controller_interface
+eglstream_controller_implementation = {
+	attach_eglstream_consumer,
+	attach_eglstream_consumer_attribs,
+};
+
+static void
+bind_eglstream_controller(struct wl_client *client,
+			  void *data, uint32_t version, uint32_t id)
+{
+	struct wl_resource *resource;
+	pid_t pid; uid_t uid; gid_t gid;
+	wl_client_get_credentials(client, &pid, &uid, &gid);
+wlr_log(WLR_INFO, "client: %u, %u, %u", pid, uid, gid);
+	/*if (getpid() == pid) {*/
+		/*wlr_log(WLR_INFO, "Disabling eglstream_controller for current process");*/
+		/*return;*/
+	/*}*/
+	resource = wl_resource_create(client, eglstream_controller_interface,
+				      version, id);
+
+	if (resource == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+	wl_resource_set_implementation(resource,
+				       &eglstream_controller_implementation,
+				       data,
+				       NULL);
+}
+
+void init_eglstream_controller(struct wl_display *display)
+{
+	/*
+	 * wl_eglstream_controller_interface is provided by
+	 * libnvidia-egl-wayland.so.1
+	 *
+	 * Since it might not be available on the
+	 * system, dynamically load it at runtime and resolve the needed
+	 * symbols. If available, it should be found under any of the search
+	 * directories of dlopen()
+	 *
+	 * Failure to initialize wl_eglstream_controller is non-fatal
+	 */
+
+	void *lib = dlopen("libnvidia-egl-wayland.so.1", RTLD_NOW | RTLD_LAZY);
+	if (!lib)
+		goto fail;
+
+	eglstream_controller_interface =
+		dlsym(lib, "wl_eglstream_controller_interface");
+
+	if (!eglstream_controller_interface)
+		goto fail;
+
+	if (wl_global_create(display,
+			     eglstream_controller_interface, 2,
+			     NULL, bind_eglstream_controller))
+		return; /* success */
+fail:
+	if (lib)
+		dlclose(lib);
+	wlr_log(WLR_ERROR,
+			"Unable to initialize wl_eglstream_controller.");
+}
+

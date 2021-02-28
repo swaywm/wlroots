@@ -42,6 +42,14 @@ struct wlr_texture *wlr_texture_from_dmabuf(struct wlr_renderer *renderer,
 	return renderer->impl->texture_from_dmabuf(renderer, attribs);
 }
 
+struct wlr_texture *wlr_texture_from_wl_eglstream(struct wlr_renderer *renderer,
+	struct wl_resource *data) {
+	if (!renderer->impl->texture_from_wl_eglstream) {
+		return NULL;
+	}
+	return renderer->impl->texture_from_wl_eglstream(renderer, data);
+}
+
 void wlr_texture_get_size(struct wlr_texture *texture, int *width,
 		int *height) {
 	*width = texture->width;

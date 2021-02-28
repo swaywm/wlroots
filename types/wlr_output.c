@@ -18,6 +18,7 @@
 #include <wlr/util/region.h>
 #include "util/global.h"
 #include "util/signal.h"
+#include "backend/drm/drm.h"
 
 #define OUTPUT_VERSION 3
 
@@ -229,6 +230,13 @@ void wlr_output_update_custom_mode(struct wlr_output *output, int32_t width,
 
 void wlr_output_set_transform(struct wlr_output *output,
 		enum wl_output_transform transform) {
+	if (wlr_output_is_drm(output)) {
+		struct wlr_drm_connector *conn = (struct wlr_drm_connector *)output;
+		if (conn->backend->is_eglstreams) {
+			// FIXME: There must be a better way to do this, I hope...
+			transform = wlr_egl_normalize_output_transform(transform);
+		}
+	}
 	if (output->transform == transform) {
 		output->pending.committed &= ~WLR_OUTPUT_STATE_TRANSFORM;
 		return;

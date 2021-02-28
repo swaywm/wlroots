@@ -77,6 +77,7 @@ struct wlr_gles2_renderer {
 
 	struct wlr_gles2_buffer *current_buffer;
 	uint32_t viewport_width, viewport_height;
+	struct wl_list client_streams; //wlr_egl_client_stream.link
 };
 
 struct wlr_gles2_buffer {
@@ -101,13 +102,24 @@ struct wlr_gles2_texture {
 	GLenum target;
 	GLuint tex;
 
+	// Either of two is non-null
 	EGLImageKHR image;
+	EGLStreamKHR stream;
 
 	bool inverted_y;
 	bool has_alpha;
 
 	// Only affects target == GL_TEXTURE_2D
 	uint32_t drm_format; // used to interpret upload data
+};
+
+struct  wlr_egl_client_stream {
+	struct wlr_gles2_renderer *renderer;
+	GLuint tex;
+	EGLStreamKHR stream;
+	struct wl_resource* resource;
+	struct wl_list link; // wlr_gles2_renderer client_streams
+	struct wl_listener destroy_listener;
 };
 
 const struct wlr_gles2_pixel_format *get_gles2_format_from_drm(uint32_t fmt);
@@ -127,6 +139,8 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 	struct wl_resource *data);
 struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 	struct wlr_dmabuf_attributes *attribs);
+struct wlr_texture *gles2_texture_from_wl_eglstream(struct wlr_renderer *wlr_renderer,
+	struct wl_resource *data);
 
 void push_gles2_debug_(struct wlr_gles2_renderer *renderer,
 	const char *file, const char *func);
