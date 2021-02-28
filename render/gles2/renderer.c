@@ -333,13 +333,13 @@ static bool gles2_render_subtexture_with_matrix(
 
 static bool gles2_render_texture(struct wlr_renderer *wlr_renderer,
 		struct wlr_texture *wlr_texture, enum wl_output_transform transform,
-		struct wlr_box *box, float alpha) {
+		struct wlr_box *box, float alpha, float rotation) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer_in_context(wlr_renderer);
 
 	float matrix[9];
 	if (renderer->has_transform) {
-		wlr_matrix_project_box(matrix, box, transform, 0,
+		wlr_matrix_project_box(matrix, box, transform, rotation,
 			renderer->transform_matrix);
 	} else {
 		wlr_matrix_projection(matrix, box->width, box->height, transform);

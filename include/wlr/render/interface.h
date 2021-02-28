@@ -27,7 +27,8 @@ struct wlr_renderer_impl {
 		enum wl_output_transform transform);
 	void (*scissor)(struct wlr_renderer *renderer, struct wlr_box *box);
 	bool (*render_texture)(struct wlr_renderer *r, struct wlr_texture *texture,
-		enum wl_output_transform transform, struct wlr_box *box, float alpha);
+		enum wl_output_transform transform, struct wlr_box *box, float alpha,
+		float rotation);
 	bool (*render_subtexture_with_matrix)(struct wlr_renderer *renderer,
 		struct wlr_texture *texture, const struct wlr_fbox *box,
 		const float matrix[static 9], float alpha);

@@ -59,7 +59,8 @@ bool wlr_render_texture_at(struct wlr_renderer *r, struct wlr_texture *texture,
  * Renders the requested texture with the provided box.
  */
 bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
-	enum wl_output_transform transform, struct wlr_box *box, float alpha);
+	enum wl_output_transform transform, struct wlr_box *box, float alpha,
+	float rotation);
 /**
  * Renders the requested texture using the provided matrix.
  */

@@ -135,7 +135,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 			&local_x, &local_y);
 
 		wlr_render_texture(sample->renderer, sample->cat_texture,
-			WL_OUTPUT_TRANSFORM_NORMAL, &box, 1.f);
+			WL_OUTPUT_TRANSFORM_NORMAL, &box, 1.f, 0.f);
 	}
 
 	wlr_renderer_end(sample->renderer);

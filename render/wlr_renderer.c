@@ -104,9 +104,10 @@ bool wlr_render_texture_at(struct wlr_renderer *r, struct wlr_texture *texture,
 }
 
 bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
-		enum wl_output_transform transform, struct wlr_box *box, float alpha) {
+		enum wl_output_transform transform, struct wlr_box *box, float alpha,
+		float rotation) {
 	assert(r->rendering);
-	return r->impl->render_texture(r, texture, transform, box, alpha);
+	return r->impl->render_texture(r, texture, transform, box, alpha, rotation);
 }
 
 bool wlr_render_texture_with_matrix(struct wlr_renderer *r,

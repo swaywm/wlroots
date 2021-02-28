@@ -78,7 +78,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 			// TODO use wlr_render_texture_at once the api has changed
 			wlr_render_texture(sample->renderer, sample->cat_texture,
-				WL_OUTPUT_TRANSFORM_NORMAL, &box, 1.f);
+				WL_OUTPUT_TRANSFORM_NORMAL, &box, 1.f, 0.f);
 		}
 	}
 

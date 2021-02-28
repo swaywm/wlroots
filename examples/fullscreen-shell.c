@@ -70,7 +70,7 @@ static void render_surface(struct wlr_surface *surface,
 	enum wl_output_transform transform =
 		wlr_output_transform_invert(surface->current.transform);
 
-	wlr_render_texture(rdata->renderer, texture, transform, &box, 1.f);
+	wlr_render_texture(rdata->renderer, texture, transform, &box, 1.f, 0.f);
 
 	wlr_surface_send_frame_done(surface, rdata->when);
 }
