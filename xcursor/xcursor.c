@@ -655,11 +655,7 @@ _XcursorAddPathElt (char *path, const char *elt, int len)
 	elt++;
 	len--;
     }
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-truncation"
-    strncpy (path + pathlen, elt, len);
-    path[pathlen + len] = '\0';
-#pragma GCC diagnostic pop
+    strncat (path + pathlen, elt, len);
 }
 
 static char *
