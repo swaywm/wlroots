@@ -34,6 +34,7 @@ struct wlr_gles2_tex_shader {
 struct wlr_gles2_renderer {
 	struct wlr_renderer wlr_renderer;
 
+	float projection[9];
 	struct wlr_egl *egl;
 	int drm_fd;
 

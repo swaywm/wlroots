@@ -895,10 +895,6 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		}
 	}
 
-	float hotspot_proj[9];
-	wlr_matrix_projection(hotspot_proj, plane->surf.width,
-		plane->surf.height, output->transform);
-
 	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
 	wlr_box_transform(&hotspot, &hotspot,
 		wlr_output_transform_invert(output->transform),
@@ -939,8 +935,19 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 
 		struct wlr_box cursor_box = { .width = width, .height = height };
 
+		float output_matrix[9];
+		wlr_matrix_identity(output_matrix);
+		if (output->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
+			wlr_matrix_translate(output_matrix, plane->surf.width / 2.0,
+					plane->surf.height / 2.0);
+			wlr_matrix_transform(output_matrix, output->transform);
+			wlr_matrix_translate(output_matrix, - plane->surf.width / 2.0,
+					- plane->surf.height / 2.0);
+		}
+
 		float matrix[9];
-		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, hotspot_proj);
+		wlr_matrix_project_box(matrix, &cursor_box, transform, 0,
+				output_matrix);
 
 		wlr_renderer_begin(rend, plane->surf.width, plane->surf.height);
 		wlr_renderer_clear(rend, (float[]){ 0.0, 0.0, 0.0, 0.0 });

@@ -415,11 +415,16 @@ static bool output_cursor_to_picture(struct wlr_x11_output *output,
 		.height = height,
 	};
 
-	float projection[9];
-	wlr_matrix_projection(projection, width, height, output->wlr_output.transform);
+	float output_matrix[9];
+	wlr_matrix_identity(output_matrix);
+	if (output->wlr_output.transform != WL_OUTPUT_TRANSFORM_NORMAL) {
+		wlr_matrix_translate(output_matrix, width / 2.0, height / 2.0);
+		wlr_matrix_transform(output_matrix, output->wlr_output.transform);
+		wlr_matrix_translate(output_matrix, - width / 2.0, - height / 2.0);
+	}
 
 	float matrix[9];
-	wlr_matrix_project_box(matrix, &cursor_box, transform, 0, projection);
+	wlr_matrix_project_box(matrix, &cursor_box, transform, 0, output_matrix);
 
 	wlr_renderer_begin(x11->renderer, width, height);
 	wlr_renderer_clear(x11->renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });

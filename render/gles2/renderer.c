@@ -191,6 +191,10 @@ static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 	renderer->viewport_width = width;
 	renderer->viewport_height = height;
 
+	// refresh projection matrix
+	wlr_matrix_projection(renderer->projection, width, height,
+			WL_OUTPUT_TRANSFORM_NORMAL);
+
 	// enable transparency
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
@@ -271,7 +275,8 @@ static bool gles2_render_subtexture_with_matrix(
 	}
 
 	float gl_matrix[9];
-	wlr_matrix_multiply(gl_matrix, flip_180, matrix);
+	wlr_matrix_multiply(gl_matrix, renderer->projection, matrix);
+	wlr_matrix_multiply(gl_matrix, flip_180, gl_matrix);
 
 	// OpenGL ES 2 requires the glUniformMatrix3fv transpose parameter to be set
 	// to GL_FALSE
@@ -325,7 +330,8 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 		gles2_get_renderer_in_context(wlr_renderer);
 
 	float gl_matrix[9];
-	wlr_matrix_multiply(gl_matrix, flip_180, matrix);
+	wlr_matrix_multiply(gl_matrix, renderer->projection, matrix);
+	wlr_matrix_multiply(gl_matrix, flip_180, gl_matrix);
 
 	// OpenGL ES 2 requires the glUniformMatrix3fv transpose parameter to be set
 	// to GL_FALSE
@@ -355,7 +361,8 @@ static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
 		gles2_get_renderer_in_context(wlr_renderer);
 
 	float gl_matrix[9];
-	wlr_matrix_multiply(gl_matrix, flip_180, matrix);
+	wlr_matrix_multiply(gl_matrix, renderer->projection, matrix);
+	wlr_matrix_multiply(gl_matrix, flip_180, gl_matrix);
 
 	// OpenGL ES 2 requires the glUniformMatrix3fv transpose parameter to be set
 	// to GL_FALSE
@@ -579,7 +586,7 @@ static bool gles2_blit_dmabuf(struct wlr_renderer *wlr_renderer,
 
 	// TODO: use ANGLE_framebuffer_blit if available
 	float mat[9];
-	wlr_matrix_projection(mat, 1, 1, WL_OUTPUT_TRANSFORM_NORMAL);
+	wlr_matrix_identity(mat);
 
 	wlr_renderer_begin(wlr_renderer, dst_attr->width, dst_attr->height);
 	wlr_renderer_clear(wlr_renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });

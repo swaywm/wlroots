@@ -141,8 +141,15 @@ void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
 }
 
 static void output_update_matrix(struct wlr_output *output) {
-	wlr_matrix_projection(output->transform_matrix, output->width,
-		output->height, output->transform);
+	float width = output->width / 2.f;
+	float height = output->height / 2.f;
+
+	wlr_matrix_identity(output->transform_matrix);
+	if (output->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
+		wlr_matrix_translate(output->transform_matrix, width, height);
+		wlr_matrix_transform(output->transform_matrix, output->transform);
+		wlr_matrix_translate(output->transform_matrix, -width, -height);
+	}
 }
 
 void wlr_output_enable(struct wlr_output *output, bool enable) {
