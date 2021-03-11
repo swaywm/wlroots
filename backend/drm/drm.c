@@ -938,11 +938,17 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		float output_matrix[9];
 		wlr_matrix_identity(output_matrix);
 		if (output->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
+			struct wlr_box tr_size = {
+				.width = plane->surf.width,
+				.height = plane->surf.height,
+			};
+			wlr_box_transform(&tr_size, &tr_size, output->transform, 0, 0);
+
 			wlr_matrix_translate(output_matrix, plane->surf.width / 2.0,
 					plane->surf.height / 2.0);
 			wlr_matrix_transform(output_matrix, output->transform);
-			wlr_matrix_translate(output_matrix, - plane->surf.width / 2.0,
-					- plane->surf.height / 2.0);
+			wlr_matrix_translate(output_matrix, - tr_size.width / 2.0,
+					- tr_size.height / 2.0);
 		}
 
 		float matrix[9];

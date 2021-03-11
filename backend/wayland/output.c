@@ -434,9 +434,13 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		float output_matrix[9];
 		wlr_matrix_identity(output_matrix);
 		if (wlr_output->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
+			struct wlr_box tr_size = { .width = width, .height = height };
+			wlr_box_transform(&tr_size, &tr_size, wlr_output->transform, 0, 0);
+
 			wlr_matrix_translate(output_matrix, width / 2.0, height / 2.0);
 			wlr_matrix_transform(output_matrix, wlr_output->transform);
-			wlr_matrix_translate(output_matrix, - width / 2.0, - height / 2.0);
+			wlr_matrix_translate(output_matrix,
+				- tr_size.width / 2.0, - tr_size.height / 2.0);
 		}
 
 		float matrix[9];
