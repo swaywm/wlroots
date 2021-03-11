@@ -418,9 +418,13 @@ static bool output_cursor_to_picture(struct wlr_x11_output *output,
 	float output_matrix[9];
 	wlr_matrix_identity(output_matrix);
 	if (output->wlr_output.transform != WL_OUTPUT_TRANSFORM_NORMAL) {
+		struct wlr_box tr_size = { .width = width, .height = height };
+		wlr_box_transform(&tr_size, &tr_size, output->wlr_output.transform, 0, 0);
+
 		wlr_matrix_translate(output_matrix, width / 2.0, height / 2.0);
 		wlr_matrix_transform(output_matrix, output->wlr_output.transform);
-		wlr_matrix_translate(output_matrix, - width / 2.0, - height / 2.0);
+		wlr_matrix_translate(output_matrix,
+			- tr_size.width / 2.0, - tr_size.height / 2.0);
 	}
 
 	float matrix[9];
