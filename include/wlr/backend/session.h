@@ -58,8 +58,9 @@ struct wlr_session_add_event {
  * This should not be called if another program is already in control
  * of the terminal (Xorg, another Wayland compositor, etc.).
  *
- * If logind support is not enabled, you must have CAP_SYS_ADMIN or be root.
- * It is safe to drop privileges after this is called.
+ * If libseat support is not enabled, or if a standalone backend is to be used,
+ * then you must have CAP_SYS_ADMIN or be root. It is safe to drop privileges
+ * after this is called.
  *
  * Returns NULL on error.
  */

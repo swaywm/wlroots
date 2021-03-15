@@ -20,8 +20,8 @@ sources:
 tasks:
   - setup: |
       cd wlroots
-      CC=gcc meson build-gcc -Dauto_features=enabled -Dlogind-provider=systemd --prefix /usr
-      CC=clang meson build-clang -Dauto_features=enabled -Dlogind-provider=systemd
+      CC=gcc meson build-gcc -Dauto_features=enabled --prefix /usr
+      CC=clang meson build-clang -Dauto_features=enabled
   - gcc: |
       cd wlroots/build-gcc
       ninja
