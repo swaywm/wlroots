@@ -21,16 +21,12 @@
 #define WAIT_GPU_TIMEOUT 10000 // ms
 
 extern const struct session_impl session_libseat;
-extern const struct session_impl session_logind;
 extern const struct session_impl session_direct;
 extern const struct session_impl session_noop;
 
 static const struct session_impl *const impls[] = {
 #if WLR_HAS_LIBSEAT
 	&session_libseat,
-#endif
-#if WLR_HAS_SYSTEMD || WLR_HAS_ELOGIND
-	&session_logind,
 #endif
 	&session_direct,
 	NULL,
@@ -120,13 +116,6 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 			session = session_libseat.create(disp);
 #else
 			wlr_log(WLR_ERROR, "wlroots is not compiled with libseat support");
-#endif
-		} else if (strcmp(env_wlr_session, "logind") == 0 ||
-				strcmp(env_wlr_session, "systemd") == 0) {
-#if WLR_HAS_SYSTEMD || WLR_HAS_ELOGIND
-			session = session_logind.create(disp);
-#else
-			wlr_log(WLR_ERROR, "wlroots is not compiled with logind support");
 #endif
 		} else if (strcmp(env_wlr_session, "direct") == 0) {
 			session = session_direct.create(disp);

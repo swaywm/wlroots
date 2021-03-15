@@ -1,9 +1,6 @@
 #ifndef WLR_CONFIG_H
 #define WLR_CONFIG_H
 
-#mesondefine WLR_HAS_SYSTEMD
-#mesondefine WLR_HAS_ELOGIND
-
 #mesondefine WLR_HAS_LIBSEAT
 
 #mesondefine WLR_HAS_X11_BACKEND

@@ -81,8 +81,6 @@ else
 endif
 
 features = {
-	'systemd': false,
-	'elogind': false,
 	'libseat': false,
 	'x11-backend': false,
 	'xwayland': false,
