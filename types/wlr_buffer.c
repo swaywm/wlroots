@@ -4,7 +4,7 @@
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
-#include "render/shm_format.h"
+#include "render/pixel_format.h"
 #include "util/signal.h"
 
 void wlr_buffer_init(struct wlr_buffer *buffer,

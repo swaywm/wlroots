@@ -9,8 +9,8 @@
 #include <wlr/backend.h>
 #include <wlr/util/log.h>
 #include "wlr-screencopy-unstable-v1-protocol.h"
-#include "render/shm_format.h"
 #include "render/wlr_renderer.h"
+#include "render/pixel_format.h"
 #include "util/signal.h"
 
 #define SCREENCOPY_MANAGER_VERSION 3

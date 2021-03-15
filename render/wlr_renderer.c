@@ -9,7 +9,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
-#include "render/shm_format.h"
+#include "render/pixel_format.h"
 #include "render/wlr_renderer.h"
 #include "backend/backend.h"
 
