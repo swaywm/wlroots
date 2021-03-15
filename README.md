@@ -50,6 +50,7 @@ Install dependencies:
 * xkbcommon
 * udev
 * pixman
+* libseat (optional, for seatd support)
 * systemd (optional, for logind support)
 * elogind (optional, for logind support on systems without systemd)
 * libuuid (optional, for xdg-foreign support)
