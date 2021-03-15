@@ -95,7 +95,7 @@ static struct wlr_session *libseat_session_create(struct wl_display *disp) {
 	wl_list_init(&session->devices);
 
 	libseat_set_log_handler(log_libseat);
-	libseat_set_log_level(LIBSEAT_LOG_LEVEL_ERROR);
+	libseat_set_log_level(LIBSEAT_LOG_LEVEL_INFO);
 
 	// libseat will take care of updating the logind state if necessary
 	setenv("XDG_SESSION_TYPE", "wayland", 1);
