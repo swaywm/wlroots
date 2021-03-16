@@ -127,6 +127,8 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 		return NULL;
 	}
 
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
+
 	xcb_get_geometry_cookie_t geometry_cookie =
 		xcb_get_geometry(xwm->xcb_conn, window_id);
 
@@ -189,19 +191,25 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 
 	wlr_signal_emit_safe(&xwm->xwayland->events.new_surface, surface);
 
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
+
 	return surface;
 }
 
 static void xwm_set_net_active_window(struct wlr_xwm *xwm,
 		xcb_window_t window) {
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 	xcb_change_property(xwm->xcb_conn, XCB_PROP_MODE_REPLACE,
 			xwm->screen->root, xwm->atoms[NET_ACTIVE_WINDOW],
 			xwm->atoms[WINDOW], 32, 1, &window);
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 }
 
 static void xwm_send_wm_message(struct wlr_xwayland_surface *surface,
 		xcb_client_message_data_t *data, uint32_t event_mask) {
 	struct wlr_xwm *xwm = surface->xwm;
+
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 
 	xcb_client_message_event_t event = {
 		.response_type = XCB_CLIENT_MESSAGE,
@@ -217,6 +225,7 @@ static void xwm_send_wm_message(struct wlr_xwayland_surface *surface,
 		surface->window_id,
 		event_mask,
 		(const char *)&event);
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 	xcb_flush(xwm->xcb_conn);
 }
 
@@ -237,9 +246,11 @@ static void xwm_set_net_client_list(struct wlr_xwm *xwm) {
 		}
 	}
 
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 	xcb_change_property(xwm->xcb_conn, XCB_PROP_MODE_REPLACE,
 			xwm->screen->root, xwm->atoms[NET_CLIENT_LIST],
 			XCB_ATOM_WINDOW, 32, mapped_surfaces, windows);
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 }
 
 static void xsurface_set_net_wm_state(struct wlr_xwayland_surface *xsurface);
@@ -247,6 +258,8 @@ static void xsurface_set_net_wm_state(struct wlr_xwayland_surface *xsurface);
 static void xwm_set_focus_window(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface) {
 	struct wlr_xwayland_surface *unfocus_surface = xwm->focus_surface;
+
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 
 	// We handle cases where focus_surface == xsurface because we
 	// want to be able to deny FocusIn events.
@@ -289,6 +302,7 @@ static void xwm_set_focus_window(struct wlr_xwm *xwm,
 		XCB_CONFIG_WINDOW_STACK_MODE, values);
 
 	xsurface_set_net_wm_state(xsurface);
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 }
 
 static void xwm_surface_activate(struct wlr_xwm *xwm,
@@ -311,6 +325,8 @@ static void xwm_surface_activate(struct wlr_xwm *xwm,
 
 static void xsurface_set_net_wm_state(struct wlr_xwayland_surface *xsurface) {
 	struct wlr_xwm *xwm = xsurface->xwm;
+
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 
 	uint32_t property[6];
 	size_t i = 0;
@@ -341,6 +357,8 @@ static void xsurface_set_net_wm_state(struct wlr_xwayland_surface *xsurface) {
 		XCB_ATOM_ATOM,
 		32, // format
 		i, property);
+
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 }
 
 static void xsurface_unmap(struct wlr_xwayland_surface *surface);
@@ -949,6 +967,7 @@ static void xsurface_set_wm_state(struct wlr_xwayland_surface *xsurface,
 	struct wlr_xwm *xwm = xsurface->xwm;
 	uint32_t property[] = { state, XCB_WINDOW_NONE };
 
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 	xcb_change_property(xwm->xcb_conn,
 		XCB_PROP_MODE_REPLACE,
 		xsurface->window_id,
@@ -956,6 +975,7 @@ static void xsurface_set_wm_state(struct wlr_xwayland_surface *xsurface,
 		xwm->atoms[WM_STATE],
 		32, // format
 		sizeof(property) / sizeof(property[0]), property);
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 }
 
 static void xwm_handle_map_request(struct wlr_xwm *xwm,
@@ -964,6 +984,8 @@ static void xwm_handle_map_request(struct wlr_xwm *xwm,
 	if (!xsurface) {
 		return;
 	}
+
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 
 	xsurface_set_wm_state(xsurface, ICCCM_NORMAL_STATE);
 	xsurface_set_net_wm_state(xsurface);
@@ -974,6 +996,8 @@ static void xwm_handle_map_request(struct wlr_xwm *xwm,
 			XCB_CONFIG_WINDOW_STACK_MODE, values);
 
 	xcb_map_window(xwm->xcb_conn, ev->window);
+
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 }
 
 static void xwm_handle_map_notify(struct wlr_xwm *xwm,
@@ -1349,11 +1373,11 @@ static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 	}
 }
 
-static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
+static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_generic_error_t *ev) {
 #if WLR_HAS_XCB_ERRORS
 	const char *major_name =
 		xcb_errors_get_name_for_major_code(xwm->errors_context,
-			ev->major_opcode);
+			ev->major_code);
 	if (!major_name) {
 		wlr_log(WLR_DEBUG, "xcb error happened, but could not get major name");
 		goto log_raw;
@@ -1361,7 +1385,7 @@ static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
 
 	const char *minor_name =
 		xcb_errors_get_name_for_minor_code(xwm->errors_context,
-			ev->major_opcode, ev->minor_opcode);
+			ev->major_code, ev->minor_code);
 
 	const char *extension;
 	const char *error_name =
@@ -1375,15 +1399,17 @@ static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
 	wlr_log(WLR_ERROR, "xcb error: op %s (%s), code %s (%s), sequence %"PRIu16", value %"PRIu32,
 		major_name, minor_name ? minor_name : "no minor",
 		error_name, extension ? extension : "no extension",
-		ev->sequence, ev->bad_value);
+		ev->sequence, ev->resource_id);
+	wlr_x11_trace_log_error_trace(&xwm->trace, ev->full_sequence);
 
 	return;
 log_raw:
 #endif
 	wlr_log(WLR_ERROR,
 		"xcb error: op %"PRIu8":%"PRIu16", code %"PRIu8", sequence %"PRIu16", value %"PRIu32,
-		ev->major_opcode, ev->minor_opcode, ev->error_code,
-		ev->sequence, ev->bad_value);
+		ev->major_code, ev->minor_code, ev->error_code,
+		ev->sequence, ev->resource_id);
+	wlr_x11_trace_log_error_trace(&xwm->trace, ev->full_sequence);
 
 }
 
@@ -1417,6 +1443,8 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 
 	while ((event = xcb_poll_for_event(xwm->xcb_conn))) {
 		count++;
+
+		wlr_x11_trace_received_event(&xwm->trace, event);
 
 		if (xwm->xwayland->user_event_handler &&
 				xwm->xwayland->user_event_handler(xwm, event)) {
@@ -1463,7 +1491,7 @@ static int x11_event_handler(int fd, uint32_t mask, void *data) {
 			xwm_handle_focus_in(xwm, (xcb_focus_in_event_t *)event);
 			break;
 		case 0:
-			xwm_handle_xcb_error(xwm, (xcb_value_error_t *)event);
+			xwm_handle_xcb_error(xwm, (xcb_generic_error_t *)event);
 			break;
 		default:
 			xwm_handle_unhandled_event(xwm, event);
@@ -1532,6 +1560,8 @@ void wlr_xwayland_surface_restack(struct wlr_xwayland_surface *surface,
 	size_t idx = 0;
 	uint32_t flags = XCB_CONFIG_WINDOW_STACK_MODE;
 
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
+
 	if (sibling != NULL) {
 		values[idx++] = sibling->window_id;
 		flags |= XCB_CONFIG_WINDOW_SIBLING;
@@ -1539,6 +1569,7 @@ void wlr_xwayland_surface_restack(struct wlr_xwayland_surface *surface,
 	values[idx++] = mode;
 
 	xcb_configure_window(xwm->xcb_conn, surface->window_id, flags, values);
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 	xcb_flush(xwm->xcb_conn);
 }
 
@@ -1550,16 +1581,20 @@ void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *xsurface,
 	xsurface->height = height;
 
 	struct wlr_xwm *xwm = xsurface->xwm;
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 	uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
 		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
 		XCB_CONFIG_WINDOW_BORDER_WIDTH;
 	uint32_t values[] = {x, y, width, height, 0};
 	xcb_configure_window(xwm->xcb_conn, xsurface->window_id, mask, values);
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 	xcb_flush(xwm->xcb_conn);
 }
 
 void wlr_xwayland_surface_close(struct wlr_xwayland_surface *xsurface) {
 	struct wlr_xwm *xwm = xsurface->xwm;
+
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 
 	bool supports_delete = false;
 	for (size_t i = 0; i < xsurface->protocols_len; i++) {
@@ -1578,6 +1613,7 @@ void wlr_xwayland_surface_close(struct wlr_xwayland_surface *xsurface) {
 		xcb_kill_client(xwm->xcb_conn, xsurface->window_id);
 		xcb_flush(xwm->xcb_conn);
 	}
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 }
 
 void xwm_destroy(struct wlr_xwm *xwm) {
@@ -1632,6 +1668,7 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	}
 	wl_list_remove(&xwm->compositor_new_surface.link);
 	wl_list_remove(&xwm->compositor_destroy.link);
+	wlr_x11_trace_deinit(&xwm->trace);
 	xcb_disconnect(xwm->xcb_conn);
 
 	xwm->xwayland->xwm = NULL;
@@ -1639,6 +1676,8 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 }
 
 static void xwm_get_resources(struct wlr_xwm *xwm) {
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
+
 	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_xfixes_id);
 	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_composite_id);
 
@@ -1684,10 +1723,13 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 		xfixes_reply->major_version, xfixes_reply->minor_version);
 
 	free(xfixes_reply);
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 }
 
 static void xwm_create_wm_window(struct wlr_xwm *xwm) {
 	static const char name[] = "wlroots wm";
+
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 
 	xwm->window = xcb_generate_id(xwm->xcb_conn);
 
@@ -1735,6 +1777,8 @@ static void xwm_create_wm_window(struct wlr_xwm *xwm) {
 		xwm->window,
 		xwm->atoms[NET_WM_CM_S0],
 		XCB_CURRENT_TIME);
+
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 }
 
 // TODO use me to support 32 bit color somehow
@@ -1742,6 +1786,8 @@ static void xwm_get_visual_and_colormap(struct wlr_xwm *xwm) {
 	xcb_depth_iterator_t d_iter;
 	xcb_visualtype_iterator_t vt_iter;
 	xcb_visualtype_t *visualtype;
+
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 
 	d_iter = xcb_screen_allowed_depths_iterator(xwm->screen);
 	visualtype = NULL;
@@ -1767,6 +1813,7 @@ static void xwm_get_visual_and_colormap(struct wlr_xwm *xwm) {
 		xwm->colormap,
 		xwm->screen->root,
 		xwm->visual_id);
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 }
 
 static void xwm_get_render_format(struct wlr_xwm *xwm) {
@@ -1802,6 +1849,7 @@ static void xwm_get_render_format(struct wlr_xwm *xwm) {
 
 void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 		uint32_t width, uint32_t height, int32_t hotspot_x, int32_t hotspot_y) {
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 	if (!xwm->render_format_id) {
 		wlr_log(WLR_ERROR, "Cannot set xwm cursor: no render format available");
 		return;
@@ -1838,6 +1886,7 @@ void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
 	xcb_change_window_attributes(xwm->xcb_conn, xwm->screen->root,
 		XCB_CW_CURSOR, values);
 	xcb_flush(xwm->xcb_conn);
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 }
 
 struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
@@ -1849,6 +1898,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 	xwm->xwayland = xwayland;
 	wl_list_init(&xwm->surfaces);
 	wl_list_init(&xwm->unpaired_surfaces);
+	wlr_x11_trace_init(&xwm->trace);
 	xwm->ping_timeout = 10000;
 
 	xwm->xcb_conn = xcb_connect_to_fd(wm_fd, NULL);
@@ -1859,6 +1909,8 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 		free(xwm);
 		return NULL;
 	}
+
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 
 #if WLR_HAS_XCB_ERRORS
 	if (xcb_errors_context_new(xwm->xcb_conn, &xwm->errors_context)) {
@@ -1934,6 +1986,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 
 	xwm_create_wm_window(xwm);
 
+	WLR_X11_TRACE(&xwm->trace, xwm->xcb_conn);
 	xcb_flush(xwm->xcb_conn);
 
 	return xwm;
