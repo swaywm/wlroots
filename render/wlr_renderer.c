@@ -200,16 +200,6 @@ bool wlr_renderer_read_pixels(struct wlr_renderer *r, uint32_t fmt,
 		src_x, src_y, dst_x, dst_y, data);
 }
 
-bool wlr_renderer_blit_dmabuf(struct wlr_renderer *r,
-		struct wlr_dmabuf_attributes *dst,
-		struct wlr_dmabuf_attributes *src) {
-	assert(!r->rendering);
-	if (!r->impl->blit_dmabuf) {
-		return false;
-	}
-	return r->impl->blit_dmabuf(r, dst, src);
-}
-
 bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 		struct wl_display *wl_display) {
 	if (wl_display_init_shm(wl_display)) {
