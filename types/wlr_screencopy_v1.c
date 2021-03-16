@@ -287,6 +287,7 @@ static bool blit_dmabuf(struct wlr_renderer *renderer,
 
 	float mat[9];
 	wlr_matrix_identity(mat);
+	wlr_matrix_scale(mat, dst_buffer->width, dst_buffer->height);
 
 	wlr_renderer_begin(renderer, dst_buffer->width, dst_buffer->height);
 	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
