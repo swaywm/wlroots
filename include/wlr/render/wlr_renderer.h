@@ -115,11 +115,6 @@ bool wlr_renderer_read_pixels(struct wlr_renderer *r, uint32_t fmt,
 	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y, void *data);
 
 /**
- * Blits the dmabuf in src onto the one in dst.
- */
-bool wlr_renderer_blit_dmabuf(struct wlr_renderer *r,
-	struct wlr_dmabuf_attributes *dst, struct wlr_dmabuf_attributes *src);
-/**
  * Creates necessary shm and invokes the initialization of the implementation.
  *
  * Returns false on failure.
