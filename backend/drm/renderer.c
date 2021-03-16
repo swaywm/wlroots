@@ -157,6 +157,7 @@ static struct wlr_buffer *drm_surface_blit(struct wlr_drm_surface *surf,
 
 	float mat[9];
 	wlr_matrix_identity(mat);
+	wlr_matrix_scale(mat, surf->width, surf->height);
 
 	wlr_renderer_begin(renderer, surf->width, surf->height);
 	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
