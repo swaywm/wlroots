@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <drm_fourcc.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/types/wlr_screencopy_v1.h>
@@ -9,6 +10,7 @@
 #include <wlr/util/log.h>
 #include "wlr-screencopy-unstable-v1-protocol.h"
 #include "render/shm_format.h"
+#include "render/wlr_renderer.h"
 #include "util/signal.h"
 
 #define SCREENCOPY_MANAGER_VERSION 3
@@ -260,6 +262,50 @@ static void frame_handle_output_precommit(struct wl_listener *listener,
 	frame_destroy(frame);
 }
 
+static bool blit_dmabuf(struct wlr_renderer *renderer,
+		struct wlr_dmabuf_v1_buffer *dst_dmabuf,
+		struct wlr_dmabuf_attributes *src_attrs) {
+	if (dst_dmabuf->buffer_resource == NULL) {
+		return false;
+	}
+
+	struct wlr_client_buffer *dst_client_buffer =
+		wlr_client_buffer_import(renderer, dst_dmabuf->buffer_resource);
+	if (dst_client_buffer == NULL) {
+		return false;
+	}
+	struct wlr_buffer *dst_buffer = &dst_client_buffer->base;
+
+	struct wlr_texture *src_tex = wlr_texture_from_dmabuf(renderer, src_attrs);
+	if (src_tex == NULL) {
+		goto error_src_tex;
+	}
+
+	if (!wlr_renderer_bind_buffer(renderer, dst_buffer)) {
+		goto error_bind_buffer;
+	}
+
+	float mat[9];
+	wlr_matrix_identity(mat);
+
+	wlr_renderer_begin(renderer, dst_buffer->width, dst_buffer->height);
+	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
+	wlr_render_texture_with_matrix(renderer, src_tex, mat, 1.0f);
+	wlr_renderer_end(renderer);
+
+	wlr_renderer_bind_buffer(renderer, NULL);
+
+	wlr_texture_destroy(src_tex);
+	wlr_buffer_unlock(dst_buffer);
+	return true;
+
+error_bind_buffer:
+	wlr_texture_destroy(src_tex);
+error_src_tex:
+	wlr_buffer_unlock(dst_buffer);
+	return false;
+}
+
 static void frame_handle_output_commit(struct wl_listener *listener,
 		void *data) {
 	struct wlr_screencopy_frame_v1 *frame =
@@ -300,8 +346,7 @@ static void frame_handle_output_commit(struct wl_listener *listener,
 
 	struct wlr_dmabuf_attributes attr = { 0 };
 	bool ok = wlr_output_export_dmabuf(output, &attr);
-	ok = ok && wlr_renderer_blit_dmabuf(renderer,
-		&dma_buffer->attributes, &attr);
+	ok = ok && blit_dmabuf(renderer, dma_buffer, &attr);
 	uint32_t flags = dma_buffer->attributes.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT ?
 		ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT : 0;
 	wlr_dmabuf_attributes_finish(&attr);
