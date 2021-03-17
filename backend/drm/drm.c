@@ -26,6 +26,7 @@
 #include "backend/drm/util.h"
 #include "render/swapchain.h"
 #include "util/signal.h"
+#include "util/trace.h"
 
 bool check_drm_features(struct wlr_drm_backend *drm) {
 	uint64_t cap;
@@ -330,6 +331,9 @@ static void drm_plane_set_committed(struct wlr_drm_plane *plane) {
 static bool drm_crtc_commit(struct wlr_drm_connector *conn, uint32_t flags) {
 	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
+
+	wlr_trace("drm_crtc_commit");
+
 	bool ok = drm->iface->crtc_commit(drm, conn, flags);
 	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
 		memcpy(&crtc->current, &crtc->pending, sizeof(struct wlr_drm_crtc_state));
@@ -540,6 +544,8 @@ static bool drm_connector_commit(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = conn->backend;
 
+	wlr_trace("drm_connector_commit (begin_ctx=%"PRIu32")", output->commit_seq);
+
 	if (!drm_connector_test(output)) {
 		return false;
 	}
@@ -583,6 +589,8 @@ static bool drm_connector_commit(struct wlr_output *output) {
 			return false;
 		}
 	}
+
+	wlr_trace("drm_connector_commit (end_ctx=%"PRIu32")", output->commit_seq);
 
 	return true;
 }
