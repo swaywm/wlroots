@@ -6,8 +6,8 @@ wlr_files += files(
 	'shm.c',
 	'signal.c',
 	'time.c',
+	'trace.c',
 )
-
 
 if features.get('xdg-foreign')
 	if uuid.found()
