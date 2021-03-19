@@ -102,6 +102,7 @@ static void layer_surface_handle_set_size(struct wl_client *client,
 	if (!surface) {
 		return;
 	}
+	surface->client_pending.committed |= WLR_LAYER_SURFACE_V1_STATE_DESIRED_SIZE;
 	surface->client_pending.desired_width = width;
 	surface->client_pending.desired_height = height;
 }
@@ -123,6 +124,7 @@ static void layer_surface_handle_set_anchor(struct wl_client *client,
 	if (!surface) {
 		return;
 	}
+	surface->client_pending.committed |= WLR_LAYER_SURFACE_V1_STATE_ANCHOR;
 	surface->client_pending.anchor = anchor;
 }
 
@@ -133,6 +135,7 @@ static void layer_surface_handle_set_exclusive_zone(struct wl_client *client,
 	if (!surface) {
 		return;
 	}
+	surface->client_pending.committed |= WLR_LAYER_SURFACE_V1_STATE_EXCLUSIVE_ZONE;
 	surface->client_pending.exclusive_zone = zone;
 }
 
@@ -144,6 +147,7 @@ static void layer_surface_handle_set_margin(
 	if (!surface) {
 		return;
 	}
+	surface->client_pending.committed |= WLR_LAYER_SURFACE_V1_STATE_MARGIN;
 	surface->client_pending.margin.top = top;
 	surface->client_pending.margin.right = right;
 	surface->client_pending.margin.bottom = bottom;
@@ -159,6 +163,7 @@ static void layer_surface_handle_set_keyboard_interactivity(
 		return;
 	}
 
+	surface->client_pending.committed |= WLR_LAYER_SURFACE_V1_STATE_KEYBOARD_INTERACTIVITY;
 	if (wl_resource_get_version(resource) < ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND_SINCE_VERSION) {
 		surface->client_pending.keyboard_interactive = !!interactive;
 	} else {
@@ -203,6 +208,7 @@ static void layer_surface_set_layer(struct wl_client *client,
 				"Invalid layer %" PRIu32, layer);
 		return;
 	}
+	surface->client_pending.committed |= WLR_LAYER_SURFACE_V1_STATE_LAYER;
 	surface->client_pending.layer = layer;
 }
 
@@ -363,6 +369,7 @@ static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
 		return;
 	}
 
+	surface->current.committed |= surface->client_pending.committed;
 	surface->current.anchor = surface->client_pending.anchor;
 	surface->current.exclusive_zone = surface->client_pending.exclusive_zone;
 	surface->current.margin = surface->client_pending.margin;
@@ -371,6 +378,8 @@ static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
 	surface->current.desired_width = surface->client_pending.desired_width;
 	surface->current.desired_height = surface->client_pending.desired_height;
 	surface->current.layer = surface->client_pending.layer;
+
+	surface->client_pending.committed = 0;
 
 	if (!surface->added) {
 		surface->added = true;

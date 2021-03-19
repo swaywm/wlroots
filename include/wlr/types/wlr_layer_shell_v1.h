@@ -43,7 +43,17 @@ struct wlr_layer_shell_v1 {
 	void *data;
 };
 
+enum wlr_layer_surface_v1_state_field {
+	WLR_LAYER_SURFACE_V1_STATE_ANCHOR = 1 << 0,
+	WLR_LAYER_SURFACE_V1_STATE_EXCLUSIVE_ZONE = 1 << 1,
+	WLR_LAYER_SURFACE_V1_STATE_MARGIN = 1 << 2,
+	WLR_LAYER_SURFACE_V1_STATE_KEYBOARD_INTERACTIVITY = 1 << 2,
+	WLR_LAYER_SURFACE_V1_STATE_DESIRED_SIZE = 1 << 3,
+	WLR_LAYER_SURFACE_V1_STATE_LAYER = 1 << 4,
+};
+
 struct wlr_layer_surface_v1_state {
+	uint32_t committed; // enum wlr_layer_surface_v1_state_field
 	uint32_t anchor;
 	int32_t exclusive_zone;
 	struct {
@@ -51,8 +61,9 @@ struct wlr_layer_surface_v1_state {
 	} margin;
 	enum zwlr_layer_surface_v1_keyboard_interactivity keyboard_interactive;
 	uint32_t desired_width, desired_height;
-	uint32_t actual_width, actual_height;
 	enum zwlr_layer_shell_v1_layer layer;
+
+	uint32_t actual_width, actual_height;
 };
 
 struct wlr_layer_surface_v1_configure {
