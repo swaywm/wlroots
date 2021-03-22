@@ -295,6 +295,7 @@ static void surface_state_copy(struct wlr_surface_state *state,
 	}
 
 	state->committed |= next->committed;
+	state->seq = next->seq;
 }
 
 /**
@@ -418,6 +419,7 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 
 	surface_state_copy(&surface->previous, &surface->current);
 	surface_state_move(&surface->current, &surface->pending);
+	surface->pending.seq = surface->current.seq + 1;
 
 	if (invalid_buffer) {
 		surface_apply_damage(surface);
@@ -491,6 +493,7 @@ static void subsurface_commit(struct wlr_subsurface *subsurface) {
 	if (subsurface_is_synchronized(subsurface)) {
 		surface_state_move(&subsurface->cached, &surface->pending);
 		subsurface->has_cache = true;
+		surface->pending.seq = subsurface->cached.seq + 1;
 	} else {
 		if (subsurface->has_cache) {
 			surface_state_move(&surface->pending, &subsurface->cached);
@@ -692,6 +695,7 @@ struct wlr_surface *wlr_surface_create(struct wl_client *client,
 	surface_state_init(&surface->current);
 	surface_state_init(&surface->pending);
 	surface_state_init(&surface->previous);
+	surface->pending.seq = 1;
 
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);

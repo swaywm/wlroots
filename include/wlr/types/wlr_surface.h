@@ -31,6 +31,9 @@ enum wlr_surface_state_field {
 
 struct wlr_surface_state {
 	uint32_t committed; // enum wlr_surface_state_field
+	// Sequence number of the surface state. Incremented on each commit, may
+	// overflow.
+	uint32_t seq;
 
 	struct wl_resource *buffer_resource;
 	int32_t dx, dy; // relative to previous position
