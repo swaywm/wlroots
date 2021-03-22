@@ -502,10 +502,9 @@ static void subsurface_parent_commit(struct wlr_subsurface *subsurface,
 	struct wlr_surface *surface = subsurface->surface;
 	if (synchronized || subsurface->synchronized) {
 		if (subsurface->has_cache) {
-			surface_state_move(&surface->pending, &subsurface->cached);
-			surface_commit_pending(surface);
+			wlr_surface_unlock_cached(surface, subsurface->cached_seq);
 			subsurface->has_cache = false;
-			subsurface->cached.committed = 0;
+			subsurface->cached_seq = 0;
 		}
 
 		struct wlr_subsurface *subsurface;
@@ -519,17 +518,17 @@ static void subsurface_commit(struct wlr_subsurface *subsurface) {
 	struct wlr_surface *surface = subsurface->surface;
 
 	if (subsurface_is_synchronized(subsurface)) {
-		surface_state_move(&subsurface->cached, &surface->pending);
-		subsurface->has_cache = true;
-		surface->pending.seq = subsurface->cached.seq + 1;
-	} else {
 		if (subsurface->has_cache) {
-			surface_state_move(&surface->pending, &subsurface->cached);
-			surface_commit_pending(surface);
-			subsurface->has_cache = false;
-		} else {
-			surface_commit_pending(surface);
+			// We already lock a previous commit. The prevents any future
+			// commit to be applied before we release the previous commit.
+			return;
 		}
+		subsurface->has_cache = true;
+		subsurface->cached_seq = wlr_surface_lock_pending(surface);
+	} else if (subsurface->has_cache) {
+		wlr_surface_unlock_cached(surface, subsurface->cached_seq);
+		subsurface->has_cache = false;
+		subsurface->cached_seq = 0;
 	}
 }
 
@@ -541,9 +540,9 @@ static void surface_commit(struct wl_client *client,
 		wlr_subsurface_from_wlr_surface(surface) : NULL;
 	if (subsurface != NULL) {
 		subsurface_commit(subsurface);
-	} else {
-		surface_commit_pending(surface);
 	}
+
+	surface_commit_pending(surface);
 
 	wl_list_for_each(subsurface, &surface->subsurfaces, parent_link) {
 		subsurface_parent_commit(subsurface, false);
@@ -653,7 +652,6 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 	wlr_signal_emit_safe(&subsurface->events.destroy, subsurface);
 
 	wl_list_remove(&subsurface->surface_destroy.link);
-	surface_state_finish(&subsurface->cached);
 
 	if (subsurface->parent) {
 		wl_list_remove(&subsurface->parent_link);
@@ -1116,13 +1114,11 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 		wl_client_post_no_memory(client);
 		return NULL;
 	}
-	surface_state_init(&subsurface->cached);
 	subsurface->synchronized = true;
 	subsurface->surface = surface;
 	subsurface->resource =
 		wl_resource_create(client, &wl_subsurface_interface, version, id);
 	if (subsurface->resource == NULL) {
-		surface_state_finish(&subsurface->cached);
 		free(subsurface);
 		wl_client_post_no_memory(client);
 		return NULL;
