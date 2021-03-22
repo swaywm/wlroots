@@ -13,7 +13,7 @@ packages:
   - xcb-util-image-dev
   - xcb-util-renderutil-dev
   - xcb-util-wm-dev
-  - xorg-server-xwayland
+  - xwayland
 sources:
   - https://github.com/swaywm/wlroots
 tasks:
