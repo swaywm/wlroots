@@ -62,6 +62,10 @@ struct wlr_surface_state {
 	} viewport;
 
 	struct wl_listener buffer_destroy;
+
+	// Number of locks that prevent this surface state from being committed.
+	size_t cached_state_locks;
+	struct wl_list cached_state_link; // wlr_surface.cached
 };
 
 struct wlr_surface_role {
@@ -123,6 +127,8 @@ struct wlr_surface {
 	 * the previous commit.
 	 */
 	struct wlr_surface_state current, pending, previous;
+
+	struct wl_list cached; // wlr_surface_state.cached_link
 
 	const struct wlr_surface_role *role; // the lifetime-bound role or NULL
 	void *role_data; // role-specific data
@@ -292,5 +298,24 @@ void wlr_surface_get_effective_damage(struct wlr_surface *surface,
  */
 void wlr_surface_get_buffer_source_box(struct wlr_surface *surface,
 	struct wlr_fbox *box);
+
+/**
+ * Acquire a lock for the pending surface state.
+ *
+ * The state won't be committed before the caller releases the lock. Instead,
+ * the state becomes cached. The caller needs to use wlr_surface_unlock_cached
+ * to release the lock.
+ *
+ * Returns a surface commit sequence number for the cached state.
+ */
+uint32_t wlr_surface_lock_pending(struct wlr_surface *surface);
+
+/**
+ * Release a lock for a cached state.
+ *
+ * Callers should not assume that the cached state will immediately be
+ * committed. Another caller may still have an active lock.
+ */
+void wlr_surface_unlock_cached(struct wlr_surface *surface, uint32_t seq);
 
 #endif
