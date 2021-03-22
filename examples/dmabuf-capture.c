@@ -490,26 +490,27 @@ static void *vid_encode_thread(void *arg) {
 		}
 
 		while (1) {
-			AVPacket pkt;
-			av_init_packet(&pkt);
-
-			int ret = avcodec_receive_packet(ctx->avctx, &pkt);
+			AVPacket *pkt = av_packet_alloc();
+			int ret = avcodec_receive_packet(ctx->avctx, pkt);
 			if (ret == AVERROR(EAGAIN)) {
+				av_packet_free(&pkt);
 				break;
 			} else if (ret == AVERROR_EOF) {
 				av_log(ctx, AV_LOG_INFO, "Encoder flushed!\n");
+				av_packet_free(&pkt);
 				goto end;
 			} else if (ret) {
 				av_log(ctx, AV_LOG_ERROR, "Error encoding: %s!\n",
 						av_err2str(ret));
+				av_packet_free(&pkt);
 				err = ret;
 				goto end;
 			}
 
-			pkt.stream_index = 0;
-			err = av_interleaved_write_frame(ctx->avf, &pkt);
+			pkt->stream_index = 0;
+			err = av_interleaved_write_frame(ctx->avf, pkt);
 
-			av_packet_unref(&pkt);
+			av_packet_free(&pkt);
 
 			if (err) {
 				av_log(ctx, AV_LOG_ERROR, "Writing packet fail: %s!\n",
