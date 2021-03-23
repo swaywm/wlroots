@@ -15,6 +15,7 @@
 #include "backend/drm/util.h"
 #include "render/drm_format_set.h"
 #include "render/gbm_allocator.h"
+#include "render/pixel_format.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
 
@@ -188,15 +189,6 @@ void drm_plane_finish_surface(struct wlr_drm_plane *plane) {
 	finish_drm_surface(&plane->mgpu_surf);
 }
 
-static uint32_t strip_alpha_channel(uint32_t format) {
-	switch (format) {
-	case DRM_FORMAT_ARGB8888:
-		return DRM_FORMAT_XRGB8888;
-	default:
-		return DRM_FORMAT_INVALID;
-	}
-}
-
 static struct wlr_drm_format *create_linear_format(uint32_t format) {
 	struct wlr_drm_format *fmt = wlr_drm_format_create(format);
 	if (fmt == NULL) {
@@ -213,8 +205,17 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
 		uint32_t format, bool with_modifiers) {
 	if (!wlr_drm_format_set_has(&plane->formats, format, DRM_FORMAT_MOD_INVALID)) {
-		format = strip_alpha_channel(format);
+		const struct wlr_pixel_format_info *info =
+			drm_get_pixel_format_info(format);
+		if (!info) {
+			wlr_log(WLR_ERROR,
+				"Failed to fallback on DRM opaque substitute for format "
+				"0x%"PRIX32, format);
+			return false;
+		}
+		format = info->opaque_substitute;
 	}
+
 	const struct wlr_drm_format *plane_format =
 		wlr_drm_format_set_get(&plane->formats, format);
 	if (plane_format == NULL) {
@@ -380,9 +381,17 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 
 	if (formats && !wlr_drm_format_set_has(formats, attribs.format,
 			attribs.modifier)) {
+		const struct wlr_pixel_format_info *info =
+			drm_get_pixel_format_info(attribs.format);
+		if (!info) {
+			wlr_log(WLR_ERROR,
+				"Failed to fallback on DRM opaque substitute for format "
+				"0x%"PRIX32, attribs.format);
+			return false;
+		}
 		// The format isn't supported by the plane. Try stripping the alpha
 		// channel, if any.
-		uint32_t format = strip_alpha_channel(attribs.format);
+		uint32_t format = info->opaque_substitute;
 		if (wlr_drm_format_set_has(formats, format, attribs.modifier)) {
 			attribs.format = format;
 		} else {
