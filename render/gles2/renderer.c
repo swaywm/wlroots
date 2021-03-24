@@ -15,6 +15,7 @@
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
+#include "render/pixel_format.h"
 
 static const GLfloat verts[] = {
 	1, 0, // top right
@@ -492,6 +493,10 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 		return false;
 	}
 
+	const struct wlr_pixel_format_info *drm_fmt =
+		drm_get_pixel_format_info(fmt->drm_format);
+	assert(drm_fmt);
+
 	push_gles2_debug(renderer);
 
 	// Make sure any pending drawing is finished before we try to read it
@@ -500,7 +505,7 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 	glGetError(); // Clear the error flag
 
 	unsigned char *p = (unsigned char *)data + dst_y * stride;
-	uint32_t pack_stride = width * fmt->bpp / 8;
+	uint32_t pack_stride = width * drm_fmt->bpp / 8;
 	if (pack_stride == stride && dst_x == 0) {
 		// Under these particular conditions, we can read the pixels with only
 		// one glReadPixels call
@@ -512,7 +517,7 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 		for (size_t i = 0; i < height; ++i) {
 			uint32_t y = src_y + i;
 			glReadPixels(src_x, y, width, 1, fmt->gl_format,
-				fmt->gl_type, p + i * stride + dst_x * fmt->bpp / 8);
+				fmt->gl_type, p + i * stride + dst_x * drm_fmt->bpp / 8);
 		}
 	}
 
