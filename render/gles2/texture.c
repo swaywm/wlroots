@@ -12,6 +12,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "render/gles2.h"
+#include "render/pixel_format.h"
 #include "util/signal.h"
 
 static const struct wlr_texture_impl texture_impl;
@@ -31,7 +32,7 @@ static bool gles2_texture_is_opaque(struct wlr_texture *wlr_texture) {
 	return !texture->has_alpha;
 }
 
-static bool check_stride(const struct wlr_gles2_pixel_format *fmt,
+static bool check_stride(const struct wlr_pixel_format_info *fmt,
 		uint32_t stride, uint32_t width) {
 	if (stride % (fmt->bpp / 8) != 0) {
 		wlr_log(WLR_ERROR, "Invalid stride %d (incompatible with %d "
@@ -61,7 +62,11 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 		get_gles2_format_from_drm(texture->drm_format);
 	assert(fmt);
 
-	if (!check_stride(fmt, stride, width)) {
+	const struct wlr_pixel_format_info *drm_fmt =
+		drm_get_pixel_format_info(texture->drm_format);
+	assert(drm_fmt);
+
+	if (!check_stride(drm_fmt, stride, width)) {
 		return false;
 	}
 
@@ -73,7 +78,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 
 	glBindTexture(GL_TEXTURE_2D, texture->tex);
 
-	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride / (fmt->bpp / 8));
+	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride / (drm_fmt->bpp / 8));
 	glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, src_x);
 	glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, src_y);
 
@@ -163,7 +168,11 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 		return NULL;
 	}
 
-	if (!check_stride(fmt, stride, width)) {
+	const struct wlr_pixel_format_info *drm_fmt =
+		drm_get_pixel_format_info(drm_format);
+	assert(drm_fmt);
+
+	if (!check_stride(drm_fmt, stride, width)) {
 		return NULL;
 	}
 
@@ -190,7 +199,7 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride / (fmt->bpp / 8));
+	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride / (drm_fmt->bpp / 8));
 	glTexImage2D(GL_TEXTURE_2D, 0, fmt->gl_format, width, height, 0,
 		fmt->gl_format, fmt->gl_type, data);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);

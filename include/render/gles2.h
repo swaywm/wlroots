@@ -17,7 +17,6 @@
 struct wlr_gles2_pixel_format {
 	uint32_t drm_format;
 	GLint gl_format, gl_type;
-	int depth, bpp;
 	bool has_alpha;
 };
 

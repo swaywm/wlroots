@@ -10,32 +10,24 @@
 static const struct wlr_gles2_pixel_format formats[] = {
 	{
 		.drm_format = DRM_FORMAT_ARGB8888,
-		.depth = 32,
-		.bpp = 32,
 		.gl_format = GL_BGRA_EXT,
 		.gl_type = GL_UNSIGNED_BYTE,
 		.has_alpha = true,
 	},
 	{
 		.drm_format = DRM_FORMAT_XRGB8888,
-		.depth = 24,
-		.bpp = 32,
 		.gl_format = GL_BGRA_EXT,
 		.gl_type = GL_UNSIGNED_BYTE,
 		.has_alpha = false,
 	},
 	{
 		.drm_format = DRM_FORMAT_XBGR8888,
-		.depth = 24,
-		.bpp = 32,
 		.gl_format = GL_RGBA,
 		.gl_type = GL_UNSIGNED_BYTE,
 		.has_alpha = false,
 	},
 	{
 		.drm_format = DRM_FORMAT_ABGR8888,
-		.depth = 32,
-		.bpp = 32,
 		.gl_format = GL_RGBA,
 		.gl_type = GL_UNSIGNED_BYTE,
 		.has_alpha = true,
