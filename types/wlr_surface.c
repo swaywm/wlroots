@@ -525,10 +525,6 @@ static void subsurface_commit(struct wlr_subsurface *subsurface) {
 		}
 		subsurface->has_cache = true;
 		subsurface->cached_seq = wlr_surface_lock_pending(surface);
-	} else if (subsurface->has_cache) {
-		wlr_surface_unlock_cached(surface, subsurface->cached_seq);
-		subsurface->has_cache = false;
-		subsurface->cached_seq = 0;
 	}
 }
 
@@ -964,7 +960,13 @@ static void subsurface_handle_set_desync(struct wl_client *client,
 		subsurface->synchronized = false;
 
 		if (!subsurface_is_synchronized(subsurface)) {
-			// TODO: do a synchronized commit to flush the cache
+			if (subsurface->has_cache) {
+				wlr_surface_unlock_cached(subsurface->surface,
+					subsurface->cached_seq);
+				subsurface->has_cache = false;
+				subsurface->cached_seq = 0;
+			}
+
 			subsurface_parent_commit(subsurface, true);
 		}
 	}
