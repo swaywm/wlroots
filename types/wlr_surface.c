@@ -515,11 +515,6 @@ static void surface_commit(struct wl_client *client,
 		surface_commit_state(surface, &surface->pending);
 	}
 	surface->pending.seq = next_seq;
-
-	struct wlr_subsurface *subsurface;
-	wl_list_for_each(subsurface, &surface->subsurfaces, parent_link) {
-		subsurface_parent_commit(subsurface, false);
-	}
 }
 
 static void surface_set_buffer_transform(struct wl_client *client,
@@ -1040,6 +1035,11 @@ static void subsurface_role_commit(struct wlr_surface *surface) {
 	}
 
 	subsurface_consider_map(subsurface, true);
+
+	struct wlr_subsurface *child_subsurface;
+	wl_list_for_each(child_subsurface, &surface->subsurfaces, parent_link) {
+		subsurface_parent_commit(child_subsurface, false);
+	}
 }
 
 static void subsurface_role_precommit(struct wlr_surface *surface) {
