@@ -496,29 +496,9 @@ static void subsurface_parent_commit(struct wlr_subsurface *subsurface,
 	}
 }
 
-static void subsurface_commit(struct wlr_subsurface *subsurface) {
-	struct wlr_surface *surface = subsurface->surface;
-
-	if (subsurface_is_synchronized(subsurface)) {
-		if (subsurface->has_cache) {
-			// We already lock a previous commit. The prevents any future
-			// commit to be applied before we release the previous commit.
-			return;
-		}
-		subsurface->has_cache = true;
-		subsurface->cached_seq = wlr_surface_lock_pending(surface);
-	}
-}
-
 static void surface_commit(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
-
-	struct wlr_subsurface *subsurface = wlr_surface_is_subsurface(surface) ?
-		wlr_subsurface_from_wlr_surface(surface) : NULL;
-	if (subsurface != NULL) {
-		subsurface_commit(subsurface);
-	}
 
 	if (!surface_state_finalize(surface, &surface->pending)) {
 		return;
@@ -536,6 +516,7 @@ static void surface_commit(struct wl_client *client,
 	}
 	surface->pending.seq = next_seq;
 
+	struct wlr_subsurface *subsurface;
 	wl_list_for_each(subsurface, &surface->subsurfaces, parent_link) {
 		subsurface_parent_commit(subsurface, false);
 	}
@@ -1066,6 +1047,16 @@ static void subsurface_role_precommit(struct wlr_surface *surface) {
 		wlr_subsurface_from_wlr_surface(surface);
 	if (subsurface == NULL) {
 		return;
+	}
+
+	if (subsurface_is_synchronized(subsurface)) {
+		if (subsurface->has_cache) {
+			// We already lock a previous commit. The prevents any future
+			// commit to be applied before we release the previous commit.
+			return;
+		}
+		subsurface->has_cache = true;
+		subsurface->cached_seq = wlr_surface_lock_pending(surface);
 	}
 
 	if (surface->pending.committed & WLR_SURFACE_STATE_BUFFER &&
