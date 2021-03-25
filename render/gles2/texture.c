@@ -98,34 +98,6 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	return true;
 }
 
-static bool gles2_texture_to_dmabuf(struct wlr_texture *wlr_texture,
-		struct wlr_dmabuf_attributes *attribs) {
-	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
-
-	if (!texture->image) {
-		assert(texture->target == GL_TEXTURE_2D);
-
-		if (!texture->renderer->egl->exts.image_base_khr) {
-			return false;
-		}
-
-		texture->image = texture->renderer->egl->procs.eglCreateImageKHR(
-			texture->renderer->egl->display, texture->renderer->egl->context, EGL_GL_TEXTURE_2D_KHR,
-			(EGLClientBuffer)(uintptr_t)texture->tex, NULL);
-		if (texture->image == EGL_NO_IMAGE_KHR) {
-			return false;
-		}
-	}
-
-	uint32_t flags = 0;
-	if (texture->inverted_y) {
-		flags |= WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT;
-	}
-
-	return wlr_egl_export_image_to_dmabuf(texture->renderer->egl, texture->image,
-		wlr_texture->width, wlr_texture->height, flags, attribs);
-}
-
 static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 	if (wlr_texture == NULL) {
 		return;
@@ -152,7 +124,6 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 static const struct wlr_texture_impl texture_impl = {
 	.is_opaque = gles2_texture_is_opaque,
 	.write_pixels = gles2_texture_write_pixels,
-	.to_dmabuf = gles2_texture_to_dmabuf,
 	.destroy = gles2_texture_destroy,
 };
 
