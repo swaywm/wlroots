@@ -72,16 +72,6 @@ void wlr_render_rect(struct wlr_renderer *r, const struct wlr_box *box,
 void wlr_render_quad_with_matrix(struct wlr_renderer *r,
 	const float color[static 4], const float matrix[static 9]);
 /**
- * Renders a solid ellipse in the specified color.
- */
-void wlr_render_ellipse(struct wlr_renderer *r, const struct wlr_box *box,
-	const float color[static 4], const float projection[static 9]);
-/**
- * Renders a solid ellipse in the specified color with the specified matrix.
- */
-void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
-	const float color[static 4], const float matrix[static 9]);
-/**
  * Get the shared-memory formats supporting import usage. Buffers allocated
  * with a format from this list may be imported via wlr_texture_from_pixels.
  */

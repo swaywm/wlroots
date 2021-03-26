@@ -25,20 +25,6 @@ const GLchar quad_fragment_src[] =
 "	gl_FragColor = v_color;\n"
 "}\n";
 
-// Colored ellipses
-const GLchar ellipse_fragment_src[] =
-"precision mediump float;\n"
-"varying vec4 v_color;\n"
-"varying vec2 v_texcoord;\n"
-"\n"
-"void main() {\n"
-"	float l = length(v_texcoord - vec2(0.5, 0.5));\n"
-"	if (l > 0.5) {\n"
-"		discard;\n"
-"	}\n"
-"	gl_FragColor = v_color;\n"
-"}\n";
-
 // Textured quads
 const GLchar tex_vertex_src[] =
 "uniform mat3 proj;\n"

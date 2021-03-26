@@ -61,13 +61,6 @@ struct wlr_gles2_renderer {
 			GLint color;
 			GLint pos_attrib;
 		} quad;
-		struct {
-			GLuint program;
-			GLint proj;
-			GLint color;
-			GLint pos_attrib;
-			GLint tex_attrib;
-		} ellipse;
 		struct wlr_gles2_tex_shader tex_rgba;
 		struct wlr_gles2_tex_shader tex_rgbx;
 		struct wlr_gles2_tex_shader tex_ext;

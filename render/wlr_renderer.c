@@ -20,7 +20,6 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->scissor);
 	assert(impl->render_subtexture_with_matrix);
 	assert(impl->render_quad_with_matrix);
-	assert(impl->render_ellipse_with_matrix);
 	assert(impl->get_shm_texture_formats);
 	assert(impl->texture_from_pixels);
 	renderer->impl = impl;
@@ -131,25 +130,6 @@ void wlr_render_quad_with_matrix(struct wlr_renderer *r,
 		const float color[static 4], const float matrix[static 9]) {
 	assert(r->rendering);
 	r->impl->render_quad_with_matrix(r, color, matrix);
-}
-
-void wlr_render_ellipse(struct wlr_renderer *r, const struct wlr_box *box,
-		const float color[static 4], const float projection[static 9]) {
-	if (box->width == 0 || box->height == 0) {
-		return;
-	}
-	assert(box->width > 0 && box->height > 0);
-	float matrix[9];
-	wlr_matrix_project_box(matrix, box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
-		projection);
-
-	wlr_render_ellipse_with_matrix(r, color, matrix);
-}
-
-void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
-		const float color[static 4], const float matrix[static 9]) {
-	assert(r->rendering);
-	r->impl->render_ellipse_with_matrix(r, color, matrix);
 }
 
 const uint32_t *wlr_renderer_get_shm_texture_formats(struct wlr_renderer *r,
