@@ -2,14 +2,10 @@ threads = dependency('threads')
 wayland_egl = dependency('wayland-egl')
 wayland_cursor = dependency('wayland-cursor')
 libpng = dependency('libpng', required: false, disabler: true)
-egl = dependency('egl', required: false, disabler: true)
-glesv2 = dependency('glesv2', required: false, disabler: true)
 # These versions correspond to ffmpeg 4.0
 libavutil = dependency('libavutil', version: '>=56.14.100', required: false, disabler: true)
 libavcodec = dependency('libavcodec', version: '>=58.18.100', required: false, disabler: true)
 libavformat = dependency('libavformat', version: '>=58.12.100', required: false, disabler: true)
-# Only needed for drm_fourcc.h
-libdrm = dependency('libdrm').partial_dependency(compile_args: true, includes: true)
 
 # epoll is a separate library in FreeBSD
 if host_machine.system() == 'freebsd'
@@ -57,7 +53,7 @@ compositors = {
 clients = {
 	'idle': {
 		'src': 'idle.c',
-		'dep': threads,
+		'dep': [threads],
 		'proto': ['kde-idle'],
 	},
 	'idle-inhibit': {
@@ -125,7 +121,7 @@ clients = {
 			libavcodec,
 			libavformat,
 			libavutil,
-			drm.partial_dependency(compile_args: true), # <drm_fourcc.h>
+			drm_headers,
 			threads,
 		],
 		'proto': ['wlr-export-dmabuf-unstable-v1'],
@@ -175,12 +171,12 @@ clients = {
 	},
 	'virtual-pointer': {
 		'src': 'virtual-pointer.c',
-		'dep': wlroots,
+		'dep': [wlroots],
 		'proto': ['wlr-virtual-pointer-unstable-v1'],
 	},
 	'input-method-keyboard-grab': {
 		'src': 'input-method-keyboard-grab.c',
-		'dep': xkbcommon,
+		'dep': [xkbcommon],
 		'proto': [
 			'input-method-unstable-v2',
 		],
@@ -196,13 +192,24 @@ foreach name, info : compositors
 	executable(
 		name,
 		[info.get('src'), extra_src],
-		dependencies: [wlroots, libdrm],
+		dependencies: [wlroots, drm_headers, info.get('dep', [])],
 		include_directories: [wlr_inc, proto_inc],
 		build_by_default: get_option('examples'),
 	)
 endforeach
 
 foreach name, info : clients
+	broken = false
+	foreach dep : info.get('dep')
+	  if dep.found() == false
+	    broken = true
+	    break
+	  endif
+	endforeach
+	if broken
+	  continue
+	endif
+
 	extra_src = []
 	foreach p : info.get('proto')
 		extra_src += protocols_code[p]
