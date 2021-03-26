@@ -6,12 +6,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <wlr/config.h>
-
 #include <drm_fourcc.h>
 #include <wayland-server-core.h>
 #include <xf86drm.h>
 
+#include <wlr/config.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
@@ -19,7 +18,6 @@
 
 #include "backend/wayland.h"
 #include "render/drm_format_set.h"
-#include "render/gbm_allocator.h"
 #include "render/pixel_format.h"
 #include "render/shm_allocator.h"
 #include "render/wlr_renderer.h"
