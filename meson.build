@@ -86,7 +86,9 @@ else
 endif
 
 features = {
+	'drm-backend': false,
 	'x11-backend': false,
+	'libinput-backend': false,
 	'xwayland': false,
 	'gles2-renderer': false,
 }
@@ -98,7 +100,6 @@ wayland_server = dependency('wayland-server', version: '>=1.19')
 wayland_client = dependency('wayland-client')
 drm = dependency('libdrm', version: '>=2.4.105')
 gbm = dependency('gbm', version: '>=17.1.0')
-libinput = dependency('libinput', version: '>=1.14.0')
 xkbcommon = dependency('xkbcommon')
 udev = dependency('libudev')
 pixman = dependency('pixman-1')
@@ -111,7 +112,6 @@ wlr_deps = [
 	wayland_client,
 	drm,
 	gbm,
-	libinput,
 	xkbcommon,
 	udev,
 	pixman,
