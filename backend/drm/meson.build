@@ -1,3 +1,7 @@
+if not gbm.found()
+  subdir_done()
+endif
+
 wlr_files += files(
 	'atomic.c',
 	'backend.c',
@@ -8,3 +12,5 @@ wlr_files += files(
 	'renderer.c',
 	'util.c',
 )
+
+features += {'drm-backend': true}

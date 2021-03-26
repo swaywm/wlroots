@@ -12,6 +12,7 @@
 #include <wayland-server-core.h>
 #include <xf86drm.h>
 
+#include <wlr/config.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
@@ -19,7 +20,10 @@
 
 #include "backend/wayland.h"
 #include "render/drm_format_set.h"
+#include "render/allocator.h"
+#if WLR_HAS_GBM_SUPPORT
 #include "render/gbm_allocator.h"
+#endif
 #include "render/pixel_format.h"
 #include "render/shm_allocator.h"
 #include "render/wlr_renderer.h"
@@ -438,6 +442,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 
 	wl->drm_fd = -1;
 	if (wl->drm_render_name != NULL) {
+#if WLR_HAS_GBM_SUPPORT
 		wlr_log(WLR_DEBUG, "Opening DRM render node %s", wl->drm_render_name);
 		wl->drm_fd = open(wl->drm_render_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
 		if (wl->drm_fd < 0) {
@@ -459,6 +464,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 			goto error_drm_fd;
 		}
 		wl->allocator = &gbm_alloc->base;
+#endif
 	} else {
 		wlr_log(WLR_DEBUG, "No render node found, falling back to shared memory");
 		struct wlr_shm_allocator *shm_alloc = wlr_shm_allocator_create();

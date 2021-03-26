@@ -11,16 +11,16 @@ x11_required = [
 ]
 
 msg = []
-if get_option('x11-backend').enabled()
-	msg += 'Install "@0@" or pass "-Dx11-backend=disabled" to disable it.'
-endif
-if not get_option('x11-backend').disabled()
-	msg += 'Required for X11 backend support.'
+
+if 'x11' in backends
+	msg += 'Install "@0@" or don\'t enable X11 backend.'
+else
+	msg += 'Due to lack of "@0@", X11 backend support is disabled.'
 endif
 
 foreach lib : x11_required
 	dep = dependency(lib,
-		required: get_option('x11-backend'),
+                required: meson.current_source_dir() in backends,
 		not_found_message: '\n'.join(msg).format(lib),
 	)
 	if not dep.found()
