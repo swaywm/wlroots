@@ -8,3 +8,5 @@ wlr_files += files(
 	'renderer.c',
 	'util.c',
 )
+
+features += { 'drm-backend': true }
