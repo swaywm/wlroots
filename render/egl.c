@@ -279,13 +279,10 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 			if (allow_software != NULL && strcmp(allow_software, "1") == 0) {
 				wlr_log(WLR_INFO, "Using software rendering");
 			} else {
-				// Because of a Mesa bug, sometimes EGL_MESA_device_software is
-				// advertised for hardware renderers. See:
-				// https://gitlab.freedesktop.org/mesa/mesa/-/issues/4178
-				// TODO: fail without WLR_RENDERER_ALLOW_SOFTWARE
-				wlr_log(WLR_INFO, "Warning: software rendering may be in use");
-				wlr_log(WLR_INFO, "If you experience slow rendering, "
-					"please check the OpenGL drivers are correctly installed");
+				wlr_log(WLR_ERROR, "Software rendering detected, please use "
+					"the WLR_RENDERER_ALLOW_SOFTWARE environment variable "
+					"to proceed");
+				goto error;
 			}
 		}
 
