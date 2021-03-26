@@ -356,47 +356,6 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 	pop_gles2_debug(renderer);
 }
 
-static void gles2_render_ellipse_with_matrix(struct wlr_renderer *wlr_renderer,
-		const float color[static 4], const float matrix[static 9]) {
-	struct wlr_gles2_renderer *renderer =
-		gles2_get_renderer_in_context(wlr_renderer);
-
-	float gl_matrix[9];
-	wlr_matrix_multiply(gl_matrix, renderer->projection, matrix);
-	wlr_matrix_multiply(gl_matrix, flip_180, gl_matrix);
-
-	// OpenGL ES 2 requires the glUniformMatrix3fv transpose parameter to be set
-	// to GL_FALSE
-	wlr_matrix_transpose(gl_matrix, gl_matrix);
-
-	static const GLfloat texcoord[] = {
-		1, 0, // top right
-		0, 0, // top left
-		1, 1, // bottom right
-		0, 1, // bottom left
-	};
-
-	push_gles2_debug(renderer);
-	glUseProgram(renderer->shaders.ellipse.program);
-
-	glUniformMatrix3fv(renderer->shaders.ellipse.proj, 1, GL_FALSE, gl_matrix);
-	glUniform4f(renderer->shaders.ellipse.color, color[0], color[1], color[2], color[3]);
-
-	glVertexAttribPointer(renderer->shaders.ellipse.pos_attrib, 2, GL_FLOAT,
-			GL_FALSE, 0, verts);
-	glVertexAttribPointer(renderer->shaders.ellipse.tex_attrib, 2, GL_FLOAT,
-			GL_FALSE, 0, texcoord);
-
-	glEnableVertexAttribArray(renderer->shaders.ellipse.pos_attrib);
-	glEnableVertexAttribArray(renderer->shaders.ellipse.tex_attrib);
-
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-	glDisableVertexAttribArray(renderer->shaders.ellipse.pos_attrib);
-	glDisableVertexAttribArray(renderer->shaders.ellipse.tex_attrib);
-	pop_gles2_debug(renderer);
-}
-
 static const uint32_t *gles2_get_shm_texture_formats(
 		struct wlr_renderer *wlr_renderer, size_t *len) {
 	return get_gles2_shm_formats(len);
@@ -584,7 +543,6 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 
 	push_gles2_debug(renderer);
 	glDeleteProgram(renderer->shaders.quad.program);
-	glDeleteProgram(renderer->shaders.ellipse.program);
 	glDeleteProgram(renderer->shaders.tex_rgba.program);
 	glDeleteProgram(renderer->shaders.tex_rgbx.program);
 	glDeleteProgram(renderer->shaders.tex_ext.program);
@@ -614,7 +572,6 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.scissor = gles2_scissor,
 	.render_subtexture_with_matrix = gles2_render_subtexture_with_matrix,
 	.render_quad_with_matrix = gles2_render_quad_with_matrix,
-	.render_ellipse_with_matrix = gles2_render_ellipse_with_matrix,
 	.get_shm_texture_formats = gles2_get_shm_texture_formats,
 	.resource_is_wl_drm_buffer = gles2_resource_is_wl_drm_buffer,
 	.wl_drm_buffer_get_size = gles2_wl_drm_buffer_get_size,
@@ -755,7 +712,6 @@ static void load_gl_proc(void *proc_ptr, const char *name) {
 
 extern const GLchar quad_vertex_src[];
 extern const GLchar quad_fragment_src[];
-extern const GLchar ellipse_fragment_src[];
 extern const GLchar tex_vertex_src[];
 extern const GLchar tex_fragment_src_rgba[];
 extern const GLchar tex_fragment_src_rgbx[];
@@ -848,16 +804,6 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	renderer->shaders.quad.color = glGetUniformLocation(prog, "color");
 	renderer->shaders.quad.pos_attrib = glGetAttribLocation(prog, "pos");
 
-	renderer->shaders.ellipse.program = prog =
-		link_program(renderer, quad_vertex_src, ellipse_fragment_src);
-	if (!renderer->shaders.ellipse.program) {
-		goto error;
-	}
-	renderer->shaders.ellipse.proj = glGetUniformLocation(prog, "proj");
-	renderer->shaders.ellipse.color = glGetUniformLocation(prog, "color");
-	renderer->shaders.ellipse.pos_attrib = glGetAttribLocation(prog, "pos");
-	renderer->shaders.ellipse.tex_attrib = glGetAttribLocation(prog, "texcoord");
-
 	renderer->shaders.tex_rgba.program = prog =
 		link_program(renderer, tex_vertex_src, tex_fragment_src_rgba);
 	if (!renderer->shaders.tex_rgba.program) {
@@ -904,7 +850,6 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 
 error:
 	glDeleteProgram(renderer->shaders.quad.program);
-	glDeleteProgram(renderer->shaders.ellipse.program);
 	glDeleteProgram(renderer->shaders.tex_rgba.program);
 	glDeleteProgram(renderer->shaders.tex_rgbx.program);
 	glDeleteProgram(renderer->shaders.tex_ext.program);
