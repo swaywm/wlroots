@@ -924,10 +924,6 @@ static void xwm_handle_configure_notify(struct wlr_xwm *xwm,
 	}
 }
 
-#define ICCCM_WITHDRAWN_STATE	0
-#define ICCCM_NORMAL_STATE	1
-#define ICCCM_ICONIC_STATE	3
-
 static void xsurface_set_wm_state(struct wlr_xwayland_surface *xsurface,
 		int32_t state) {
 	struct wlr_xwm *xwm = xsurface->xwm;
@@ -949,7 +945,7 @@ static void xwm_handle_map_request(struct wlr_xwm *xwm,
 		return;
 	}
 
-	xsurface_set_wm_state(xsurface, ICCCM_NORMAL_STATE);
+	xsurface_set_wm_state(xsurface, XCB_ICCCM_WM_STATE_NORMAL);
 	xsurface_set_net_wm_state(xsurface);
 
 	uint32_t values[1];
@@ -981,7 +977,7 @@ static void xwm_handle_unmap_notify(struct wlr_xwm *xwm,
 	}
 
 	xsurface_unmap(xsurface);
-	xsurface_set_wm_state(xsurface, ICCCM_WITHDRAWN_STATE);
+	xsurface_set_wm_state(xsurface, XCB_ICCCM_WM_STATE_WITHDRAWN);
 }
 
 static void xwm_handle_property_notify(struct wlr_xwm *xwm,
@@ -1254,9 +1250,9 @@ static void xwm_handle_wm_change_state_message(struct wlr_xwm *xwm,
 	}
 
 	bool minimize;
-	if (detail == ICCCM_ICONIC_STATE) {
+	if (detail == XCB_ICCCM_WM_STATE_ICONIC) {
 		minimize = true;
-	} else if (detail == ICCCM_NORMAL_STATE) {
+	} else if (detail == XCB_ICCCM_WM_STATE_NORMAL) {
 		minimize = false;
 	} else {
 		wlr_log(WLR_DEBUG, "unhandled wm_change_state event %u", detail);
@@ -1928,9 +1924,9 @@ void wlr_xwayland_surface_set_minimized(struct wlr_xwayland_surface *surface,
 	surface->minimized = minimized;
 
 	if (minimized) {
-		xsurface_set_wm_state(surface, ICCCM_ICONIC_STATE);
+		xsurface_set_wm_state(surface, XCB_ICCCM_WM_STATE_ICONIC);
 	} else {
-		xsurface_set_wm_state(surface, ICCCM_NORMAL_STATE);
+		xsurface_set_wm_state(surface, XCB_ICCCM_WM_STATE_NORMAL);
 	}
 
 	xsurface_set_net_wm_state(surface);
