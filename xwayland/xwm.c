@@ -2024,7 +2024,7 @@ enum wlr_xwayland_icccm_input_model wlr_xwayland_icccm_input_model(
 		xsurface->protocols, xsurface->protocols_len,
 		WM_TAKE_FOCUS);
 
-	if (xsurface->hints && xsurface->hints->input) {
+	if (!xsurface->hints || xsurface->hints->input) {
 		if (take_focus) {
 			return WLR_ICCCM_INPUT_MODEL_LOCAL;
 		}
