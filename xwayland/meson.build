@@ -2,12 +2,12 @@ xwayland_libs = []
 xwayland_required = [
 	'xcb',
 	'xcb-composite',
+	'xcb-icccm',
 	'xcb-render',
 	'xcb-xfixes',
 ]
 xwayland_optional = {
 	'xcb-errors': 'Required for printing X11 errors.',
-	'xcb-icccm': 'Required for extended X11 window manager hints.',
 }
 
 msg = []
