@@ -87,7 +87,6 @@ features = {
 	'x11-backend': false,
 	'xwayland': false,
 	'xcb-errors': false,
-	'xcb-icccm': false,
 	'xdg-foreign': false,
 }
 

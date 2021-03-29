@@ -62,10 +62,10 @@ If you choose to enable X11 support:
 * xcb-composite
 * xcb-xfixes
 * xcb-xinput
+* xcb-icccm
 * xcb-image
 * xcb-render
 * xcb-errors (optional, for improved error reporting)
-* xcb-icccm (optional, for improved Xwayland introspection)
 
 Run these commands:
 

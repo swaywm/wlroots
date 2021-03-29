@@ -14,6 +14,7 @@
 #include <wlr/xwayland.h>
 #include <xcb/composite.h>
 #include <xcb/render.h>
+#include <xcb/xcb_icccm.h>
 #include <xcb/xfixes.h>
 #include "util/signal.h"
 #include "xwayland/xwm.h"
@@ -563,7 +564,6 @@ static void read_surface_protocols(struct wlr_xwm *xwm,
 	xsurface->protocols_len = atoms_len;
 }
 
-#if WLR_HAS_XCB_ICCCM
 static void read_surface_hints(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface,
 		xcb_get_property_reply_t *reply) {
@@ -593,15 +593,7 @@ static void read_surface_hints(struct wlr_xwm *xwm,
 
 	wlr_signal_emit_safe(&xsurface->events.set_hints, xsurface);
 }
-#else
-static void read_surface_hints(struct wlr_xwm *xwm,
-		struct wlr_xwayland_surface *xsurface,
-		xcb_get_property_reply_t *reply) {
-	// Do nothing
-}
-#endif
 
-#if WLR_HAS_XCB_ICCCM
 static void read_surface_normal_hints(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface,
 		xcb_get_property_reply_t *reply) {
@@ -642,14 +634,6 @@ static void read_surface_normal_hints(struct wlr_xwm *xwm,
 		xsurface->size_hints->max_height = -1;
 	}
 }
-#else
-static void read_surface_normal_hints(struct wlr_xwm *xwm,
-		struct wlr_xwayland_surface *xsurface,
-		xcb_get_property_reply_t *reply) {
-	// Do nothing
-}
-#endif
-
 
 #define MWM_HINTS_FLAGS_FIELD 0
 #define MWM_HINTS_DECORATIONS_FIELD 2

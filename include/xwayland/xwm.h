@@ -5,9 +5,6 @@
 #include <wlr/config.h>
 #include <wlr/xwayland.h>
 #include <xcb/render.h>
-#if WLR_HAS_XCB_ICCCM
-#include <xcb/xcb_icccm.h>
-#endif
 #if WLR_HAS_XCB_ERRORS
 #include <xcb/xcb_errors.h>
 #endif
