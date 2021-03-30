@@ -676,8 +676,6 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 
 	wlr_signal_emit_safe(&surface->events.destroy, surface);
 
-	wl_list_remove(wl_resource_get_link(surface->resource));
-
 	struct wlr_surface_state *cached, *cached_tmp;
 	wl_list_for_each_safe(cached, cached_tmp, &surface->cached, cached_state_link) {
 		surface_state_destroy_cached(cached);
@@ -704,8 +702,7 @@ static void surface_handle_renderer_destroy(struct wl_listener *listener,
 }
 
 struct wlr_surface *surface_create(struct wl_client *client,
-		uint32_t version, uint32_t id, struct wlr_renderer *renderer,
-		struct wl_list *resource_list) {
+		uint32_t version, uint32_t id, struct wlr_renderer *renderer) {
 	assert(version <= SURFACE_VERSION);
 
 	struct wlr_surface *surface = calloc(1, sizeof(struct wlr_surface));
@@ -745,13 +742,6 @@ struct wlr_surface *surface_create(struct wl_client *client,
 
 	wl_signal_add(&renderer->events.destroy, &surface->renderer_destroy);
 	surface->renderer_destroy.notify = surface_handle_renderer_destroy;
-
-	struct wl_list *resource_link = wl_resource_get_link(surface->resource);
-	if (resource_list != NULL) {
-		wl_list_insert(resource_list, resource_link);
-	} else {
-		wl_list_init(resource_link);
-	}
 
 	return surface;
 }

@@ -121,7 +121,7 @@ static void compositor_create_surface(struct wl_client *client,
 	struct wlr_compositor *compositor = compositor_from_resource(resource);
 
 	struct wlr_surface *surface = surface_create(client,
-		wl_resource_get_version(resource), id, compositor->renderer, NULL);
+		wl_resource_get_version(resource), id, compositor->renderer);
 	if (surface == NULL) {
 		wl_client_post_no_memory(client);
 		return;
