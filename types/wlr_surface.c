@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
+#include "types/wlr_surface.h"
 #include "util/signal.h"
 #include "util/time.h"
 
@@ -702,7 +703,7 @@ static void surface_handle_renderer_destroy(struct wl_listener *listener,
 	wl_resource_destroy(surface->resource);
 }
 
-struct wlr_surface *wlr_surface_create(struct wl_client *client,
+struct wlr_surface *surface_create(struct wl_client *client,
 		uint32_t version, uint32_t id, struct wlr_renderer *renderer,
 		struct wl_list *resource_list) {
 	assert(version <= SURFACE_VERSION);

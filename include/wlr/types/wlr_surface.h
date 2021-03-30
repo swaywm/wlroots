@@ -187,16 +187,6 @@ struct wlr_subsurface {
 typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 	int sx, int sy, void *data);
 
-struct wlr_renderer;
-
-/**
- * Create a new surface resource with the provided new ID. If `resource_list`
- * is non-NULL, adds the surface's resource to the list.
- */
-struct wlr_surface *wlr_surface_create(struct wl_client *client,
-		uint32_t version, uint32_t id, struct wlr_renderer *renderer,
-		struct wl_list *resource_list);
-
 /**
  * Set the lifetime role for this surface. Returns 0 on success or -1 if the
  * role cannot be set.
