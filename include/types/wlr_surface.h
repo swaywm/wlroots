@@ -6,8 +6,7 @@
 struct wlr_renderer;
 
 /**
- * Create a new surface resource with the provided new ID. If `resource_list`
- * is non-NULL, adds the surface's resource to the list.
+ * Create a new surface resource with the provided new ID.
  */
 struct wlr_surface *surface_create(struct wl_client *client,
 	uint32_t version, uint32_t id, struct wlr_renderer *renderer);
