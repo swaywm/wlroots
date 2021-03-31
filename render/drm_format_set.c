@@ -43,11 +43,6 @@ bool wlr_drm_format_set_has(const struct wlr_drm_format_set *set,
 	if (!fmt) {
 		return false;
 	}
-
-	if (modifier == DRM_FORMAT_MOD_INVALID) {
-		return true;
-	}
-
 	return wlr_drm_format_has(fmt, modifier);
 }
 
@@ -112,10 +107,6 @@ bool wlr_drm_format_has(const struct wlr_drm_format *fmt, uint64_t modifier) {
 bool wlr_drm_format_add(struct wlr_drm_format **fmt_ptr, uint64_t modifier) {
 	struct wlr_drm_format *fmt = *fmt_ptr;
 
-	if (modifier == DRM_FORMAT_MOD_INVALID) {
-		return true;
-	}
-
 	if (wlr_drm_format_has(fmt, modifier)) {
 		return true;
 	}
@@ -153,14 +144,16 @@ struct wlr_drm_format *wlr_drm_format_intersect(
 		const struct wlr_drm_format *a, const struct wlr_drm_format *b) {
 	assert(a->format == b->format);
 
-	// Special case: if a format only supports LINEAR and the other doesn't
-	// support any modifier, force LINEAR. This will force the allocator to
-	// create a buffer with a LINEAR layout instead of an implicit modifier.
-	if (a->len == 0 && b->len == 1 && b->modifiers[0] == DRM_FORMAT_MOD_LINEAR) {
-		return wlr_drm_format_dup(b);
-	}
-	if (b->len == 0 && a->len == 1 && a->modifiers[0] == DRM_FORMAT_MOD_LINEAR) {
+	// Special case: if a format only supports LINEAR and the other supports
+	// implicit modifiers, force LINEAR. This will force the allocator to
+	// create a buffer with a linear layout instead of an implicit modifier.
+	if (a->len == 1 && a->modifiers[0] == DRM_FORMAT_MOD_LINEAR &&
+			wlr_drm_format_has(b, DRM_FORMAT_MOD_INVALID)) {
 		return wlr_drm_format_dup(a);
+	}
+	if (b->len == 1 && b->modifiers[0] == DRM_FORMAT_MOD_LINEAR &&
+			wlr_drm_format_has(a, DRM_FORMAT_MOD_INVALID)) {
+		return wlr_drm_format_dup(b);
 	}
 
 	size_t format_cap = a->len < b->len ? a->len : b->len;
@@ -185,9 +178,9 @@ struct wlr_drm_format *wlr_drm_format_intersect(
 		}
 	}
 
-	// If both formats support modifiers, but the intersection is empty, then
-	// the formats aren't compatible with each other
-	if (format->len == 0 && a->len > 0 && b->len > 0) {
+	// If the intersection is empty, then the formats aren't compatible with
+	// each other.
+	if (format->len == 0) {
 		free(format);
 		return NULL;
 	}

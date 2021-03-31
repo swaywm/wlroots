@@ -149,7 +149,7 @@ struct wlr_drm_format *drm_plane_pick_render_format(
 	const struct wlr_drm_format_set *plane_formats = &plane->formats;
 
 	uint32_t fmt = DRM_FORMAT_ARGB8888;
-	if (!wlr_drm_format_set_has(&plane->formats, fmt, DRM_FORMAT_MOD_INVALID)) {
+	if (!wlr_drm_format_set_get(&plane->formats, fmt)) {
 		const struct wlr_pixel_format_info *format_info =
 			drm_get_pixel_format_info(fmt);
 		assert(format_info != NULL &&

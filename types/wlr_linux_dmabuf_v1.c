@@ -9,6 +9,7 @@
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include "linux-dmabuf-unstable-v1-protocol.h"
+#include "render/drm_format_set.h"
 #include "util/signal.h"
 
 #define LINUX_DMABUF_VERSION 3
@@ -427,7 +428,9 @@ static const struct zwp_linux_dmabuf_v1_interface linux_dmabuf_impl = {
 static void linux_dmabuf_send_modifiers(struct wl_resource *resource,
 		const struct wlr_drm_format *fmt) {
 	if (wl_resource_get_version(resource) < ZWP_LINUX_DMABUF_V1_MODIFIER_SINCE_VERSION) {
-		zwp_linux_dmabuf_v1_send_format(resource, fmt->format);
+		if (wlr_drm_format_has(fmt, DRM_FORMAT_MOD_INVALID)) {
+			zwp_linux_dmabuf_v1_send_format(resource, fmt->format);
+		}
 		return;
 	}
 
@@ -436,10 +439,6 @@ static void linux_dmabuf_send_modifiers(struct wl_resource *resource,
 		zwp_linux_dmabuf_v1_send_modifier(resource, fmt->format,
 			mod >> 32, mod & 0xFFFFFFFF);
 	}
-
-	// We always support buffers with an implicit modifier
-	zwp_linux_dmabuf_v1_send_modifier(resource, fmt->format,
-		DRM_FORMAT_MOD_INVALID >> 32, DRM_FORMAT_MOD_INVALID & 0xFFFFFFFF);
 }
 
 static void linux_dmabuf_send_formats(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
