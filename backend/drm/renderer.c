@@ -220,6 +220,13 @@ static uint32_t get_fb_for_bo(struct wlr_drm_backend *drm,
 			wlr_log_errno(WLR_DEBUG, "drmModeAddFB2WithModifiers failed");
 		}
 	} else {
+		if (dmabuf->modifier != DRM_FORMAT_MOD_INVALID &&
+				dmabuf->modifier != DRM_FORMAT_MOD_LINEAR) {
+			wlr_log(WLR_ERROR, "Cannot import DRM framebuffer with explicit "
+				"modifier 0x%"PRIX64, dmabuf->modifier);
+			return 0;
+		}
+
 		int ret = drmModeAddFB2(drm->fd, dmabuf->width, dmabuf->height,
 			dmabuf->format, handles, dmabuf->stride, dmabuf->offset, &id, 0);
 		if (ret != 0 && dmabuf->format == DRM_FORMAT_ARGB8888 &&
