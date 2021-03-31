@@ -48,13 +48,7 @@ bool wlr_drm_format_set_has(const struct wlr_drm_format_set *set,
 		return true;
 	}
 
-	for (size_t i = 0; i < fmt->len; ++i) {
-		if (fmt->modifiers[i] == modifier) {
-			return true;
-		}
-	}
-
-	return false;
+	return wlr_drm_format_has(fmt, modifier);
 }
 
 bool wlr_drm_format_set_add(struct wlr_drm_format_set *set, uint32_t format,
@@ -106,6 +100,15 @@ struct wlr_drm_format *wlr_drm_format_create(uint32_t format) {
 	return fmt;
 }
 
+bool wlr_drm_format_has(const struct wlr_drm_format *fmt, uint64_t modifier) {
+	for (size_t i = 0; i < fmt->len; ++i) {
+		if (fmt->modifiers[i] == modifier) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool wlr_drm_format_add(struct wlr_drm_format **fmt_ptr, uint64_t modifier) {
 	struct wlr_drm_format *fmt = *fmt_ptr;
 
@@ -113,10 +116,8 @@ bool wlr_drm_format_add(struct wlr_drm_format **fmt_ptr, uint64_t modifier) {
 		return true;
 	}
 
-	for (size_t i = 0; i < fmt->len; ++i) {
-		if (fmt->modifiers[i] == modifier) {
-			return true;
-		}
+	if (wlr_drm_format_has(fmt, modifier)) {
+		return true;
 	}
 
 	if (fmt->len == fmt->capacity) {
