@@ -24,6 +24,7 @@
 #include "backend/drm/drm.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
+#include "render/pixel_format.h"
 #include "render/swapchain.h"
 #include "util/signal.h"
 
@@ -378,15 +379,6 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn) {
 	return true;
 }
 
-static uint32_t strip_alpha_channel(uint32_t format) {
-	switch (format) {
-	case DRM_FORMAT_ARGB8888:
-		return DRM_FORMAT_XRGB8888;
-	default:
-		return DRM_FORMAT_INVALID;
-	}
-}
-
 static bool test_buffer(struct wlr_drm_connector *conn,
 		struct wlr_buffer *wlr_buffer) {
 	struct wlr_drm_backend *drm = conn->backend;
@@ -420,10 +412,12 @@ static bool test_buffer(struct wlr_drm_connector *conn,
 			attribs.format, attribs.modifier)) {
 		// The format isn't supported by the plane. Try stripping the alpha
 		// channel, if any.
-		uint32_t format = strip_alpha_channel(attribs.format);
-		if (format != DRM_FORMAT_INVALID && wlr_drm_format_set_has(
-				&crtc->primary->formats, format, attribs.modifier)) {
-			attribs.format = format;
+		const struct wlr_pixel_format_info *info =
+			drm_get_pixel_format_info(attribs.format);
+		if (info != NULL && info->opaque_substitute != DRM_FORMAT_INVALID &&
+				wlr_drm_format_set_has(&crtc->primary->formats,
+				info->opaque_substitute, attribs.modifier)) {
+			attribs.format = info->opaque_substitute;
 		} else {
 			return false;
 		}
