@@ -125,6 +125,15 @@ static void init_dmabuf_formats(struct wlr_egl *egl) {
 		wlr_drm_format_set_add(&egl->dmabuf_render_formats, fmt,
 			DRM_FORMAT_MOD_INVALID);
 
+		if (modifiers_len == 0) {
+			// Asume the linear layout is supported if the driver doesn't
+			// explicitly say otherwise
+			wlr_drm_format_set_add(&egl->dmabuf_texture_formats, fmt,
+				DRM_FORMAT_MOD_LINEAR);
+			wlr_drm_format_set_add(&egl->dmabuf_render_formats, fmt,
+				DRM_FORMAT_MOD_LINEAR);
+		}
+
 		for (int j = 0; j < modifiers_len; j++) {
 			wlr_drm_format_set_add(&egl->dmabuf_texture_formats, fmt,
 				modifiers[j]);
