@@ -354,6 +354,7 @@ static bool query_formats(struct wlr_x11_backend *x11) {
 			}
 
 			if (x11->have_dri3) {
+				// X11 always supports implicit modifiers
 				wlr_drm_format_set_add(&x11->dri3_formats, format->drm,
 					DRM_FORMAT_MOD_INVALID);
 				if (!query_dri3_modifiers(x11, format)) {
