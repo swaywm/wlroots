@@ -399,29 +399,11 @@ static bool test_buffer(struct wlr_drm_connector *conn,
 		return false;
 	}
 
-	struct wlr_dmabuf_attributes attribs;
-	if (!wlr_buffer_get_dmabuf(wlr_buffer, &attribs)) {
+	struct wlr_drm_fb *fb = NULL;
+	if (!drm_fb_import(&fb, drm, wlr_buffer, &crtc->primary->formats)) {
 		return false;
 	}
-
-	if (attribs.flags != 0) {
-		return false;
-	}
-
-	if (!wlr_drm_format_set_has(&crtc->primary->formats,
-			attribs.format, attribs.modifier)) {
-		// The format isn't supported by the plane. Try stripping the alpha
-		// channel, if any.
-		const struct wlr_pixel_format_info *info =
-			drm_get_pixel_format_info(attribs.format);
-		if (info != NULL && info->opaque_substitute != DRM_FORMAT_INVALID &&
-				wlr_drm_format_set_has(&crtc->primary->formats,
-				info->opaque_substitute, attribs.modifier)) {
-			attribs.format = info->opaque_substitute;
-		} else {
-			return false;
-		}
-	}
+	drm_fb_clear(&fb);
 
 	return true;
 }
