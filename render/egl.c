@@ -324,9 +324,9 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 	attribs[atti++] = EGL_CONTEXT_CLIENT_VERSION;
 	attribs[atti++] = 2;
 
-	// On DRM, request a high priority context if possible
-	bool request_high_priority = ext_context_priority &&
-		platform == EGL_PLATFORM_GBM_MESA;
+	// Request a high priority context if possible
+	// TODO: only do this if we're running as the DRM master
+	bool request_high_priority = ext_context_priority;
 
 	// Try to reschedule all of our rendering to be completed first. If it
 	// fails, it will fallback to the default priority (MEDIUM).
