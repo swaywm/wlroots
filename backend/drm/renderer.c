@@ -319,6 +319,9 @@ bool drm_plane_lock_surface(struct wlr_drm_plane *plane,
 	wlr_buffer_unlock(buf);
 
 	bool ok = drm_fb_import(&plane->pending_fb, drm, local_buf, NULL);
+	if (!ok) {
+		wlr_log(WLR_ERROR, "Failed to import buffer");
+	}
 	wlr_buffer_unlock(local_buf);
 	return ok;
 }
@@ -370,46 +373,42 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, const struct wlr_drm_format_set *formats) {
 	struct wlr_drm_fb *fb = calloc(1, sizeof(*fb));
 	if (!fb) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
 
 	struct wlr_dmabuf_attributes attribs;
 	if (!wlr_buffer_get_dmabuf(buf, &attribs)) {
-		wlr_log(WLR_ERROR, "Failed to get DMA-BUF from buffer");
+		wlr_log(WLR_DEBUG, "Failed to get DMA-BUF from buffer");
 		goto error_get_dmabuf;
 	}
 
 	if (formats && !wlr_drm_format_set_has(formats, attribs.format,
 			attribs.modifier)) {
-		const struct wlr_pixel_format_info *info =
-			drm_get_pixel_format_info(attribs.format);
-		if (!info) {
-			wlr_log(WLR_ERROR,
-				"Failed to fallback on DRM opaque substitute for format "
-				"0x%"PRIX32, attribs.format);
-			return false;
-		}
 		// The format isn't supported by the plane. Try stripping the alpha
 		// channel, if any.
-		uint32_t format = info->opaque_substitute;
-		if (wlr_drm_format_set_has(formats, format, attribs.modifier)) {
-			attribs.format = format;
+		const struct wlr_pixel_format_info *info =
+			drm_get_pixel_format_info(attribs.format);
+		if (info != NULL && info->opaque_substitute != DRM_FORMAT_INVALID &&
+				wlr_drm_format_set_has(formats, info->opaque_substitute, attribs.modifier)) {
+			attribs.format = info->opaque_substitute;
 		} else {
-			wlr_log(WLR_ERROR, "Buffer format 0x%"PRIX32" cannot be scanned out",
-				attribs.format);
+			wlr_log(WLR_DEBUG, "Buffer format 0x%"PRIX32" with modifier "
+				"0x%"PRIX64" cannot be scanned out",
+				attribs.format, attribs.modifier);
 			goto error_get_dmabuf;
 		}
 	}
 
 	fb->bo = get_bo_for_dmabuf(drm->renderer.gbm, &attribs);
 	if (!fb->bo) {
-		wlr_log(WLR_ERROR, "Failed to import DMA-BUF in GBM");
+		wlr_log(WLR_DEBUG, "Failed to import DMA-BUF in GBM");
 		goto error_get_dmabuf;
 	}
 
 	fb->id = get_fb_for_bo(fb->bo, drm->addfb2_modifiers);
 	if (!fb->id) {
-		wlr_log(WLR_ERROR, "Failed to import GBM BO in KMS");
+		wlr_log(WLR_DEBUG, "Failed to import GBM BO in KMS");
 		goto error_get_fb_for_bo;
 	}
 

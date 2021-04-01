@@ -474,6 +474,7 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 		}
 		if (!drm_fb_import(&plane->pending_fb, drm, buffer,
 				&crtc->primary->formats)) {
+			wlr_log(WLR_ERROR, "Failed to import buffer");
 			return false;
 		}
 		break;
