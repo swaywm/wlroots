@@ -128,7 +128,7 @@ clients = {
 	},
 	'screencopy': {
 		'src': 'screencopy.c',
-		'dep': [libpng, rt],
+		'dep': [libpng, rt, wlroots],
 		'proto': ['wlr-screencopy-unstable-v1'],
 	},
 	'screencopy-dmabuf': {
@@ -220,6 +220,7 @@ foreach name, info : clients
 		name,
 		[info.get('src'), extra_src],
 		dependencies: [wayland_client, info.get('dep')],
+		include_directories: [wlr_inc],
 		build_by_default: get_option('examples'),
 	)
 endforeach

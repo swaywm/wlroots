@@ -41,6 +41,7 @@
 #include <xf86drm.h>
 #include <drm_fourcc.h>
 #include <wayland-client-protocol.h>
+#include <wlr/config.h>
 #include "wlr-screencopy-unstable-v1-client-protocol.h"
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
 
@@ -151,11 +152,15 @@ static void frame_handle_buffer_done(void *data,
 	struct zwp_linux_buffer_params_v1 *params;
 	params = zwp_linux_dmabuf_v1_create_params(dmabuf);
 	assert(params);
+	uint32_t off = 0;
+	uint64_t mod = 0;
 
 	int fd = gbm_bo_get_fd(buffer.bo);
+#if WLR_HAS_LATEST_GBM
 	uint32_t off = gbm_bo_get_offset(buffer.bo, 0);
-	uint32_t bo_stride = gbm_bo_get_stride(buffer.bo);
 	uint64_t mod = gbm_bo_get_modifier(buffer.bo);
+#endif
+	uint32_t bo_stride = gbm_bo_get_stride(buffer.bo);
 	zwp_linux_buffer_params_v1_add(params, fd, 0, off, bo_stride, mod >> 32,
 			mod & 0xffffffff);
 
