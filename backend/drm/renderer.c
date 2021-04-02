@@ -2,7 +2,6 @@
 #include <assert.h>
 #include <drm_fourcc.h>
 #include <fcntl.h>
-#include <gbm.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,19 +18,14 @@
 #include "render/wlr_renderer.h"
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
-		struct wlr_drm_renderer *renderer) {
+		struct wlr_drm_renderer *renderer)
+{
 	renderer->backend = drm;
-
-	renderer->gbm = gbm_create_device(drm->fd);
-	if (!renderer->gbm) {
-		wlr_log(WLR_ERROR, "Failed to create GBM device");
-		return false;
-	}
 
 	renderer->wlr_rend = wlr_renderer_autocreate_with_drm_fd(drm->fd);
 	if (!renderer->wlr_rend) {
 		wlr_log(WLR_ERROR, "Failed to create EGL/WLR renderer");
-		goto error_gbm;
+		goto error;
 	}
 
 	int alloc_fd = fcntl(drm->fd, F_DUPFD_CLOEXEC, 0);
@@ -51,8 +45,7 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 
 error_wlr_rend:
 	wlr_renderer_destroy(renderer->wlr_rend);
-error_gbm:
-	gbm_device_destroy(renderer->gbm);
+error:
 	return false;
 }
 
@@ -63,7 +56,6 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 
 	wlr_allocator_destroy(renderer->alloc);
 	wlr_renderer_destroy(renderer->wlr_rend);
-	gbm_device_destroy(renderer->gbm);
 }
 
 static bool init_drm_surface(struct wlr_drm_surface *surf,
@@ -284,15 +276,18 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 	return ok;
 }
 
-void drm_fb_clear(struct wlr_drm_fb **fb_ptr) {
-	if (*fb_ptr == NULL) {
+void drm_fb_destroy(struct wlr_drm_buffer *buffer) {
+	/* It may lead this buffer be dropped */
+	wlr_buffer_unlock(&buffer->base);
+}
+
+void drm_fb_clear(struct wlr_drm_buffer **buf_ptr) {
+	if (*buf_ptr == NULL)
 		return;
-	}
 
-	struct wlr_drm_fb *fb = *fb_ptr;
-	wlr_buffer_unlock(fb->wlr_buf); // may destroy the buffer
+	drm_fb_destroy(*buf_ptr);
 
-	*fb_ptr = NULL;
+	*buf_ptr = NULL;
 }
 
 bool drm_plane_lock_surface(struct wlr_drm_plane *plane,
@@ -325,154 +320,25 @@ bool drm_plane_lock_surface(struct wlr_drm_plane *plane,
 	return ok;
 }
 
-static struct gbm_bo *get_bo_for_dmabuf(struct gbm_device *gbm,
-		struct wlr_dmabuf_attributes *attribs) {
-	if (attribs->modifier != DRM_FORMAT_MOD_INVALID ||
-			attribs->n_planes > 1 || attribs->offset[0] != 0) {
-		struct gbm_import_fd_modifier_data data = {
-			.width = attribs->width,
-			.height = attribs->height,
-			.format = attribs->format,
-			.num_fds = attribs->n_planes,
-			.modifier = attribs->modifier,
-		};
+bool drm_fb_import(struct wlr_drm_buffer **buf_ptr, struct wlr_drm_backend *drm,
+		   struct wlr_buffer *wlr_buf,
+		   const struct wlr_drm_format_set *formats)
+{
+	struct wlr_drm_renderer *render = NULL;
+	struct wlr_drm_buffer *buf = NULL;
 
-		if ((size_t)attribs->n_planes > sizeof(data.fds) / sizeof(data.fds[0])) {
-			return false;
-		}
+	render = &drm->renderer;
 
-		for (size_t i = 0; i < (size_t)attribs->n_planes; ++i) {
-			data.fds[i] = attribs->fd[i];
-			data.strides[i] = attribs->stride[i];
-			data.offsets[i] = attribs->offset[i];
-		}
+	buf = wlr_allocator_import(render->alloc, wlr_buf);
+	if (!buf)
+		return false;
 
-		return gbm_bo_import(gbm, GBM_BO_IMPORT_FD_MODIFIER,
-			&data, GBM_BO_USE_SCANOUT);
-	} else {
-		struct gbm_import_fd_data data = {
-			.fd = attribs->fd[0],
-			.width = attribs->width,
-			.height = attribs->height,
-			.stride = attribs->stride[0],
-			.format = attribs->format,
-		};
-
-		return gbm_bo_import(gbm, GBM_BO_IMPORT_FD, &data, GBM_BO_USE_SCANOUT);
-	}
-}
-
-static void drm_fb_handle_wlr_buf_destroy(struct wl_listener *listener,
-		void *data) {
-	struct wlr_drm_fb *fb = wl_container_of(listener, fb, wlr_buf_destroy);
-	drm_fb_destroy(fb);
-}
-
-static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
-		struct wlr_buffer *buf, const struct wlr_drm_format_set *formats) {
-	struct wlr_drm_fb *fb = calloc(1, sizeof(*fb));
-	if (!fb) {
-		wlr_log_errno(WLR_ERROR, "Allocation failed");
-		return NULL;
-	}
-
-	struct wlr_dmabuf_attributes attribs;
-	if (!wlr_buffer_get_dmabuf(buf, &attribs)) {
-		wlr_log(WLR_DEBUG, "Failed to get DMA-BUF from buffer");
-		goto error_get_dmabuf;
-	}
-
-	if (attribs.flags != 0) {
-		wlr_log(WLR_DEBUG, "Buffer with DMA-BUF flags 0x%"PRIX32" cannot be "
-			"scanned out", attribs.flags);
-		goto error_get_dmabuf;
-	}
-
-	if (formats && !wlr_drm_format_set_has(formats, attribs.format,
-			attribs.modifier)) {
-		// The format isn't supported by the plane. Try stripping the alpha
-		// channel, if any.
-		const struct wlr_pixel_format_info *info =
-			drm_get_pixel_format_info(attribs.format);
-		if (info != NULL && info->opaque_substitute != DRM_FORMAT_INVALID &&
-				wlr_drm_format_set_has(formats, info->opaque_substitute, attribs.modifier)) {
-			attribs.format = info->opaque_substitute;
-		} else {
-			wlr_log(WLR_DEBUG, "Buffer format 0x%"PRIX32" with modifier "
-				"0x%"PRIX64" cannot be scanned out",
-				attribs.format, attribs.modifier);
-			goto error_get_dmabuf;
-		}
-	}
-
-	fb->bo = get_bo_for_dmabuf(drm->renderer.gbm, &attribs);
-	if (!fb->bo) {
-		wlr_log(WLR_DEBUG, "Failed to import DMA-BUF in GBM");
-		goto error_get_dmabuf;
-	}
-
-	fb->id = get_fb_for_bo(fb->bo, drm->addfb2_modifiers);
-	if (!fb->id) {
-		wlr_log(WLR_DEBUG, "Failed to import GBM BO in KMS");
-		goto error_get_fb_for_bo;
-	}
-
-	fb->wlr_buf = buf;
-
-	fb->wlr_buf_destroy.notify = drm_fb_handle_wlr_buf_destroy;
-	wl_signal_add(&buf->events.destroy, &fb->wlr_buf_destroy);
-
-	wl_list_insert(&drm->fbs, &fb->link);
-
-	return fb;
-
-error_get_fb_for_bo:
-	gbm_bo_destroy(fb->bo);
-error_get_dmabuf:
-	free(fb);
-	return NULL;
-}
-
-void drm_fb_destroy(struct wlr_drm_fb *fb) {
-	wl_list_remove(&fb->link);
-	wl_list_remove(&fb->wlr_buf_destroy.link);
-
-	struct gbm_device *gbm = gbm_bo_get_device(fb->bo);
-	if (drmModeRmFB(gbm_device_get_fd(gbm), fb->id) != 0) {
-		wlr_log(WLR_ERROR, "drmModeRmFB failed");
-	}
-
-	gbm_bo_destroy(fb->bo);
-	free(fb);
-}
-
-static struct wlr_drm_fb *drm_fb_get(struct wlr_drm_backend *drm,
-		struct wlr_buffer *local_buf) {
-	struct wlr_drm_fb *fb;
-	wl_list_for_each(fb, &drm->fbs, link) {
-		if (fb->wlr_buf == local_buf) {
-			return fb;
-		}
-	}
-	return NULL;
-}
-
-bool drm_fb_import(struct wlr_drm_fb **fb_ptr, struct wlr_drm_backend *drm,
-		struct wlr_buffer *buf, const struct wlr_drm_format_set *formats) {
-	struct wlr_drm_fb *fb = drm_fb_get(drm, buf);
-	if (!fb) {
-		fb = drm_fb_create(drm, buf, formats);
-		if (!fb) {
-			return false;
-		}
-	}
-
-	wlr_buffer_lock(buf);
-	drm_fb_move(fb_ptr, &fb);
+	wlr_buffer_lock(&buf->base);
+	drm_fb_move(buf_ptr, &buf);
 	return true;
 }
 
-void drm_fb_move(struct wlr_drm_fb **new, struct wlr_drm_fb **old) {
+void drm_fb_move(struct wlr_drm_buffer **new, struct wlr_drm_buffer **old) {
 	drm_fb_clear(new);
 	*new = *old;
 	*old = NULL;

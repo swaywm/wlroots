@@ -26,11 +26,11 @@ struct wlr_drm_plane {
 	struct wlr_drm_surface mgpu_surf;
 
 	/* Buffer to be submitted to the kernel on the next page-flip */
-	struct wlr_drm_fb *pending_fb;
+	struct wlr_drm_buffer *pending_fb;
 	/* Buffer submitted to the kernel, will be presented on next vblank */
-	struct wlr_drm_fb *queued_fb;
+	struct wlr_drm_buffer *queued_fb;
 	/* Buffer currently displayed on screen */
-	struct wlr_drm_fb *current_fb;
+	struct wlr_drm_buffer *current_fb;
 
 	struct wlr_drm_format_set formats;
 
@@ -88,7 +88,7 @@ struct wlr_drm_backend {
 	struct wl_listener session_active;
 	struct wl_listener dev_change;
 
-	struct wl_list fbs; // wlr_drm_fb.link
+	struct wl_list fbs; // wlr_drm_buffer.link
 	struct wl_list outputs;
 
 	struct wlr_drm_renderer renderer;
@@ -156,7 +156,7 @@ bool drm_connector_supports_vrr(struct wlr_drm_connector *conn);
 size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc);
 
-struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane);
+struct wlr_drm_buffer *plane_get_next_fb(struct wlr_drm_plane *plane);
 
 #define wlr_drm_conn_log(conn, verb, fmt, ...) \
 	wlr_log(verb, "connector %s: " fmt, conn->name, ##__VA_ARGS__)

@@ -135,14 +135,15 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
 		struct wlr_drm_plane *plane, uint32_t crtc_id, int32_t x, int32_t y) {
 	uint32_t id = plane->id;
 	const union wlr_drm_plane_props *props = &plane->props;
-	struct wlr_drm_fb *fb = plane_get_next_fb(plane);
-	if (fb == NULL) {
+	struct wlr_drm_buffer *buf = plane_get_next_fb(plane);
+
+	if (buf == NULL) {
 		wlr_log(WLR_ERROR, "Failed to acquire FB");
 		goto error;
 	}
 
-	uint32_t width = gbm_bo_get_width(fb->bo);
-	uint32_t height = gbm_bo_get_height(fb->bo);
+	uint32_t width = buf->base.width;
+	uint32_t height = buf->base.height;
 
 	// The src_* properties are in 16.16 fixed point
 	atomic_add(atom, id, props->src_x, 0);
@@ -151,7 +152,7 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
 	atomic_add(atom, id, props->src_h, (uint64_t)height << 16);
 	atomic_add(atom, id, props->crtc_w, width);
 	atomic_add(atom, id, props->crtc_h, height);
-	atomic_add(atom, id, props->fb_id, fb->id);
+	atomic_add(atom, id, props->fb_id, buf->fb_id);
 	atomic_add(atom, id, props->crtc_id, crtc_id);
 	atomic_add(atom, id, props->crtc_x, (uint64_t)x);
 	atomic_add(atom, id, props->crtc_y, (uint64_t)y);

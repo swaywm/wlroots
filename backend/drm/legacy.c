@@ -16,13 +16,13 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 
 	uint32_t fb_id = 0;
 	if (crtc->pending.active) {
-		struct wlr_drm_fb *fb = plane_get_next_fb(crtc->primary);
+		struct wlr_drm_buffer *fb = plane_get_next_fb(crtc->primary);
 		if (fb == NULL) {
 			wlr_log(WLR_ERROR, "%s: failed to acquire primary FB",
 				conn->output.name);
 			return false;
 		}
-		fb_id = fb->id;
+		fb_id = fb->fb_id;
 	}
 
 	if (crtc->pending_modeset) {
@@ -75,12 +75,13 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 	}
 
 	if (cursor != NULL && drm_connector_is_cursor_visible(conn)) {
-		struct wlr_drm_fb *cursor_fb = plane_get_next_fb(cursor);
+		struct wlr_drm_buffer *cursor_fb = plane_get_next_fb(cursor);
 		if (cursor_fb == NULL) {
 			wlr_drm_conn_log(conn, WLR_DEBUG, "Failed to acquire cursor FB");
 			return false;
 		}
 
+#if 0
 		uint32_t cursor_handle = gbm_bo_get_handle(cursor_fb->bo).u32;
 		uint32_t cursor_width = gbm_bo_get_width(cursor_fb->bo);
 		uint32_t cursor_height = gbm_bo_get_height(cursor_fb->bo);
@@ -95,6 +96,7 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 			wlr_drm_conn_log_errno(conn, WLR_ERROR, "drmModeMoveCursor failed");
 			return false;
 		}
+#endif
 	} else {
 		if (drmModeSetCursor(drm->fd, crtc->id, 0, 0, 0)) {
 			wlr_drm_conn_log_errno(conn, WLR_DEBUG, "drmModeSetCursor failed");

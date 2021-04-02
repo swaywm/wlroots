@@ -323,7 +323,7 @@ static void drm_plane_set_committed(struct wlr_drm_plane *plane) {
 
 	if (plane->queued_fb) {
 		wlr_swapchain_set_buffer_submitted(plane->surf.swapchain,
-			plane->queued_fb->wlr_buf);
+			&plane->queued_fb->base);
 	}
 }
 
@@ -609,7 +609,7 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 		return false;
 	}
 
-	struct wlr_drm_fb *fb = crtc->primary->queued_fb;
+	struct wlr_drm_buffer *fb = crtc->primary->queued_fb;
 	if (fb == NULL) {
 		fb = crtc->primary->current_fb;
 	}
@@ -620,14 +620,14 @@ static bool drm_connector_export_dmabuf(struct wlr_output *output,
 	// export_dmabuf gives ownership of the DMA-BUF to the caller, so we need
 	// to dup it
 	struct wlr_dmabuf_attributes buf_attribs = {0};
-	if (!wlr_buffer_get_dmabuf(fb->wlr_buf, &buf_attribs)) {
+	if (!wlr_buffer_get_dmabuf(&fb->base, &buf_attribs)) {
 		return false;
 	}
 
 	return wlr_dmabuf_attributes_copy(attribs, &buf_attribs);
 }
 
-struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
+struct wlr_drm_buffer *plane_get_next_fb(struct wlr_drm_plane *plane) {
 	if (plane->pending_fb) {
 		return plane->pending_fb;
 	}
@@ -1481,7 +1481,7 @@ static void page_flip_handler(int fd, unsigned seq,
 	 * interface.
 	 */
 	if (!drm->parent && plane->current_fb &&
-			wlr_client_buffer_get(plane->current_fb->wlr_buf)) {
+			wlr_client_buffer_get(plane->current_fb->orig_buf)) {
 		present_flags |= WLR_OUTPUT_PRESENT_ZERO_COPY;
 	}
 

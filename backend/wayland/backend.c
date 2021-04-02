@@ -465,7 +465,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 			wlr_log(WLR_ERROR, "Failed to create shared memory allocator");
 			goto error_remote_display_src;
 		}
-		wl->allocator = &shm_alloc->base;
+		wl->alloc = &shm_alloc->base;
 	}
 
 	wl->renderer = wlr_renderer_autocreate(&wl->backend);
