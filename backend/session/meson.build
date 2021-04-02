@@ -65,7 +65,11 @@ endif
 
 # libseat
 
-libseat = dependency('libseat', required: get_option('libseat'), version: '>=0.2.0')
+libseat = dependency('libseat',
+	required: get_option('libseat'),
+	version: '>=0.2.0',
+	fallback: ['seatd', 'libseat'],
+)
 if libseat.found()
 	wlr_files += files('libseat.c')
 	wlr_deps += libseat
