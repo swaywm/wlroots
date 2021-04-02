@@ -2,14 +2,9 @@
 #define RENDER_GBM_ALLOCATOR_H
 
 #include <gbm.h>
-#include <wlr/types/wlr_buffer.h>
 #include "render/allocator.h"
 
 struct wlr_gbm_buffer {
-	struct wlr_buffer base;
-
-	struct wl_list link; // wlr_gbm_allocator.buffers
-
 	struct gbm_bo *gbm_bo; // NULL if the gbm_device has been destroyed
 	struct wlr_dmabuf_attributes dmabuf;
 };
