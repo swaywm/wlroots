@@ -31,6 +31,7 @@ protocols = {
 	'xdg-foreign-unstable-v2': wl_protocol_dir / 'unstable/xdg-foreign/xdg-foreign-unstable-v2.xml',
 	'xdg-output-unstable-v1': wl_protocol_dir / 'unstable/xdg-output/xdg-output-unstable-v1.xml',
 	# Other protocols
+	'drm-lease': 'drm-lease-unstable-v1.xml',
 	'drm': 'drm.xml',
 	'gtk-primary-selection': 'gtk-primary-selection.xml',
 	'kde-idle': 'idle.xml',

@@ -48,6 +48,7 @@ struct wlr_drm_crtc_state {
 
 struct wlr_drm_crtc {
 	uint32_t id;
+	uint32_t lessee_id;
 
 	bool pending_modeset;
 	struct wlr_drm_crtc_state pending, current;
@@ -102,6 +103,7 @@ enum wlr_drm_connector_state {
 	WLR_DRM_CONN_NEEDS_MODESET,
 	WLR_DRM_CONN_CLEANUP,
 	WLR_DRM_CONN_CONNECTED,
+	WLR_DRM_CONN_LEASED
 };
 
 struct wlr_drm_mode {
@@ -118,6 +120,9 @@ struct wlr_drm_connector {
 	struct wlr_output_mode *desired_mode;
 	bool desired_enabled;
 	uint32_t id;
+	uint32_t lessee_id;
+	void (*lease_terminated_cb)(struct wlr_drm_connector *, void *);
+	void *lease_terminated_data;
 
 	struct wlr_drm_crtc *crtc;
 	uint32_t possible_crtcs;
@@ -157,6 +162,12 @@ size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc);
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane);
+
+int drm_create_lease(struct wlr_drm_backend *backend,
+	struct wlr_drm_connector **conns, int nconns, uint32_t *lessee_id,
+	void (*lease_terminated_cb)(struct wlr_drm_connector *, void *),
+	void *lease_terminated_data);
+int drm_terminate_lease(struct wlr_drm_backend *backend, uint32_t lesee_id);
 
 #define wlr_drm_conn_log(conn, verb, fmt, ...) \
 	wlr_log(verb, "connector %s: " fmt, conn->name, ##__VA_ARGS__)
