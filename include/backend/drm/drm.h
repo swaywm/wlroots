@@ -42,7 +42,6 @@ struct wlr_drm_plane {
 };
 
 struct wlr_drm_crtc_state {
-	bool active;
 	struct wlr_drm_mode *mode;
 };
 
@@ -160,6 +159,8 @@ size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane);
 
 bool drm_connector_state_is_modeset(const struct wlr_output_state *state);
+bool drm_connector_state_active(struct wlr_drm_connector *conn,
+	const struct wlr_output_state *state);
 
 #define wlr_drm_conn_log(conn, verb, fmt, ...) \
 	wlr_log(verb, "connector %s: " fmt, conn->name, ##__VA_ARGS__)
