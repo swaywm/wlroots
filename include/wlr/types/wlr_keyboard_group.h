@@ -10,8 +10,8 @@
 #define WLR_TYPES_WLR_KEYBOARD_GROUP_H
 
 #include <wayland-server-core.h>
-#include "wlr/types/wlr_keyboard.h"
-#include "wlr/types/wlr_input_device.h"
+#include <wlr/types/wlr_keyboard.h>
+#include <wlr/types/wlr_input_device.h>
 
 struct wlr_keyboard_group {
 	struct wlr_keyboard keyboard;

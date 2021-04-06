@@ -12,9 +12,9 @@
 #include <wlr/backend/session.h>
 #include <wlr/render/drm_format_set.h>
 #include <xf86drmMode.h>
-#include "iface.h"
-#include "properties.h"
-#include "renderer.h"
+#include "backend/drm/iface.h"
+#include "backend/drm/properties.h"
+#include "backend/drm/renderer.h"
 
 struct wlr_drm_plane {
 	uint32_t type;
