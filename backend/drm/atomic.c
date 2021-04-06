@@ -202,7 +202,7 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 
 	if (crtc->pending_modeset) {
 		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
-	} else {
+	} else if (!(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
 		flags |= DRM_MODE_ATOMIC_NONBLOCK;
 	}
 
