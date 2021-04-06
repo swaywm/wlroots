@@ -414,6 +414,8 @@ static bool test_buffer(struct wlr_drm_connector *conn,
 	return drm_crtc_commit(conn, &conn->output.pending, DRM_MODE_ATOMIC_TEST_ONLY);
 }
 
+static bool drm_connector_alloc_crtc(struct wlr_drm_connector *conn);
+
 static bool drm_connector_test(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 
@@ -423,6 +425,14 @@ static bool drm_connector_test(struct wlr_output *output) {
 				!(output->pending.committed & WLR_OUTPUT_STATE_MODE)) {
 			wlr_drm_conn_log(conn, WLR_DEBUG,
 				"Can't enable an output without a mode");
+			return false;
+		}
+	}
+
+	if (drm_connector_state_active(conn, &output->pending)) {
+		if (!drm_connector_alloc_crtc(conn)) {
+			wlr_drm_conn_log(conn, WLR_DEBUG,
+				"No CRTC available for this connector");
 			return false;
 		}
 	}
