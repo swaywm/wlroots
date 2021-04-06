@@ -55,13 +55,14 @@ static void atomic_add(struct atomic *atom, uint32_t id, uint32_t prop, uint64_t
 }
 
 static bool create_mode_blob(struct wlr_drm_backend *drm,
-		struct wlr_drm_crtc *crtc, uint32_t *blob_id) {
-	if (!crtc->pending.active) {
+		struct wlr_drm_connector *conn, const struct wlr_output_state *state,
+		uint32_t *blob_id) {
+	if (!drm_connector_state_active(conn, state)) {
 		*blob_id = 0;
 		return true;
 	}
 
-	if (drmModeCreatePropertyBlob(drm->fd, &crtc->pending.mode->drm_mode,
+	if (drmModeCreatePropertyBlob(drm->fd, &conn->crtc->pending.mode->drm_mode,
 			sizeof(drmModeModeInfo), blob_id)) {
 		wlr_log_errno(WLR_ERROR, "Unable to create mode property blob");
 		return false;
@@ -170,10 +171,11 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
 	bool modeset = drm_connector_state_is_modeset(state);
+	bool active = drm_connector_state_active(conn, state);
 
 	uint32_t mode_id = crtc->mode_id;
 	if (modeset) {
-		if (!create_mode_blob(drm, crtc, &mode_id)) {
+		if (!create_mode_blob(drm, conn, state, &mode_id)) {
 			return false;
 		}
 	}
@@ -213,16 +215,14 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 
 	struct atomic atom;
 	atomic_begin(&atom);
-	atomic_add(&atom, conn->id, conn->props.crtc_id,
-		crtc->pending.active ? crtc->id : 0);
-	if (modeset && crtc->pending.active &&
-			conn->props.link_status != 0) {
+	atomic_add(&atom, conn->id, conn->props.crtc_id, active ? crtc->id : 0);
+	if (modeset && active && conn->props.link_status != 0) {
 		atomic_add(&atom, conn->id, conn->props.link_status,
 			DRM_MODE_LINK_STATUS_GOOD);
 	}
 	atomic_add(&atom, crtc->id, crtc->props.mode_id, mode_id);
-	atomic_add(&atom, crtc->id, crtc->props.active, crtc->pending.active);
-	if (crtc->pending.active) {
+	atomic_add(&atom, crtc->id, crtc->props.active, active);
+	if (active) {
 		if (crtc->props.gamma_lut != 0) {
 			atomic_add(&atom, crtc->id, crtc->props.gamma_lut, gamma_lut);
 		}

@@ -363,7 +363,7 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn,
 		return false;
 	}
 
-	assert(crtc->pending.active);
+	assert(drm_connector_state_active(conn, state));
 	assert(plane_get_next_fb(crtc->primary));
 	if (!drm_crtc_commit(conn, state, DRM_MODE_PAGE_FLIP_EVENT)) {
 		return false;
@@ -680,7 +680,6 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	crtc->pending.active = true;
 	crtc->pending.mode = mode;
 
 	int width = mode->wlr_mode.width;
@@ -703,7 +702,6 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 			"retrying without modifiers");
 		modifiers = false;
 
-		crtc->pending.active = true;
 		crtc->pending.mode = mode;
 
 		if (!drm_plane_init_surface(plane, drm, width, height, format,
@@ -752,7 +750,6 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 
 	if (wlr_mode == NULL) {
 		if (conn->crtc != NULL) {
-			conn->crtc->pending.active = false;
 			if (!drm_crtc_commit(conn, state, 0)) {
 				return false;
 			}
@@ -1042,6 +1039,14 @@ bool drm_connector_state_is_modeset(const struct wlr_output_state *state) {
 		(WLR_OUTPUT_STATE_ENABLED | WLR_OUTPUT_STATE_MODE);
 }
 
+bool drm_connector_state_active(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state) {
+	if (state->committed & WLR_OUTPUT_STATE_ENABLED) {
+		return state->enabled;
+	}
+	return conn->output.enabled;
+}
+
 static const int32_t subpixel_map[] = {
 	[DRM_MODE_SUBPIXEL_UNKNOWN] = WL_OUTPUT_SUBPIXEL_UNKNOWN,
 	[DRM_MODE_SUBPIXEL_HORIZONTAL_RGB] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB,
@@ -1060,7 +1065,6 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 	wlr_drm_conn_log(conn, WLR_DEBUG, "De-allocating CRTC %zu",
 		conn->crtc - drm->crtcs);
 
-	conn->crtc->pending.active = false;
 	struct wlr_output_state state = {
 		.committed = WLR_OUTPUT_STATE_ENABLED,
 		.enabled = false,

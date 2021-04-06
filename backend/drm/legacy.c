@@ -15,8 +15,10 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *cursor = crtc->cursor;
 
+	bool active = drm_connector_state_active(conn, state);
+
 	uint32_t fb_id = 0;
-	if (crtc->pending.active) {
+	if (active) {
 		struct wlr_drm_fb *fb = plane_get_next_fb(crtc->primary);
 		if (fb == NULL) {
 			wlr_log(WLR_ERROR, "%s: failed to acquire primary FB",
@@ -30,14 +32,13 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 		uint32_t *conns = NULL;
 		size_t conns_len = 0;
 		drmModeModeInfo *mode = NULL;
-		if (crtc->pending.active) {
+		if (active) {
 			conns = &conn->id;
 			conns_len = 1;
 			mode = &crtc->pending.mode->drm_mode;
 		}
 
-		uint32_t dpms = crtc->pending.active ?
-			DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF;
+		uint32_t dpms = active ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF;
 		if (drmModeConnectorSetProperty(drm->fd, conn->id, conn->props.dpms,
 				dpms) != 0) {
 			wlr_drm_conn_log_errno(conn, WLR_ERROR,
