@@ -56,10 +56,9 @@ foreach lib, desc : xwayland_optional
 		required: get_option(lib),
 		not_found_message: '\n'.join(msg).format(lib),
 	)
-	if dep.found()
-		xwayland_libs += dep
-		features += { lib: true }
-	endif
+
+	internal_features += { lib: dep.found() }
+	xwayland_libs += dep
 endforeach
 
 wlr_files += files(

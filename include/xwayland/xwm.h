@@ -5,7 +5,7 @@
 #include <wlr/config.h>
 #include <wlr/xwayland.h>
 #include <xcb/render.h>
-#if WLR_HAS_XCB_ERRORS
+#if HAS_XCB_ERRORS
 #include <xcb/xcb_errors.h>
 #endif
 #include "xwayland/selection.h"
@@ -113,7 +113,7 @@ struct wlr_xwm {
 	struct wlr_xwayland_surface *drag_focus;
 
 	const xcb_query_extension_reply_t *xfixes;
-#if WLR_HAS_XCB_ERRORS
+#if HAS_XCB_ERRORS
 	xcb_errors_context_t *errors_context;
 #endif
 	unsigned int last_focus_seq;

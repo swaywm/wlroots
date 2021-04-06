@@ -1330,7 +1330,7 @@ static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 }
 
 static void xwm_handle_xcb_error(struct wlr_xwm *xwm, xcb_value_error_t *ev) {
-#if WLR_HAS_XCB_ERRORS
+#if HAS_XCB_ERRORS
 	const char *major_name =
 		xcb_errors_get_name_for_major_code(xwm->errors_context,
 			ev->major_opcode);
@@ -1368,7 +1368,7 @@ log_raw:
 }
 
 static void xwm_handle_unhandled_event(struct wlr_xwm *xwm, xcb_generic_event_t *ev) {
-#if WLR_HAS_XCB_ERRORS
+#if HAS_XCB_ERRORS
 	const char *extension;
 	const char *event_name =
 		xcb_errors_get_name_for_xcb_event(xwm->errors_context,
@@ -1598,7 +1598,7 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	if (xwm->event_source) {
 		wl_event_source_remove(xwm->event_source);
 	}
-#if WLR_HAS_XCB_ERRORS
+#if HAS_XCB_ERRORS
 	if (xwm->errors_context) {
 		xcb_errors_context_free(xwm->errors_context);
 	}
@@ -1840,7 +1840,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 		return NULL;
 	}
 
-#if WLR_HAS_XCB_ERRORS
+#if HAS_XCB_ERRORS
 	if (xcb_errors_context_new(xwm->xcb_conn, &xwm->errors_context)) {
 		wlr_log(WLR_ERROR, "Could not allocate error context");
 		xwm_destroy(xwm);
