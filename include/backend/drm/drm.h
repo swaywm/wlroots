@@ -143,7 +143,7 @@ void restore_drm_outputs(struct wlr_drm_backend *drm);
 void scan_drm_connectors(struct wlr_drm_backend *state);
 int handle_drm_event(int fd, uint32_t mask, void *data);
 void destroy_drm_connector(struct wlr_drm_connector *conn);
-bool drm_connector_set_mode(struct wlr_drm_connector *conn,
+bool drm_connector_commit_state(struct wlr_drm_connector *conn,
 	const struct wlr_output_state *state);
 bool drm_connector_is_cursor_visible(struct wlr_drm_connector *conn);
 bool drm_connector_supports_vrr(struct wlr_drm_connector *conn);

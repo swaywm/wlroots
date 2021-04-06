@@ -487,29 +487,26 @@ bool drm_connector_supports_vrr(struct wlr_drm_connector *conn) {
 	return true;
 }
 
-static bool drm_connector_commit(struct wlr_output *output) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = conn->backend;
+static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
+	const struct wlr_output_state *state);
 
-	if (!drm_connector_test(output)) {
-		return false;
-	}
+bool drm_connector_commit_state(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *pending) {
+	struct wlr_drm_backend *drm = conn->backend;
+	struct wlr_output_state state = *pending;
 
 	if (!drm->session->active) {
 		return false;
 	}
 
-	if (output->pending.committed &
-			(WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_ENABLED)) {
-		struct wlr_output_state state = output->pending;
-
+	if (state.committed & (WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_ENABLED)) {
 		if ((state.committed & WLR_OUTPUT_STATE_MODE) &&
 				state.mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM) {
 			drmModeModeInfo mode = {0};
-			drm_connector_state_mode(conn, &output->pending, &mode);
+			drm_connector_state_mode(conn, &state, &mode);
 
 			state.mode_type = WLR_OUTPUT_STATE_MODE_FIXED;
-			state.mode = wlr_drm_connector_add_mode(output, &mode);
+			state.mode = wlr_drm_connector_add_mode(&conn->output, &mode);
 			if (state.mode == NULL) {
 				return false;
 			}
@@ -518,22 +515,31 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		if (!drm_connector_set_mode(conn, &state)) {
 			return false;
 		}
-	} else if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+	} else if (state.committed & WLR_OUTPUT_STATE_BUFFER) {
 		// TODO: support modesetting with a buffer
-		if (!drm_connector_commit_buffer(conn, &output->pending)) {
+		if (!drm_connector_commit_buffer(conn, &state)) {
 			return false;
 		}
-	} else if (output->pending.committed &
-			(WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED |
+	} else if (state.committed & (WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED |
 			WLR_OUTPUT_STATE_GAMMA_LUT)) {
 		assert(conn->crtc != NULL);
 		// TODO: maybe request a page-flip event here?
-		if (!drm_crtc_commit(conn, &output->pending, 0)) {
+		if (!drm_crtc_commit(conn, &state, 0)) {
 			return false;
 		}
 	}
 
 	return true;
+}
+
+static bool drm_connector_commit(struct wlr_output *output) {
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+
+	if (!drm_connector_test(output)) {
+		return false;
+	}
+
+	return drm_connector_commit_state(conn, &output->pending);
 }
 
 static void drm_connector_rollback_render(struct wlr_output *output) {
@@ -712,12 +718,12 @@ static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
 				.mode_type = WLR_OUTPUT_STATE_MODE_FIXED,
 				.mode = conn->desired_mode,
 			};
-			drm_connector_set_mode(conn, &state);
+			drm_connector_commit_state(conn, &state);
 		}
 	}
 }
 
-bool drm_connector_set_mode(struct wlr_drm_connector *conn,
+static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 		const struct wlr_output_state *state) {
 	struct wlr_drm_backend *drm = conn->backend;
 
