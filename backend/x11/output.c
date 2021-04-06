@@ -158,6 +158,10 @@ static struct wlr_x11_buffer *create_x11_buffer(struct wlr_x11_output *output,
 		return NULL;
 	}
 
+	if (attrs.flags != 0) {
+		return NULL;
+	}
+
 	// xcb closes the FDs after sending them, so we need to dup them here
 	struct wlr_dmabuf_attributes dup_attrs = {0};
 	if (!wlr_dmabuf_attributes_copy(&dup_attrs, &attrs)) {
