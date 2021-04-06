@@ -399,13 +399,11 @@ static bool test_buffer(struct wlr_drm_connector *conn,
 		return false;
 	}
 
-	struct wlr_drm_fb *fb = NULL;
-	if (!drm_fb_import(&fb, drm, wlr_buffer, &crtc->primary->formats)) {
+	if (!drm_fb_import(&crtc->primary->pending_fb, drm, wlr_buffer,
+			&crtc->primary->formats)) {
 		return false;
 	}
-	drm_fb_clear(&fb);
-
-	return true;
+	return drm_crtc_commit(conn, DRM_MODE_ATOMIC_TEST_ONLY);
 }
 
 static bool drm_connector_test(struct wlr_output *output) {
