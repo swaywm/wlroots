@@ -122,7 +122,7 @@ static void handle_session_active(struct wl_listener *listener, void *data) {
 				.mode_type = WLR_OUTPUT_STATE_MODE_FIXED,
 				.mode = mode,
 			};
-			drm_connector_set_mode(conn, &state);
+			drm_connector_commit_state(conn, &state);
 		}
 	} else {
 		wlr_log(WLR_INFO, "DRM fd paused");
