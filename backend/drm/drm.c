@@ -391,10 +391,6 @@ static bool test_buffer(struct wlr_drm_connector *conn,
 		struct wlr_buffer *wlr_buffer) {
 	struct wlr_drm_backend *drm = conn->backend;
 
-	if (!drm->session->active) {
-		return false;
-	}
-
 	/* Legacy never gets to have nice things. But I doubt this would ever work,
 	 * and there is no reliable way to try, without risking messing up the
 	 * modesetting state. */
@@ -448,6 +444,10 @@ static bool drm_connector_alloc_crtc(struct wlr_drm_connector *conn);
 
 static bool drm_connector_test(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+
+	if (!conn->backend->session->active) {
+		return false;
+	}
 
 	if ((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) &&
 			output->pending.enabled) {
