@@ -427,9 +427,8 @@ static bool drm_connector_test(struct wlr_output *output) {
 	return true;
 }
 
-static bool drm_connector_commit_buffer(struct wlr_output *output,
+static bool drm_connector_commit_buffer(struct wlr_drm_connector *conn,
 		const struct wlr_output_state *state) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = conn->backend;
 
 	struct wlr_drm_crtc *crtc = conn->crtc;
@@ -521,7 +520,7 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		}
 	} else if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		// TODO: support modesetting with a buffer
-		if (!drm_connector_commit_buffer(output, &output->pending)) {
+		if (!drm_connector_commit_buffer(conn, &output->pending)) {
 			return false;
 		}
 	} else if (output->pending.committed &
