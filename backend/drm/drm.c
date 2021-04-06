@@ -473,16 +473,19 @@ static bool drm_connector_test(struct wlr_output *output) {
 		}
 	}
 
-	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) && !conn->backend->parent) {
+	if (conn->backend->parent) {
+		// If we're running as a secondary GPU, we can't perform an atomic
+		// commit without blitting a buffer.
+		return true;
+	}
+
+	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		if (!drm_connector_set_pending_fb(conn, &output->pending)) {
-			return false;
-		}
-		if (!drm_crtc_commit(conn, &output->pending, 0, true)) {
 			return false;
 		}
 	}
 
-	return true;
+	return drm_crtc_commit(conn, &output->pending, 0, true);
 }
 
 bool drm_connector_supports_vrr(struct wlr_drm_connector *conn) {
