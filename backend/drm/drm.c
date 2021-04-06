@@ -427,7 +427,8 @@ static bool drm_connector_test(struct wlr_output *output) {
 	return true;
 }
 
-static bool drm_connector_commit_buffer(struct wlr_output *output) {
+static bool drm_connector_commit_buffer(struct wlr_output *output,
+		const struct wlr_output_state *state) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = conn->backend;
 
@@ -437,8 +438,8 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	assert(output->pending.committed & WLR_OUTPUT_STATE_BUFFER);
-	switch (output->pending.buffer_type) {
+	assert(state->committed & WLR_OUTPUT_STATE_BUFFER);
+	switch (state->buffer_type) {
 	case WLR_OUTPUT_STATE_BUFFER_RENDER:
 		if (!drm_plane_lock_surface(plane, drm)) {
 			wlr_drm_conn_log(conn, WLR_ERROR, "drm_plane_lock_surface failed");
@@ -446,8 +447,7 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 		}
 		break;
 	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:;
-		struct wlr_buffer *buffer = output->pending.buffer;
-		if (!drm_fb_import(&plane->pending_fb, drm, buffer,
+		if (!drm_fb_import(&plane->pending_fb, drm, state->buffer,
 				&crtc->primary->formats)) {
 			wlr_log(WLR_ERROR, "Failed to import buffer");
 			return false;
@@ -455,7 +455,7 @@ static bool drm_connector_commit_buffer(struct wlr_output *output) {
 		break;
 	}
 
-	if (!drm_crtc_page_flip(conn, &output->pending)) {
+	if (!drm_crtc_page_flip(conn, state)) {
 		return false;
 	}
 
@@ -521,7 +521,7 @@ static bool drm_connector_commit(struct wlr_output *output) {
 		}
 	} else if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		// TODO: support modesetting with a buffer
-		if (!drm_connector_commit_buffer(output)) {
+		if (!drm_connector_commit_buffer(output, &output->pending)) {
 			return false;
 		}
 	} else if (output->pending.committed &
