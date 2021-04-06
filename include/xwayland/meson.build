@@ -1,7 +1,7 @@
 have_listenfd = false
 if xwayland.found()
-	xwayland_path = xwayland.get_pkgconfig_variable('xwayland')
-	have_listenfd = xwayland.get_pkgconfig_variable('have_listenfd') == 'true'
+	xwayland_path = xwayland.get_variable(pkgconfig: 'xwayland')
+	have_listenfd = xwayland.get_variable(pkgconfig: 'have_listenfd') == 'true'
 else
 	xwayland_path = xwayland_prog.full_path()
 endif
