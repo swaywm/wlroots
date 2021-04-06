@@ -10,11 +10,7 @@ wlr_files += files(
 
 
 if features.get('xdg-foreign')
-	if uuid.found()
-		wlr_deps += uuid
-		add_project_arguments('-DHAS_LIBUUID=1', language: 'c')
-	else
-		add_project_arguments('-DHAS_LIBUUID=0', language: 'c')
-	endif
+	add_project_arguments('-DHAS_LIBUUID=@0@'.format(uuid.found().to_int()), language: 'c')
+	wlr_deps += uuid
 	wlr_files += files('uuid.c')
 endif
