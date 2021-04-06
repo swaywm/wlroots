@@ -427,21 +427,6 @@ static bool drm_connector_test(struct wlr_output *output) {
 	return true;
 }
 
-static struct wlr_output_mode *drm_connector_get_pending_mode(
-		struct wlr_drm_connector *conn) {
-	struct wlr_output *output = &conn->output;
-
-	switch (output->pending.mode_type) {
-	case WLR_OUTPUT_STATE_MODE_FIXED:
-		return output->pending.mode;
-	case WLR_OUTPUT_STATE_MODE_CUSTOM:;
-		drmModeModeInfo mode = {0};
-		drm_connector_state_mode(conn, &output->pending, &mode);
-		return wlr_drm_connector_add_mode(output, &mode);
-	}
-	abort();
-}
-
 static bool drm_connector_commit_buffer(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	struct wlr_drm_backend *drm = conn->backend;
@@ -517,23 +502,21 @@ static bool drm_connector_commit(struct wlr_output *output) {
 
 	if (output->pending.committed &
 			(WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_ENABLED)) {
-		struct wlr_output_mode *wlr_mode = output->current_mode;
+		struct wlr_output_state state = output->pending;
 
-		bool enable = (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) ?
-			output->pending.enabled : output->enabled;
-		if (!enable) {
-			wlr_mode = NULL;
-		}
+		if ((state.committed & WLR_OUTPUT_STATE_MODE) &&
+				state.mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM) {
+			drmModeModeInfo mode = {0};
+			drm_connector_state_mode(conn, &output->pending, &mode);
 
-		if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
-			assert(enable);
-			wlr_mode = drm_connector_get_pending_mode(conn);
-			if (wlr_mode == NULL) {
+			state.mode_type = WLR_OUTPUT_STATE_MODE_FIXED;
+			state.mode = wlr_drm_connector_add_mode(output, &mode);
+			if (state.mode == NULL) {
 				return false;
 			}
 		}
 
-		if (!drm_connector_set_mode(conn, &output->pending, wlr_mode)) {
+		if (!drm_connector_set_mode(conn, &state)) {
 			return false;
 		}
 	} else if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
@@ -730,14 +713,21 @@ static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
 				.mode_type = WLR_OUTPUT_STATE_MODE_FIXED,
 				.mode = conn->desired_mode,
 			};
-			drm_connector_set_mode(conn, &state, conn->desired_mode);
+			drm_connector_set_mode(conn, &state);
 		}
 	}
 }
 
 bool drm_connector_set_mode(struct wlr_drm_connector *conn,
-		const struct wlr_output_state *state, struct wlr_output_mode *wlr_mode) {
+		const struct wlr_output_state *state) {
 	struct wlr_drm_backend *drm = conn->backend;
+
+	struct wlr_output_mode *wlr_mode = NULL;
+	if (drm_connector_state_active(conn, state)) {
+		assert(state->committed & WLR_OUTPUT_STATE_MODE);
+		assert(state->mode_type == WLR_OUTPUT_STATE_MODE_FIXED);
+		wlr_mode = state->mode;
+	}
 
 	conn->desired_enabled = wlr_mode != NULL;
 	conn->desired_mode = wlr_mode;
