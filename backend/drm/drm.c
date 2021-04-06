@@ -414,6 +414,36 @@ static bool test_buffer(struct wlr_drm_connector *conn,
 	return drm_crtc_commit(conn, &conn->output.pending, DRM_MODE_ATOMIC_TEST_ONLY);
 }
 
+static bool drm_connector_set_pending_fb(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state) {
+	struct wlr_drm_backend *drm = conn->backend;
+
+	struct wlr_drm_crtc *crtc = conn->crtc;
+	if (!crtc) {
+		return false;
+	}
+	struct wlr_drm_plane *plane = crtc->primary;
+
+	assert(state->committed & WLR_OUTPUT_STATE_BUFFER);
+	switch (state->buffer_type) {
+	case WLR_OUTPUT_STATE_BUFFER_RENDER:
+		if (!drm_plane_lock_surface(plane, drm)) {
+			wlr_drm_conn_log(conn, WLR_ERROR, "drm_plane_lock_surface failed");
+			return false;
+		}
+		break;
+	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:;
+		if (!drm_fb_import(&plane->pending_fb, drm, state->buffer,
+				&crtc->primary->formats)) {
+			wlr_log(WLR_ERROR, "Failed to import buffer");
+			return false;
+		}
+		break;
+	}
+
+	return true;
+}
+
 static bool drm_connector_alloc_crtc(struct wlr_drm_connector *conn);
 
 static bool drm_connector_test(struct wlr_output *output) {
@@ -442,36 +472,6 @@ static bool drm_connector_test(struct wlr_output *output) {
 		if (!test_buffer(conn, output->pending.buffer)) {
 			return false;
 		}
-	}
-
-	return true;
-}
-
-static bool drm_connector_set_pending_fb(struct wlr_drm_connector *conn,
-		const struct wlr_output_state *state) {
-	struct wlr_drm_backend *drm = conn->backend;
-
-	struct wlr_drm_crtc *crtc = conn->crtc;
-	if (!crtc) {
-		return false;
-	}
-	struct wlr_drm_plane *plane = crtc->primary;
-
-	assert(state->committed & WLR_OUTPUT_STATE_BUFFER);
-	switch (state->buffer_type) {
-	case WLR_OUTPUT_STATE_BUFFER_RENDER:
-		if (!drm_plane_lock_surface(plane, drm)) {
-			wlr_drm_conn_log(conn, WLR_ERROR, "drm_plane_lock_surface failed");
-			return false;
-		}
-		break;
-	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:;
-		if (!drm_fb_import(&plane->pending_fb, drm, state->buffer,
-				&crtc->primary->formats)) {
-			wlr_log(WLR_ERROR, "Failed to import buffer");
-			return false;
-		}
-		break;
 	}
 
 	return true;
