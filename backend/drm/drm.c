@@ -657,7 +657,7 @@ static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn,
 }
 
 static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
-		const struct wlr_output_state *state, struct wlr_drm_mode *mode) {
+		const struct wlr_output_state *state) {
 	struct wlr_drm_backend *drm = conn->backend;
 
 	if (conn->state != WLR_DRM_CONN_CONNECTED &&
@@ -675,8 +675,11 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	int width = mode->wlr_mode.width;
-	int height = mode->wlr_mode.height;
+	drmModeModeInfo mode = {0};
+	drm_connector_state_mode(conn, state, &mode);
+
+	int width = mode.hdisplay;
+	int height = mode.vdisplay;
 	uint32_t format = DRM_FORMAT_ARGB8888;
 
 	bool modifiers = drm->addfb2_modifiers;
@@ -772,8 +775,7 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 		"Modesetting with '%" PRId32 "x%" PRId32 "@%" PRId32 "mHz'",
 		wlr_mode->width, wlr_mode->height, wlr_mode->refresh);
 
-	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)wlr_mode;
-	if (!drm_connector_init_renderer(conn, state, mode)) {
+	if (!drm_connector_init_renderer(conn, state)) {
 		wlr_drm_conn_log(conn, WLR_ERROR,
 			"Failed to initialize renderer for plane");
 		return false;
@@ -1211,13 +1213,11 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 			continue;
 		}
 
-		struct wlr_drm_mode *mode =
-			(struct wlr_drm_mode *)conn->output.current_mode;
 		struct wlr_output_state state = {
 			.committed = WLR_OUTPUT_STATE_ENABLED,
 			.enabled = true,
 		};
-		if (!drm_connector_init_renderer(conn, &state, mode)) {
+		if (!drm_connector_init_renderer(conn, &state)) {
 			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer");
 			wlr_output_update_enabled(&conn->output, false);
 			continue;
