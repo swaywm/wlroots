@@ -111,11 +111,12 @@ static void handle_session_active(struct wl_listener *listener, void *data) {
 		scan_drm_connectors(drm);
 
 		struct wlr_drm_connector *conn;
-		wl_list_for_each(conn, &drm->outputs, link){
+		wl_list_for_each(conn, &drm->outputs, link) {
+			struct wlr_output_state state = {0};
 			if (conn->output.enabled && conn->output.current_mode != NULL) {
-				drm_connector_set_mode(conn, conn->output.current_mode);
+				drm_connector_set_mode(conn, &state, conn->output.current_mode);
 			} else {
-				drm_connector_set_mode(conn, NULL);
+				drm_connector_set_mode(conn, &state, NULL);
 			}
 		}
 	} else {
