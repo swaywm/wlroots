@@ -345,7 +345,6 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn,
 			drm_fb_clear(&crtc->cursor->pending_fb);
 		}
 	}
-	crtc->pending_modeset = false;
 	return ok;
 }
 
@@ -358,7 +357,7 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn,
 	// page-flip, either a blocking modeset. When performing a blocking modeset
 	// we'll wait for all queued page-flips to complete, so we don't need this
 	// safeguard.
-	if (conn->pending_page_flip_crtc && !crtc->pending_modeset) {
+	if (conn->pending_page_flip_crtc && !drm_connector_state_is_modeset(state)) {
 		wlr_drm_conn_log(conn, WLR_ERROR, "Failed to page-flip output: "
 			"a page-flip is already pending");
 		return false;
@@ -681,7 +680,6 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	crtc->pending_modeset = true;
 	crtc->pending.active = true;
 	crtc->pending.mode = mode;
 
@@ -705,7 +703,6 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 			"retrying without modifiers");
 		modifiers = false;
 
-		crtc->pending_modeset = true;
 		crtc->pending.active = true;
 		crtc->pending.mode = mode;
 
@@ -755,7 +752,6 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 
 	if (wlr_mode == NULL) {
 		if (conn->crtc != NULL) {
-			conn->crtc->pending_modeset = true;
 			conn->crtc->pending.active = false;
 			if (!drm_crtc_commit(conn, state, 0)) {
 				return false;
@@ -1041,6 +1037,11 @@ uint32_t wlr_drm_connector_get_id(struct wlr_output *output) {
 	return conn->id;
 }
 
+bool drm_connector_state_is_modeset(const struct wlr_output_state *state) {
+	return state->committed &
+		(WLR_OUTPUT_STATE_ENABLED | WLR_OUTPUT_STATE_MODE);
+}
+
 static const int32_t subpixel_map[] = {
 	[DRM_MODE_SUBPIXEL_UNKNOWN] = WL_OUTPUT_SUBPIXEL_UNKNOWN,
 	[DRM_MODE_SUBPIXEL_HORIZONTAL_RGB] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB,
@@ -1059,7 +1060,6 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 	wlr_drm_conn_log(conn, WLR_DEBUG, "De-allocating CRTC %zu",
 		conn->crtc - drm->crtcs);
 
-	conn->crtc->pending_modeset = true;
 	conn->crtc->pending.active = false;
 	struct wlr_output_state state = {
 		.committed = WLR_OUTPUT_STATE_ENABLED,
