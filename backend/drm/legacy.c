@@ -9,7 +9,8 @@
 #include "backend/drm/util.h"
 
 static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, uint32_t flags) {
+		struct wlr_drm_connector *conn, const struct wlr_output_state *state,
+		uint32_t flags) {
 	struct wlr_output *output = &conn->output;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *cursor = crtc->cursor;
@@ -51,27 +52,27 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 		}
 	}
 
-	if (output->pending.committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
+	if (state->committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
 		if (!drm_legacy_crtc_set_gamma(drm, crtc,
-				output->pending.gamma_lut_size, output->pending.gamma_lut)) {
+				state->gamma_lut_size, state->gamma_lut)) {
 			return false;
 		}
 	}
 
-	if ((output->pending.committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) &&
+	if ((state->committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) &&
 			drm_connector_supports_vrr(conn)) {
 		if (drmModeObjectSetProperty(drm->fd, crtc->id, DRM_MODE_OBJECT_CRTC,
 				crtc->props.vrr_enabled,
-				output->pending.adaptive_sync_enabled) != 0) {
+				state->adaptive_sync_enabled) != 0) {
 			wlr_drm_conn_log_errno(conn, WLR_ERROR,
 				"drmModeObjectSetProperty(VRR_ENABLED) failed");
 			return false;
 		}
-		output->adaptive_sync_status = output->pending.adaptive_sync_enabled ?
+		output->adaptive_sync_status = state->adaptive_sync_enabled ?
 			WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED :
 			WLR_OUTPUT_ADAPTIVE_SYNC_DISABLED;
 		wlr_drm_conn_log(conn, WLR_DEBUG, "VRR %s",
-			output->pending.adaptive_sync_enabled ? "enabled" : "disabled");
+			state->adaptive_sync_enabled ? "enabled" : "disabled");
 	}
 
 	if (cursor != NULL && drm_connector_is_cursor_visible(conn)) {

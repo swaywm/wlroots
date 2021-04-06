@@ -164,7 +164,8 @@ error:
 }
 
 static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, uint32_t flags) {
+		struct wlr_drm_connector *conn, const struct wlr_output_state *state,
+		uint32_t flags) {
 	struct wlr_output *output = &conn->output;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
@@ -176,19 +177,19 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	}
 
 	uint32_t gamma_lut = crtc->gamma_lut;
-	if (output->pending.committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
+	if (state->committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
 		// Fallback to legacy gamma interface when gamma properties are not
 		// available (can happen on older Intel GPUs that support gamma but not
 		// degamma).
 		if (crtc->props.gamma_lut == 0) {
 			if (!drm_legacy_crtc_set_gamma(drm, crtc,
-					output->pending.gamma_lut_size,
-					output->pending.gamma_lut)) {
+					state->gamma_lut_size,
+					state->gamma_lut)) {
 				return false;
 			}
 		} else {
-			if (!create_gamma_lut_blob(drm, output->pending.gamma_lut_size,
-					output->pending.gamma_lut, &gamma_lut)) {
+			if (!create_gamma_lut_blob(drm, state->gamma_lut_size,
+					state->gamma_lut, &gamma_lut)) {
 				return false;
 			}
 		}
@@ -197,9 +198,9 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	bool prev_vrr_enabled =
 		output->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED;
 	bool vrr_enabled = prev_vrr_enabled;
-	if ((output->pending.committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) &&
+	if ((state->committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) &&
 			drm_connector_supports_vrr(conn)) {
-		vrr_enabled = output->pending.adaptive_sync_enabled;
+		vrr_enabled = state->adaptive_sync_enabled;
 	}
 
 	if (crtc->pending_modeset) {
