@@ -505,6 +505,14 @@ bool drm_connector_commit_state(struct wlr_drm_connector *conn,
 		return false;
 	}
 
+	if (drm_connector_state_active(conn, &state)) {
+		if (!drm_connector_alloc_crtc(conn)) {
+			wlr_drm_conn_log(conn, WLR_ERROR,
+				"No CRTC available for this connector");
+			return false;
+		}
+	}
+
 	if (state.committed & WLR_OUTPUT_STATE_BUFFER) {
 		if (!drm_connector_set_pending_fb(conn, &state)) {
 			return false;
