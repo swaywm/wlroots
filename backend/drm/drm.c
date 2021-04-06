@@ -727,6 +727,19 @@ static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
 	}
 }
 
+static bool drm_connector_alloc_crtc(struct wlr_drm_connector *conn) {
+	if (conn->crtc != NULL) {
+		return true;
+	}
+
+	bool prev_desired_enabled = conn->desired_enabled;
+	conn->desired_enabled = true;
+	realloc_crtcs(conn->backend);
+	conn->desired_enabled = prev_desired_enabled;
+
+	return conn->crtc != NULL;
+}
+
 static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 		const struct wlr_output_state *state) {
 	struct wlr_drm_backend *drm = conn->backend;
@@ -763,11 +776,7 @@ static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 		return false;
 	}
 
-	if (conn->crtc == NULL) {
-		// Maybe we can steal a CRTC from a disabled output
-		realloc_crtcs(drm);
-	}
-	if (conn->crtc == NULL) {
+	if (!drm_connector_alloc_crtc(conn)) {
 		wlr_drm_conn_log(conn, WLR_ERROR,
 			"Cannot perform modeset: no CRTC for this connector");
 		return false;
