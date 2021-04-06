@@ -169,8 +169,10 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	struct wlr_output *output = &conn->output;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
+	bool modeset = drm_connector_state_is_modeset(state);
+
 	uint32_t mode_id = crtc->mode_id;
-	if (crtc->pending_modeset) {
+	if (modeset) {
 		if (!create_mode_blob(drm, crtc, &mode_id)) {
 			return false;
 		}
@@ -203,7 +205,7 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 		vrr_enabled = state->adaptive_sync_enabled;
 	}
 
-	if (crtc->pending_modeset) {
+	if (modeset) {
 		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
 	} else if (!(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
 		flags |= DRM_MODE_ATOMIC_NONBLOCK;
@@ -213,7 +215,7 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	atomic_begin(&atom);
 	atomic_add(&atom, conn->id, conn->props.crtc_id,
 		crtc->pending.active ? crtc->id : 0);
-	if (crtc->pending_modeset && crtc->pending.active &&
+	if (modeset && crtc->pending.active &&
 			conn->props.link_status != 0) {
 		atomic_add(&atom, conn->id, conn->props.link_status,
 			DRM_MODE_LINK_STATUS_GOOD);

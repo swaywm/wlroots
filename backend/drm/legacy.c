@@ -26,7 +26,7 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 		fb_id = fb->id;
 	}
 
-	if (crtc->pending_modeset) {
+	if (drm_connector_state_is_modeset(state)) {
 		uint32_t *conns = NULL;
 		size_t conns_len = 0;
 		drmModeModeInfo *mode = NULL;
