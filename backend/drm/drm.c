@@ -330,7 +330,7 @@ static void drm_plane_set_committed(struct wlr_drm_plane *plane) {
 static bool drm_crtc_commit(struct wlr_drm_connector *conn, uint32_t flags) {
 	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
-	bool ok = drm->iface->crtc_commit(drm, conn, flags);
+	bool ok = drm->iface->crtc_commit(drm, conn, &conn->output.pending, flags);
 	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
 		memcpy(&crtc->current, &crtc->pending, sizeof(struct wlr_drm_crtc_state));
 		drm_plane_set_committed(crtc->primary);

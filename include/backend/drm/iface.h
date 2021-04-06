@@ -15,7 +15,8 @@ struct wlr_drm_crtc;
 struct wlr_drm_interface {
 	// Commit al pending changes on a CRTC.
 	bool (*crtc_commit)(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, uint32_t flags);
+		struct wlr_drm_connector *conn, const struct wlr_output_state *state,
+		uint32_t flags);
 };
 
 extern const struct wlr_drm_interface atomic_iface;
