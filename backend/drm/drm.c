@@ -631,27 +631,32 @@ struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
 	return plane->current_fb;
 }
 
-static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn,
+static bool drm_connector_test_renderer(struct wlr_drm_connector *conn,
 		const struct wlr_output_state *state) {
 	struct wlr_drm_backend *drm = conn->backend;
-	struct wlr_drm_crtc *crtc = conn->crtc;
-	if (!crtc) {
-		wlr_drm_conn_log(conn, WLR_ERROR, "Page-flip failed: no CRTC");
-		return false;
+
+	if (drm->iface == &legacy_iface) {
+		return true;
 	}
 
-	// drm_crtc_page_flip expects a FB to be available
-	struct wlr_drm_plane *plane = crtc->primary;
-	if (!plane_get_next_fb(plane)) {
-		if (!drm_surface_render_black_frame(&plane->surf)) {
-			return false;
-		}
-		if (!drm_plane_lock_surface(plane, drm)) {
-			return false;
-		}
+	struct wlr_drm_plane *plane = conn->crtc->primary;
+
+	struct wlr_drm_fb *prev_fb = NULL;
+	drm_fb_move(&prev_fb, &plane->pending_fb);
+
+	bool ok = false;
+	if (!drm_surface_render_black_frame(&plane->surf)) {
+		goto out;
+	}
+	if (!drm_plane_lock_surface(plane, drm)) {
+		goto out;
 	}
 
-	return drm_crtc_page_flip(conn, state);
+	ok = drm_crtc_commit(conn, state, DRM_MODE_ATOMIC_TEST_ONLY);
+
+out:
+	drm_fb_move(&plane->pending_fb, &prev_fb);
+	return ok;
 }
 
 static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
@@ -663,29 +668,22 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 		return false;
 	}
 
-	wlr_drm_conn_log(conn, WLR_DEBUG, "Initializing renderer");
+	assert(conn->crtc != NULL);
 
-	struct wlr_drm_crtc *crtc = conn->crtc;
-	if (!crtc) {
-		wlr_drm_conn_log(conn, WLR_ERROR,
-			"Failed to initialize renderer: no CRTC");
-		return false;
-	}
-	struct wlr_drm_plane *plane = crtc->primary;
+	wlr_drm_conn_log(conn, WLR_DEBUG, "Initializing renderer");
 
 	drmModeModeInfo mode = {0};
 	drm_connector_state_mode(conn, state, &mode);
 
+	struct wlr_drm_plane *plane = conn->crtc->primary;
 	int width = mode.hdisplay;
 	int height = mode.vdisplay;
 
-	bool modifiers = drm->addfb2_modifiers;
-	if (!drm_plane_init_surface(plane, drm, width, height, modifiers) ||
-			!drm_connector_pageflip_renderer(conn, state)) {
-		if (!modifiers) {
-			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer:"
-				"initial page-flip failed");
-			return false;
+	if (drm->addfb2_modifiers) {
+		// Modifiers are supported, try to use them
+		if (drm_plane_init_surface(plane, drm, width, height, true) &&
+				drm_connector_test_renderer(conn, state)) {
+			return true;
 		}
 
 		// If page-flipping with modifiers enabled doesn't work, retry without
@@ -693,19 +691,16 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 		wlr_drm_conn_log(conn, WLR_INFO,
 			"Page-flip failed with primary FB modifiers enabled, "
 			"retrying without modifiers");
-		modifiers = false;
-
-		if (!drm_plane_init_surface(plane, drm, width, height, modifiers)) {
-			return false;
-		}
-		if (!drm_connector_pageflip_renderer(conn, state)) {
-			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer:"
-				"initial page-flip failed");
-			return false;
-		}
 	}
 
-	return true;
+	if (drm_plane_init_surface(plane, drm, width, height, false) &&
+			drm_connector_test_renderer(conn, state)) {
+		return true;
+	}
+
+	wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer: "
+		"initial page-flip failed");
+	return false;
 }
 
 static void realloc_crtcs(struct wlr_drm_backend *drm);
@@ -784,6 +779,21 @@ static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 	if (!drm_connector_init_renderer(conn, state)) {
 		wlr_drm_conn_log(conn, WLR_ERROR,
 			"Failed to initialize renderer for plane");
+		return false;
+	}
+
+	// drm_crtc_page_flip expects a FB to be available
+	struct wlr_drm_plane *plane = conn->crtc->primary;
+	if (!plane_get_next_fb(plane)) {
+		if (!drm_surface_render_black_frame(&plane->surf)) {
+			return false;
+		}
+		if (!drm_plane_lock_surface(plane, drm)) {
+			return false;
+		}
+	}
+
+	if (!drm_crtc_page_flip(conn, state)) {
 		return false;
 	}
 
