@@ -333,13 +333,11 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn,
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	bool ok = drm->iface->crtc_commit(drm, conn, state, flags);
 	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
-		memcpy(&crtc->current, &crtc->pending, sizeof(struct wlr_drm_crtc_state));
 		drm_plane_set_committed(crtc->primary);
 		if (crtc->cursor != NULL) {
 			drm_plane_set_committed(crtc->cursor);
 		}
 	} else {
-		memcpy(&crtc->pending, &crtc->current, sizeof(struct wlr_drm_crtc_state));
 		drm_fb_clear(&crtc->primary->pending_fb);
 		if (crtc->cursor != NULL) {
 			drm_fb_clear(&crtc->cursor->pending_fb);
@@ -438,10 +436,7 @@ static struct wlr_output_mode *drm_connector_get_pending_mode(
 		return output->pending.mode;
 	case WLR_OUTPUT_STATE_MODE_CUSTOM:;
 		drmModeModeInfo mode = {0};
-		generate_cvt_mode(&mode, output->pending.custom_mode.width,
-			output->pending.custom_mode.height,
-			(float)output->pending.custom_mode.refresh / 1000, false, false);
-		mode.type = DRM_MODE_TYPE_USERDEF;
+		drm_connector_state_mode(conn, &output->pending, &mode);
 		return wlr_drm_connector_add_mode(output, &mode);
 	}
 	abort();
@@ -680,8 +675,6 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 	}
 	struct wlr_drm_plane *plane = crtc->primary;
 
-	crtc->pending.mode = mode;
-
 	int width = mode->wlr_mode.width;
 	int height = mode->wlr_mode.height;
 	uint32_t format = DRM_FORMAT_ARGB8888;
@@ -701,8 +694,6 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 			"Page-flip failed with primary FB modifiers enabled, "
 			"retrying without modifiers");
 		modifiers = false;
-
-		crtc->pending.mode = mode;
 
 		if (!drm_plane_init_surface(plane, drm, width, height, format,
 				modifiers)) {
@@ -1045,6 +1036,31 @@ bool drm_connector_state_active(struct wlr_drm_connector *conn,
 		return state->enabled;
 	}
 	return conn->output.enabled;
+}
+
+void drm_connector_state_mode(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state, drmModeModeInfo *out) {
+	assert(drm_connector_state_active(conn, state));
+
+	struct wlr_output_mode *wlr_mode = conn->output.current_mode;
+	if (state->committed & WLR_OUTPUT_STATE_MODE) {
+		switch (state->mode_type) {
+		case WLR_OUTPUT_STATE_MODE_FIXED:
+			wlr_mode = state->mode;
+			break;
+		case WLR_OUTPUT_STATE_MODE_CUSTOM:;
+			drmModeModeInfo mode = {0};
+			generate_cvt_mode(&mode, state->custom_mode.width,
+				state->custom_mode.height,
+				(float)state->custom_mode.refresh / 1000, false, false);
+			mode.type = DRM_MODE_TYPE_USERDEF;
+			memcpy(out, &mode, sizeof(drmModeModeInfo));
+			return;
+		}
+	}
+
+	struct wlr_drm_mode *mode = (struct wlr_drm_mode *)wlr_mode;
+	memcpy(out, &mode->drm_mode, sizeof(drmModeModeInfo));
 }
 
 static const int32_t subpixel_map[] = {

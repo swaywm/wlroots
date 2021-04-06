@@ -62,7 +62,9 @@ static bool create_mode_blob(struct wlr_drm_backend *drm,
 		return true;
 	}
 
-	if (drmModeCreatePropertyBlob(drm->fd, &conn->crtc->pending.mode->drm_mode,
+	drmModeModeInfo mode = {0};
+	drm_connector_state_mode(conn, state, &mode);
+	if (drmModeCreatePropertyBlob(drm->fd, &mode,
 			sizeof(drmModeModeInfo), blob_id)) {
 		wlr_log_errno(WLR_ERROR, "Unable to create mode property blob");
 		return false;

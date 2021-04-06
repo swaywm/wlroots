@@ -32,10 +32,12 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 		uint32_t *conns = NULL;
 		size_t conns_len = 0;
 		drmModeModeInfo *mode = NULL;
+		drmModeModeInfo mode_info = {0};
 		if (active) {
 			conns = &conn->id;
 			conns_len = 1;
-			mode = &crtc->pending.mode->drm_mode;
+			drm_connector_state_mode(conn, state, &mode_info);
+			mode = &mode_info;
 		}
 
 		uint32_t dpms = active ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF;
