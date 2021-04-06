@@ -191,7 +191,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wlr_drm_format_set_finish(&x11->dri3_formats);
 	free(x11->drm_format);
 
-#if WLR_HAS_XCB_ERRORS
+#if HAS_XCB_ERRORS
 	xcb_errors_context_free(x11->errors_context);
 #endif
 
@@ -617,7 +617,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		return false;
 	}
 
-#if WLR_HAS_XCB_ERRORS
+#if HAS_XCB_ERRORS
 	if (xcb_errors_context_new(x11->xcb, &x11->errors_context) != 0) {
 		wlr_log(WLR_ERROR, "Failed to create error context");
 		return false;
@@ -663,7 +663,7 @@ error_x11:
 }
 
 static void handle_x11_error(struct wlr_x11_backend *x11, xcb_value_error_t *ev) {
-#if WLR_HAS_XCB_ERRORS
+#if HAS_XCB_ERRORS
 	const char *major_name = xcb_errors_get_name_for_major_code(
 		x11->errors_context, ev->major_opcode);
 	if (!major_name) {
@@ -701,7 +701,7 @@ log_raw:
 
 static void handle_x11_unknown_event(struct wlr_x11_backend *x11,
 		xcb_generic_event_t *ev) {
-#if WLR_HAS_XCB_ERRORS
+#if HAS_XCB_ERRORS
 	const char *extension;
 	const char *event_name = xcb_errors_get_name_for_xcb_event(
 		x11->errors_context, ev, &extension);

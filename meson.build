@@ -86,8 +86,10 @@ features = {
 	'libseat': false,
 	'x11-backend': false,
 	'xwayland': false,
-	'xcb-errors': false,
 	'xdg-foreign': false,
+}
+internal_features = {
+	'xcb-errors': false,
 }
 
 wayland_server = dependency('wayland-server', version: '>=1.19')
@@ -143,6 +145,13 @@ subdir('xwayland')
 
 subdir('include')
 
+foreach name, have : internal_features
+	add_project_arguments(
+		'-DHAS_@0@=@1@'.format(name.underscorify().to_upper(), have.to_int()),
+		language: 'c',
+	)
+endforeach
+
 wlr_inc = include_directories('.', 'include')
 proto_inc = include_directories('protocol')
 
@@ -172,7 +181,7 @@ wlroots = declare_dependency(
 
 meson.override_dependency('wlroots', wlroots)
 
-summary(features, bool_yn: true)
+summary(features + internal_features, bool_yn: true)
 
 if get_option('examples')
 	subdir('examples')
