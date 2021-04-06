@@ -387,29 +387,6 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn,
 	return true;
 }
 
-static bool test_buffer(struct wlr_drm_connector *conn,
-		struct wlr_buffer *wlr_buffer) {
-	struct wlr_drm_backend *drm = conn->backend;
-
-	/* Legacy never gets to have nice things. But I doubt this would ever work,
-	 * and there is no reliable way to try, without risking messing up the
-	 * modesetting state. */
-	if (drm->iface == &legacy_iface) {
-		return false;
-	}
-
-	struct wlr_drm_crtc *crtc = conn->crtc;
-	if (!crtc) {
-		return false;
-	}
-
-	if (!drm_fb_import(&crtc->primary->pending_fb, drm, wlr_buffer,
-			&crtc->primary->formats)) {
-		return false;
-	}
-	return drm_crtc_commit(conn, &conn->output.pending, DRM_MODE_ATOMIC_TEST_ONLY);
-}
-
 static bool drm_connector_set_pending_fb(struct wlr_drm_connector *conn,
 		const struct wlr_output_state *state) {
 	struct wlr_drm_backend *drm = conn->backend;
@@ -429,9 +406,18 @@ static bool drm_connector_set_pending_fb(struct wlr_drm_connector *conn,
 		}
 		break;
 	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:;
+		/* Legacy never gets to have nice things. But I doubt this would ever work,
+		 * and there is no reliable way to try, without risking messing up the
+		 * modesetting state. */
+		if (drm->iface == &legacy_iface) {
+			wlr_drm_conn_log(conn, WLR_DEBUG,
+				"Cannot use direct scan-out with legacy KMS API");
+			return false;
+		}
 		if (!drm_fb_import(&plane->pending_fb, drm, state->buffer,
 				&crtc->primary->formats)) {
-			wlr_log(WLR_ERROR, "Failed to import buffer");
+			wlr_drm_conn_log(conn, WLR_DEBUG,
+				"Failed to import buffer for scan-out");
 			return false;
 		}
 		break;
@@ -469,7 +455,10 @@ static bool drm_connector_test(struct wlr_output *output) {
 
 	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
 			output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
-		if (!test_buffer(conn, output->pending.buffer)) {
+		if (!drm_connector_set_pending_fb(conn, &output->pending)) {
+			return false;
+		}
+		if (!drm_crtc_commit(conn, &output->pending, DRM_MODE_ATOMIC_TEST_ONLY)) {
 			return false;
 		}
 	}
