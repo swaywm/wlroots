@@ -735,7 +735,12 @@ static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
 				conn->desired_enabled) {
 			wlr_drm_conn_log(conn, WLR_DEBUG,
 				"Output has a desired mode and a CRTC, attempting a modeset");
-			struct wlr_output_state state = {0};
+			struct wlr_output_state state = {
+				.committed = WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_ENABLED,
+				.enabled = true,
+				.mode_type = WLR_OUTPUT_STATE_MODE_FIXED,
+				.mode = conn->desired_mode,
+			};
 			drm_connector_set_mode(conn, &state, conn->desired_mode);
 		}
 	}
@@ -1056,7 +1061,10 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 
 	conn->crtc->pending_modeset = true;
 	conn->crtc->pending.active = false;
-	struct wlr_output_state state = {0};
+	struct wlr_output_state state = {
+		.committed = WLR_OUTPUT_STATE_ENABLED,
+		.enabled = false,
+	};
 	if (!drm_crtc_commit(conn, &state, 0)) {
 		// On GPU unplug, disabling the CRTC can fail with EPERM
 		wlr_drm_conn_log(conn, WLR_ERROR, "Failed to disable CRTC %"PRIu32,
@@ -1185,7 +1193,10 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 
 		struct wlr_drm_mode *mode =
 			(struct wlr_drm_mode *)conn->output.current_mode;
-		struct wlr_output_state state = {0};
+		struct wlr_output_state state = {
+			.committed = WLR_OUTPUT_STATE_ENABLED,
+			.enabled = true,
+		};
 		if (!drm_connector_init_renderer(conn, &state, mode)) {
 			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer");
 			wlr_output_update_enabled(&conn->output, false);
