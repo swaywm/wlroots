@@ -437,7 +437,7 @@ static bool drm_connector_test(struct wlr_output *output) {
 	return true;
 }
 
-static bool drm_connector_commit_buffer(struct wlr_drm_connector *conn,
+static bool drm_connector_set_pending_fb(struct wlr_drm_connector *conn,
 		const struct wlr_output_state *state) {
 	struct wlr_drm_backend *drm = conn->backend;
 
@@ -462,10 +462,6 @@ static bool drm_connector_commit_buffer(struct wlr_drm_connector *conn,
 			return false;
 		}
 		break;
-	}
-
-	if (!drm_crtc_page_flip(conn, state)) {
-		return false;
 	}
 
 	return true;
@@ -509,6 +505,12 @@ bool drm_connector_commit_state(struct wlr_drm_connector *conn,
 		return false;
 	}
 
+	if (state.committed & WLR_OUTPUT_STATE_BUFFER) {
+		if (!drm_connector_set_pending_fb(conn, &state)) {
+			return false;
+		}
+	}
+
 	if (state.committed & (WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_ENABLED)) {
 		if ((state.committed & WLR_OUTPUT_STATE_MODE) &&
 				state.mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM) {
@@ -526,8 +528,7 @@ bool drm_connector_commit_state(struct wlr_drm_connector *conn,
 			return false;
 		}
 	} else if (state.committed & WLR_OUTPUT_STATE_BUFFER) {
-		// TODO: support modesetting with a buffer
-		if (!drm_connector_commit_buffer(conn, &state)) {
+		if (!drm_crtc_page_flip(conn, &state)) {
 			return false;
 		}
 	} else if (state.committed & (WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED |
