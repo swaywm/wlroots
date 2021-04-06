@@ -118,12 +118,17 @@ static void handle_session_active(struct wl_listener *listener, void *data) {
 
 		struct wlr_drm_connector *conn;
 		wl_list_for_each(conn, &drm->outputs, link) {
-			struct wlr_output_state state = {0};
+			struct wlr_output_mode *mode = NULL;
 			if (conn->output.enabled && conn->output.current_mode != NULL) {
-				drm_connector_set_mode(conn, &state, conn->output.current_mode);
-			} else {
-				drm_connector_set_mode(conn, &state, NULL);
+				mode = conn->output.current_mode;
 			}
+			struct wlr_output_state state = {
+				.committed = WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_ENABLED,
+				.enabled = mode != NULL,
+				.mode_type = WLR_OUTPUT_STATE_MODE_FIXED,
+				.mode = mode,
+			};
+			drm_connector_set_mode(conn, &state, mode);
 		}
 	} else {
 		wlr_log(WLR_INFO, "DRM fd paused");
