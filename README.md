@@ -51,7 +51,6 @@ Install dependencies:
 * udev
 * pixman
 * libseat (optional, for (e)logind and seatd support)
-* libuuid (optional, for xdg-foreign support)
 
 If you choose to enable X11 support:
 

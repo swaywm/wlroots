@@ -1,6 +1,6 @@
 #include <wlr/types/wlr_xdg_foreign_registry.h>
 #include "util/signal.h"
-#include "util/uuid.h"
+#include "util/token.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,7 +9,7 @@ bool wlr_xdg_foreign_exported_init(
 		struct wlr_xdg_foreign_exported *exported,
 		struct wlr_xdg_foreign_registry *registry) {
 	do {
-		if (!generate_uuid(exported->handle)) {
+		if (!generate_token(exported->handle)) {
 			return false;
 		}
 	} while (wlr_xdg_foreign_registry_find_by_handle(registry, exported->handle) != NULL);
