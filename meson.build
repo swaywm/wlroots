@@ -84,7 +84,6 @@ features = {
 	'libseat': false,
 	'x11-backend': false,
 	'xwayland': false,
-	'xdg-foreign': false,
 }
 internal_features = {
 	'xcb-errors': false,
@@ -104,16 +103,6 @@ pixman = dependency('pixman-1')
 math = cc.find_library('m')
 rt = cc.find_library('rt')
 
-if not get_option('xdg-foreign').disabled()
-	uuid = dependency('uuid', required: false)
-	uuid_create = cc.has_function('uuid_create')
-	if uuid.found() or uuid_create
-		features += { 'xdg-foreign': true }
-	elif get_option('xdg-foreign').enabled()
-		error('Missing dependency uuid and uuid_create function not available ' +
-				'cannot build with xdg-foreign support')
-	endif
-endif
 
 wlr_files = []
 wlr_deps = [
