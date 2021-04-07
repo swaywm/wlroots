@@ -14,6 +14,7 @@
 #endif
 
 #include <pixman.h>
+#include <render/allocator.h>
 #include <wlr/backend/x11.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_keyboard.h>
@@ -93,7 +94,7 @@ struct wlr_x11_backend {
 	struct wlr_drm_format_set shm_formats;
 	const struct wlr_x11_format *x11_format;
 	struct wlr_drm_format *drm_format;
-	struct wlr_allocator *allocator;
+	struct wlr_allocator *alloc;
 	struct wl_event_source *event_source;
 
 	struct {

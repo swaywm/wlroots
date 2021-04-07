@@ -14,7 +14,6 @@
 #include "backend/drm/drm.h"
 #include "backend/drm/util.h"
 #include "render/drm_format_set.h"
-#include "render/gbm_allocator.h"
 #include "render/pixel_format.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
@@ -41,8 +40,8 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		goto error_wlr_rend;
 	}
 
-	renderer->allocator = wlr_gbm_allocator_create(alloc_fd);
-	if (renderer->allocator == NULL) {
+	renderer->alloc = wlr_allocator_create_with_drm_fd(alloc_fd);
+	if (renderer->alloc == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create allocator");
 		close(alloc_fd);
 		goto error_wlr_rend;
@@ -62,7 +61,7 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 		return;
 	}
 
-	wlr_allocator_destroy(&renderer->allocator->base);
+	wlr_allocator_destroy(renderer->alloc);
 	wlr_renderer_destroy(renderer->wlr_rend);
 	gbm_device_destroy(renderer->gbm);
 }
@@ -83,7 +82,7 @@ static bool init_drm_surface(struct wlr_drm_surface *surf,
 	wlr_swapchain_destroy(surf->swapchain);
 	surf->swapchain = NULL;
 
-	surf->swapchain = wlr_swapchain_create(&renderer->allocator->base,
+	surf->swapchain = wlr_swapchain_create(renderer->alloc,
 		width, height, drm_format);
 	if (surf->swapchain == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create swapchain");

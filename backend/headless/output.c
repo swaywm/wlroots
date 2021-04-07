@@ -25,7 +25,7 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
 	}
 
 	wlr_swapchain_destroy(output->swapchain);
-	output->swapchain = wlr_swapchain_create(output->backend->allocator,
+	output->swapchain = wlr_swapchain_create(output->backend->alloc,
 			width, height, output->backend->format);
 	if (!output->swapchain) {
 		wlr_output_destroy(wlr_output);
@@ -190,7 +190,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		backend->display);
 	struct wlr_output *wlr_output = &output->wlr_output;
 
-	output->swapchain = wlr_swapchain_create(backend->allocator,
+	output->swapchain = wlr_swapchain_create(backend->alloc,
 		width, height, backend->format);
 	if (!output->swapchain) {
 		goto error;

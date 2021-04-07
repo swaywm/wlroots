@@ -4,6 +4,7 @@
 #include <gbm.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <render/allocator.h>
 #include <wlr/backend.h>
 #include <wlr/render/wlr_renderer.h>
 
@@ -16,7 +17,7 @@ struct wlr_drm_renderer {
 	struct gbm_device *gbm;
 
 	struct wlr_renderer *wlr_rend;
-	struct wlr_gbm_allocator *allocator;
+	struct wlr_allocator *alloc;
 };
 
 struct wlr_drm_surface {

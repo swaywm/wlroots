@@ -23,6 +23,12 @@ struct wlr_allocator {
 };
 
 /**
+ * Return an allocator could create drm buffers, which allocator would be
+ * used depends on the built-time configure.
+ */
+struct wlr_allocator *wlr_allocator_create_with_drm_fd(int fd);
+
+/**
  * Destroy the allocator.
  */
 void wlr_allocator_destroy(struct wlr_allocator *alloc);

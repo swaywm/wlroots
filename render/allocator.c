@@ -1,6 +1,8 @@
 #include <assert.h>
 #include <stdlib.h>
+#include "wlr/config.h"
 #include "render/allocator.h"
+#include "render/gbm_allocator.h"
 
 void wlr_allocator_init(struct wlr_allocator *alloc,
 		const struct wlr_allocator_interface *impl) {
@@ -20,4 +22,19 @@ void wlr_allocator_destroy(struct wlr_allocator *alloc) {
 struct wlr_buffer *wlr_allocator_create_buffer(struct wlr_allocator *alloc,
 		int width, int height, const struct wlr_drm_format *format) {
 	return alloc->impl->create_buffer(alloc, width, height, format);
+}
+
+struct wlr_allocator *wlr_allocator_create_with_drm_fd(int fd)
+{
+	struct wlr_allocator *alloc = NULL;
+
+#if WLR_HAS_GBM_SUPPORT
+	struct wlr_gbm_allocator *gbm_alloc = NULL;
+	gbm_alloc = wlr_gbm_allocator_create(fd);
+	if (gbm_alloc) {
+		alloc = &gbm_alloc->base;
+	}
+#endif
+
+	return alloc;
 }

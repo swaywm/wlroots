@@ -230,7 +230,6 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	return true;
 }
 
-#if WLR_HAS_GBM_SUPPORT
 struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
 	const char *name = getenv("WLR_RENDERER");
 	if (name) {
@@ -281,17 +280,3 @@ int wlr_renderer_get_drm_fd(struct wlr_renderer *r) {
 	}
 	return r->impl->get_drm_fd(r);
 }
-
-#else
-struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
-	return NULL;
-}
-
-struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
-	return NULL;
-}
-
-int wlr_renderer_get_drm_fd(struct wlr_renderer *r) {
-	return -1;
-}
-#endif

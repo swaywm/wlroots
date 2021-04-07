@@ -21,9 +21,6 @@
 #include "backend/wayland.h"
 #include "render/drm_format_set.h"
 #include "render/allocator.h"
-#if WLR_HAS_GBM_SUPPORT
-#include "render/gbm_allocator.h"
-#endif
 #include "render/pixel_format.h"
 #include "render/shm_allocator.h"
 #include "render/wlr_renderer.h"
@@ -319,7 +316,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_event_source_remove(wl->remote_display_src);
 
 	wlr_renderer_destroy(wl->renderer);
-	wlr_allocator_destroy(wl->allocator);
+	wlr_allocator_destroy(wl->alloc);
 	close(wl->drm_fd);
 
 	wlr_drm_format_set_finish(&wl->shm_formats);
@@ -442,7 +439,6 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 
 	wl->drm_fd = -1;
 	if (wl->drm_render_name != NULL) {
-#if WLR_HAS_GBM_SUPPORT
 		wlr_log(WLR_DEBUG, "Opening DRM render node %s", wl->drm_render_name);
 		wl->drm_fd = open(wl->drm_render_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
 		if (wl->drm_fd < 0) {
@@ -456,15 +452,12 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 			wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
 			goto error_drm_fd;
 		}
-
-		struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
-		if (gbm_alloc == NULL) {
-			wlr_log(WLR_ERROR, "Failed to create GBM allocator");
+		wl->alloc = wlr_allocator_create_with_drm_fd(drm_fd);
+		if (!wl->alloc) {
+			wlr_log(WLR_ERROR, "Failed to create an allocator");
 			close(drm_fd);
 			goto error_drm_fd;
 		}
-		wl->allocator = &gbm_alloc->base;
-#endif
 	} else {
 		wlr_log(WLR_DEBUG, "No render node found, falling back to shared memory");
 		struct wlr_shm_allocator *shm_alloc = wlr_shm_allocator_create();
@@ -526,7 +519,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 error_renderer:
 	wlr_renderer_destroy(wl->renderer);
 error_allocator:
-	wlr_allocator_destroy(wl->allocator);
+	wlr_allocator_destroy(wl->alloc);
 error_drm_fd:
 	close(wl->drm_fd);
 error_remote_display_src:

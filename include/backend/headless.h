@@ -1,6 +1,7 @@
 #ifndef BACKEND_HEADLESS_H
 #define BACKEND_HEADLESS_H
 
+#include <render/allocator.h>
 #include <wlr/backend/headless.h>
 #include <wlr/backend/interface.h>
 
@@ -10,7 +11,7 @@ struct wlr_headless_backend {
 	struct wlr_backend backend;
 	int drm_fd;
 	struct wlr_renderer *renderer;
-	struct wlr_allocator *allocator;
+	struct wlr_allocator *alloc;
 	struct wlr_drm_format *format;
 	struct wl_display *display;
 	struct wl_list outputs;

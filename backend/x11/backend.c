@@ -30,12 +30,10 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 
-#include "backend/x11.h"
 #include "render/drm_format_set.h"
-#include "render/gbm_allocator.h"
-#include "render/shm_allocator.h"
 #include "render/wlr_renderer.h"
 #include "util/signal.h"
+#include "backend/x11.h"
 
 // See dri2_format_for_depth in mesa
 const struct wlr_x11_format formats[] = {
@@ -198,7 +196,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&x11->display_destroy.link);
 
 	wlr_renderer_destroy(x11->renderer);
-	wlr_allocator_destroy(x11->allocator);
+	wlr_allocator_destroy(x11->alloc);
 	wlr_drm_format_set_finish(&x11->dri3_formats);
 	wlr_drm_format_set_finish(&x11->shm_formats);
 	free(x11->drm_format);
@@ -622,13 +620,12 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 			goto error_event;
 		}
 
-		struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
-		if (gbm_alloc == NULL) {
-			wlr_log(WLR_ERROR, "Failed to create GBM allocator");
+		x11->alloc = wlr_allocator_create_with_drm_fd(drm_fd);
+		if (x11->alloc == NULL) {
+			wlr_log(WLR_ERROR, "Failed to create an allocator");
 			close(drm_fd);
 			goto error_event;
 		}
-		x11->allocator = &gbm_alloc->base;
 		pixmap_formats = &x11->dri3_formats;
 	} else if (x11->have_shm) {
 		x11->drm_fd = -1;
@@ -642,7 +639,6 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	} else {
 		wlr_log(WLR_ERROR,
 			"Failed to create allocator (DRI3 and SHM unavailable)");
-		goto error_event;
 	}
 
 	x11->renderer = wlr_renderer_autocreate(&x11->backend);
