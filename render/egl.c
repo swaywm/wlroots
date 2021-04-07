@@ -172,6 +172,13 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 		return NULL;
 	}
 
+	if (platform == EGL_PLATFORM_GBM_KHR) {
+		if (!check_egl_ext(client_exts_str, "EGL_KHR_platform_gbm")) {
+			wlr_log(WLR_ERROR, "EGL_KHR_platform_gbm not supported");
+			return NULL;
+		}
+	}
+
 	if (!check_egl_ext(client_exts_str, "EGL_EXT_platform_base")) {
 		wlr_log(WLR_ERROR, "EGL_EXT_platform_base not supported");
 		return NULL;
