@@ -746,6 +746,11 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	wlr_log(WLR_INFO, "GL renderer: %s", glGetString(GL_RENDERER));
 	wlr_log(WLR_INFO, "Supported GLES2 extensions: %s", exts_str);
 
+	if (!renderer->egl->exts.image_dmabuf_import_ext) {
+		wlr_log(WLR_ERROR, "EGL_EXT_image_dma_buf_import not supported");
+		free(renderer);
+		return NULL;
+	}
 	if (!check_gl_ext(exts_str, "GL_EXT_texture_format_BGRA8888")) {
 		wlr_log(WLR_ERROR, "BGRA8888 format not supported by GLES2");
 		free(renderer);

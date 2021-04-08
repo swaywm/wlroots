@@ -30,14 +30,13 @@
 
 bool check_drm_features(struct wlr_drm_backend *drm) {
 	uint64_t cap;
-	if (drm->parent) {
-		if (drmGetCap(drm->fd, DRM_CAP_PRIME, &cap) ||
-				!(cap & DRM_PRIME_CAP_IMPORT)) {
-			wlr_log(WLR_ERROR,
-				"PRIME import not supported on secondary GPU");
-			return false;
-		}
+	if (drmGetCap(drm->fd, DRM_CAP_PRIME, &cap) ||
+			!(cap & DRM_PRIME_CAP_IMPORT)) {
+		wlr_log(WLR_ERROR, "PRIME import not supported");
+		return false;
+	}
 
+	if (drm->parent) {
 		if (drmGetCap(drm->parent->fd, DRM_CAP_PRIME, &cap) ||
 				!(cap & DRM_PRIME_CAP_EXPORT)) {
 			wlr_log(WLR_ERROR,

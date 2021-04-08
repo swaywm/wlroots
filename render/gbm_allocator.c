@@ -160,6 +160,13 @@ static struct wlr_gbm_allocator *get_gbm_alloc_from_alloc(
 }
 
 struct wlr_gbm_allocator *wlr_gbm_allocator_create(int fd) {
+	uint64_t cap;
+	if (drmGetCap(fd, DRM_CAP_PRIME, &cap) ||
+			!(cap & DRM_PRIME_CAP_EXPORT)) {
+		wlr_log(WLR_ERROR, "PRIME export not supported");
+		return NULL;
+	}
+
 	struct wlr_gbm_allocator *alloc = calloc(1, sizeof(*alloc));
 	if (alloc == NULL) {
 		return NULL;
