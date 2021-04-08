@@ -20,6 +20,7 @@
 #include "backend/wayland.h"
 #include "render/drm_format_set.h"
 #include "render/gbm_allocator.h"
+#include "render/vulkan.h"
 #include "render/wlr_renderer.h"
 #include "util/signal.h"
 
@@ -429,7 +430,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		goto error_remote_display_src;
 	}
 
-	int drm_fd = fcntl(wl->drm_fd, F_DUPFD_CLOEXEC, 0);
+	/*int drm_fd = fcntl(wl->drm_fd, F_DUPFD_CLOEXEC, 0);
 	if (drm_fd < 0) {
 		wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
 		goto error_drm_fd;
@@ -441,7 +442,14 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		close(drm_fd);
 		goto error_drm_fd;
 	}
-	wl->allocator = &gbm_alloc->base;
+	wl->allocator = &gbm_alloc->base;*/
+	struct wlr_vulkan_allocator *vulkan_alloc =
+		wlr_vulkan_allocator_create(wl->drm_fd);
+	if (vulkan_alloc == NULL) {
+		wlr_log(WLR_ERROR, "Failed to create Vulkan allocator");
+		goto error_drm_fd;
+	}
+	wl->allocator = &vulkan_alloc->base;
 
 	wl->renderer = wlr_renderer_autocreate(&wl->backend);
 	if (wl->renderer == NULL) {
