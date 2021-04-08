@@ -25,7 +25,6 @@ wlr_files += files(
 	'wlr_foreign_toplevel_management_v1.c',
 	'wlr_fullscreen_shell_v1.c',
 	'wlr_gamma_control_v1.c',
-	'wlr_gtk_primary_selection.c',
 	'wlr_idle_inhibit_v1.c',
 	'wlr_idle.c',
 	'wlr_input_device.c',
