@@ -15,7 +15,6 @@ struct wlr_drm_dumb_buffer {
 	uint32_t format;
 	uint32_t handle;
 	uint32_t stride;
-	uint32_t width, height;
 
 	uint64_t size;
 	void *data;
