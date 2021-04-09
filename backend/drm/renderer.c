@@ -18,6 +18,7 @@
 #include "render/pixel_format.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
+#include "util/trace.h"
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer) {
@@ -135,6 +136,10 @@ static struct wlr_buffer *drm_surface_blit(struct wlr_drm_surface *surf,
 		struct wlr_buffer *buffer) {
 	struct wlr_renderer *renderer = surf->renderer->wlr_rend;
 
+	static unsigned ctx = 0;
+	ctx++;
+	wlr_trace("drm_surface_blit (begin_ctx=%u)", ctx);
+
 	if (surf->width != (uint32_t)buffer->width ||
 			surf->height != (uint32_t)buffer->height) {
 		wlr_log(WLR_ERROR, "Surface size doesn't match buffer size");
@@ -171,6 +176,8 @@ static struct wlr_buffer *drm_surface_blit(struct wlr_drm_surface *surf,
 	drm_surface_unset_current(surf);
 
 	wlr_texture_destroy(tex);
+
+	wlr_trace("drm_surface_blit (end_ctx=%u)", ctx);
 
 	return out;
 }
@@ -301,6 +308,10 @@ bool drm_plane_lock_surface(struct wlr_drm_plane *plane,
 	assert(plane->surf.back_buffer != NULL);
 	struct wlr_buffer *buf = wlr_buffer_lock(plane->surf.back_buffer);
 
+	static unsigned ctx = 0;
+	ctx++;
+	wlr_trace("drm_plane_lock_surface (begin_ctx=%u)", ctx);
+
 	// Unset the current EGL context ASAP, because other operations may require
 	// making another context current.
 	drm_surface_unset_current(&plane->surf);
@@ -323,6 +334,7 @@ bool drm_plane_lock_surface(struct wlr_drm_plane *plane,
 		wlr_log(WLR_ERROR, "Failed to import buffer");
 	}
 	wlr_buffer_unlock(local_buf);
+	wlr_trace("drm_plane_lock_surface (end_ctx=%u)", ctx);
 	return ok;
 }
 

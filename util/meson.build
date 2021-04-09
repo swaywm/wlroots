@@ -6,8 +6,8 @@ wlr_files += files(
 	'shm.c',
 	'signal.c',
 	'time.c',
+	'trace.c',
 )
-
 
 if features.get('xdg-foreign')
 	add_project_arguments('-DHAS_LIBUUID=@0@'.format(uuid.found().to_int()), language: 'c')
