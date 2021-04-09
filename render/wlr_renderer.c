@@ -1,13 +1,17 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <wlr/config.h>
+
+#if WLR_HAS_GBM_SUPPORT
+#include <gbm.h>
+#endif
+
 #include <wlr/render/interface.h>
 #include <wlr/render/pixman.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
-
-#include <wlr/config.h>
 
 #if WLR_HAS_GLES2_RENDERER
 #include <wlr/render/egl.h>
@@ -226,6 +230,7 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	return true;
 }
 
+#if WLR_HAS_GBM_SUPPORT
 struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
 	const char *name = getenv("WLR_RENDERER");
 	if (name) {
@@ -276,3 +281,17 @@ int wlr_renderer_get_drm_fd(struct wlr_renderer *r) {
 	}
 	return r->impl->get_drm_fd(r);
 }
+
+#else
+struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
+	return NULL;
+}
+
+struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
+	return NULL;
+}
+
+int wlr_renderer_get_drm_fd(struct wlr_renderer *r) {
+	return -1;
+}
+#endif

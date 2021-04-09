@@ -7,8 +7,10 @@
 
 #mesondefine WLR_HAS_XWAYLAND
 
+#mesondefine WLR_HAS_GBM_SUPPORT
 #mesondefine WLR_HAS_GLES2_RENDERER
 
 #mesondefine WLR_HAS_DRM_BACKEND
 #mesondefine WLR_HAS_LIBINPUT_BACKEND
+
 #endif

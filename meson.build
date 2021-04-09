@@ -87,6 +87,7 @@ endif
 
 features = {
 	'drm-backend': false,
+	'gbm-support': false,
 	'x11-backend': false,
 	'libinput-backend': false,
 	'xwayland': false,
@@ -115,7 +116,6 @@ wlr_deps = [
 	wayland_client,
 	wayland_protos,
 	drm,
-	gbm,
 	xkbcommon,
 	udev,
 	pixman,
