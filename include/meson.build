@@ -9,6 +9,9 @@ if not features.get('xwayland')
 else
 	subdir('xwayland')
 endif
+if not features.get('gles2-renderer')
+	exclude_files += ['render/egl.h', 'render/gles2.h']
+endif
 
 install_subdir('wlr',
 	install_dir: get_option('includedir'),

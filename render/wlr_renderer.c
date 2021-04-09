@@ -2,13 +2,19 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <gbm.h>
-#include <wlr/render/egl.h>
-#include <wlr/render/gles2.h>
-#include <wlr/render/pixman.h>
 #include <wlr/render/interface.h>
+#include <wlr/render/pixman.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
+
+#include <wlr/config.h>
+
+#if WLR_HAS_GLES2_RENDERER
+#include <wlr/render/egl.h>
+#include <wlr/render/gles2.h>
+#endif
+
 #include "util/signal.h"
 #include "render/pixel_format.h"
 #include "render/wlr_renderer.h"
@@ -222,6 +228,7 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 }
 
 struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
+#if WLR_HAS_GLES2_RENDERER
 	struct gbm_device *gbm_device = gbm_create_device(drm_fd);
 	if (!gbm_device) {
 		wlr_log(WLR_ERROR, "Failed to create GBM device");
@@ -241,9 +248,14 @@ struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
 	if (!renderer) {
 		wlr_log(WLR_ERROR, "Failed to create GLES2 renderer");
 		wlr_egl_destroy(egl);
+		return NULL;
 	}
 
 	return renderer;
+#endif
+
+	wlr_log(WLR_ERROR, "Failed to initialize any renderer");
+	return NULL;
 }
 
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
