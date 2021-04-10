@@ -21,7 +21,6 @@
 #define WAIT_GPU_TIMEOUT 10000 // ms
 
 extern const struct session_impl session_libseat;
-extern const struct session_impl session_noop;
 
 static const struct session_impl *const impls[] = {
 	&session_libseat,
@@ -109,8 +108,6 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 	if (env_wlr_session) {
 		if (strcmp(env_wlr_session, "libseat") == 0) {
 			session = session_libseat.create(disp);
-		} else if (strcmp(env_wlr_session, "noop") == 0) {
-			session = session_noop.create(disp);
 		} else {
 			wlr_log(WLR_ERROR, "Unsupported WLR_SESSION: %s",
 				env_wlr_session);
