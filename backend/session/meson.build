@@ -5,7 +5,6 @@ libseat = dependency('libseat',
 )
 
 wlr_files += files(
-	'noop.c',
 	'session.c',
 	'libseat.c'
 )
