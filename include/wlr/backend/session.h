@@ -6,10 +6,11 @@
 #include <sys/types.h>
 #include <wayland-server-core.h>
 
-struct session_impl;
+struct libseat;
 
 struct wlr_device {
 	int fd;
+	int device_id;
 	dev_t dev;
 	struct wl_list link;
 
@@ -19,7 +20,6 @@ struct wlr_device {
 };
 
 struct wlr_session {
-	const struct session_impl *impl;
 	/*
 	 * Signal for when the session becomes active/inactive.
 	 * It's called when we swap virtual terminal.
@@ -36,6 +36,9 @@ struct wlr_session {
 	struct udev *udev;
 	struct udev_monitor *mon;
 	struct wl_event_source *udev_event;
+
+	struct libseat *seat_handle;
+	struct wl_event_source *libseat_event;
 
 	struct wl_list devices;
 
