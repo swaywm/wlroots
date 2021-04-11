@@ -3,10 +3,5 @@ libseat = dependency('libseat',
 	fallback: ['seatd', 'libseat'],
 	default_options: ['server=disabled', 'man-pages=disabled'],
 )
-
-wlr_files += files(
-	'session.c',
-	'libseat.c'
-)
-
+wlr_files += files('session.c')
 wlr_deps += libseat

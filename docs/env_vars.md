@@ -6,8 +6,6 @@ wlroots reads these environment variables
   libinput, drm, wayland, x11, headless, noop)
 * *WLR_NO_HARDWARE_CURSORS*: set to 1 to use software cursors instead of
   hardware cursors
-* *WLR_SESSION*: specifies the `wlr_session` to be used (available sessions:
-  libseat)
 * *WLR_DIRECT_TTY*: specifies the tty to be used (instead of using /dev/tty)
 * *WLR_XWAYLAND*: specifies the path to an Xwayland binary to be used (instead
   of following shell search semantics for "Xwayland")
