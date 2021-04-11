@@ -81,7 +81,6 @@ else
 endif
 
 features = {
-	'libseat': false,
 	'x11-backend': false,
 	'xwayland': false,
 }
