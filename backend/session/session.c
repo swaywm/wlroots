@@ -25,9 +25,7 @@ extern const struct session_impl session_direct;
 extern const struct session_impl session_noop;
 
 static const struct session_impl *const impls[] = {
-#if WLR_HAS_LIBSEAT
 	&session_libseat,
-#endif
 	&session_direct,
 	NULL,
 };
@@ -112,11 +110,7 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 	const char *env_wlr_session = getenv("WLR_SESSION");
 	if (env_wlr_session) {
 		if (strcmp(env_wlr_session, "libseat") == 0) {
-#if WLR_HAS_LIBSEAT
 			session = session_libseat.create(disp);
-#else
-			wlr_log(WLR_ERROR, "wlroots is not compiled with libseat support");
-#endif
 		} else if (strcmp(env_wlr_session, "direct") == 0) {
 			session = session_direct.create(disp);
 		} else if (strcmp(env_wlr_session, "noop") == 0) {
