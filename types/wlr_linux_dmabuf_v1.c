@@ -22,35 +22,19 @@ static const struct wl_buffer_interface buffer_impl = {
 	.destroy = buffer_handle_destroy,
 };
 
-bool wlr_dmabuf_v1_resource_is_buffer(struct wl_resource *buffer_resource) {
-	if (!wl_resource_instance_of(buffer_resource, &wl_buffer_interface,
+bool wlr_dmabuf_v1_resource_is_buffer(struct wl_resource *resource) {
+	if (!wl_resource_instance_of(resource, &wl_buffer_interface,
 			&buffer_impl)) {
 		return false;
 	}
-
-	struct wlr_dmabuf_v1_buffer *buffer =
-		wl_resource_get_user_data(buffer_resource);
-	if (buffer && buffer->buffer_resource && !buffer->params_resource &&
-			buffer->buffer_resource == buffer_resource) {
-		return true;
-	}
-
-	return false;
+	return wl_resource_get_user_data(resource) != NULL;
 }
 
 struct wlr_dmabuf_v1_buffer *wlr_dmabuf_v1_buffer_from_buffer_resource(
-		struct wl_resource *buffer_resource) {
-	assert(wl_resource_instance_of(buffer_resource, &wl_buffer_interface,
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource, &wl_buffer_interface,
 		&buffer_impl));
-
-	struct wlr_dmabuf_v1_buffer *buffer =
-		wl_resource_get_user_data(buffer_resource);
-	assert(buffer);
-	assert(buffer->buffer_resource);
-	assert(!buffer->params_resource);
-	assert(buffer->buffer_resource == buffer_resource);
-
-	return buffer;
+	return wl_resource_get_user_data(resource);
 }
 
 static void linux_dmabuf_buffer_destroy(struct wlr_dmabuf_v1_buffer *buffer) {
@@ -58,22 +42,13 @@ static void linux_dmabuf_buffer_destroy(struct wlr_dmabuf_v1_buffer *buffer) {
 	free(buffer);
 }
 
-static const struct zwp_linux_buffer_params_v1_interface linux_buffer_params_impl;
+static const struct zwp_linux_buffer_params_v1_interface buffer_params_impl;
 
-static struct wlr_dmabuf_v1_buffer *buffer_from_params_resource(
-		struct wl_resource *params_resource) {
-	assert(wl_resource_instance_of(params_resource,
-		&zwp_linux_buffer_params_v1_interface,
-		&linux_buffer_params_impl));
-
-	struct wlr_dmabuf_v1_buffer *buffer =
-		wl_resource_get_user_data(params_resource);
-	assert(buffer);
-	assert(buffer->params_resource);
-	assert(!buffer->buffer_resource);
-	assert(buffer->params_resource == params_resource);
-
-	return buffer;
+static struct wlr_linux_buffer_params_v1 *params_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource,
+		&zwp_linux_buffer_params_v1_interface, &buffer_params_impl));
+	return wl_resource_get_user_data(resource);
 }
 
 static void params_destroy(struct wl_client *client,
@@ -85,10 +60,9 @@ static void params_add(struct wl_client *client,
 		struct wl_resource *params_resource, int32_t fd,
 		uint32_t plane_idx, uint32_t offset, uint32_t stride,
 		uint32_t modifier_hi, uint32_t modifier_lo) {
-	struct wlr_dmabuf_v1_buffer *buffer =
-		buffer_from_params_resource(params_resource);
-
-	if (!buffer) {
+	struct wlr_linux_buffer_params_v1 *params =
+		params_from_resource(params_resource);
+	if (!params) {
 		wl_resource_post_error(params_resource,
 			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_ALREADY_USED,
 			"params was already used to create a wl_buffer");
@@ -104,33 +78,33 @@ static void params_add(struct wl_client *client,
 		return;
 	}
 
-	if (buffer->attributes.fd[plane_idx] != -1) {
+	if (params->attributes.fd[plane_idx] != -1) {
 		wl_resource_post_error(params_resource,
 			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_PLANE_SET,
 			"a dmabuf with FD %d has already been added for plane %u",
-			buffer->attributes.fd[plane_idx], plane_idx);
+			params->attributes.fd[plane_idx], plane_idx);
 		close(fd);
 		return;
 	}
 
 	uint64_t modifier = ((uint64_t)modifier_hi << 32) | modifier_lo;
-	if (buffer->has_modifier && modifier != buffer->attributes.modifier) {
+	if (params->has_modifier && modifier != params->attributes.modifier) {
 		wl_resource_post_error(params_resource,
 			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_INVALID_FORMAT,
 			"sent modifier %" PRIu64 " for plane %u, expected"
 			" modifier %" PRIu64 " like other planes",
-			modifier, plane_idx, buffer->attributes.modifier);
+			modifier, plane_idx, params->attributes.modifier);
 		close(fd);
 		return;
 	}
 
-	buffer->attributes.modifier = modifier;
-	buffer->has_modifier = true;
+	params->attributes.modifier = modifier;
+	params->has_modifier = true;
 
-	buffer->attributes.fd[plane_idx] = fd;
-	buffer->attributes.offset[plane_idx] = offset;
-	buffer->attributes.stride[plane_idx] = stride;
-	buffer->attributes.n_planes++;
+	params->attributes.fd[plane_idx] = fd;
+	params->attributes.offset[plane_idx] = offset;
+	params->attributes.stride[plane_idx] = stride;
+	params->attributes.n_planes++;
 }
 
 static void buffer_handle_resource_destroy(struct wl_resource *buffer_resource) {
@@ -139,9 +113,10 @@ static void buffer_handle_resource_destroy(struct wl_resource *buffer_resource) 
 	linux_dmabuf_buffer_destroy(buffer);
 }
 
-static bool check_import_dmabuf(struct wlr_dmabuf_v1_buffer *buffer) {
+static bool check_import_dmabuf(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
+		struct wlr_dmabuf_attributes *attribs) {
 	struct wlr_texture *texture =
-		wlr_texture_from_dmabuf(buffer->renderer, &buffer->attributes);
+		wlr_texture_from_dmabuf(linux_dmabuf->renderer, attribs);
 	if (texture == NULL) {
 		return false;
 	}
@@ -152,49 +127,51 @@ static bool check_import_dmabuf(struct wlr_dmabuf_v1_buffer *buffer) {
 	return true;
 }
 
-static void params_create_common(struct wl_client *client,
-		struct wl_resource *params_resource, uint32_t buffer_id, int32_t width,
-		int32_t height, uint32_t format, uint32_t flags) {
-	if (!wl_resource_get_user_data(params_resource)) {
+static void params_create_common(struct wl_resource *params_resource,
+		uint32_t buffer_id, int32_t width, int32_t height, uint32_t format,
+		uint32_t flags) {
+	struct wlr_linux_buffer_params_v1 *params =
+		params_from_resource(params_resource);
+	if (!params) {
 		wl_resource_post_error(params_resource,
 			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_ALREADY_USED,
 			"params was already used to create a wl_buffer");
 		return;
 	}
-	struct wlr_dmabuf_v1_buffer *buffer =
-		buffer_from_params_resource(params_resource);
 
-	/* Switch the linux_dmabuf_buffer object from params resource to
-	 * eventually wl_buffer resource. */
-	wl_resource_set_user_data(buffer->params_resource, NULL);
-	buffer->params_resource = NULL;
+	struct wlr_dmabuf_attributes attribs = params->attributes;
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf = params->linux_dmabuf;
 
-	if (!buffer->attributes.n_planes) {
+	// Make the params resource inert
+	wl_resource_set_user_data(params_resource, NULL);
+	free(params);
+
+	if (!attribs.n_planes) {
 		wl_resource_post_error(params_resource,
 			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_INCOMPLETE,
 			"no dmabuf has been added to the params");
 		goto err_out;
 	}
 
-	if (buffer->attributes.fd[0] == -1) {
+	if (attribs.fd[0] == -1) {
 		wl_resource_post_error(params_resource,
 			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_INCOMPLETE,
 			"no dmabuf has been added for plane 0");
 		goto err_out;
 	}
 
-	if ((buffer->attributes.fd[3] >= 0 || buffer->attributes.fd[2] >= 0) &&
-			(buffer->attributes.fd[2] == -1 || buffer->attributes.fd[1] == -1)) {
+	if ((attribs.fd[3] >= 0 || attribs.fd[2] >= 0) &&
+			(attribs.fd[2] == -1 || attribs.fd[1] == -1)) {
 		wl_resource_post_error(params_resource,
 			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_INCOMPLETE,
 			"gap in dmabuf planes");
 		goto err_out;
 	}
 
-	buffer->attributes.width = width;
-	buffer->attributes.height = height;
-	buffer->attributes.format = format;
-	buffer->attributes.flags = flags;
+	attribs.width = width;
+	attribs.height = height;
+	attribs.format = format;
+	attribs.flags = flags;
 
 	if (width < 1 || height < 1) {
 		wl_resource_post_error(params_resource,
@@ -203,48 +180,48 @@ static void params_create_common(struct wl_client *client,
 		goto err_out;
 	}
 
-	for (int i = 0; i < buffer->attributes.n_planes; i++) {
-		if ((uint64_t)buffer->attributes.offset[i]
-				+ buffer->attributes.stride[i] > UINT32_MAX) {
+	for (int i = 0; i < attribs.n_planes; i++) {
+		if ((uint64_t)attribs.offset[i]
+				+ attribs.stride[i] > UINT32_MAX) {
 			wl_resource_post_error(params_resource,
 				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
 				"size overflow for plane %d", i);
 			goto err_out;
 		}
 
-		if ((uint64_t)buffer->attributes.offset[i]
-				+ (uint64_t)buffer->attributes.stride[i] * height > UINT32_MAX) {
+		if ((uint64_t)attribs.offset[i]
+				+ (uint64_t)attribs.stride[i] * height > UINT32_MAX) {
 			wl_resource_post_error(params_resource,
 				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
 				"size overflow for plane %d", i);
 			goto err_out;
 		}
 
-		off_t size = lseek(buffer->attributes.fd[i], 0, SEEK_END);
+		off_t size = lseek(attribs.fd[i], 0, SEEK_END);
 		if (size == -1) {
 			// Skip checks if kernel does no support seek on buffer
 			continue;
 		}
-		if (buffer->attributes.offset[i] > size) {
+		if (attribs.offset[i] > size) {
 			wl_resource_post_error(params_resource,
 				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
 				"invalid offset %" PRIu32 " for plane %d",
-				buffer->attributes.offset[i], i);
+				attribs.offset[i], i);
 			goto err_out;
 		}
 
-		if (buffer->attributes.offset[i] + buffer->attributes.stride[i] > size ||
-				buffer->attributes.stride[i] == 0) {
+		if (attribs.offset[i] + attribs.stride[i] > size ||
+				attribs.stride[i] == 0) {
 			wl_resource_post_error(params_resource,
 				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
 				"invalid stride %" PRIu32 " for plane %d",
-				buffer->attributes.stride[i], i);
+				attribs.stride[i], i);
 			goto err_out;
 		}
 
 		// planes > 0 might be subsampled according to fourcc format
-		if (i == 0 && buffer->attributes.offset[i] +
-				buffer->attributes.stride[i] * height > size) {
+		if (i == 0 && attribs.offset[i] +
+				attribs.stride[i] * height > size) {
 			wl_resource_post_error(params_resource,
 				ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_OUT_OF_BOUNDS,
 				"invalid buffer stride or height for plane %d", i);
@@ -253,34 +230,43 @@ static void params_create_common(struct wl_client *client,
 	}
 
 	/* reject unknown flags */
-	if (buffer->attributes.flags & ~ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT) {
+	if (attribs.flags & ~ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT) {
 		wl_resource_post_error(params_resource,
 			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_INVALID_FORMAT,
-			"Unknown dmabuf flags %"PRIu32, buffer->attributes.flags);
+			"Unknown dmabuf flags %"PRIu32, attribs.flags);
 		goto err_out;
 	}
 
 	/* Check if dmabuf is usable */
-	if (!check_import_dmabuf(buffer)) {
+	if (!check_import_dmabuf(linux_dmabuf, &attribs)) {
 		goto err_failed;
 	}
 
-	buffer->buffer_resource = wl_resource_create(client, &wl_buffer_interface,
-		1, buffer_id);
-	if (!buffer->buffer_resource) {
+	struct wlr_dmabuf_v1_buffer *buffer = calloc(1, sizeof(*buffer));
+	if (!buffer) {
 		wl_resource_post_no_memory(params_resource);
 		goto err_failed;
 	}
 
-	wl_resource_set_implementation(buffer->buffer_resource,
+	struct wl_client *client = wl_resource_get_client(params_resource);
+	buffer->resource = wl_resource_create(client, &wl_buffer_interface,
+		1, buffer_id);
+	if (!buffer->resource) {
+		wl_resource_post_no_memory(params_resource);
+		goto err_failed;
+	}
+	wl_resource_set_implementation(buffer->resource,
 		&buffer_impl, buffer, buffer_handle_resource_destroy);
+
+	buffer->attributes = attribs;
 
 	/* send 'created' event when the request is not for an immediate
 	 * import, that is buffer_id is zero */
 	if (buffer_id == 0) {
 		zwp_linux_buffer_params_v1_send_created(params_resource,
-			buffer->buffer_resource);
+			buffer->resource);
 	}
+
 	return;
 
 err_failed:
@@ -298,40 +284,37 @@ err_failed:
 			"importing the supplied dmabufs failed");
 	}
 err_out:
-	linux_dmabuf_buffer_destroy(buffer);
+	wlr_dmabuf_attributes_finish(&attribs);
 }
 
 static void params_create(struct wl_client *client,
 		struct wl_resource *params_resource,
 		int32_t width, int32_t height, uint32_t format, uint32_t flags) {
-	params_create_common(client, params_resource, 0, width, height, format,
+	params_create_common(params_resource, 0, width, height, format,
 		flags);
 }
 
 static void params_create_immed(struct wl_client *client,
 		struct wl_resource *params_resource, uint32_t buffer_id,
 		int32_t width, int32_t height, uint32_t format, uint32_t flags) {
-	params_create_common(client, params_resource, buffer_id, width, height,
+	params_create_common(params_resource, buffer_id, width, height,
 		format, flags);
 }
 
-static const struct zwp_linux_buffer_params_v1_interface
-		linux_buffer_params_impl = {
+static const struct zwp_linux_buffer_params_v1_interface buffer_params_impl = {
 	.destroy = params_destroy,
 	.add = params_add,
 	.create = params_create,
 	.create_immed = params_create_immed,
 };
 
-static void handle_params_destroy(struct wl_resource *params_resource) {
-	/* Check for NULL since buffer_from_params_resource will choke */
-	if (!wl_resource_get_user_data(params_resource)) {
+static void params_handle_resource_destroy(struct wl_resource *resource) {
+	struct wlr_linux_buffer_params_v1 *params = params_from_resource(resource);
+	if (!params) {
 		return;
 	}
-
-	struct wlr_dmabuf_v1_buffer *buffer =
-		buffer_from_params_resource(params_resource);
-	linux_dmabuf_buffer_destroy(buffer);
+	wlr_dmabuf_attributes_finish(&params->attributes);
+	free(params);
 }
 
 static const struct zwp_linux_dmabuf_v1_interface linux_dmabuf_impl;
@@ -352,31 +335,28 @@ static void linux_dmabuf_create_params(struct wl_client *client,
 	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
 		linux_dmabuf_from_resource(linux_dmabuf_resource);
 
-	uint32_t version = wl_resource_get_version(linux_dmabuf_resource);
-	struct wlr_dmabuf_v1_buffer *buffer = calloc(1, sizeof *buffer);
-	if (!buffer) {
-		goto err;
+	struct wlr_linux_buffer_params_v1 *params = calloc(1, sizeof(*params));
+	if (!params) {
+		wl_resource_post_no_memory(linux_dmabuf_resource);
+		return;
 	}
 
 	for (int i = 0; i < WLR_DMABUF_MAX_PLANES; i++) {
-		buffer->attributes.fd[i] = -1;
+		params->attributes.fd[i] = -1;
 	}
 
-	buffer->renderer = linux_dmabuf->renderer;
-	buffer->params_resource = wl_resource_create(client,
+	params->linux_dmabuf = linux_dmabuf;
+
+	uint32_t version = wl_resource_get_version(linux_dmabuf_resource);
+	params->resource = wl_resource_create(client,
 		&zwp_linux_buffer_params_v1_interface, version, params_id);
-	if (!buffer->params_resource) {
-		goto err_free;
+	if (!params->resource) {
+		free(params);
+		wl_resource_post_no_memory(linux_dmabuf_resource);
+		return;
 	}
-
-	wl_resource_set_implementation(buffer->params_resource,
-		&linux_buffer_params_impl, buffer, handle_params_destroy);
-	return;
-
-err_free:
-	free(buffer);
-err:
-	wl_resource_post_no_memory(linux_dmabuf_resource);
+	wl_resource_set_implementation(params->resource,
+		&buffer_params_impl, params, params_handle_resource_destroy);
 }
 
 static void linux_dmabuf_destroy(struct wl_client *client,

@@ -14,11 +14,8 @@
 #include <wlr/render/dmabuf.h>
 
 struct wlr_dmabuf_v1_buffer {
-	struct wlr_renderer *renderer;
-	struct wl_resource *buffer_resource;
-	struct wl_resource *params_resource;
+	struct wl_resource *resource;
 	struct wlr_dmabuf_attributes attributes;
-	bool has_modifier;
 };
 
 /**
@@ -33,6 +30,13 @@ bool wlr_dmabuf_v1_resource_is_buffer(struct wl_resource *buffer_resource);
  */
 struct wlr_dmabuf_v1_buffer *wlr_dmabuf_v1_buffer_from_buffer_resource(
 	struct wl_resource *buffer_resource);
+
+struct wlr_linux_buffer_params_v1 {
+	struct wl_resource *resource;
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf;
+	struct wlr_dmabuf_attributes attributes;
+	bool has_modifier;
+};
 
 /* the protocol interface */
 struct wlr_linux_dmabuf_v1 {
