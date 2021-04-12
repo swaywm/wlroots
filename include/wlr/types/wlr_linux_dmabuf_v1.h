@@ -34,13 +34,6 @@ bool wlr_dmabuf_v1_resource_is_buffer(struct wl_resource *buffer_resource);
 struct wlr_dmabuf_v1_buffer *wlr_dmabuf_v1_buffer_from_buffer_resource(
 	struct wl_resource *buffer_resource);
 
-/**
- * Returns the wlr_dmabuf_buffer if the given resource was created
- * via the linux-dmabuf params protocol
- */
-struct wlr_dmabuf_v1_buffer *wlr_dmabuf_v1_buffer_from_params_resource(
-	struct wl_resource *params_resource);
-
 /* the protocol interface */
 struct wlr_linux_dmabuf_v1 {
 	struct wl_global *global;
@@ -59,12 +52,5 @@ struct wlr_linux_dmabuf_v1 {
  */
 struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *display,
 	struct wlr_renderer *renderer);
-
-/**
- * Returns the wlr_linux_dmabuf if the given resource was created
- * via the linux_dmabuf protocol
- */
-struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_from_resource(
-	struct wl_resource *resource);
 
 #endif
