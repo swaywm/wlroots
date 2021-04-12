@@ -58,6 +58,24 @@ static void linux_dmabuf_buffer_destroy(struct wlr_dmabuf_v1_buffer *buffer) {
 	free(buffer);
 }
 
+static const struct zwp_linux_buffer_params_v1_interface linux_buffer_params_impl;
+
+static struct wlr_dmabuf_v1_buffer *buffer_from_params_resource(
+		struct wl_resource *params_resource) {
+	assert(wl_resource_instance_of(params_resource,
+		&zwp_linux_buffer_params_v1_interface,
+		&linux_buffer_params_impl));
+
+	struct wlr_dmabuf_v1_buffer *buffer =
+		wl_resource_get_user_data(params_resource);
+	assert(buffer);
+	assert(buffer->params_resource);
+	assert(!buffer->buffer_resource);
+	assert(buffer->params_resource == params_resource);
+
+	return buffer;
+}
+
 static void params_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -68,7 +86,7 @@ static void params_add(struct wl_client *client,
 		uint32_t plane_idx, uint32_t offset, uint32_t stride,
 		uint32_t modifier_hi, uint32_t modifier_lo) {
 	struct wlr_dmabuf_v1_buffer *buffer =
-		wlr_dmabuf_v1_buffer_from_params_resource(params_resource);
+		buffer_from_params_resource(params_resource);
 
 	if (!buffer) {
 		wl_resource_post_error(params_resource,
@@ -144,7 +162,7 @@ static void params_create_common(struct wl_client *client,
 		return;
 	}
 	struct wlr_dmabuf_v1_buffer *buffer =
-		wlr_dmabuf_v1_buffer_from_params_resource(params_resource);
+		buffer_from_params_resource(params_resource);
 
 	/* Switch the linux_dmabuf_buffer object from params resource to
 	 * eventually wl_buffer resource. */
@@ -305,38 +323,34 @@ static const struct zwp_linux_buffer_params_v1_interface
 	.create_immed = params_create_immed,
 };
 
-struct wlr_dmabuf_v1_buffer *wlr_dmabuf_v1_buffer_from_params_resource(
-		struct wl_resource *params_resource) {
-	assert(wl_resource_instance_of(params_resource,
-		&zwp_linux_buffer_params_v1_interface,
-		&linux_buffer_params_impl));
-
-	struct wlr_dmabuf_v1_buffer *buffer =
-		wl_resource_get_user_data(params_resource);
-	assert(buffer);
-	assert(buffer->params_resource);
-	assert(!buffer->buffer_resource);
-	assert(buffer->params_resource == params_resource);
-
-	return buffer;
-}
-
 static void handle_params_destroy(struct wl_resource *params_resource) {
-	/* Check for NULL since wlr_dmabuf_v1_buffer_from_params_resource will choke */
+	/* Check for NULL since buffer_from_params_resource will choke */
 	if (!wl_resource_get_user_data(params_resource)) {
 		return;
 	}
 
 	struct wlr_dmabuf_v1_buffer *buffer =
-		wlr_dmabuf_v1_buffer_from_params_resource(params_resource);
+		buffer_from_params_resource(params_resource);
 	linux_dmabuf_buffer_destroy(buffer);
+}
+
+static const struct zwp_linux_dmabuf_v1_interface linux_dmabuf_impl;
+
+static struct wlr_linux_dmabuf_v1 *linux_dmabuf_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource, &zwp_linux_dmabuf_v1_interface,
+			&linux_dmabuf_impl));
+
+	struct wlr_linux_dmabuf_v1 *dmabuf = wl_resource_get_user_data(resource);
+	assert(dmabuf);
+	return dmabuf;
 }
 
 static void linux_dmabuf_create_params(struct wl_client *client,
 		struct wl_resource *linux_dmabuf_resource,
 		uint32_t params_id) {
 	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
-		wlr_linux_dmabuf_v1_from_resource(linux_dmabuf_resource);
+		linux_dmabuf_from_resource(linux_dmabuf_resource);
 
 	uint32_t version = wl_resource_get_version(linux_dmabuf_resource);
 	struct wlr_dmabuf_v1_buffer *buffer = calloc(1, sizeof *buffer);
@@ -374,16 +388,6 @@ static const struct zwp_linux_dmabuf_v1_interface linux_dmabuf_impl = {
 	.destroy = linux_dmabuf_destroy,
 	.create_params = linux_dmabuf_create_params,
 };
-
-struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_from_resource(
-		struct wl_resource *resource) {
-	assert(wl_resource_instance_of(resource, &zwp_linux_dmabuf_v1_interface,
-			&linux_dmabuf_impl));
-
-	struct wlr_linux_dmabuf_v1 *dmabuf = wl_resource_get_user_data(resource);
-	assert(dmabuf);
-	return dmabuf;
-}
 
 static void linux_dmabuf_send_modifiers(struct wl_resource *resource,
 		const struct wlr_drm_format *fmt) {
