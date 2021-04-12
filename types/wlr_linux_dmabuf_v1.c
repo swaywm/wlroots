@@ -18,13 +18,13 @@ static void buffer_handle_destroy(struct wl_client *client,
 	wl_resource_destroy(resource);
 }
 
-static const struct wl_buffer_interface buffer_impl = {
+static const struct wl_buffer_interface wl_buffer_impl = {
 	.destroy = buffer_handle_destroy,
 };
 
 bool wlr_dmabuf_v1_resource_is_buffer(struct wl_resource *resource) {
 	if (!wl_resource_instance_of(resource, &wl_buffer_interface,
-			&buffer_impl)) {
+			&wl_buffer_impl)) {
 		return false;
 	}
 	return wl_resource_get_user_data(resource) != NULL;
@@ -33,13 +33,48 @@ bool wlr_dmabuf_v1_resource_is_buffer(struct wl_resource *resource) {
 struct wlr_dmabuf_v1_buffer *wlr_dmabuf_v1_buffer_from_buffer_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_buffer_interface,
-		&buffer_impl));
+		&wl_buffer_impl));
 	return wl_resource_get_user_data(resource);
 }
 
-static void linux_dmabuf_buffer_destroy(struct wlr_dmabuf_v1_buffer *buffer) {
+static const struct wlr_buffer_impl buffer_impl;
+
+static struct wlr_dmabuf_v1_buffer *dmabuf_v1_buffer_from_buffer(
+		struct wlr_buffer *buffer) {
+	assert(buffer->impl == &buffer_impl);
+	return (struct wlr_dmabuf_v1_buffer *)buffer;
+}
+
+static void buffer_destroy(struct wlr_buffer *wlr_buffer) {
+	struct wlr_dmabuf_v1_buffer *buffer =
+		dmabuf_v1_buffer_from_buffer(wlr_buffer);
+	if (buffer->resource != NULL) {
+		wl_resource_set_user_data(buffer->resource, NULL);
+	}
 	wlr_dmabuf_attributes_finish(&buffer->attributes);
+	wl_list_remove(&buffer->release.link);
 	free(buffer);
+}
+
+static bool buffer_get_dmabuf(struct wlr_buffer *wlr_buffer,
+		struct wlr_dmabuf_attributes *attribs) {
+	struct wlr_dmabuf_v1_buffer *buffer =
+		dmabuf_v1_buffer_from_buffer(wlr_buffer);
+	memcpy(attribs, &buffer->attributes, sizeof(buffer->attributes));
+	return true;
+}
+
+static const struct wlr_buffer_impl buffer_impl = {
+	.destroy = buffer_destroy,
+	.get_dmabuf = buffer_get_dmabuf,
+};
+
+static void buffer_handle_release(struct wl_listener *listener, void *data) {
+	struct wlr_dmabuf_v1_buffer *buffer =
+		wl_container_of(listener, buffer, release);
+	if (buffer->resource != NULL) {
+		wl_buffer_send_release(buffer->resource);
+	}
 }
 
 static const struct zwp_linux_buffer_params_v1_interface buffer_params_impl;
@@ -110,7 +145,8 @@ static void params_add(struct wl_client *client,
 static void buffer_handle_resource_destroy(struct wl_resource *buffer_resource) {
 	struct wlr_dmabuf_v1_buffer *buffer =
 		wlr_dmabuf_v1_buffer_from_buffer_resource(buffer_resource);
-	linux_dmabuf_buffer_destroy(buffer);
+	buffer->resource = NULL;
+	wlr_buffer_drop(&buffer->base);
 }
 
 static bool check_import_dmabuf(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
@@ -247,18 +283,23 @@ static void params_create_common(struct wl_resource *params_resource,
 		wl_resource_post_no_memory(params_resource);
 		goto err_failed;
 	}
+	wlr_buffer_init(&buffer->base, &buffer_impl, attribs.width, attribs.height);
 
 	struct wl_client *client = wl_resource_get_client(params_resource);
 	buffer->resource = wl_resource_create(client, &wl_buffer_interface,
 		1, buffer_id);
 	if (!buffer->resource) {
 		wl_resource_post_no_memory(params_resource);
+		free(buffer);
 		goto err_failed;
 	}
 	wl_resource_set_implementation(buffer->resource,
-		&buffer_impl, buffer, buffer_handle_resource_destroy);
+		&wl_buffer_impl, buffer, buffer_handle_resource_destroy);
 
 	buffer->attributes = attribs;
+
+	buffer->release.notify = buffer_handle_release;
+	wl_signal_add(&buffer->base.events.release, &buffer->release);
 
 	/* send 'created' event when the request is not for an immediate
 	 * import, that is buffer_id is zero */
