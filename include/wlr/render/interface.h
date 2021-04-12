@@ -67,6 +67,7 @@ struct wlr_texture_impl {
 		uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
 		const void *data);
+	bool (*invalidate)(struct wlr_texture *texture);
 	void (*destroy)(struct wlr_texture *texture);
 };
 
