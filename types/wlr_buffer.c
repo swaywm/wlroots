@@ -5,6 +5,7 @@
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include "render/pixel_format.h"
+#include "render/wlr_texture.h"
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
 
@@ -220,11 +221,11 @@ struct wlr_client_buffer *wlr_client_buffer_import(
 	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
 		struct wlr_dmabuf_v1_buffer *dmabuf =
 			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
-		texture = wlr_texture_from_dmabuf(renderer, &dmabuf->attributes);
+		texture = wlr_texture_from_buffer(renderer, &dmabuf->base);
 
-		// We have imported the DMA-BUF, but we need to prevent the client from
-		// re-using the same DMA-BUF for the next frames, so we don't release
-		// the buffer yet.
+		// The renderer is responsible for releasing the buffer when
+		// appropriate
+		resource_released = true;
 	} else {
 		wlr_log(WLR_ERROR, "Cannot upload texture: unknown buffer type");
 
