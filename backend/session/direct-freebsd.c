@@ -158,13 +158,13 @@ static bool get_tty_path(int tty, char path[static 11], size_t len) {
 	}
 
 	const int base = 32;
-	for (int remaning = num; remaning > 0; remaning /= base, offset++) {
+	for (int remaining = num; remaining > 0; remaining /= base, offset++) {
 		// Return early if the buffer is too small.
 		if (offset + 1 >= len) {
 			return false;
 		}
 
-		const int value = remaning % base;
+		const int value = remaining % base;
 		if (value >= 10) {
 			path[offset] = 'a' + value - 10;
 		} else {
