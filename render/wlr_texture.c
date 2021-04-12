@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_texture.h>
+#include "render/wlr_texture.h"
 
 void wlr_texture_init(struct wlr_texture *texture,
 		const struct wlr_texture_impl *impl, uint32_t width, uint32_t height) {
@@ -44,6 +45,15 @@ struct wlr_texture *wlr_texture_from_dmabuf(struct wlr_renderer *renderer,
 		return NULL;
 	}
 	return renderer->impl->texture_from_dmabuf(renderer, attribs);
+}
+
+struct wlr_texture *wlr_texture_from_buffer(struct wlr_renderer *renderer,
+		struct wlr_buffer *buffer) {
+	assert(!renderer->rendering);
+	if (!renderer->impl->texture_from_buffer) {
+		return NULL;
+	}
+	return renderer->impl->texture_from_buffer(renderer, buffer);
 }
 
 bool wlr_texture_is_opaque(struct wlr_texture *texture) {
