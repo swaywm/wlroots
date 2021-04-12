@@ -11,7 +11,6 @@
 #include "util/signal.h"
 #include "render/pixel_format.h"
 #include "render/wlr_renderer.h"
-#include "backend/backend.h"
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
 		const struct wlr_renderer_impl *impl) {
@@ -247,7 +246,7 @@ struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
 }
 
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
-	int drm_fd = backend_get_drm_fd(backend);
+	int drm_fd = wlr_backend_get_drm_fd(backend);
 	if (drm_fd < 0) {
 		wlr_log(WLR_ERROR, "Failed to get DRM FD from backend");
 		return NULL;

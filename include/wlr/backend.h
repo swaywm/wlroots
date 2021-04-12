@@ -57,5 +57,12 @@ struct wlr_session *wlr_backend_get_session(struct wlr_backend *backend);
  * Returns the clock used by the backend for presentation feedback.
  */
 clockid_t wlr_backend_get_presentation_clock(struct wlr_backend *backend);
+/**
+ * Returns the DRM node file descriptor used by the backend's underlying
+ * platform. Can be used by consumers for additional rendering operations.
+ * The consumer must not close the file descriptor since the backend continues
+ * to have ownership of it.
+ */
+int wlr_backend_get_drm_fd(struct wlr_backend *backend);
 
 #endif
