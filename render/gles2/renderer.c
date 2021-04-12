@@ -593,6 +593,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.init_wl_display = gles2_init_wl_display,
 	.get_drm_fd = gles2_get_drm_fd,
 	.get_render_buffer_caps = gles2_get_render_buffer_caps,
+	.texture_from_buffer = gles2_texture_from_buffer,
 };
 
 void push_gles2_debug_(struct wlr_gles2_renderer *renderer,
