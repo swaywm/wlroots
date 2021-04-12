@@ -125,6 +125,20 @@ static const struct wlr_texture_impl texture_impl = {
 	.destroy = gles2_texture_destroy,
 };
 
+static struct wlr_gles2_texture *gles2_texture_create(
+		struct wlr_gles2_renderer *renderer, uint32_t width, uint32_t height) {
+	struct wlr_gles2_texture *texture =
+		calloc(1, sizeof(struct wlr_gles2_texture));
+	if (texture == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return NULL;
+	}
+	wlr_texture_init(&texture->wlr_texture, &texture_impl, width, height);
+	texture->renderer = renderer;
+	wl_list_insert(&renderer->textures, &texture->link);
+	return texture;
+}
+
 struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 		uint32_t drm_format, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data) {
@@ -146,13 +160,10 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 	}
 
 	struct wlr_gles2_texture *texture =
-		calloc(1, sizeof(struct wlr_gles2_texture));
+		gles2_texture_create(renderer, width, height);
 	if (texture == NULL) {
-		wlr_log(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
-	wlr_texture_init(&texture->wlr_texture, &texture_impl, width, height);
-	texture->renderer = renderer;
 	texture->target = GL_TEXTURE_2D;
 	texture->has_alpha = fmt->has_alpha;
 	texture->drm_format = fmt->drm_format;
@@ -178,8 +189,6 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 	pop_gles2_debug(renderer);
 
 	wlr_egl_restore_context(&prev_ctx);
-
-	wl_list_insert(&renderer->textures, &texture->link);
 
 	return &texture->wlr_texture;
 }
@@ -207,9 +216,8 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 	}
 
 	struct wlr_gles2_texture *texture =
-		calloc(1, sizeof(struct wlr_gles2_texture));
+		gles2_texture_create(renderer, width, height);
 	if (texture == NULL) {
-		wlr_log(WLR_ERROR, "Allocation failed");
 		goto error_image;
 	}
 	wlr_texture_init(&texture->wlr_texture, &texture_impl, width, height);
@@ -248,11 +256,10 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 
 	wlr_egl_restore_context(&prev_ctx);
 
-	wl_list_insert(&renderer->textures, &texture->link);
-
 	return &texture->wlr_texture;
 
 error_texture:
+	wl_list_remove(&texture->link);
 	free(texture);
 error_image:
 	wlr_egl_destroy_image(renderer->egl, image);
@@ -270,14 +277,10 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 	}
 
 	struct wlr_gles2_texture *texture =
-		calloc(1, sizeof(struct wlr_gles2_texture));
+		gles2_texture_create(renderer, attribs->width, attribs->height);
 	if (texture == NULL) {
-		wlr_log(WLR_ERROR, "Allocation failed");
 		return NULL;
 	}
-	wlr_texture_init(&texture->wlr_texture, &texture_impl,
-		attribs->width, attribs->height);
-	texture->renderer = renderer;
 	texture->has_alpha = true;
 	texture->drm_format = DRM_FORMAT_INVALID; // texture can't be written anyways
 	texture->inverted_y =
@@ -293,6 +296,7 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 	if (texture->image == EGL_NO_IMAGE_KHR) {
 		wlr_log(WLR_ERROR, "Failed to create EGL image from DMA-BUF");
 		wlr_egl_restore_context(&prev_ctx);
+		wl_list_remove(&texture->link);
 		free(texture);
 		return NULL;
 	}
@@ -311,8 +315,6 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 	pop_gles2_debug(renderer);
 
 	wlr_egl_restore_context(&prev_ctx);
-
-	wl_list_insert(&renderer->textures, &texture->link);
 
 	return &texture->wlr_texture;
 }
