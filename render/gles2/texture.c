@@ -98,10 +98,36 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	return true;
 }
 
-static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
-	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
+static bool gles2_texture_invalidate(struct wlr_gles2_texture *texture) {
+	if (texture->image == EGL_NO_IMAGE_KHR) {
+		return false;
+	}
+	if (texture->target == GL_TEXTURE_EXTERNAL_OES) {
+		// External changes are immediately made visible by the GL implementation
+		return true;
+	}
 
+	struct wlr_egl_context prev_ctx;
+	wlr_egl_save_context(&prev_ctx);
+	wlr_egl_make_current(texture->renderer->egl);
+
+	push_gles2_debug(texture->renderer);
+
+	glBindTexture(texture->target, texture->tex);
+	texture->renderer->procs.glEGLImageTargetTexture2DOES(texture->target,
+		texture->image);
+	glBindTexture(texture->target, 0);
+
+	pop_gles2_debug(texture->renderer);
+
+	wlr_egl_restore_context(&prev_ctx);
+
+	return true;
+}
+
+static void gles2_texture_destroy(struct wlr_gles2_texture *texture) {
 	wl_list_remove(&texture->link);
+	wl_list_remove(&texture->buffer_destroy.link);
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_save_context(&prev_ctx);
@@ -119,10 +145,21 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 	free(texture);
 }
 
+static void gles2_texture_unref(struct wlr_texture *wlr_texture) {
+	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
+	if (texture->buffer != NULL) {
+		// Keep the texture around, in case the buffer is re-used later. We're
+		// still listening to the buffer's destroy event.
+		wlr_buffer_unlock(texture->buffer);
+	} else {
+		gles2_texture_destroy(texture);
+	}
+}
+
 static const struct wlr_texture_impl texture_impl = {
 	.is_opaque = gles2_texture_is_opaque,
 	.write_pixels = gles2_texture_write_pixels,
-	.destroy = gles2_texture_destroy,
+	.destroy = gles2_texture_unref,
 };
 
 static struct wlr_gles2_texture *gles2_texture_create(
@@ -136,6 +173,7 @@ static struct wlr_gles2_texture *gles2_texture_create(
 	wlr_texture_init(&texture->wlr_texture, &texture_impl, width, height);
 	texture->renderer = renderer;
 	wl_list_insert(&renderer->textures, &texture->link);
+	wl_list_init(&texture->buffer_destroy.link);
 	return texture;
 }
 
@@ -321,6 +359,49 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 	pop_gles2_debug(renderer);
 
 	wlr_egl_restore_context(&prev_ctx);
+
+	return &texture->wlr_texture;
+}
+
+static void texture_handle_buffer_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_gles2_texture *texture =
+		wl_container_of(listener, texture, buffer_destroy);
+	gles2_texture_destroy(texture);
+}
+
+struct wlr_texture *gles2_texture_from_buffer(struct wlr_renderer *wlr_renderer,
+		struct wlr_buffer *buffer) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+
+	struct wlr_dmabuf_attributes dmabuf;
+	if (!wlr_buffer_get_dmabuf(buffer, &dmabuf)) {
+		return false;
+	}
+
+	struct wlr_gles2_texture *texture;
+	wl_list_for_each(texture, &renderer->textures, link) {
+		if (texture->buffer == buffer) {
+			if (!gles2_texture_invalidate(texture)) {
+				wlr_log(WLR_ERROR, "Failed to invalidate texture");
+				return false;
+			}
+			wlr_buffer_lock(texture->buffer);
+			return &texture->wlr_texture;
+		}
+	}
+
+	struct wlr_texture *wlr_texture =
+		gles2_texture_from_dmabuf(wlr_renderer, &dmabuf);
+	if (wlr_texture == NULL) {
+		return false;
+	}
+
+	texture = gles2_get_texture(wlr_texture);
+	texture->buffer = wlr_buffer_lock(buffer);
+
+	texture->buffer_destroy.notify = texture_handle_buffer_destroy;
+	wl_signal_add(&buffer->events.destroy, &texture->buffer_destroy);
 
 	return &texture->wlr_texture;
 }
