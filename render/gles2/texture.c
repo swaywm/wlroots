@@ -53,7 +53,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 		const void *data) {
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
 
-	if (texture->target != GL_TEXTURE_2D) {
+	if (texture->target != GL_TEXTURE_2D || texture->image != EGL_NO_IMAGE_KHR) {
 		wlr_log(WLR_ERROR, "Cannot write pixels to immutable texture");
 		return false;
 	}
