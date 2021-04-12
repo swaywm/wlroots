@@ -11,11 +11,16 @@
 
 #include <stdint.h>
 #include <wayland-server-core.h>
+#include <wlr/types/wlr_buffer.h>
 #include <wlr/render/dmabuf.h>
 
 struct wlr_dmabuf_v1_buffer {
-	struct wl_resource *resource;
+	struct wlr_buffer base;
+
+	struct wl_resource *resource; // can be NULL if the client destroyed it
 	struct wlr_dmabuf_attributes attributes;
+
+	struct wl_listener release;
 };
 
 /**
