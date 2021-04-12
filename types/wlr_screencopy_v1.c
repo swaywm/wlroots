@@ -266,12 +266,7 @@ static void frame_handle_output_precommit(struct wl_listener *listener,
 static bool blit_dmabuf(struct wlr_renderer *renderer,
 		struct wlr_dmabuf_v1_buffer *dst_dmabuf,
 		struct wlr_dmabuf_attributes *src_attrs) {
-	struct wlr_client_buffer *dst_client_buffer =
-		wlr_client_buffer_import(renderer, dst_dmabuf->resource);
-	if (dst_client_buffer == NULL) {
-		return false;
-	}
-	struct wlr_buffer *dst_buffer = &dst_client_buffer->base;
+	struct wlr_buffer *dst_buffer = wlr_buffer_lock(&dst_dmabuf->base);
 
 	struct wlr_texture *src_tex = wlr_texture_from_dmabuf(renderer, src_attrs);
 	if (src_tex == NULL) {
