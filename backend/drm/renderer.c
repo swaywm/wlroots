@@ -18,6 +18,7 @@
 #include "render/pixel_format.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
+#include "render/wlr_texture.h"
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer) {
@@ -135,12 +136,7 @@ static struct wlr_buffer *drm_surface_blit(struct wlr_drm_surface *surf,
 		return NULL;
 	}
 
-	struct wlr_dmabuf_attributes attribs = {0};
-	if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
-		return NULL;
-	}
-
-	struct wlr_texture *tex = wlr_texture_from_dmabuf(renderer, &attribs);
+	struct wlr_texture *tex = wlr_texture_from_buffer(renderer, buffer);
 	if (tex == NULL) {
 		return NULL;
 	}
