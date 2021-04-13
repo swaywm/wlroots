@@ -363,40 +363,41 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 	struct wl_resource *resource = surface->current.buffer_resource;
 	if (resource == NULL) {
 		// NULL commit
-		if (surface->buffer != NULL) {
-			wlr_buffer_unlock(&surface->buffer->base);
-		}
+		wlr_buffer_unlock(surface->buffer);
 		surface->buffer = NULL;
 		return;
 	}
 
-	if (surface->buffer != NULL) {
+	struct wlr_client_buffer *client_buffer =
+			(surface->buffer ? wlr_client_buffer_get(surface->buffer) : NULL);
+	if (client_buffer) {
 		struct wlr_client_buffer *updated_buffer =
-			wlr_client_buffer_apply_damage(surface->buffer, resource,
-			&surface->buffer_damage);
-		if (updated_buffer != NULL) {
+				wlr_client_buffer_apply_damage(client_buffer, resource,
+						&surface->buffer_damage);
+		if (updated_buffer) {
 			wlr_buffer_unlock(surface->current.buffer);
 			surface->current.buffer = NULL;
-			surface->buffer = updated_buffer;
-			return;
+			surface->buffer = &updated_buffer->base;
 		}
 	}
 
-	struct wlr_client_buffer *buffer = wlr_client_buffer_create(
-			surface->current.buffer, surface->renderer);
+	if (!surface->current.buffer) {
+		surface->current.buffer = wlr_buffer_from_resource(surface->renderer,
+				resource);
+	}
 
-	wlr_buffer_unlock(surface->current.buffer);
+	client_buffer = wlr_client_buffer_create(surface->current.buffer,
+			surface->renderer);
+
 	surface->current.buffer = NULL;
 
-	if (buffer == NULL) {
+	if (client_buffer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to upload buffer");
 		return;
 	}
 
-	if (surface->buffer != NULL) {
-		wlr_buffer_unlock(&surface->buffer->base);
-	}
-	surface->buffer = buffer;
+	wlr_buffer_unlock(surface->buffer);
+	surface->buffer = &client_buffer->base;
 }
 
 static void surface_update_opaque_region(struct wlr_surface *surface) {
@@ -728,9 +729,7 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 	pixman_region32_fini(&surface->buffer_damage);
 	pixman_region32_fini(&surface->opaque_region);
 	pixman_region32_fini(&surface->input_region);
-	if (surface->buffer != NULL) {
-		wlr_buffer_unlock(&surface->buffer->base);
-	}
+	wlr_buffer_unlock(surface->buffer);
 	free(surface);
 }
 
@@ -790,7 +789,10 @@ struct wlr_texture *wlr_surface_get_texture(struct wlr_surface *surface) {
 	if (surface->buffer == NULL) {
 		return NULL;
 	}
-	return surface->buffer->texture;
+	struct wlr_client_buffer *client_buffer =
+		wlr_client_buffer_get(surface->buffer);
+	assert(client_buffer);
+	return client_buffer->texture;
 }
 
 bool wlr_surface_has_buffer(struct wlr_surface *surface) {
