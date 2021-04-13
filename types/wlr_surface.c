@@ -353,19 +353,19 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 	struct wl_resource *resource = surface->current.buffer_resource;
 	if (resource == NULL) {
 		// NULL commit
-		if (surface->buffer != NULL) {
-			wlr_buffer_unlock(&surface->buffer->base);
-		}
+		wlr_buffer_unlock(surface->buffer);
 		surface->buffer = NULL;
 		return;
 	}
 
-	if (surface->buffer != NULL && surface->buffer->resource_released) {
+	struct wlr_client_buffer *client_buffer = surface->buffer != NULL ?
+		wlr_client_buffer_get(surface->buffer) : NULL;
+	if (client_buffer != NULL && client_buffer->resource_released) {
 		struct wlr_client_buffer *updated_buffer =
-			wlr_client_buffer_apply_damage(surface->buffer, resource,
+			wlr_client_buffer_apply_damage(client_buffer, resource,
 			&surface->buffer_damage);
 		if (updated_buffer != NULL) {
-			surface->buffer = updated_buffer;
+			surface->buffer = &updated_buffer->base;
 			return;
 		}
 	}
@@ -377,10 +377,8 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 		return;
 	}
 
-	if (surface->buffer != NULL) {
-		wlr_buffer_unlock(&surface->buffer->base);
-	}
-	surface->buffer = buffer;
+	wlr_buffer_unlock(surface->buffer);
+	surface->buffer = &buffer->base;
 }
 
 static void surface_update_opaque_region(struct wlr_surface *surface) {
@@ -707,9 +705,7 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 	pixman_region32_fini(&surface->buffer_damage);
 	pixman_region32_fini(&surface->opaque_region);
 	pixman_region32_fini(&surface->input_region);
-	if (surface->buffer != NULL) {
-		wlr_buffer_unlock(&surface->buffer->base);
-	}
+	wlr_buffer_unlock(surface->buffer);
 	free(surface);
 }
 
@@ -771,7 +767,10 @@ struct wlr_texture *wlr_surface_get_texture(struct wlr_surface *surface) {
 	if (surface->buffer == NULL) {
 		return NULL;
 	}
-	return surface->buffer->texture;
+	struct wlr_client_buffer *client_buffer =
+		wlr_client_buffer_get(surface->buffer);
+	assert(client_buffer);
+	return client_buffer->texture;
 }
 
 bool wlr_surface_has_buffer(struct wlr_surface *surface) {
