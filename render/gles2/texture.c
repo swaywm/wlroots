@@ -13,6 +13,7 @@
 #include <wlr/util/log.h>
 #include "render/gles2.h"
 #include "render/pixel_format.h"
+#include "types/wlr_buffer.h"
 #include "util/signal.h"
 
 static const struct wlr_texture_impl texture_impl;
@@ -364,15 +365,9 @@ static void texture_handle_buffer_destroy(struct wl_listener *listener,
 	gles2_texture_destroy(texture);
 }
 
-struct wlr_texture *gles2_texture_from_buffer(struct wlr_renderer *wlr_renderer,
-		struct wlr_buffer *buffer) {
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-
-	struct wlr_dmabuf_attributes dmabuf;
-	if (!wlr_buffer_get_dmabuf(buffer, &dmabuf)) {
-		return false;
-	}
-
+static struct wlr_texture *gles2_texture_from_dmabuf_buffer(
+		struct wlr_gles2_renderer *renderer, struct wlr_buffer *buffer,
+		struct wlr_dmabuf_attributes *dmabuf) {
 	struct wlr_gles2_texture *texture;
 	wl_list_for_each(texture, &renderer->textures, link) {
 		if (texture->buffer == buffer) {
@@ -386,7 +381,7 @@ struct wlr_texture *gles2_texture_from_buffer(struct wlr_renderer *wlr_renderer,
 	}
 
 	struct wlr_texture *wlr_texture =
-		gles2_texture_from_dmabuf(wlr_renderer, &dmabuf);
+		gles2_texture_from_dmabuf(&renderer->wlr_renderer, dmabuf);
 	if (wlr_texture == NULL) {
 		return false;
 	}
@@ -398,6 +393,26 @@ struct wlr_texture *gles2_texture_from_buffer(struct wlr_renderer *wlr_renderer,
 	wl_signal_add(&buffer->events.destroy, &texture->buffer_destroy);
 
 	return &texture->wlr_texture;
+}
+
+struct wlr_texture *gles2_texture_from_buffer(struct wlr_renderer *wlr_renderer,
+		struct wlr_buffer *buffer) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+
+	void *data;
+	uint32_t format;
+	size_t stride;
+	struct wlr_dmabuf_attributes dmabuf;
+	if (wlr_buffer_get_dmabuf(buffer, &dmabuf)) {
+		return gles2_texture_from_dmabuf_buffer(renderer, buffer, &dmabuf);
+	} else if (buffer_begin_data_ptr_access(buffer, &data, &format, &stride)) {
+		struct wlr_texture *tex = gles2_texture_from_pixels(wlr_renderer,
+			format, stride, buffer->width, buffer->height, data);
+		buffer_end_data_ptr_access(buffer);
+		return tex;
+	} else {
+		return NULL;
+	}
 }
 
 void wlr_gles2_texture_get_attribs(struct wlr_texture *wlr_texture,
