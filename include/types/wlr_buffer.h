@@ -3,6 +3,28 @@
 
 #include <wlr/types/wlr_buffer.h>
 
+struct wlr_shm_client_buffer {
+	struct wlr_buffer base;
+
+	uint32_t format;
+	size_t stride;
+
+	// The following fields are NULL if the client has destroyed the wl_buffer
+	struct wl_resource *resource;
+	struct wl_shm_buffer *shm_buffer;
+
+	// This is used to keep the backing storage alive after the client has
+	// destroyed the wl_buffer
+	struct wl_shm_pool *saved_shm_pool;
+	void *saved_data;
+
+	struct wl_listener resource_destroy;
+	struct wl_listener release;
+};
+
+struct wlr_shm_client_buffer *shm_client_buffer_create(
+	struct wl_resource *resource);
+
 /**
  * Buffer capabilities.
  *
