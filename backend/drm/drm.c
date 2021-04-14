@@ -1506,12 +1506,17 @@ static void page_flip_handler(int fd, unsigned seq,
 }
 
 int handle_drm_event(int fd, uint32_t mask, void *data) {
+	struct wlr_drm_backend *drm = data;
+
 	drmEventContext event = {
 		.version = 3,
 		.page_flip_handler2 = page_flip_handler,
 	};
 
-	drmHandleEvent(fd, &event);
+	if (drmHandleEvent(fd, &event) != 0) {
+		wlr_log(WLR_ERROR, "drmHandleEvent failed");
+		wl_display_terminate(drm->display);
+	}
 	return 1;
 }
 
@@ -1528,7 +1533,7 @@ void restore_drm_outputs(struct wlr_drm_backend *drm) {
 	time_t timeout = time(NULL) + 5;
 
 	while (to_close && time(NULL) < timeout) {
-		handle_drm_event(drm->fd, 0, NULL);
+		handle_drm_event(drm->fd, 0, drm);
 		size_t i = 0;
 		struct wlr_drm_connector *conn;
 		wl_list_for_each(conn, &drm->outputs, link) {
