@@ -214,23 +214,25 @@ struct wlr_client_buffer *wlr_client_buffer_import(
 	struct wlr_texture *texture = NULL;
 	bool resource_released = false;
 
-	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
-	if (shm_buf != NULL) {
-		enum wl_shm_format wl_shm_format = wl_shm_buffer_get_format(shm_buf);
-		uint32_t drm_format = convert_wl_shm_format_to_drm(wl_shm_format);
-		int32_t stride = wl_shm_buffer_get_stride(shm_buf);
-		int32_t width = wl_shm_buffer_get_width(shm_buf);
-		int32_t height = wl_shm_buffer_get_height(shm_buf);
+	if (wl_shm_buffer_get(resource) != NULL) {
+		struct wlr_shm_client_buffer *shm_client_buffer =
+			shm_client_buffer_create(resource);
+		if (shm_client_buffer == NULL) {
+			wlr_log(WLR_ERROR, "Failed to create shm client buffer");
+			return NULL;
+		}
 
-		wl_shm_buffer_begin_access(shm_buf);
-		void *data = wl_shm_buffer_get_data(shm_buf);
-		texture = wlr_texture_from_pixels(renderer, drm_format, stride,
-			width, height, data);
-		wl_shm_buffer_end_access(shm_buf);
+		// Ensure the buffer will be released before being destroyed
+		wlr_buffer_lock(&shm_client_buffer->base);
+		wlr_buffer_drop(&shm_client_buffer->base);
 
-		// We have uploaded the data, we don't need to access the wl_buffer
-		// anymore
-		wl_buffer_send_release(resource);
+		texture = wlr_texture_from_buffer(renderer, &shm_client_buffer->base);
+
+		// The renderer should've locked the buffer by now if necessary
+		wlr_buffer_unlock(&shm_client_buffer->base);
+
+		// The renderer is responsible for releasing the buffer when
+		// appropriate
 		resource_released = true;
 	} else if (wlr_renderer_resource_is_wl_drm_buffer(renderer, resource)) {
 		texture = wlr_texture_from_wl_drm(renderer, resource);
