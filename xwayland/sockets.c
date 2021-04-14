@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200809L
+#define _XOPEN_SOURCE 700
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -84,11 +84,46 @@ cleanup:
 	return -1;
 }
 
+static bool check_socket_dir(void) {
+	struct stat buf;
+
+	if (lstat(socket_dir, &buf)) {
+		wlr_log_errno(WLR_ERROR, "Failed to stat %s", socket_dir);
+		return false;
+	}
+	if (!(buf.st_mode & S_IFDIR)) {
+		wlr_log(WLR_ERROR, "%s is not a directory", socket_dir);
+		return false;
+	}
+	if (!((buf.st_uid == 0) || (buf.st_uid == getuid()))) {
+		wlr_log(WLR_ERROR, "%s not owned by root or us", socket_dir);
+		return false;
+	}
+	if (!(buf.st_mode & S_ISVTX)) {
+		/* we can deal with no sticky bit... */
+		if ((buf.st_mode & (S_IWGRP | S_IWOTH))) {
+			/* but not if other users can mess with our sockets */
+			wlr_log(WLR_ERROR, "sticky bit not set on %s", socket_dir);
+			return false;
+		}
+	}
+	return true;
+}
+
 static bool open_sockets(int socks[2], int display) {
 	struct sockaddr_un addr = { .sun_family = AF_UNIX };
 	size_t path_size;
 
-	mkdir(socket_dir, 0777);
+	if (mkdir(socket_dir, 0755) == 0) {
+		wlr_log(WLR_INFO, "Created %s ourselves -- other users will "
+			"be unable to create X11 UNIX sockets of their own",
+			socket_dir);
+	} else if (errno != EEXIST) {
+		wlr_log_errno(WLR_ERROR, "Unable to mkdir %s", socket_dir);
+		return false;
+	} else if (!check_socket_dir()) {
+		return false;
+	}
 
 #ifdef __linux__
 	addr.sun_path[0] = 0;
