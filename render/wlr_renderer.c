@@ -160,12 +160,12 @@ const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_texture_formats(
 	return r->impl->get_dmabuf_texture_formats(r);
 }
 
-const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_render_formats(
+const struct wlr_drm_format_set *wlr_renderer_get_render_formats(
 		struct wlr_renderer *r) {
-	if (!r->impl->get_dmabuf_render_formats) {
+	if (!r->impl->get_render_formats) {
 		return NULL;
 	}
-	return r->impl->get_dmabuf_render_formats(r);
+	return r->impl->get_render_formats(r);
 }
 
 bool wlr_renderer_read_pixels(struct wlr_renderer *r, uint32_t fmt,

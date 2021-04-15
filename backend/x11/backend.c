@@ -593,7 +593,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	}
 
 	const struct wlr_drm_format_set *render_formats =
-		wlr_renderer_get_dmabuf_render_formats(x11->renderer);
+		wlr_renderer_get_render_formats(x11->renderer);
 	if (render_formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to get available DMA-BUF formats from renderer");
 		return false;

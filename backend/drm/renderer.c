@@ -225,7 +225,7 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 	}
 
 	const struct wlr_drm_format_set *render_formats =
-		wlr_renderer_get_dmabuf_render_formats(drm->renderer.wlr_rend);
+		wlr_renderer_get_render_formats(drm->renderer.wlr_rend);
 	if (render_formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to get render formats");
 		return false;
