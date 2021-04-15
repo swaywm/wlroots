@@ -131,7 +131,7 @@ static bool backend_init(struct wlr_headless_backend *backend,
 	backend->renderer = renderer;
 
 	const struct wlr_drm_format_set *formats =
-		wlr_renderer_get_dmabuf_render_formats(backend->renderer);
+		wlr_renderer_get_render_formats(backend->renderer);
 	if (formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to get available DMA-BUF formats from renderer");
 		return false;
