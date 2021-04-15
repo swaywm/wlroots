@@ -250,7 +250,8 @@ struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
 	int drm_fd = wlr_backend_get_drm_fd(backend);
 	if (drm_fd < 0) {
 		wlr_log(WLR_ERROR, "Failed to get DRM FD from backend");
-		return NULL;
+		wlr_log(WLR_INFO, "Falling back on pixman renderer");
+		return wlr_pixman_renderer_create();
 	}
 
 	return wlr_renderer_autocreate_with_drm_fd(drm_fd);
