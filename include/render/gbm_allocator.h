@@ -28,6 +28,6 @@ struct wlr_gbm_allocator {
  *
  * Takes ownership over the FD.
  */
-struct wlr_gbm_allocator *wlr_gbm_allocator_create(int drm_fd);
+struct wlr_allocator *wlr_gbm_allocator_create(int drm_fd);
 
 #endif

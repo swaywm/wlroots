@@ -578,13 +578,12 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
-	struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
-	if (gbm_alloc == NULL) {
+	x11->allocator = wlr_gbm_allocator_create(drm_fd);
+	if (x11->allocator == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
 		close(drm_fd);
 		goto error_event;
 	}
-	x11->allocator = &gbm_alloc->base;
 
 	x11->renderer = wlr_renderer_autocreate(&x11->backend);
 	if (x11->renderer == NULL) {
