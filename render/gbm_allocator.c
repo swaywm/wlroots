@@ -159,7 +159,7 @@ static struct wlr_gbm_allocator *get_gbm_alloc_from_alloc(
 	return (struct wlr_gbm_allocator *)alloc;
 }
 
-struct wlr_gbm_allocator *wlr_gbm_allocator_create(int fd) {
+struct wlr_allocator *wlr_gbm_allocator_create(int fd) {
 	uint64_t cap;
 	if (drmGetCap(fd, DRM_CAP_PRIME, &cap) ||
 			!(cap & DRM_PRIME_CAP_EXPORT)) {
@@ -185,8 +185,11 @@ struct wlr_gbm_allocator *wlr_gbm_allocator_create(int fd) {
 
 	wlr_log(WLR_DEBUG, "Created GBM allocator with backend %s",
 		gbm_device_get_backend_name(alloc->gbm_device));
+	char *drm_name = drmGetDeviceNameFromFd2(fd);
+	wlr_log(WLR_DEBUG, "Using DRM node %s", drm_name);
+	free(drm_name);
 
-	return alloc;
+	return &alloc->base;
 }
 
 static void allocator_destroy(struct wlr_allocator *wlr_alloc) {

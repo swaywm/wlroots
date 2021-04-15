@@ -62,7 +62,7 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 		return;
 	}
 
-	wlr_allocator_destroy(&renderer->allocator->base);
+	wlr_allocator_destroy(renderer->allocator);
 	wlr_renderer_destroy(renderer->wlr_rend);
 	gbm_device_destroy(renderer->gbm);
 }
@@ -83,8 +83,8 @@ static bool init_drm_surface(struct wlr_drm_surface *surf,
 	wlr_swapchain_destroy(surf->swapchain);
 	surf->swapchain = NULL;
 
-	surf->swapchain = wlr_swapchain_create(&renderer->allocator->base,
-		width, height, drm_format);
+	surf->swapchain = wlr_swapchain_create(renderer->allocator, width, height,
+			drm_format);
 	if (surf->swapchain == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create swapchain");
 		memset(surf, 0, sizeof(*surf));
