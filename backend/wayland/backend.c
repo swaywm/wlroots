@@ -452,13 +452,13 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 			goto error_drm_fd;
 		}
 
-		struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
-		if (gbm_alloc == NULL) {
+		struct wlr_allocator *alloc = wlr_gbm_allocator_create(drm_fd);
+		if (alloc == NULL) {
 			wlr_log(WLR_ERROR, "Failed to create GBM allocator");
 			close(drm_fd);
 			goto error_drm_fd;
 		}
-		wl->allocator = &gbm_alloc->base;
+		wl->allocator = alloc;
 	} else {
 		wlr_log(WLR_DEBUG, "No render node found, falling back to shared memory");
 		struct wlr_shm_allocator *shm_alloc = wlr_shm_allocator_create();

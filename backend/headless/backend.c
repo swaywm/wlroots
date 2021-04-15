@@ -220,21 +220,21 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 		goto error_dup;
 	}
 
-	struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
-	if (gbm_alloc == NULL) {
+	struct wlr_allocator *alloc = wlr_gbm_allocator_create(drm_fd);
+	if (alloc == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
 		close(drm_fd);
 		goto error_dup;
 	}
 
-	if (!backend_init(backend, display, &gbm_alloc->base, NULL)) {
+	if (!backend_init(backend, display, alloc, NULL)) {
 		goto error_init;
 	}
 
 	return &backend->backend;
 
 error_init:
-	wlr_allocator_destroy(&gbm_alloc->base);
+	wlr_allocator_destroy(alloc);
 error_dup:
 	close(backend->drm_fd);
 error_drm_fd:
@@ -266,14 +266,14 @@ struct wlr_backend *wlr_headless_backend_create_with_renderer(
 		goto error_dup;
 	}
 
-	struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
-	if (gbm_alloc == NULL) {
+	struct wlr_allocator *alloc = wlr_gbm_allocator_create(drm_fd);
+	if (alloc == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
 		close(drm_fd);
 		goto error_dup;
 	}
 
-	if (!backend_init(backend, display, &gbm_alloc->base, renderer)) {
+	if (!backend_init(backend, display, alloc, renderer)) {
 		goto error_init;
 	}
 
@@ -283,7 +283,7 @@ struct wlr_backend *wlr_headless_backend_create_with_renderer(
 	return &backend->backend;
 
 error_init:
-	wlr_allocator_destroy(&gbm_alloc->base);
+	wlr_allocator_destroy(alloc);
 error_dup:
 	close(backend->drm_fd);
 error_drm_fd:
