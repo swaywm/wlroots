@@ -229,18 +229,12 @@ static void new_input_notify(struct wl_listener *listener, void *data) {
 		keyboard->destroy.notify = keyboard_destroy_notify;
 		wl_signal_add(&device->keyboard->events.key, &keyboard->key);
 		keyboard->key.notify = keyboard_key_notify;
-		struct xkb_rule_names rules = { 0 };
-		rules.rules = getenv("XKB_DEFAULT_RULES");
-		rules.model = getenv("XKB_DEFAULT_MODEL");
-		rules.layout = getenv("XKB_DEFAULT_LAYOUT");
-		rules.variant = getenv("XKB_DEFAULT_VARIANT");
-		rules.options = getenv("XKB_DEFAULT_OPTIONS");
 		struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 		if (!context) {
 			wlr_log(WLR_ERROR, "Failed to create XKB context");
 			exit(1);
 		}
-		struct xkb_keymap *keymap = xkb_map_new_from_names(context, &rules,
+		struct xkb_keymap *keymap = xkb_keymap_new_from_names(context, NULL,
 			XKB_KEYMAP_COMPILE_NO_FLAGS);
 		if (!keymap) {
 			wlr_log(WLR_ERROR, "Failed to create XKB keymap");
