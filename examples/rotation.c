@@ -231,7 +231,7 @@ int main(int argc, char *argv[]) {
 			}
 			break;
 		default:
-			break;
+			return 1;
 		}
 	}
 	wlr_log_init(WLR_DEBUG, NULL);
