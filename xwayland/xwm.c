@@ -546,18 +546,6 @@ static void read_surface_client_id(struct wlr_xwm *xwm,
 	free(reply);
 }
 
-static void read_surface_pid(struct wlr_xwm *xwm,
-		struct wlr_xwayland_surface *xsurface,
-		xcb_get_property_reply_t *reply) {
-	if (reply->type != XCB_ATOM_CARDINAL) {
-		return;
-	}
-
-	pid_t *pid = xcb_get_property_value(reply);
-	xsurface->pid = *pid;
-	wlr_signal_emit_safe(&xsurface->events.set_pid, xsurface);
-}
-
 static void read_surface_window_type(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface,
 		xcb_get_property_reply_t *reply) {
@@ -758,7 +746,7 @@ static void read_surface_property(struct wlr_xwm *xwm,
 	} else if (property == XCB_ATOM_WM_TRANSIENT_FOR) {
 		read_surface_parent(xwm, xsurface, reply);
 	} else if (property == xwm->atoms[NET_WM_PID]) {
-		read_surface_pid(xwm, xsurface, reply);
+		// intentionally ignored
 	} else if (property == xwm->atoms[NET_WM_WINDOW_TYPE]) {
 		read_surface_window_type(xwm, xsurface, reply);
 	} else if (property == xwm->atoms[WM_PROTOCOLS]) {
@@ -849,7 +837,6 @@ static void xwm_map_shell_surface(struct wlr_xwm *xwm,
 		xwm->atoms[NET_WM_STATE],
 		xwm->atoms[NET_WM_WINDOW_TYPE],
 		xwm->atoms[NET_WM_NAME],
-		xwm->atoms[NET_WM_PID],
 	};
 	for (size_t i = 0; i < sizeof(props)/sizeof(xcb_atom_t); i++) {
 		read_surface_property(xwm, xsurface, props[i]);
