@@ -49,6 +49,9 @@ compositors = {
 		'src': 'fullscreen-shell.c',
 		'proto': ['fullscreen-shell-unstable-v1'],
 	},
+	'quads': {
+		'src': 'quads.c',
+	},
 }
 
 clients = {
