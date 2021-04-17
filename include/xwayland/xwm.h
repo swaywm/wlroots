@@ -113,6 +113,7 @@ struct wlr_xwm {
 	struct wlr_xwayland_surface *drag_focus;
 
 	const xcb_query_extension_reply_t *xfixes;
+	const xcb_query_extension_reply_t *xres;
 #if HAS_XCB_ERRORS
 	xcb_errors_context_t *errors_context;
 #endif

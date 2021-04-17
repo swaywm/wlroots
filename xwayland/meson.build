@@ -4,6 +4,7 @@ xwayland_required = [
 	'xcb-composite',
 	'xcb-icccm',
 	'xcb-render',
+	'xcb-res',
 	'xcb-xfixes',
 ]
 xwayland_optional = {

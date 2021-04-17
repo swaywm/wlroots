@@ -14,6 +14,7 @@
 #include <wlr/xwayland.h>
 #include <xcb/composite.h>
 #include <xcb/render.h>
+#include <xcb/res.h>
 #include <xcb/xcb_icccm.h>
 #include <xcb/xfixes.h>
 #include "util/signal.h"
@@ -510,6 +511,41 @@ static void read_surface_parent(struct wlr_xwm *xwm,
 	wlr_signal_emit_safe(&xsurface->events.set_parent, xsurface);
 }
 
+static void read_surface_client_id(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *xsurface) {
+	xcb_res_client_id_spec_t spec = {
+		.client = xsurface->window_id,
+		.mask = XCB_RES_CLIENT_ID_MASK_LOCAL_CLIENT_PID
+	};
+
+	xcb_res_query_client_ids_cookie_t cookie = xcb_res_query_client_ids(
+		xwm->xcb_conn, 1, &spec);
+	xcb_res_query_client_ids_reply_t *reply = xcb_res_query_client_ids_reply(
+		xwm->xcb_conn, cookie,  NULL);
+	if (reply == NULL) {
+		return;
+	}
+
+	uint32_t *pid = NULL;
+	xcb_res_client_id_value_iterator_t iter =
+		xcb_res_query_client_ids_ids_iterator(reply);
+	while (iter.rem > 0) {
+		if (iter.data->spec.mask & XCB_RES_CLIENT_ID_MASK_LOCAL_CLIENT_PID &&
+				xcb_res_client_id_value_value_length(iter.data) > 0) {
+			pid = xcb_res_client_id_value_value(iter.data);
+			break;
+		}
+		xcb_res_client_id_value_next(&iter);
+	}
+	if (pid == NULL) {
+		free(reply);
+		return;
+	}
+	xsurface->pid = *pid;
+	wlr_signal_emit_safe(&xsurface->events.set_pid, xsurface);
+	free(reply);
+}
+
 static void read_surface_pid(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface,
 		xcb_get_property_reply_t *reply) {
@@ -817,6 +853,9 @@ static void xwm_map_shell_surface(struct wlr_xwm *xwm,
 	};
 	for (size_t i = 0; i < sizeof(props)/sizeof(xcb_atom_t); i++) {
 		read_surface_property(xwm, xsurface, props[i]);
+	}
+	if (xwm->xres) {
+		read_surface_client_id(xwm, xsurface);
 	}
 
 	xsurface->surface_destroy.notify = handle_surface_destroy;
@@ -1621,6 +1660,7 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 static void xwm_get_resources(struct wlr_xwm *xwm) {
 	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_xfixes_id);
 	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_composite_id);
+	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_res_id);
 
 	size_t i;
 	xcb_intern_atom_cookie_t cookies[ATOM_LAST];
@@ -1664,6 +1704,29 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 		xfixes_reply->major_version, xfixes_reply->minor_version);
 
 	free(xfixes_reply);
+
+	const xcb_query_extension_reply_t *xres =
+		xcb_get_extension_data(xwm->xcb_conn, &xcb_res_id);
+	if (!xres || !xres->present) {
+		return;
+	}
+
+	xcb_res_query_version_cookie_t xres_cookie =
+		xcb_res_query_version(xwm->xcb_conn, XCB_RES_MAJOR_VERSION,
+			XCB_RES_MINOR_VERSION);
+	xcb_res_query_version_reply_t *xres_reply =
+		xcb_res_query_version_reply(xwm->xcb_conn, xres_cookie, NULL);
+	if (xres_reply == NULL) {
+		return;
+	}
+
+	wlr_log(WLR_DEBUG, "xres version: %" PRIu32 ".%" PRIu32,
+		xres_reply->server_major, xres_reply->server_minor);
+	if (xres_reply->server_major > 1 ||
+			(xres_reply->server_major == 1 && xres_reply->server_minor >= 2)) {
+		xwm->xres = xres;
+	}
+	free(xres_reply);
 }
 
 static void xwm_create_wm_window(struct wlr_xwm *xwm) {
