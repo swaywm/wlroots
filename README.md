@@ -50,7 +50,7 @@ Install dependencies:
 * xkbcommon
 * udev
 * pixman
-* libseat (optional, for (e)logind and seatd support)
+* [libseat]
 
 If you choose to enable X11 support:
 
@@ -81,4 +81,5 @@ See [CONTRIBUTING.md].
 [wiki]: https://github.com/swaywm/wlroots/wiki/Getting-started
 [Sway]: https://github.com/swaywm/sway
 [wrapper libraries]: https://github.com/search?q=topic%3Abindings+org%3Aswaywm&type=Repositories
+[libseat]: https://git.sr.ht/~kennylevinsen/seatd
 [CONTRIBUTING.md]: https://github.com/swaywm/wlroots/blob/master/CONTRIBUTING.md
