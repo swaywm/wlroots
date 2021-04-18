@@ -265,6 +265,11 @@ void wlr_session_destroy(struct wlr_session *session) {
 	udev_monitor_unref(session->mon);
 	udev_unref(session->udev);
 
+	struct wlr_device *dev, *tmp_dev;
+	wl_list_for_each_safe(dev, tmp_dev, &session->devices, link) {
+		wlr_session_close_file(session, dev);
+	}
+
 	libseat_session_finish(session);
 	free(session);
 }
