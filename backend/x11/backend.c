@@ -17,6 +17,7 @@
 #include <xcb/dri3.h>
 #include <xcb/present.h>
 #include <xcb/render.h>
+#include <xcb/shm.h>
 #include <xcb/xcb_renderutil.h>
 #include <xcb/xfixes.h>
 #include <xcb/xinput.h>
@@ -32,6 +33,7 @@
 #include "backend/x11.h"
 #include "render/drm_format_set.h"
 #include "render/gbm_allocator.h"
+#include "render/shm_allocator.h"
 #include "render/wlr_renderer.h"
 #include "util/signal.h"
 
@@ -198,6 +200,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wlr_renderer_destroy(x11->renderer);
 	wlr_allocator_destroy(x11->allocator);
 	wlr_drm_format_set_finish(&x11->dri3_formats);
+	wlr_drm_format_set_finish(&x11->shm_formats);
 	free(x11->drm_format);
 
 #if HAS_XCB_ERRORS
@@ -341,18 +344,24 @@ static bool query_dri3_modifiers(struct wlr_x11_backend *x11,
 	return true;
 }
 
-static bool query_dri3_formats(struct wlr_x11_backend *x11) {
+static bool query_formats(struct wlr_x11_backend *x11) {
 	xcb_depth_iterator_t iter = xcb_screen_allowed_depths_iterator(x11->screen);
 	while (iter.rem > 0) {
 		uint8_t depth = iter.data->depth;
 
 		const struct wlr_x11_format *format = x11_format_from_depth(depth);
 		if (format != NULL) {
-			wlr_drm_format_set_add(&x11->dri3_formats, format->drm,
-				DRM_FORMAT_MOD_INVALID);
+			if (x11->have_shm) {
+				wlr_drm_format_set_add(&x11->shm_formats, format->drm,
+					DRM_FORMAT_MOD_INVALID);
+			}
 
-			if (!query_dri3_modifiers(x11, format)) {
-				return false;
+			if (x11->have_dri3) {
+				wlr_drm_format_set_add(&x11->dri3_formats, format->drm,
+					DRM_FORMAT_MOD_INVALID);
+				if (!query_dri3_modifiers(x11, format)) {
+					return false;
+				}
 			}
 		}
 
@@ -438,24 +447,52 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	// DRI3 extension
 
 	ext = xcb_get_extension_data(x11->xcb, &xcb_dri3_id);
-	if (!ext || !ext->present) {
-		wlr_log(WLR_ERROR, "X11 does not support DRI3 extension");
-		goto error_display;
+	if (ext && ext->present) {
+		xcb_dri3_query_version_cookie_t dri3_cookie =
+			xcb_dri3_query_version(x11->xcb, 1, 2);
+		xcb_dri3_query_version_reply_t *dri3_reply =
+			xcb_dri3_query_version_reply(x11->xcb, dri3_cookie, NULL);
+		if (dri3_reply && dri3_reply->major_version >= 1) {
+			x11->have_dri3 = true;
+			x11->dri3_major_version = dri3_reply->major_version;
+			x11->dri3_minor_version = dri3_reply->minor_version;
+		} else {
+			wlr_log(WLR_INFO, "X11 does not support required DRI3 version "
+				"(has %"PRIu32".%"PRIu32", want 1.0)",
+				dri3_reply->major_version, dri3_reply->minor_version);
+		}
+		free(dri3_reply);
+	} else {
+		wlr_log(WLR_INFO, "X11 does not support DRI3 extension");
 	}
 
-	xcb_dri3_query_version_cookie_t dri3_cookie =
-		xcb_dri3_query_version(x11->xcb, 1, 2);
-	xcb_dri3_query_version_reply_t *dri3_reply =
-		xcb_dri3_query_version_reply(x11->xcb, dri3_cookie, NULL);
-	if (!dri3_reply || dri3_reply->major_version < 1) {
-		wlr_log(WLR_ERROR, "X11 does not support required DRI3 version "
-			"(has %"PRIu32".%"PRIu32", want 1.0)",
-			dri3_reply->major_version, dri3_reply->minor_version);
-		goto error_display;
+	// SHM extension
+
+	ext = xcb_get_extension_data(x11->xcb, &xcb_shm_id);
+	if (ext && ext->present) {
+		xcb_shm_query_version_cookie_t shm_cookie =
+			xcb_shm_query_version(x11->xcb);
+		xcb_shm_query_version_reply_t *shm_reply =
+			xcb_shm_query_version_reply(x11->xcb, shm_cookie, NULL);
+		if (shm_reply) {
+			if (shm_reply->major_version >= 1 || shm_reply->minor_version >= 2) {
+				if (shm_reply->shared_pixmaps) {
+					x11->have_shm = true;
+				} else {
+					wlr_log(WLR_INFO, "X11 does not support shared pixmaps");
+				}
+			} else {
+				wlr_log(WLR_INFO, "X11 does not support required SHM version "
+					"(has %"PRIu32".%"PRIu32", want 1.2)",
+					shm_reply->major_version, shm_reply->minor_version);
+			}
+		} else {
+			wlr_log(WLR_INFO, "X11 does not support required SHM version");
+		}
+		free(shm_reply);
+	} else {
+		wlr_log(WLR_INFO, "X11 does not support SHM extension");
 	}
-	x11->dri3_major_version = dri3_reply->major_version;
-	x11->dri3_minor_version = dri3_reply->minor_version;
-	free(dri3_reply);
 
 	// Present extension
 
@@ -560,31 +597,53 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	xcb_create_colormap(x11->xcb, XCB_COLORMAP_ALLOC_NONE, x11->colormap,
 		x11->screen->root, x11->visualid);
 
-	// DRI3 may return a render node (Xwayland) or an authenticated primary
-	// node (plain Glamor).
-	x11->drm_fd = query_dri3_drm_fd(x11);
-	if (x11->drm_fd < 0) {
-		wlr_log(WLR_ERROR, "Failed to query DRI3 DRM FD");
-		goto error_event;
+	if (!query_formats(x11)) {
+		wlr_log(WLR_ERROR, "Failed to query supported DRM formats");
+		return false;
 	}
 
-	char *drm_name = drmGetDeviceNameFromFd2(x11->drm_fd);
-	wlr_log(WLR_DEBUG, "Using DRM node %s", drm_name);
-	free(drm_name);
+	const struct wlr_drm_format_set *pixmap_formats;
+	if (x11->have_dri3) {
+		// DRI3 may return a render node (Xwayland) or an authenticated primary
+		// node (plain Glamor).
+		x11->drm_fd = query_dri3_drm_fd(x11);
+		if (x11->drm_fd < 0) {
+			wlr_log(WLR_ERROR, "Failed to query DRI3 DRM FD");
+			goto error_event;
+		}
 
-	int drm_fd = fcntl(x11->drm_fd, F_DUPFD_CLOEXEC, 0);
-	if (drm_fd < 0) {
-		wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+		char *drm_name = drmGetDeviceNameFromFd2(x11->drm_fd);
+		wlr_log(WLR_DEBUG, "Using DRM node %s", drm_name);
+		free(drm_name);
+
+		int drm_fd = fcntl(x11->drm_fd, F_DUPFD_CLOEXEC, 0);
+		if (drm_fd < 0) {
+			wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+			goto error_event;
+		}
+
+		struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
+		if (gbm_alloc == NULL) {
+			wlr_log(WLR_ERROR, "Failed to create GBM allocator");
+			close(drm_fd);
+			goto error_event;
+		}
+		x11->allocator = &gbm_alloc->base;
+		pixmap_formats = &x11->dri3_formats;
+	} else if (x11->have_shm) {
+		x11->drm_fd = -1;
+		struct wlr_shm_allocator *shm_alloc = wlr_shm_allocator_create();
+		if (shm_alloc == NULL) {
+			wlr_log(WLR_ERROR, "Failed to create shared memory allocator");
+			goto error_event;
+		}
+		x11->allocator = &shm_alloc->base;
+		pixmap_formats = &x11->shm_formats;
+	} else {
+		wlr_log(WLR_ERROR,
+			"Failed to create allocator (DRI3 and SHM unavailable)");
 		goto error_event;
 	}
-
-	struct wlr_gbm_allocator *gbm_alloc = wlr_gbm_allocator_create(drm_fd);
-	if (gbm_alloc == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
-		close(drm_fd);
-		goto error_event;
-	}
-	x11->allocator = &gbm_alloc->base;
 
 	x11->renderer = wlr_renderer_autocreate(&x11->backend);
 	if (x11->renderer == NULL) {
@@ -595,7 +654,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 	const struct wlr_drm_format_set *render_formats =
 		wlr_renderer_get_render_formats(x11->renderer);
 	if (render_formats == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get available DMA-BUF formats from renderer");
+		wlr_log(WLR_ERROR, "Failed to get available DRM formats from renderer");
 		return false;
 	}
 	const struct wlr_drm_format *render_format =
@@ -606,22 +665,17 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		return false;
 	}
 
-	if (!query_dri3_formats(x11)) {
-		wlr_log(WLR_ERROR, "Failed to query supported DRI3 formats");
-		return false;
-	}
-
-	const struct wlr_drm_format *dri3_format =
-		wlr_drm_format_set_get(&x11->dri3_formats, x11->x11_format->drm);
-	if (dri3_format == NULL) {
+	const struct wlr_drm_format *pixmap_format = wlr_drm_format_set_get(
+		pixmap_formats, x11->x11_format->drm);
+	if (pixmap_format == NULL) {
 		wlr_log(WLR_ERROR, "X11 server doesn't support DRM format 0x%"PRIX32,
 			x11->x11_format->drm);
 		return false;
 	}
 
-	x11->drm_format = wlr_drm_format_intersect(dri3_format, render_format);
+	x11->drm_format = wlr_drm_format_intersect(pixmap_format, render_format);
 	if (x11->drm_format == NULL) {
-		wlr_log(WLR_ERROR, "Failed to intersect DRI3 and render modifiers for "
+		wlr_log(WLR_ERROR, "Failed to intersect X11 and render modifiers for "
 			"format 0x%"PRIX32, x11->x11_format->drm);
 		return false;
 	}
