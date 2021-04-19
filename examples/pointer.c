@@ -252,10 +252,6 @@ static void new_output_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct sample_state *sample = wl_container_of(listener, sample, new_output);
 	struct sample_output *sample_output = calloc(1, sizeof(struct sample_output));
-	if (!wl_list_empty(&output->modes)) {
-		struct wlr_output_mode *mode = wl_container_of(output->modes.prev, mode, link);
-		wlr_output_set_mode(output, mode);
-	}
 	sample_output->output = output;
 	sample_output->state = sample;
 	wl_signal_add(&output->events.frame, &sample_output->frame);
@@ -267,6 +263,11 @@ static void new_output_notify(struct wl_listener *listener, void *data) {
 	wlr_xcursor_manager_load(sample->xcursor_manager, output->scale);
 	wlr_xcursor_manager_set_cursor_image(sample->xcursor_manager, "left_ptr",
 		sample->cursor);
+
+	struct wlr_output_mode *mode = wlr_output_preferred_mode(output);
+	if (mode != NULL) {
+		wlr_output_set_mode(output, mode);
+	}
 
 	wlr_output_commit(output);
 }
