@@ -5,6 +5,7 @@ x11_required = [
 	'xcb-present',
 	'xcb-render',
 	'xcb-renderutil',
+	'xcb-shm',
 	'xcb-xfixes',
 	'xcb-xinput',
 ]

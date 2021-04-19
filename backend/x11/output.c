@@ -3,11 +3,13 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include <drm_fourcc.h>
 #include <xcb/dri3.h>
 #include <xcb/present.h>
 #include <xcb/render.h>
+#include <xcb/shm.h>
 #include <xcb/xcb.h>
 #include <xcb/xinput.h>
 
@@ -143,53 +145,99 @@ static void buffer_handle_buffer_destroy(struct wl_listener *listener,
 	destroy_x11_buffer(buffer);
 }
 
-static struct wlr_x11_buffer *create_x11_buffer(struct wlr_x11_output *output,
-		struct wlr_buffer *wlr_buffer) {
+static xcb_pixmap_t import_dmabuf(struct wlr_x11_output *output,
+		struct wlr_dmabuf_attributes *dmabuf) {
 	struct wlr_x11_backend *x11 = output->x11;
 
-	struct wlr_dmabuf_attributes attrs = {0};
-	if (!wlr_buffer_get_dmabuf(wlr_buffer, &attrs)) {
-		return NULL;
-	}
-
-	if (attrs.format != x11->x11_format->drm) {
+	if (dmabuf->format != x11->x11_format->drm) {
 		// The pixmap's depth must match the window's depth, otherwise Present
 		// will throw a Match error
-		return NULL;
+		return XCB_PIXMAP_NONE;
 	}
 
-	if (attrs.flags != 0) {
-		return NULL;
+	if (dmabuf->flags != 0) {
+		return XCB_PIXMAP_NONE;
 	}
 
 	// xcb closes the FDs after sending them, so we need to dup them here
 	struct wlr_dmabuf_attributes dup_attrs = {0};
-	if (!wlr_dmabuf_attributes_copy(&dup_attrs, &attrs)) {
-		return NULL;
+	if (!wlr_dmabuf_attributes_copy(&dup_attrs, dmabuf)) {
+		return XCB_PIXMAP_NONE;
 	}
 
 	const struct wlr_x11_format *x11_fmt = x11->x11_format;
 	xcb_pixmap_t pixmap = xcb_generate_id(x11->xcb);
 
 	if (x11->dri3_major_version > 1 || x11->dri3_minor_version >= 2) {
-		if (attrs.n_planes > 4) {
+		if (dmabuf->n_planes > 4) {
 			wlr_dmabuf_attributes_finish(&dup_attrs);
-			return NULL;
+			return XCB_PIXMAP_NONE;
 		}
 		xcb_dri3_pixmap_from_buffers(x11->xcb, pixmap, output->win,
-			attrs.n_planes, attrs.width, attrs.height, attrs.stride[0],
-			attrs.offset[0], attrs.stride[1], attrs.offset[1], attrs.stride[2],
-			attrs.offset[2], attrs.stride[3], attrs.offset[3], x11_fmt->depth,
-			x11_fmt->bpp, attrs.modifier, dup_attrs.fd);
+			dmabuf->n_planes, dmabuf->width, dmabuf->height, dmabuf->stride[0],
+			dmabuf->offset[0], dmabuf->stride[1], dmabuf->offset[1],
+			dmabuf->stride[2], dmabuf->offset[2], dmabuf->stride[3],
+			dmabuf->offset[3], x11_fmt->depth, x11_fmt->bpp, dmabuf->modifier,
+			dup_attrs.fd);
 	} else {
 		// PixmapFromBuffers requires DRI3 1.2
-		if (attrs.n_planes != 1 || attrs.modifier != DRM_FORMAT_MOD_INVALID) {
+		if (dmabuf->n_planes != 1
+				|| dmabuf->modifier != DRM_FORMAT_MOD_INVALID) {
 			wlr_dmabuf_attributes_finish(&dup_attrs);
-			return NULL;
+			return XCB_PIXMAP_NONE;
 		}
 		xcb_dri3_pixmap_from_buffer(x11->xcb, pixmap, output->win,
-			attrs.height * attrs.stride[0], attrs.width, attrs.height,
-			attrs.stride[0], x11_fmt->depth, x11_fmt->bpp, dup_attrs.fd[0]);
+			dmabuf->height * dmabuf->stride[0], dmabuf->width, dmabuf->height,
+			dmabuf->stride[0], x11_fmt->depth, x11_fmt->bpp, dup_attrs.fd[0]);
+	}
+
+	return pixmap;
+}
+
+static xcb_pixmap_t import_shm(struct wlr_x11_output *output,
+		struct wlr_shm_attributes *shm) {
+	struct wlr_x11_backend *x11 = output->x11;
+
+	if (shm->format != x11->x11_format->drm) {
+		// The pixmap's depth must match the window's depth, otherwise Present
+		// will throw a Match error
+		return XCB_PIXMAP_NONE;
+	}
+
+	// xcb closes the FD after sending it
+	int fd = fcntl(shm->fd, F_DUPFD_CLOEXEC, 0);
+	if (fd < 0) {
+		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+		return XCB_PIXMAP_NONE;
+	}
+
+	xcb_shm_seg_t seg = xcb_generate_id(x11->xcb);
+	xcb_shm_attach_fd(x11->xcb, seg, fd, false);
+
+	xcb_pixmap_t pixmap = xcb_generate_id(x11->xcb);
+	xcb_shm_create_pixmap(x11->xcb, pixmap, output->win, shm->width,
+		shm->height, x11->x11_format->depth, seg, shm->offset);
+
+	xcb_shm_detach(x11->xcb, seg);
+
+	return pixmap;
+}
+
+static struct wlr_x11_buffer *create_x11_buffer(struct wlr_x11_output *output,
+		struct wlr_buffer *wlr_buffer) {
+	struct wlr_x11_backend *x11 = output->x11;
+	xcb_pixmap_t pixmap = XCB_PIXMAP_NONE;
+
+	struct wlr_dmabuf_attributes dmabuf_attrs;
+	struct wlr_shm_attributes shm_attrs;
+	if (wlr_buffer_get_dmabuf(wlr_buffer, &dmabuf_attrs)) {
+		pixmap = import_dmabuf(output, &dmabuf_attrs);
+	} else if (wlr_buffer_get_shm(wlr_buffer, &shm_attrs)) {
+		pixmap = import_shm(output, &shm_attrs);
+	}
+
+	if (pixmap == XCB_PIXMAP_NONE) {
+		return NULL;
 	}
 
 	struct wlr_x11_buffer *buffer = calloc(1, sizeof(struct wlr_x11_buffer));

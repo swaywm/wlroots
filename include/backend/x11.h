@@ -75,6 +75,9 @@ struct wlr_x11_backend {
 	xcb_colormap_t colormap;
 	xcb_cursor_t transparent_cursor;
 	xcb_render_pictformat_t argb32;
+
+	bool have_shm;
+	bool have_dri3;
 	uint32_t dri3_major_version, dri3_minor_version;
 
 	size_t requested_outputs;
@@ -87,6 +90,7 @@ struct wlr_x11_backend {
 	int drm_fd;
 	struct wlr_renderer *renderer;
 	struct wlr_drm_format_set dri3_formats;
+	struct wlr_drm_format_set shm_formats;
 	const struct wlr_x11_format *x11_format;
 	struct wlr_drm_format *drm_format;
 	struct wlr_allocator *allocator;

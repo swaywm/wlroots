@@ -62,6 +62,7 @@ If you choose to enable X11 support:
 * xcb-icccm
 * xcb-image
 * xcb-render
+* xcb-shm
 * xcb-errors (optional, for improved error reporting)
 
 Run these commands:
