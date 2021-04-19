@@ -1,6 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
 #include <drm_fourcc.h>
-#include <GLES2/gl2.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>

@@ -23,11 +23,6 @@ if libavutil.found() and not cc.has_header('libavutil/hwcontext_drm.h', dependen
 	libavutil = disabler()
 endif
 
-wlr_gles2_renderer = []
-if not features['gles2-renderer']
-	wlr_gles2_renderer = disabler()
-endif
-
 compositors = {
 	'simple': {
 		'src': 'simple.c',
@@ -37,23 +32,18 @@ compositors = {
 	},
 	'touch': {
 		'src': ['touch.c', 'cat.c'],
-		'dep': [wlr_gles2_renderer],
 	},
 	'tablet': {
 		'src': 'tablet.c',
-		'dep': [wlr_gles2_renderer],
 	},
 	'rotation': {
 		'src': ['rotation.c', 'cat.c'],
-		'dep': [wlr_gles2_renderer],
 	},
 	'multi-pointer': {
 		'src': 'multi-pointer.c',
-		'dep': [wlr_gles2_renderer],
 	},
 	'output-layout': {
 		'src': ['output-layout.c', 'cat.c'],
-		'dep': [wlr_gles2_renderer],
 	},
 	'fullscreen-shell': {
 		'src': 'fullscreen-shell.c',
@@ -203,7 +193,7 @@ foreach name, info : compositors
 	executable(
 		name,
 		[info.get('src'), extra_src],
-		dependencies: [wlroots, libdrm, info.get('dep', [])],
+		dependencies: [wlroots, libdrm],
 		include_directories: [wlr_inc, proto_inc],
 		build_by_default: get_option('examples'),
 	)

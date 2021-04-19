@@ -1,6 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
 #include <assert.h>
-#include <GLES2/gl2.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,7 +70,7 @@ struct sample_keyboard {
 static void configure_cursor(struct wlr_cursor *cursor, struct wlr_input_device *device,
 		 struct sample_state *sample) {
 	struct sample_output *output;
-	wlr_log(WLR_ERROR, "Configuring cursor %p for device %p", cursor, device);
+	wlr_log(WLR_INFO, "Configuring cursor %p for device %p", cursor, device);
 
 	// reset mappings
 	wlr_cursor_map_to_output(cursor, NULL);
@@ -92,14 +91,16 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct sample_output *output = wl_container_of(listener, output, frame);
 	struct sample_state *sample = output->sample;
 	struct wlr_output *wlr_output = output->output;
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
 
 	wlr_output_attach_render(wlr_output, NULL);
 
-	glClearColor(sample->clear_color[0], sample->clear_color[1],
-		sample->clear_color[2], sample->clear_color[3]);
-	glClear(GL_COLOR_BUFFER_BIT);
+	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
+
+	wlr_renderer_clear(renderer, sample->clear_color);
 
 	wlr_output_render_software_cursors(wlr_output, NULL);
+	wlr_renderer_end(renderer);
 	wlr_output_commit(wlr_output);
 }
 

@@ -1,5 +1,4 @@
 #define _XOPEN_SOURCE 600
-#include <GLES2/gl2.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
