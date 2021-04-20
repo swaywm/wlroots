@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <gbm.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/pixman.h>
 #include <wlr/render/wlr_renderer.h>
@@ -228,33 +227,35 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 }
 
 struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
+	const char *name = getenv("WLR_RENDERER");
+	if (name) {
 #if WLR_HAS_GLES2_RENDERER
-	struct gbm_device *gbm_device = gbm_create_device(drm_fd);
-	if (!gbm_device) {
-		wlr_log(WLR_ERROR, "Failed to create GBM device");
+		if (strcmp(name, "gles2") == 0) {
+			return wlr_gles2_renderer_create_with_drm_fd(drm_fd);
+		}
+#endif
+		if (strcmp(name, "pixman") == 0) {
+			return wlr_pixman_renderer_create();
+		}
+
+		wlr_log(WLR_ERROR, "Invalid WLR_RENDERER value: '%s'", name);
 		return NULL;
 	}
 
-	struct wlr_egl *egl = wlr_egl_create(EGL_PLATFORM_GBM_KHR, gbm_device);
-	if (egl == NULL) {
-		wlr_log(WLR_ERROR, "Could not initialize EGL");
-		gbm_device_destroy(gbm_device);
-		return NULL;
+	struct wlr_renderer *renderer = NULL;
+#if WLR_HAS_GLES2_RENDERER
+	if ((renderer = wlr_gles2_renderer_create_with_drm_fd(drm_fd)) != NULL) {
+		return renderer;
 	}
-
-	egl->gbm_device = gbm_device;
-
-	struct wlr_renderer *renderer = wlr_gles2_renderer_create(egl);
-	if (!renderer) {
-		wlr_log(WLR_ERROR, "Failed to create GLES2 renderer");
-		wlr_egl_destroy(egl);
-		return NULL;
-	}
-
-	return renderer;
+	wlr_log(WLR_DEBUG, "Failed to create gles2 renderer");
 #endif
 
-	wlr_log(WLR_ERROR, "Failed to initialize any renderer");
+	if ((renderer = wlr_pixman_renderer_create()) != NULL) {
+		return renderer;
+	}
+	wlr_log(WLR_DEBUG, "Failed to create pixman renderer");
+
+	wlr_log(WLR_ERROR, "Could not initialize renderer");
 	return NULL;
 }
 
