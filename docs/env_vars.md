@@ -9,6 +9,8 @@ wlroots reads these environment variables
 * *WLR_DIRECT_TTY*: specifies the tty to be used (instead of using /dev/tty)
 * *WLR_XWAYLAND*: specifies the path to an Xwayland binary to be used (instead
   of following shell search semantics for "Xwayland")
+* *WLR_RENDERER*: forces the creation of a specified renderer (available
+  renderers: gles2, pixman)
 
 ## DRM backend
 
