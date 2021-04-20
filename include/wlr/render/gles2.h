@@ -15,6 +15,7 @@
 
 struct wlr_egl;
 
+struct wlr_renderer *wlr_gles2_renderer_create_with_drm_fd(int drm_fd);
 struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl);
 
 struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *renderer);
