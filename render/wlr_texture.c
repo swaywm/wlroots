@@ -22,6 +22,10 @@ void wlr_texture_destroy(struct wlr_texture *texture) {
 struct wlr_texture *wlr_texture_from_pixels(struct wlr_renderer *renderer,
 		uint32_t fmt, uint32_t stride, uint32_t width, uint32_t height,
 		const void *data) {
+	assert(width > 0);
+	assert(height > 0);
+	assert(stride >= width);
+	assert(data);
 	return renderer->impl->texture_from_pixels(renderer, fmt, stride, width,
 		height, data);
 }
