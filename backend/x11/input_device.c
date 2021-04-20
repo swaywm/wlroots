@@ -123,6 +123,10 @@ void handle_x11_xinput_event(struct wlr_x11_backend *x11,
 		xcb_input_key_press_event_t *ev =
 			(xcb_input_key_press_event_t *)event;
 
+		if (ev->flags & XCB_INPUT_KEY_EVENT_FLAGS_KEY_REPEAT) {
+			return;
+		}
+
 		wlr_keyboard_notify_modifiers(&x11->keyboard, ev->mods.base,
 			ev->mods.latched, ev->mods.locked, ev->mods.effective);
 		send_key_event(x11, ev->detail - 8, WL_KEYBOARD_KEY_STATE_PRESSED, ev->time);
