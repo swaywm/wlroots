@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <drm_fourcc.h>
+#include <gbm.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <stdint.h>
@@ -716,6 +717,32 @@ extern const GLchar tex_vertex_src[];
 extern const GLchar tex_fragment_src_rgba[];
 extern const GLchar tex_fragment_src_rgbx[];
 extern const GLchar tex_fragment_src_external[];
+
+struct wlr_renderer *wlr_gles2_renderer_create_with_drm_fd(int drm_fd) {
+	struct gbm_device *gbm_device = gbm_create_device(drm_fd);
+	if (!gbm_device) {
+		wlr_log(WLR_ERROR, "Failed to create GBM device");
+		return NULL;
+	}
+
+	struct wlr_egl *egl = wlr_egl_create(EGL_PLATFORM_GBM_KHR, gbm_device);
+	if (egl == NULL) {
+		wlr_log(WLR_ERROR, "Could not initialize EGL");
+		gbm_device_destroy(gbm_device);
+		return NULL;
+	}
+
+	egl->gbm_device = gbm_device;
+
+	struct wlr_renderer *renderer = wlr_gles2_renderer_create(egl);
+	if (!renderer) {
+		wlr_log(WLR_ERROR, "Failed to create GLES2 renderer");
+		wlr_egl_destroy(egl);
+		return NULL;
+	}
+
+	return renderer;
+}
 
 struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	if (!wlr_egl_make_current(egl)) {
