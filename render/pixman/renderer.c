@@ -43,11 +43,7 @@ static bool texture_is_opaque(struct wlr_texture *wlr_texture) {
 }
 
 static void texture_destroy(struct wlr_texture *wlr_texture) {
-	if (wlr_texture == NULL) {
-		return;
-	}
 	struct wlr_pixman_texture *texture = get_texture(wlr_texture);
-
 	wl_list_remove(&texture->link);
 	pixman_image_unref(texture->image);
 	free(texture->data);

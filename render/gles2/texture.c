@@ -99,10 +99,6 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 }
 
 static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
-	if (wlr_texture == NULL) {
-		return;
-	}
-
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
 
 	wl_list_remove(&texture->link);
