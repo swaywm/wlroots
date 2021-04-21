@@ -48,6 +48,7 @@ static void texture_destroy(struct wlr_texture *wlr_texture) {
 	}
 	struct wlr_pixman_texture *texture = get_texture(wlr_texture);
 
+	wl_list_remove(&texture->link);
 	pixman_image_unref(texture->image);
 	free(texture->data);
 	free(texture);
@@ -249,7 +250,7 @@ static void pixman_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 			height, NULL, 0);
 
 	// TODO find a way to fill the image without allocating 2 images
-	pixman_image_composite32 (PIXMAN_OP_SRC, fill, NULL, image,
+	pixman_image_composite32(PIXMAN_OP_SRC, fill, NULL, image,
 		0, 0, 0, 0, 0, 0, width, height);
 	pixman_image_unref(fill);
 
@@ -322,6 +323,8 @@ static struct wlr_texture *pixman_texture_from_pixels(
 		return NULL;
 	}
 
+	wl_list_insert(&renderer->textures, &texture->link);
+
 	return &texture->wlr_texture;
 }
 
@@ -360,6 +363,11 @@ static void pixman_destroy(struct wlr_renderer *wlr_renderer) {
 		destroy_buffer(buffer);
 	}
 
+	struct wlr_pixman_texture *tex, *tex_tmp;
+	wl_list_for_each_safe(tex, tex_tmp, &renderer->textures, link) {
+		wlr_texture_destroy(&tex->wlr_texture);
+	}
+
 	wlr_drm_format_set_finish(&renderer->drm_formats);
 
 	free(renderer);
@@ -388,6 +396,7 @@ struct wlr_renderer *wlr_pixman_renderer_create(void) {
 	wlr_log(WLR_INFO, "Creating pixman renderer");
 	wlr_renderer_init(&renderer->wlr_renderer, &renderer_impl);
 	wl_list_init(&renderer->buffers);
+	wl_list_init(&renderer->textures);
 
 	size_t len = 0;
 	const uint32_t *formats = get_pixman_drm_formats(&len);
