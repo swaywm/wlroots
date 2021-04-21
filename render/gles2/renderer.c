@@ -542,6 +542,11 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 		destroy_buffer(buffer);
 	}
 
+	struct wlr_gles2_texture *tex, *tex_tmp;
+	wl_list_for_each_safe(tex, tex_tmp, &renderer->textures, link) {
+		wlr_texture_destroy(&tex->wlr_texture);
+	}
+
 	push_gles2_debug(renderer);
 	glDeleteProgram(renderer->shaders.quad.program);
 	glDeleteProgram(renderer->shaders.tex_rgba.program);
@@ -763,6 +768,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	wlr_renderer_init(&renderer->wlr_renderer, &renderer_impl);
 
 	wl_list_init(&renderer->buffers);
+	wl_list_init(&renderer->textures);
 
 	renderer->egl = egl;
 	renderer->exts_str = exts_str;

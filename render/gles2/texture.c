@@ -105,6 +105,8 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
 
+	wl_list_remove(&texture->link);
+
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_save_context(&prev_ctx);
 	wlr_egl_make_current(texture->renderer->egl);
@@ -181,6 +183,8 @@ struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
 
 	wlr_egl_restore_context(&prev_ctx);
 
+	wl_list_insert(&renderer->textures, &texture->link);
+
 	return &texture->wlr_texture;
 }
 
@@ -247,6 +251,8 @@ struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 	pop_gles2_debug(renderer);
 
 	wlr_egl_restore_context(&prev_ctx);
+
+	wl_list_insert(&renderer->textures, &texture->link);
 
 	return &texture->wlr_texture;
 
@@ -315,6 +321,8 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 	pop_gles2_debug(renderer);
 
 	wlr_egl_restore_context(&prev_ctx);
+
+	wl_list_insert(&renderer->textures, &texture->link);
 
 	return &texture->wlr_texture;
 }
