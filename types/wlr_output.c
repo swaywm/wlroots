@@ -580,6 +580,9 @@ bool wlr_output_test(struct wlr_output *output) {
 	if (!output_basic_test(output)) {
 		return false;
 	}
+	if (!output->impl->test) {
+		return true;
+	}
 	return output->impl->test(output);
 }
 
