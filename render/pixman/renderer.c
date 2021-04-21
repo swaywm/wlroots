@@ -61,15 +61,19 @@ static const struct wlr_texture_impl texture_impl = {
 struct wlr_pixman_texture *pixman_create_texture(
 		struct wlr_texture *wlr_texture, struct wlr_pixman_renderer *renderer);
 
-static void handle_destroy_buffer(struct wl_listener *listener, void *data) {
-	struct wlr_pixman_buffer *buffer =
-		wl_container_of(listener, buffer, buffer_destroy);
+static void destroy_buffer(struct wlr_pixman_buffer *buffer) {
 	wl_list_remove(&buffer->link);
 	wl_list_remove(&buffer->buffer_destroy.link);
 
 	pixman_image_unref(buffer->image);
 
 	free(buffer);
+}
+
+static void handle_destroy_buffer(struct wl_listener *listener, void *data) {
+	struct wlr_pixman_buffer *buffer =
+		wl_container_of(listener, buffer, buffer_destroy);
+	destroy_buffer(buffer);
 }
 
 static struct wlr_pixman_buffer *create_buffer(
@@ -348,6 +352,19 @@ static bool pixman_bind_buffer(struct wlr_renderer *wlr_renderer,
 	return true;
 }
 
+static void pixman_destroy(struct wlr_renderer *wlr_renderer) {
+	struct wlr_pixman_renderer *renderer = get_renderer(wlr_renderer);
+
+	struct wlr_pixman_buffer *buffer, *buffer_tmp;
+	wl_list_for_each_safe(buffer, buffer_tmp, &renderer->buffers, link) {
+		destroy_buffer(buffer);
+	}
+
+	wlr_drm_format_set_finish(&renderer->drm_formats);
+
+	free(renderer);
+}
+
 static const struct wlr_renderer_impl renderer_impl = {
 	.begin = pixman_begin,
 	.clear = pixman_clear,
@@ -358,6 +375,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.get_render_formats = pixman_get_render_formats,
 	.texture_from_pixels = pixman_texture_from_pixels,
 	.bind_buffer = pixman_bind_buffer,
+	.destroy = pixman_destroy,
 };
 
 struct wlr_renderer *wlr_pixman_renderer_create(void) {
