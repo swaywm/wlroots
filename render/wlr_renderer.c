@@ -231,6 +231,11 @@ struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
 	if (name) {
 #if WLR_HAS_GLES2_RENDERER
 		if (strcmp(name, "gles2") == 0) {
+			if (drm_fd < 0) {
+				wlr_log(WLR_ERROR, "Cannot create GLES2 renderer: "
+					"no DRM FD available");
+				return NULL;
+			}
 			return wlr_gles2_renderer_create_with_drm_fd(drm_fd);
 		}
 #endif
@@ -244,10 +249,14 @@ struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
 
 	struct wlr_renderer *renderer = NULL;
 #if WLR_HAS_GLES2_RENDERER
-	if ((renderer = wlr_gles2_renderer_create_with_drm_fd(drm_fd)) != NULL) {
-		return renderer;
+	if (drm_fd >= 0) {
+		if ((renderer = wlr_gles2_renderer_create_with_drm_fd(drm_fd)) != NULL) {
+			return renderer;
+		}
+		wlr_log(WLR_DEBUG, "Failed to create GLES2 renderer");
+	} else {
+		wlr_log(WLR_DEBUG, "Skipping GLES2 renderer: no DRM FD available");
 	}
-	wlr_log(WLR_DEBUG, "Failed to create gles2 renderer");
 #endif
 
 	if ((renderer = wlr_pixman_renderer_create()) != NULL) {
@@ -260,13 +269,8 @@ struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
 }
 
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
+	// Note, drm_fd may be negative if unavailable
 	int drm_fd = wlr_backend_get_drm_fd(backend);
-	if (drm_fd < 0) {
-		wlr_log(WLR_ERROR, "Failed to get DRM FD from backend");
-		wlr_log(WLR_INFO, "Falling back on pixman renderer");
-		return wlr_pixman_renderer_create();
-	}
-
 	return wlr_renderer_autocreate_with_drm_fd(drm_fd);
 }
 
