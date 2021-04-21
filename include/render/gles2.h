@@ -67,6 +67,7 @@ struct wlr_gles2_renderer {
 	} shaders;
 
 	struct wl_list buffers; // wlr_gles2_buffer.link
+	struct wl_list textures; // wlr_gles2_texture.link
 
 	struct wlr_gles2_buffer *current_buffer;
 	uint32_t viewport_width, viewport_height;
@@ -87,6 +88,7 @@ struct wlr_gles2_buffer {
 struct wlr_gles2_texture {
 	struct wlr_texture wlr_texture;
 	struct wlr_gles2_renderer *renderer;
+	struct wl_list link; // wlr_gles2_renderer.textures
 
 	// Basically:
 	//   GL_TEXTURE_2D == mutable
