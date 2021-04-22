@@ -622,22 +622,20 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 			goto error_event;
 		}
 
-		struct wlr_allocator *alloc = wlr_gbm_allocator_create(drm_fd);
-		if (alloc == NULL) {
+		x11->allocator = wlr_gbm_allocator_create(drm_fd);
+		if (x11->allocator == NULL) {
 			wlr_log(WLR_ERROR, "Failed to create GBM allocator");
 			close(drm_fd);
 			goto error_event;
 		}
-		x11->allocator = alloc;
 		pixmap_formats = &x11->dri3_formats;
 	} else if (x11->have_shm) {
 		x11->drm_fd = -1;
-		struct wlr_shm_allocator *shm_alloc = wlr_shm_allocator_create();
-		if (shm_alloc == NULL) {
+		x11->allocator = wlr_shm_allocator_create();
+		if (x11->allocator == NULL) {
 			wlr_log(WLR_ERROR, "Failed to create shared memory allocator");
 			goto error_event;
 		}
-		x11->allocator = &shm_alloc->base;
 		pixmap_formats = &x11->shm_formats;
 	} else {
 		wlr_log(WLR_ERROR,

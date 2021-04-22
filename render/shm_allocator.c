@@ -98,12 +98,13 @@ static const struct wlr_allocator_interface allocator_impl = {
 	.create_buffer = allocator_create_buffer,
 };
 
-struct wlr_shm_allocator *wlr_shm_allocator_create(void) {
+struct wlr_allocator *wlr_shm_allocator_create(void) {
 	struct wlr_shm_allocator *allocator = calloc(1, sizeof(*allocator));
 	if (allocator == NULL) {
 		return NULL;
 	}
 	wlr_allocator_init(&allocator->base, &allocator_impl);
 
-	return allocator;
+	wlr_log(WLR_DEBUG, "Created shm allocator");
+	return &allocator->base;
 }
