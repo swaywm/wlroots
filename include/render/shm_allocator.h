@@ -18,6 +18,6 @@ struct wlr_shm_allocator {
 /**
  * Creates a new shared memory allocator.
  */
-struct wlr_shm_allocator *wlr_shm_allocator_create(void);
+struct wlr_allocator *wlr_shm_allocator_create(void);
 
 #endif
