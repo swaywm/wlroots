@@ -17,6 +17,7 @@
 #include <wlr/util/log.h>
 #include "render/gles2.h"
 #include "render/pixel_format.h"
+#include "types/wlr_buffer.h"
 
 static const GLfloat verts[] = {
 	1, 0, // top right
@@ -526,6 +527,10 @@ static int gles2_get_drm_fd(struct wlr_renderer *wlr_renderer) {
 	return renderer->drm_fd;
 }
 
+static uint32_t gles2_get_render_buffer_caps(void) {
+	return WLR_BUFFER_CAP_DMABUF;
+}
+
 struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer(wlr_renderer);
@@ -590,6 +595,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.texture_from_dmabuf = gles2_texture_from_dmabuf,
 	.init_wl_display = gles2_init_wl_display,
 	.get_drm_fd = gles2_get_drm_fd,
+	.get_render_buffer_caps = gles2_get_render_buffer_caps,
 };
 
 void push_gles2_debug_(struct wlr_gles2_renderer *renderer,

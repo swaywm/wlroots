@@ -403,6 +403,10 @@ static bool pixman_read_pixels(struct wlr_renderer *wlr_renderer,
 	return true;
 }
 
+static uint32_t pixman_get_render_buffer_caps(void) {
+	return WLR_BUFFER_CAP_DATA_PTR;
+}
+
 static const struct wlr_renderer_impl renderer_impl = {
 	.begin = pixman_begin,
 	.clear = pixman_clear,
@@ -416,6 +420,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.destroy = pixman_destroy,
 	.preferred_read_format = pixman_preferred_read_format,
 	.read_pixels = pixman_read_pixels,
+	.get_render_buffer_caps = pixman_get_render_buffer_caps,
 };
 
 struct wlr_renderer *wlr_pixman_renderer_create(void) {
