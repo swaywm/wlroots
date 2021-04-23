@@ -1,4 +1,4 @@
-#include "wlr/types/wlr_keyboard.h"
+#include <wlr/types/wlr_keyboard.h>
 
 void keyboard_key_update(struct wlr_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event);

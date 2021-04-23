@@ -16,6 +16,7 @@
 #include <wlr/types/wlr_list.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_pointer.h>
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>
 #include <xkbcommon/xkbcommon.h>
@@ -270,7 +271,7 @@ int main(int argc, char *argv[]) {
 		.clear_color = { 0.25f, 0.25f, 0.25f, 1 },
 		.display = display,
 	};
-	struct wlr_backend *wlr = wlr_backend_autocreate(display, NULL);
+	struct wlr_backend *wlr = wlr_backend_autocreate(display);
 	if (!wlr) {
 		exit(1);
 	}

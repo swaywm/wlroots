@@ -5,7 +5,7 @@
 #include <string.h>
 #include <wayland-client.h>
 #include <wayland-egl.h>
-#include <wlr/render/egl.h>
+#include "egl_common.h"
 #include "xdg-shell-client-protocol.h"
 #include "pointer-constraints-unstable-v1-client-protocol.h"
 
@@ -16,7 +16,6 @@ static struct wl_seat *seat = NULL;
 static struct xdg_wm_base *wm_base = NULL;
 static struct zwp_pointer_constraints_v1 *pointer_constraints = NULL;
 
-struct wlr_egl egl;
 struct wl_egl_window *egl_window;
 struct wlr_egl_surface *egl_surface;
 struct zwp_locked_pointer_v1* locked_pointer;
@@ -32,7 +31,7 @@ enum {
 struct wl_region *regions[3];
 
 static void draw(void) {
-	eglMakeCurrent(egl.display, egl_surface, egl_surface, egl.context);
+	eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context);
 
 	float color[] = {1.0, 1.0, 0.0, 1.0};
 
@@ -40,7 +39,7 @@ static void draw(void) {
 	glClearColor(color[0], color[1], color[2], 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	eglSwapBuffers(egl.display, egl_surface);
+	eglSwapBuffers(egl_display, egl_surface);
 }
 
 static void pointer_handle_button(void *data, struct wl_pointer *pointer,
@@ -211,8 +210,7 @@ int main(int argc, char **argv) {
 	wl_region_add(joint_region, 256, 256, 256, 256);
 	regions[REGION_TYPE_JOINT] = joint_region;
 
-	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display, NULL,
-		WL_SHM_FORMAT_ARGB8888);
+	egl_init(display);
 
 	struct wl_surface *surface = wl_compositor_create_surface(compositor);
 	struct xdg_surface *xdg_surface =
@@ -241,7 +239,8 @@ int main(int argc, char **argv) {
 	wl_surface_commit(surface);
 
 	egl_window = wl_egl_window_create(surface, width, height);
-	egl_surface = wlr_egl_create_surface(&egl, egl_window);
+	egl_surface = eglCreatePlatformWindowSurfaceEXT(
+		egl_display, egl_config, egl_window, NULL);
 
 	wl_display_roundtrip(display);
 

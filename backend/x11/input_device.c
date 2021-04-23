@@ -4,6 +4,8 @@
 
 #include <linux/input-event-codes.h>
 
+#include <wayland-server-protocol.h>
+
 #include <xcb/xcb.h>
 #include <xcb/xfixes.h>
 #include <xcb/xinput.h>
@@ -18,7 +20,7 @@
 #include "util/signal.h"
 
 static void send_key_event(struct wlr_x11_backend *x11, uint32_t key,
-		enum wlr_key_state st, xcb_timestamp_t time) {
+		enum wl_keyboard_key_state st, xcb_timestamp_t time) {
 	struct wlr_event_keyboard_key ev = {
 		.time_msec = time,
 		.keycode = key,
@@ -123,7 +125,7 @@ void handle_x11_xinput_event(struct wlr_x11_backend *x11,
 
 		wlr_keyboard_notify_modifiers(&x11->keyboard, ev->mods.base,
 			ev->mods.latched, ev->mods.locked, ev->mods.effective);
-		send_key_event(x11, ev->detail - 8, WLR_KEY_PRESSED, ev->time);
+		send_key_event(x11, ev->detail - 8, WL_KEYBOARD_KEY_STATE_PRESSED, ev->time);
 		x11->time = ev->time;
 		break;
 	}
@@ -133,7 +135,7 @@ void handle_x11_xinput_event(struct wlr_x11_backend *x11,
 
 		wlr_keyboard_notify_modifiers(&x11->keyboard, ev->mods.base,
 			ev->mods.latched, ev->mods.locked, ev->mods.effective);
-		send_key_event(x11, ev->detail - 8, WLR_KEY_RELEASED, ev->time);
+		send_key_event(x11, ev->detail - 8, WL_KEYBOARD_KEY_STATE_RELEASED, ev->time);
 		x11->time = ev->time;
 		break;
 	}
@@ -208,36 +210,6 @@ void handle_x11_xinput_event(struct wlr_x11_backend *x11,
 		send_pointer_position_event(output, ev->event_x >> 16,
 			ev->event_y >> 16, ev->time);
 		x11->time = ev->time;
-		break;
-	}
-	case XCB_INPUT_ENTER: {
-		xcb_input_enter_event_t *ev = (xcb_input_enter_event_t *)event;
-
-		output = get_x11_output_from_window_id(x11, ev->event);
-		if (!output) {
-			return;
-		}
-
-		if (!output->cursor_hidden) {
-			xcb_xfixes_hide_cursor(x11->xcb, output->win);
-			xcb_flush(x11->xcb);
-			output->cursor_hidden = true;
-		}
-		break;
-	}
-	case XCB_INPUT_LEAVE: {
-		xcb_input_leave_event_t *ev = (xcb_input_leave_event_t *)event;
-
-		output = get_x11_output_from_window_id(x11, ev->event);
-		if (!output) {
-			return;
-		}
-
-		if (output->cursor_hidden) {
-			xcb_xfixes_show_cursor(x11->xcb, output->win);
-			xcb_flush(x11->xcb);
-			output->cursor_hidden = false;
-		}
 		break;
 	}
 	case XCB_INPUT_TOUCH_BEGIN: {

@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <drm_fourcc.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tgmath.h>
@@ -93,6 +94,13 @@ static void output_bind(struct wl_client *wl_client, void *data,
 	send_current_mode(resource);
 	send_scale(resource);
 	send_done(resource);
+
+	struct wlr_output_event_bind evt = {
+		.output = output,
+		.resource = resource,
+	};
+
+	wlr_signal_emit_safe(&output->events.bind, &evt);
 }
 
 void wlr_output_create_global(struct wlr_output *output) {
@@ -133,8 +141,17 @@ void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
 }
 
 static void output_update_matrix(struct wlr_output *output) {
-	wlr_matrix_projection(output->transform_matrix, output->width,
-		output->height, output->transform);
+	wlr_matrix_identity(output->transform_matrix);
+	if (output->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
+		int tr_width, tr_height;
+		wlr_output_transformed_resolution(output, &tr_width, &tr_height);
+
+		wlr_matrix_translate(output->transform_matrix,
+			output->width / 2.0, output->height / 2.0);
+		wlr_matrix_transform(output->transform_matrix, output->transform);
+		wlr_matrix_translate(output->transform_matrix,
+			- tr_width / 2.0, - tr_height / 2.0);
+	}
 }
 
 void wlr_output_enable(struct wlr_output *output, bool enable) {
@@ -333,10 +350,9 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.precommit);
 	wl_signal_init(&output->events.commit);
 	wl_signal_init(&output->events.present);
+	wl_signal_init(&output->events.bind);
 	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.mode);
-	wl_signal_init(&output->events.scale);
-	wl_signal_init(&output->events.transform);
 	wl_signal_init(&output->events.description);
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->pending.damage);
@@ -350,8 +366,6 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 
 	output->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &output->display_destroy);
-
-	output->frame_pending = true;
 }
 
 void wlr_output_destroy(struct wlr_output *output) {
@@ -447,19 +461,18 @@ bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age) {
 	return true;
 }
 
-bool wlr_output_preferred_read_format(struct wlr_output *output,
-		enum wl_shm_format *fmt) {
+uint32_t wlr_output_preferred_read_format(struct wlr_output *output) {
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	if (!renderer->impl->preferred_read_format || !renderer->impl->read_pixels) {
-		return false;
+		return DRM_FORMAT_INVALID;
 	}
 
 	if (!output->impl->attach_render(output, NULL)) {
-		return false;
+		return DRM_FORMAT_INVALID;
 	}
-	*fmt = renderer->impl->preferred_read_format(renderer);
+	uint32_t fmt = renderer->impl->preferred_read_format(renderer);
 	output->impl->rollback_render(output);
-	return true;
+	return fmt;
 }
 
 void wlr_output_set_damage(struct wlr_output *output,
@@ -511,6 +524,7 @@ static bool output_basic_test(struct wlr_output *output) {
 
 		if (output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
 			if (output->attach_render_locks > 0) {
+				wlr_log(WLR_DEBUG, "Direct scan-out disabled by lock");
 				return false;
 			}
 
@@ -520,6 +534,8 @@ static bool output_basic_test(struct wlr_output *output) {
 			wl_list_for_each(cursor, &output->cursors, link) {
 				if (cursor->enabled && cursor->visible &&
 						cursor != output->hardware_cursor) {
+					wlr_log(WLR_DEBUG,
+						"Direct scan-out disabled by software cursor");
 					return false;
 				}
 			}
@@ -530,6 +546,7 @@ static bool output_basic_test(struct wlr_output *output) {
 			output_pending_resolution(output, &pending_width, &pending_height);
 			if (output->pending.buffer->width != pending_width ||
 					output->pending.buffer->height != pending_height) {
+				wlr_log(WLR_DEBUG, "Direct scan-out buffer size mismatch");
 				return false;
 			}
 		}
@@ -569,7 +586,7 @@ bool wlr_output_test(struct wlr_output *output) {
 
 bool wlr_output_commit(struct wlr_output *output) {
 	if (!output_basic_test(output)) {
-		wlr_log(WLR_ERROR, "Basic output test failed");
+		wlr_log(WLR_ERROR, "Basic output test failed for %s", output->name);
 		return false;
 	}
 
@@ -605,23 +622,14 @@ bool wlr_output_commit(struct wlr_output *output) {
 
 	output->commit_seq++;
 
-	struct wlr_output_event_commit event = {
-		.output = output,
-		.committed = output->pending.committed,
-		.when = &now,
-	};
-	wlr_signal_emit_safe(&output->events.commit, &event);
-
 	bool scale_updated = output->pending.committed & WLR_OUTPUT_STATE_SCALE;
 	if (scale_updated) {
 		output->scale = output->pending.scale;
-		wlr_signal_emit_safe(&output->events.scale, output);
 	}
 
 	if (output->pending.committed & WLR_OUTPUT_STATE_TRANSFORM) {
 		output->transform = output->pending.transform;
 		output_update_matrix(output);
-		wlr_signal_emit_safe(&output->events.transform, output);
 	}
 
 	bool geometry_updated = output->pending.committed &
@@ -644,7 +652,16 @@ bool wlr_output_commit(struct wlr_output *output) {
 		output->needs_frame = false;
 	}
 
+	uint32_t committed = output->pending.committed;
 	output_state_clear(&output->pending);
+
+	struct wlr_output_event_commit event = {
+		.output = output,
+		.committed = committed,
+		.when = &now,
+	};
+	wlr_signal_emit_safe(&output->events.commit, &event);
+
 	return true;
 }
 
@@ -1037,7 +1054,7 @@ bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 	cursor->enabled = false;
 	if (pixels != NULL) {
 		cursor->texture = wlr_texture_from_pixels(renderer,
-			WL_SHM_FORMAT_ARGB8888, stride, width, height, pixels);
+			DRM_FORMAT_ARGB8888, stride, width, height, pixels);
 		if (cursor->texture == NULL) {
 			return false;
 		}

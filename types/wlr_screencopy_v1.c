@@ -2,12 +2,15 @@
 #include <stdlib.h>
 #include <drm_fourcc.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/backend.h>
 #include <wlr/util/log.h>
 #include "wlr-screencopy-unstable-v1-protocol.h"
+#include "render/wlr_renderer.h"
+#include "render/pixel_format.h"
 #include "util/signal.h"
 
 #define SCREENCOPY_MANAGER_VERSION 3
@@ -48,9 +51,18 @@ static void screencopy_damage_accumulate(struct screencopy_damage *damage) {
 		return;
 	}
 
-	pixman_region32_union(region, region, &output->pending.damage);
-	pixman_region32_intersect_rect(region, region, 0, 0, output->width,
-		output->height);
+	if (output->pending.committed & WLR_OUTPUT_STATE_DAMAGE) {
+		// If the compositor submitted damage, copy it over
+		pixman_region32_union(region, region, &output->pending.damage);
+		pixman_region32_intersect_rect(region, region, 0, 0,
+			output->width, output->height);
+	} else if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+		// If the compositor did not submit damage but did submit a buffer
+		// damage everything
+		pixman_region32_union_rect(region, region, 0, 0,
+			output->width, output->height);
+	}
+
 	damage->last_commit_seq = output->commit_seq;
 }
 
@@ -223,7 +235,8 @@ static void frame_handle_output_precommit(struct wl_listener *listener,
 	int x = frame->box.x;
 	int y = frame->box.y;
 
-	enum wl_shm_format fmt = wl_shm_buffer_get_format(shm_buffer);
+	enum wl_shm_format wl_shm_format = wl_shm_buffer_get_format(shm_buffer);
+	uint32_t drm_format = convert_wl_shm_format_to_drm(wl_shm_format);
 	int32_t width = wl_shm_buffer_get_width(shm_buffer);
 	int32_t height = wl_shm_buffer_get_height(shm_buffer);
 	int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
@@ -231,7 +244,7 @@ static void frame_handle_output_precommit(struct wl_listener *listener,
 	wl_shm_buffer_begin_access(shm_buffer);
 	void *data = wl_shm_buffer_get_data(shm_buffer);
 	uint32_t renderer_flags = 0;
-	bool ok = wlr_renderer_read_pixels(renderer, fmt, &renderer_flags,
+	bool ok = wlr_renderer_read_pixels(renderer, drm_format, &renderer_flags,
 		stride, width, height, x, y, 0, 0, data);
 	uint32_t flags = renderer_flags & WLR_RENDERER_READ_PIXELS_Y_INVERT ?
 		ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT : 0;
@@ -247,6 +260,51 @@ static void frame_handle_output_precommit(struct wl_listener *listener,
 	frame_send_damage(frame);
 	frame_send_ready(frame, event->when);
 	frame_destroy(frame);
+}
+
+static bool blit_dmabuf(struct wlr_renderer *renderer,
+		struct wlr_dmabuf_v1_buffer *dst_dmabuf,
+		struct wlr_dmabuf_attributes *src_attrs) {
+	if (dst_dmabuf->buffer_resource == NULL) {
+		return false;
+	}
+
+	struct wlr_client_buffer *dst_client_buffer =
+		wlr_client_buffer_import(renderer, dst_dmabuf->buffer_resource);
+	if (dst_client_buffer == NULL) {
+		return false;
+	}
+	struct wlr_buffer *dst_buffer = &dst_client_buffer->base;
+
+	struct wlr_texture *src_tex = wlr_texture_from_dmabuf(renderer, src_attrs);
+	if (src_tex == NULL) {
+		goto error_src_tex;
+	}
+
+	if (!wlr_renderer_bind_buffer(renderer, dst_buffer)) {
+		goto error_bind_buffer;
+	}
+
+	float mat[9];
+	wlr_matrix_identity(mat);
+	wlr_matrix_scale(mat, dst_buffer->width, dst_buffer->height);
+
+	wlr_renderer_begin(renderer, dst_buffer->width, dst_buffer->height);
+	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
+	wlr_render_texture_with_matrix(renderer, src_tex, mat, 1.0f);
+	wlr_renderer_end(renderer);
+
+	wlr_renderer_bind_buffer(renderer, NULL);
+
+	wlr_texture_destroy(src_tex);
+	wlr_buffer_unlock(dst_buffer);
+	return true;
+
+error_bind_buffer:
+	wlr_texture_destroy(src_tex);
+error_src_tex:
+	wlr_buffer_unlock(dst_buffer);
+	return false;
 }
 
 static void frame_handle_output_commit(struct wl_listener *listener,
@@ -289,8 +347,7 @@ static void frame_handle_output_commit(struct wl_listener *listener,
 
 	struct wlr_dmabuf_attributes attr = { 0 };
 	bool ok = wlr_output_export_dmabuf(output, &attr);
-	ok = ok && wlr_renderer_blit_dmabuf(renderer,
-		&dma_buffer->attributes, &attr);
+	ok = ok && blit_dmabuf(renderer, dma_buffer, &attr);
 	uint32_t flags = dma_buffer->attributes.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT ?
 		ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT : 0;
 	wlr_dmabuf_attributes_finish(&attr);
@@ -542,12 +599,14 @@ static void capture_output(struct wl_client *wl_client,
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	assert(renderer);
 
-	if (!wlr_output_preferred_read_format(frame->output, &frame->format)) {
+	uint32_t drm_format = wlr_output_preferred_read_format(frame->output);
+	if (drm_format == DRM_FORMAT_INVALID) {
 		wlr_log(WLR_ERROR,
 			"Failed to capture output: no read format supported by renderer");
 		goto error;
 	}
 
+	frame->format = convert_drm_format_to_wl_shm(drm_format);
 	frame->fourcc = get_output_fourcc(output);
 
 	struct wlr_box buffer_box = {0};

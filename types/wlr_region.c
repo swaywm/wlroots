@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_region.h>
+#include "types/wlr_region.h"
 
 static void region_add(struct wl_client *client, struct wl_resource *resource,
 		int32_t x, int32_t y, int32_t width, int32_t height) {
@@ -34,15 +35,12 @@ static const struct wl_region_interface region_impl = {
 
 static void region_handle_resource_destroy(struct wl_resource *resource) {
 	pixman_region32_t *reg = wlr_region_from_resource(resource);
-
-	wl_list_remove(wl_resource_get_link(resource));
-
 	pixman_region32_fini(reg);
 	free(reg);
 }
 
-struct wl_resource *wlr_region_create(struct wl_client *client,
-		uint32_t version, uint32_t id, struct wl_list *resource_list) {
+struct wl_resource *region_create(struct wl_client *client,
+		uint32_t version, uint32_t id) {
 	pixman_region32_t *region = calloc(1, sizeof(pixman_region32_t));
 	if (region == NULL) {
 		wl_client_post_no_memory(client);
@@ -60,13 +58,6 @@ struct wl_resource *wlr_region_create(struct wl_client *client,
 	}
 	wl_resource_set_implementation(region_resource, &region_impl, region,
 		region_handle_resource_destroy);
-
-	struct wl_list *resource_link = wl_resource_get_link(region_resource);
-	if (resource_list != NULL) {
-		wl_list_insert(resource_list, resource_link);
-	} else {
-		wl_list_init(resource_link);
-	}
 
 	return region_resource;
 }

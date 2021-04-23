@@ -25,16 +25,16 @@ static void atomic_begin(struct atomic *atom) {
 
 static bool atomic_commit(struct atomic *atom,
 		struct wlr_drm_connector *conn, uint32_t flags) {
-	struct wlr_drm_backend *drm =
-		get_drm_backend_from_backend(conn->output.backend);
+	struct wlr_drm_backend *drm = conn->backend;
 	if (atom->failed) {
 		return false;
 	}
 
 	int ret = drmModeAtomicCommit(drm->fd, atom->req, flags, drm);
-	if (ret) {
-		wlr_log_errno(WLR_ERROR, "%s: Atomic %s failed (%s)",
-			conn->output.name,
+	if (ret != 0) {
+		wlr_drm_conn_log_errno(conn,
+			(flags & DRM_MODE_ATOMIC_TEST_ONLY) ? WLR_DEBUG : WLR_ERROR,
+			"Atomic %s failed (%s)",
 			(flags & DRM_MODE_ATOMIC_TEST_ONLY) ? "test" : "commit",
 			(flags & DRM_MODE_ATOMIC_ALLOW_MODESET) ? "modeset" : "pageflip");
 		return false;
@@ -136,24 +136,22 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
 	uint32_t id = plane->id;
 	const union wlr_drm_plane_props *props = &plane->props;
 	struct wlr_drm_fb *fb = plane_get_next_fb(plane);
-	struct gbm_bo *bo = drm_fb_acquire(fb, drm, &plane->mgpu_surf);
-	if (!bo) {
+	if (fb == NULL) {
+		wlr_log(WLR_ERROR, "Failed to acquire FB");
 		goto error;
 	}
 
-	uint32_t fb_id = get_fb_for_bo(bo, drm->addfb2_modifiers);
-	if (!fb_id) {
-		goto error;
-	}
+	uint32_t width = gbm_bo_get_width(fb->bo);
+	uint32_t height = gbm_bo_get_height(fb->bo);
 
 	// The src_* properties are in 16.16 fixed point
 	atomic_add(atom, id, props->src_x, 0);
 	atomic_add(atom, id, props->src_y, 0);
-	atomic_add(atom, id, props->src_w, (uint64_t)plane->surf.width << 16);
-	atomic_add(atom, id, props->src_h, (uint64_t)plane->surf.height << 16);
-	atomic_add(atom, id, props->crtc_w, plane->surf.width);
-	atomic_add(atom, id, props->crtc_h, plane->surf.height);
-	atomic_add(atom, id, props->fb_id, fb_id);
+	atomic_add(atom, id, props->src_w, (uint64_t)width << 16);
+	atomic_add(atom, id, props->src_h, (uint64_t)height << 16);
+	atomic_add(atom, id, props->crtc_w, width);
+	atomic_add(atom, id, props->crtc_h, height);
+	atomic_add(atom, id, props->fb_id, fb->id);
 	atomic_add(atom, id, props->crtc_id, crtc_id);
 	atomic_add(atom, id, props->crtc_x, (uint64_t)x);
 	atomic_add(atom, id, props->crtc_y, (uint64_t)y);
@@ -206,7 +204,7 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 
 	if (crtc->pending_modeset) {
 		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
-	} else {
+	} else if (!(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
 		flags |= DRM_MODE_ATOMIC_NONBLOCK;
 	}
 
@@ -255,8 +253,8 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 			output->adaptive_sync_status = vrr_enabled ?
 				WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED :
 				WLR_OUTPUT_ADAPTIVE_SYNC_DISABLED;
-			wlr_log(WLR_DEBUG, "VRR %s on connector '%s'",
-				vrr_enabled ? "enabled" : "disabled", output->name);
+			wlr_drm_conn_log(conn, WLR_DEBUG, "VRR %s",
+				vrr_enabled ? "enabled" : "disabled");
 		}
 	} else {
 		rollback_blob(drm, &crtc->mode_id, mode_id);

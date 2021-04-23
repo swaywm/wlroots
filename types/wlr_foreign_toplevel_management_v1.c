@@ -107,8 +107,11 @@ static void foreign_toplevel_handle_activate(struct wl_client *client,
 	if (!toplevel) {
 		return;
 	}
-
 	struct wlr_seat_client *seat_client = wlr_seat_client_from_resource(seat);
+	if (!seat_client) {
+		return;
+	}
+
 	struct wlr_foreign_toplevel_handle_v1_activated_event event = {
 		.toplevel = toplevel,
 		.seat = seat_client->seat,
@@ -195,6 +198,10 @@ void wlr_foreign_toplevel_handle_v1_set_title(
 		struct wlr_foreign_toplevel_handle_v1 *toplevel, const char *title) {
 	free(toplevel->title);
 	toplevel->title = strdup(title);
+	if (toplevel->title == NULL) {
+		wlr_log(WLR_ERROR, "failed to allocate memory for toplevel title");
+		return;
+	}
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &toplevel->resources) {
@@ -208,6 +215,10 @@ void wlr_foreign_toplevel_handle_v1_set_app_id(
 		struct wlr_foreign_toplevel_handle_v1 *toplevel, const char *app_id) {
 	free(toplevel->app_id);
 	toplevel->app_id = strdup(app_id);
+	if (toplevel->app_id == NULL) {
+		wlr_log(WLR_ERROR, "failed to allocate memory for toplevel app_id");
+		return;
+	}
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &toplevel->resources) {
@@ -367,6 +378,10 @@ static void toplevel_send_state(struct wlr_foreign_toplevel_handle_v1 *toplevel)
 
 void wlr_foreign_toplevel_handle_v1_set_maximized(
 		struct wlr_foreign_toplevel_handle_v1 *toplevel, bool maximized) {
+	if (maximized == !!(toplevel->state &
+			WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED)) {
+		return;
+	}
 	if (maximized) {
 		toplevel->state |= WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED;
 	} else {
@@ -377,6 +392,10 @@ void wlr_foreign_toplevel_handle_v1_set_maximized(
 
 void wlr_foreign_toplevel_handle_v1_set_minimized(
 		struct wlr_foreign_toplevel_handle_v1 *toplevel, bool minimized) {
+	if (minimized == !!(toplevel->state &
+			WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED)) {
+		return;
+	}
 	if (minimized) {
 		toplevel->state |= WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED;
 	} else {
@@ -387,6 +406,10 @@ void wlr_foreign_toplevel_handle_v1_set_minimized(
 
 void wlr_foreign_toplevel_handle_v1_set_activated(
 		struct wlr_foreign_toplevel_handle_v1 *toplevel, bool activated) {
+	if (activated == !!(toplevel->state &
+			WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED)) {
+		return;
+	}
 	if (activated) {
 		toplevel->state |= WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED;
 	} else {
@@ -397,6 +420,10 @@ void wlr_foreign_toplevel_handle_v1_set_activated(
 
 void wlr_foreign_toplevel_handle_v1_set_fullscreen(
 		struct wlr_foreign_toplevel_handle_v1 * toplevel, bool fullscreen) {
+	if (fullscreen == !!(toplevel->state &
+			WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN)) {
+		return;
+	}
 	if (fullscreen) {
 		toplevel->state |= WLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN;
 	} else {

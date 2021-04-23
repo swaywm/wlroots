@@ -17,6 +17,7 @@ union wlr_drm_connector_props {
 		uint32_t link_status; // not guaranteed to exist
 		uint32_t path;
 		uint32_t vrr_capable; // not guaranteed to exist
+		uint32_t subconnector; // not guaranteed to exist
 
 		// atomic-modesetting only
 
@@ -28,8 +29,6 @@ union wlr_drm_connector_props {
 union wlr_drm_crtc_props {
 	struct {
 		// Neither of these are guaranteed to exist
-		uint32_t rotation;
-		uint32_t scaling_mode;
 		uint32_t vrr_enabled;
 		uint32_t gamma_lut;
 		uint32_t gamma_lut_size;
@@ -71,5 +70,6 @@ bool get_drm_plane_props(int fd, uint32_t id, union wlr_drm_plane_props *out);
 
 bool get_drm_prop(int fd, uint32_t obj, uint32_t prop, uint64_t *ret);
 void *get_drm_prop_blob(int fd, uint32_t obj, uint32_t prop, size_t *ret_len);
+char *get_drm_prop_enum(int fd, uint32_t obj, uint32_t prop);
 
 #endif

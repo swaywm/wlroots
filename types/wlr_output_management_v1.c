@@ -118,6 +118,9 @@ struct wlr_output_configuration_head_v1 *
 		struct wlr_output_configuration_v1 *config, struct wlr_output *output) {
 	struct wlr_output_configuration_head_v1 *config_head =
 		config_head_create(config, output);
+	if (config_head == NULL) {
+		return NULL;
+	}
 	config_head->state.enabled = output->enabled;
 	config_head->state.mode = output->current_mode;
 	config_head->state.custom_mode.width = output->width;
@@ -237,7 +240,7 @@ static void config_head_handle_set_scale(struct wl_client *client,
 		return;
 	}
 
-	double scale =  wl_fixed_to_double(scale_fixed);
+	float scale =  wl_fixed_to_double(scale_fixed);
 	if (scale <= 0) {
 		wl_resource_post_error(config_head_resource,
 			ZWLR_OUTPUT_CONFIGURATION_HEAD_V1_ERROR_INVALID_SCALE,
@@ -814,6 +817,26 @@ static bool manager_update_head(struct wlr_output_manager_v1 *manager,
 	}
 	if (current->scale != next->scale) {
 		state |= HEAD_STATE_SCALE;
+	}
+
+	// If  a mode was added to wlr_output.modes we need to add the new mode
+	// to the wlr_output_head
+	struct wlr_output_mode *mode;
+	wl_list_for_each(mode, &head->state.output->modes, link) {
+		bool found = false;
+		struct wl_resource *mode_resource;
+		wl_resource_for_each(mode_resource, &head->mode_resources) {
+			if (mode_from_resource(mode_resource) == mode) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			struct wl_resource *resource;
+			wl_resource_for_each(resource, &head->resources) {
+				head_send_mode(head, resource, mode);
+			}
+		}
 	}
 
 	if (state != 0) {

@@ -13,16 +13,25 @@ void wlr_dmabuf_attributes_finish(struct wlr_dmabuf_attributes *attribs) {
 }
 
 bool wlr_dmabuf_attributes_copy(struct wlr_dmabuf_attributes *dst,
-		struct wlr_dmabuf_attributes *src) {
+		const struct wlr_dmabuf_attributes *src) {
 	memcpy(dst, src, sizeof(struct wlr_dmabuf_attributes));
 
-	for (int i = 0; i < src->n_planes; ++i) {
+	int i;
+	for (i = 0; i < src->n_planes; ++i) {
 		dst->fd[i] = fcntl(src->fd[i], F_DUPFD_CLOEXEC, 0);
 		if (dst->fd[i] < 0) {
 			wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
-			return false;
+			goto error;
 		}
 	}
 
 	return true;
+
+error:
+	for (int j = 0; j < i; j++) {
+		close(dst->fd[i]);
+		dst->fd[j] = -1;
+	}
+	dst->n_planes = 0;
+	return false;
 }

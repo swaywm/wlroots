@@ -19,18 +19,6 @@ static void output_handle_mode(struct wl_listener *listener, void *data) {
 	wlr_output_damage_add_whole(output_damage);
 }
 
-static void output_handle_transform(struct wl_listener *listener, void *data) {
-	struct wlr_output_damage *output_damage =
-		wl_container_of(listener, output_damage, output_transform);
-	wlr_output_damage_add_whole(output_damage);
-}
-
-static void output_handle_scale(struct wl_listener *listener, void *data) {
-	struct wlr_output_damage *output_damage =
-		wl_container_of(listener, output_damage, output_scale);
-	wlr_output_damage_add_whole(output_damage);
-}
-
 static void output_handle_needs_frame(struct wl_listener *listener,
 		void *data) {
 	struct wlr_output_damage *output_damage =
@@ -56,16 +44,33 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 	wlr_signal_emit_safe(&output_damage->events.frame, output_damage);
 }
 
+static void output_handle_precommit(struct wl_listener *listener, void *data) {
+	struct wlr_output_damage *output_damage =
+		wl_container_of(listener, output_damage, output_precommit);
+	struct wlr_output *output = output_damage->output;
+
+	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
+		// TODO: find a better way to access this info without a precommit
+		// handler
+		output_damage->pending_buffer_type = output->pending.buffer_type;
+	}
+}
+
 static void output_handle_commit(struct wl_listener *listener, void *data) {
 	struct wlr_output_damage *output_damage =
 		wl_container_of(listener, output_damage, output_commit);
+	struct wlr_output_event_commit *event = data;
 
-	if (!(output_damage->output->pending.committed & WLR_OUTPUT_STATE_BUFFER)) {
+	if (event->committed & (WLR_OUTPUT_STATE_SCALE | WLR_OUTPUT_STATE_TRANSFORM)) {
+		wlr_output_damage_add_whole(output_damage);
+	}
+
+	if (!(event->committed & WLR_OUTPUT_STATE_BUFFER)) {
 		return;
 	}
 
 	pixman_region32_t *prev;
-	switch (output_damage->output->pending.buffer_type) {
+	switch (output_damage->pending_buffer_type) {
 	case WLR_OUTPUT_STATE_BUFFER_RENDER:
 		// render-buffers have been swapped, rotate the damage
 
@@ -107,16 +112,14 @@ struct wlr_output_damage *wlr_output_damage_create(struct wlr_output *output) {
 	output_damage->output_destroy.notify = output_handle_destroy;
 	wl_signal_add(&output->events.mode, &output_damage->output_mode);
 	output_damage->output_mode.notify = output_handle_mode;
-	wl_signal_add(&output->events.transform, &output_damage->output_transform);
-	output_damage->output_transform.notify = output_handle_transform;
-	wl_signal_add(&output->events.scale, &output_damage->output_scale);
-	output_damage->output_scale.notify = output_handle_scale;
 	wl_signal_add(&output->events.needs_frame, &output_damage->output_needs_frame);
 	output_damage->output_needs_frame.notify = output_handle_needs_frame;
 	wl_signal_add(&output->events.damage, &output_damage->output_damage);
 	output_damage->output_damage.notify = output_handle_damage;
 	wl_signal_add(&output->events.frame, &output_damage->output_frame);
 	output_damage->output_frame.notify = output_handle_frame;
+	wl_signal_add(&output->events.precommit, &output_damage->output_precommit);
+	output_damage->output_precommit.notify = output_handle_precommit;
 	wl_signal_add(&output->events.commit, &output_damage->output_commit);
 	output_damage->output_commit.notify = output_handle_commit;
 
@@ -130,11 +133,10 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage) {
 	wlr_signal_emit_safe(&output_damage->events.destroy, output_damage);
 	wl_list_remove(&output_damage->output_destroy.link);
 	wl_list_remove(&output_damage->output_mode.link);
-	wl_list_remove(&output_damage->output_transform.link);
-	wl_list_remove(&output_damage->output_scale.link);
 	wl_list_remove(&output_damage->output_needs_frame.link);
 	wl_list_remove(&output_damage->output_damage.link);
 	wl_list_remove(&output_damage->output_frame.link);
+	wl_list_remove(&output_damage->output_precommit.link);
 	wl_list_remove(&output_damage->output_commit.link);
 	pixman_region32_fini(&output_damage->current);
 	for (size_t i = 0; i < WLR_OUTPUT_DAMAGE_PREVIOUS_LEN; ++i) {

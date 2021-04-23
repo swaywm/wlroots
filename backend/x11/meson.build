@@ -1,9 +1,12 @@
 x11_libs = []
 x11_required = [
-	'x11-xcb',
 	'xcb',
-	'xcb-xinput',
+	'xcb-dri3',
+	'xcb-present',
+	'xcb-render',
+	'xcb-renderutil',
 	'xcb-xfixes',
+	'xcb-xinput',
 ]
 
 msg = []
@@ -32,4 +35,4 @@ wlr_files += files(
 	'output.c',
 )
 wlr_deps += x11_libs
-conf_data.set10('WLR_HAS_X11_BACKEND', true)
+features += { 'x11-backend': true }

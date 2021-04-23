@@ -6,6 +6,7 @@
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
 #include <wlr/util/log.h>
+#include "backend/backend.h"
 #include "backend/multi.h"
 #include "util/signal.h"
 
@@ -96,12 +97,26 @@ static clockid_t multi_backend_get_presentation_clock(
 	return CLOCK_MONOTONIC;
 }
 
-struct wlr_backend_impl backend_impl = {
+static int multi_backend_get_drm_fd(struct wlr_backend *backend) {
+	struct wlr_multi_backend *multi = multi_backend_from_backend(backend);
+
+	struct subbackend_state *sub;
+	wl_list_for_each(sub, &multi->backends, link) {
+		if (sub->backend->impl->get_drm_fd) {
+			return backend_get_drm_fd(sub->backend);
+		}
+	}
+
+	return -1;
+}
+
+static const struct wlr_backend_impl backend_impl = {
 	.start = multi_backend_start,
 	.destroy = multi_backend_destroy,
 	.get_renderer = multi_backend_get_renderer,
 	.get_session = multi_backend_get_session,
 	.get_presentation_clock = multi_backend_get_presentation_clock,
+	.get_drm_fd = multi_backend_get_drm_fd,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {

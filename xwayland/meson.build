@@ -2,12 +2,12 @@ xwayland_libs = []
 xwayland_required = [
 	'xcb',
 	'xcb-composite',
+	'xcb-icccm',
 	'xcb-render',
 	'xcb-xfixes',
 ]
 xwayland_optional = {
 	'xcb-errors': 'Required for printing X11 errors.',
-	'xcb-icccm': 'Required for extended X11 window manager hints.',
 }
 
 msg = []
@@ -16,6 +16,19 @@ if get_option('xwayland').enabled()
 endif
 if not get_option('xwayland').disabled()
 	msg += 'Required for Xwayland support.'
+endif
+
+xwayland = dependency('xwayland', required: false)
+if not xwayland.found()
+	# There's no Xwayland release with the pkg-config file shipped yet.
+	xwayland_prog = find_program('Xwayland', required: false)
+	if not xwayland_prog.found()
+		if get_option('xwayland').enabled()
+			error('\n'.join(msg).format('xwayland'))
+		else
+			subdir_done()
+		endif
+	endif
 endif
 
 foreach lib : xwayland_required
@@ -45,7 +58,7 @@ foreach lib, desc : xwayland_optional
 	)
 	if dep.found()
 		xwayland_libs += dep
-		conf_data.set10('WLR_HAS_' + lib.underscorify().to_upper(), true)
+		features += { lib: true }
 	endif
 endforeach
 
@@ -60,4 +73,4 @@ wlr_files += files(
 	'xwm.c',
 )
 wlr_deps += xwayland_libs
-conf_data.set10('WLR_HAS_XWAYLAND', true)
+features += { 'xwayland': true }

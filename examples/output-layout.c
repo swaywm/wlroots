@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
+#include <drm_fourcc.h>
 #include <GLES2/gl2.h>
 #include <limits.h>
 #include <math.h>
@@ -190,7 +191,7 @@ static void keyboard_key_notify(struct wl_listener *listener, void *data) {
 		// and make this change in pixels/sec^2
 		// Also, key repeat
 		int delta = 75;
-		if (event->state == WLR_KEY_PRESSED) {
+		if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
 			switch (sym) {
 			case XKB_KEY_Left:
 				update_velocities(sample, -delta, 0);
@@ -267,7 +268,7 @@ int main(int argc, char *argv[]) {
 	state.layout = wlr_output_layout_create();
 	clock_gettime(CLOCK_MONOTONIC, &state.ts_last);
 
-	struct wlr_backend *wlr = wlr_backend_autocreate(display, NULL);
+	struct wlr_backend *wlr = wlr_backend_autocreate(display);
 	if (!wlr) {
 		exit(1);
 	}
@@ -279,7 +280,7 @@ int main(int argc, char *argv[]) {
 
 	state.renderer = wlr_backend_get_renderer(wlr);
 	state.cat_texture = wlr_texture_from_pixels(state.renderer,
-		WL_SHM_FORMAT_ABGR8888, cat_tex.width * 4, cat_tex.width, cat_tex.height,
+		DRM_FORMAT_ABGR8888, cat_tex.width * 4, cat_tex.width, cat_tex.height,
 		cat_tex.pixel_data);
 
 	if (!wlr_backend_start(wlr)) {

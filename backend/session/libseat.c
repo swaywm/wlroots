@@ -35,13 +35,13 @@ struct libseat_session {
 static void handle_enable_seat(struct libseat *seat, void *data) {
 	struct libseat_session *session = data;
 	session->base.active = true;
-	wlr_signal_emit_safe(&session->base.session_signal, session);
+	wlr_signal_emit_safe(&session->base.events.active, NULL);
 }
 
 static void handle_disable_seat(struct libseat *seat, void *data) {
 	struct libseat_session *session = data;
 	session->base.active = false;
-	wlr_signal_emit_safe(&session->base.session_signal, session);
+	wlr_signal_emit_safe(&session->base.events.active, NULL);
 	libseat_disable_seat(session->seat);
 }
 
@@ -95,7 +95,10 @@ static struct wlr_session *libseat_session_create(struct wl_display *disp) {
 	wl_list_init(&session->devices);
 
 	libseat_set_log_handler(log_libseat);
-	libseat_set_log_level(LIBSEAT_LOG_LEVEL_ERROR);
+	libseat_set_log_level(LIBSEAT_LOG_LEVEL_INFO);
+
+	// libseat will take care of updating the logind state if necessary
+	setenv("XDG_SESSION_TYPE", "wayland", 1);
 
 	session->seat = libseat_open_seat(&seat_listener, session);
 	if (session->seat == NULL) {
@@ -203,7 +206,7 @@ static void libseat_session_close_device(struct wlr_session *base, int fd) {
 
 static bool libseat_change_vt(struct wlr_session *base, unsigned vt) {
 	struct libseat_session *session = libseat_session_from_session(base);
-	return libseat_switch_session(session->seat, vt);
+	return libseat_switch_session(session->seat, vt) == 0;
 }
 
 const struct session_impl session_libseat = {

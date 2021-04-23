@@ -22,11 +22,16 @@
  * a DRM backend, other kinds of backends raise SIGABRT).
  */
 struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
-	struct wlr_session *session, int gpu_fd, struct wlr_backend *parent,
-	wlr_renderer_create_func_t create_renderer_func);
+	struct wlr_session *session, struct wlr_device *dev,
+	struct wlr_backend *parent);
 
 bool wlr_backend_is_drm(struct wlr_backend *backend);
 bool wlr_output_is_drm(struct wlr_output *output);
+
+/**
+ * Get the KMS connector object ID.
+ */
+uint32_t wlr_drm_connector_get_id(struct wlr_output *output);
 
 /**
  * Add mode to the list of available modes

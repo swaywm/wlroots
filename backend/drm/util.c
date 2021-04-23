@@ -163,28 +163,45 @@ const char *conn_get_name(uint32_t type_id) {
 	case DRM_MODE_CONNECTOR_eDP:         return "eDP";
 	case DRM_MODE_CONNECTOR_VIRTUAL:     return "Virtual";
 	case DRM_MODE_CONNECTOR_DSI:         return "DSI";
-#ifdef DRM_MODE_CONNECTOR_DPI
 	case DRM_MODE_CONNECTOR_DPI:         return "DPI";
+	case DRM_MODE_CONNECTOR_WRITEBACK:   return "Writeback";
+#ifdef DRM_MODE_CONNECTOR_SPI
+	case DRM_MODE_CONNECTOR_SPI:         return "SPI";
 #endif
 	default:                             return "Unknown";
 	}
 }
 
-static void free_fb(struct gbm_bo *bo, void *data) {
-	uint32_t id = (uintptr_t)data;
+static uint32_t get_fb_for_bo_legacy(struct gbm_bo *bo) {
+	struct gbm_device *gbm = gbm_bo_get_device(bo);
 
-	if (id) {
-		struct gbm_device *gbm = gbm_bo_get_device(bo);
-		drmModeRmFB(gbm_device_get_fd(gbm), id);
+	/* We only support this as a fallback of last resort for ARGB8888 visuals,
+	 * like xf86-video-modesetting does. This is necessary on BE machines. */
+	if (gbm_bo_get_format(bo) != GBM_FORMAT_ARGB8888 ||
+			gbm_bo_get_plane_count(bo) != 1) {
+		wlr_log(WLR_DEBUG,
+			"Invalid visual %x (%d planes) requested for legacy DRM framebuffer",
+			gbm_bo_get_format(bo), gbm_bo_get_plane_count(bo));
+		return 0;
 	}
+
+	int fd = gbm_device_get_fd(gbm);
+	uint32_t width = gbm_bo_get_width(bo);
+	uint32_t height = gbm_bo_get_height(bo);
+	uint32_t depth = 32;
+	uint32_t bpp = gbm_bo_get_bpp(bo);
+	uint32_t pitch = gbm_bo_get_stride(bo);
+	uint32_t handle = gbm_bo_get_handle(bo).u32;
+
+	uint32_t id = 0;
+	if (drmModeAddFB(fd, width, height, depth, bpp, pitch, handle, &id)) {
+		wlr_log_errno(WLR_ERROR, "Unable to add DRM framebuffer");
+	}
+
+	return id;
 }
 
 uint32_t get_fb_for_bo(struct gbm_bo *bo, bool with_modifiers) {
-	uint32_t id = (uintptr_t)gbm_bo_get_user_data(bo);
-	if (id) {
-		return id;
-	}
-
 	struct gbm_device *gbm = gbm_bo_get_device(bo);
 
 	int fd = gbm_device_get_fd(gbm);
@@ -204,6 +221,7 @@ uint32_t get_fb_for_bo(struct gbm_bo *bo, bool with_modifiers) {
 		modifiers[i] = gbm_bo_get_modifier(bo);
 	}
 
+	uint32_t id = 0;
 	if (with_modifiers && gbm_bo_get_modifier(bo) != DRM_FORMAT_MOD_INVALID) {
 		if (drmModeAddFB2WithModifiers(fd, width, height, format, handles,
 				strides, offsets, modifiers, &id, DRM_MODE_FB_MODIFIERS)) {
@@ -212,16 +230,19 @@ uint32_t get_fb_for_bo(struct gbm_bo *bo, bool with_modifiers) {
 	} else {
 		if (drmModeAddFB2(fd, width, height, format, handles, strides,
 				offsets, &id, 0)) {
-			wlr_log_errno(WLR_ERROR, "Unable to add DRM framebuffer");
+			wlr_log_errno(WLR_DEBUG,
+				"Unable to add DRM framebuffer, trying legacy method");
+			id = get_fb_for_bo_legacy(bo);
+			if (id == 0) {
+				wlr_log(WLR_ERROR, "Unable to add DRM framebuffer");
+			}
 		}
 	}
-
-	gbm_bo_set_user_data(bo, (void *)(uintptr_t)id, free_fb);
 
 	return id;
 }
 
-static inline bool is_taken(size_t n, const uint32_t arr[static n], uint32_t key) {
+static bool is_taken(size_t n, const uint32_t arr[static n], uint32_t key) {
 	for (size_t i = 0; i < n; ++i) {
 		if (arr[i] == key) {
 			return true;

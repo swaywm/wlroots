@@ -11,8 +11,8 @@
 #include <wayland-client.h>
 #include <wayland-cursor.h>
 #include <wayland-egl.h>
-#include <wlr/render/egl.h>
 #include <wlr/util/log.h>
+#include "egl_common.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
@@ -29,7 +29,6 @@ struct zwlr_layer_surface_v1 *layer_surface;
 static struct wl_output *wl_output;
 
 struct wl_surface *wl_surface;
-struct wlr_egl egl;
 struct wl_egl_window *egl_window;
 struct wlr_egl_surface *egl_surface;
 struct wl_callback *frame_callback;
@@ -50,7 +49,8 @@ static int32_t margin_top = 0;
 static double alpha = 1.0;
 static bool run_display = true;
 static bool animate = false;
-static bool keyboard_interactive = false;
+static enum zwlr_layer_surface_v1_keyboard_interactivity keyboard_interactive =
+	ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE;
 static double frame = 0;
 static int cur_x = -1, cur_y = -1;
 static int buttons = 0;
@@ -93,7 +93,7 @@ static struct wl_callback_listener popup_frame_listener = {
 };
 
 static void draw(void) {
-	eglMakeCurrent(egl.display, egl_surface, egl_surface, egl.context);
+	eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context);
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 
@@ -142,7 +142,7 @@ static void draw(void) {
 	frame_callback = wl_surface_frame(wl_surface);
 	wl_callback_add_listener(frame_callback, &frame_listener, NULL);
 
-	eglSwapBuffers(egl.display, egl_surface);
+	eglSwapBuffers(egl_display, egl_surface);
 
 	demo.last_frame = ts;
 }
@@ -150,7 +150,7 @@ static void draw(void) {
 static void draw_popup(void) {
 	static float alpha_mod = -0.01;
 
-	eglMakeCurrent(egl.display, popup_egl_surface, popup_egl_surface, egl.context);
+	eglMakeCurrent(egl_display, popup_egl_surface, popup_egl_surface, egl_context);
 	glViewport(0, 0, popup_width, popup_height);
 	glClearColor(popup_red, 0.5f, 0.5f, popup_alpha);
 	popup_alpha += alpha_mod;
@@ -162,7 +162,7 @@ static void draw_popup(void) {
 	popup_frame_callback = wl_surface_frame(popup_wl_surface);
 	assert(popup_frame_callback);
 	wl_callback_add_listener(popup_frame_callback, &popup_frame_listener, NULL);
-	eglSwapBuffers(egl.display, popup_egl_surface);
+	eglSwapBuffers(egl_display, popup_egl_surface);
 	wl_surface_commit(popup_wl_surface);
 }
 
@@ -187,7 +187,7 @@ static void xdg_popup_configure(void *data, struct xdg_popup *xdg_popup,
 }
 
 static void popup_destroy(void) {
-	wlr_egl_destroy_surface(&egl, popup_egl_surface);
+	eglDestroySurface(egl_display, popup_egl_surface);
 	wl_egl_window_destroy(popup_egl_window);
 	xdg_popup_destroy(popup);
 	wl_surface_destroy(popup_wl_surface);
@@ -241,8 +241,9 @@ static void create_popup(uint32_t serial) {
 	popup_wl_surface = surface;
 	popup_egl_window = wl_egl_window_create(surface, popup_width, popup_height);
 	assert(popup_egl_window);
-	popup_egl_surface = wlr_egl_create_surface(&egl, popup_egl_window);
-	assert(popup_egl_surface);
+	popup_egl_surface = eglCreatePlatformWindowSurfaceEXT(
+			egl_display, egl_config, popup_egl_window, NULL);
+	assert(popup_egl_surface != EGL_NO_SURFACE);
 	draw_popup();
 }
 
@@ -259,7 +260,7 @@ static void layer_surface_configure(void *data,
 
 static void layer_surface_closed(void *data,
 		struct zwlr_layer_surface_v1 *surface) {
-	wlr_egl_destroy_surface(&egl, egl_surface);
+	eglDestroySurface(egl_display, egl_surface);
 	wl_egl_window_destroy(egl_window);
 	zwlr_layer_surface_v1_destroy(surface);
 	wl_surface_destroy(wl_surface);
@@ -453,8 +454,8 @@ static void handle_global(void *data, struct wl_registry *registry,
 				&wl_seat_interface, 1);
 		wl_seat_add_listener(seat, &seat_listener, NULL);
 	} else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
-		layer_shell = wl_registry_bind(
-				registry, name, &zwlr_layer_shell_v1_interface, 1);
+		layer_shell = wl_registry_bind(registry, name,
+			&zwlr_layer_shell_v1_interface, version < 4 ? version : 4);
 	} else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
 		xdg_wm_base = wl_registry_bind(
 				registry, name, &xdg_wm_base_interface, 1);
@@ -478,7 +479,7 @@ int main(int argc, char **argv) {
 	int32_t margin_right = 0, margin_bottom = 0, margin_left = 0;
 	bool found;
 	int c;
-	while ((c = getopt(argc, argv, "knw:h:o:l:a:x:m:t:")) != -1) {
+	while ((c = getopt(argc, argv, "k:nw:h:o:l:a:x:m:t:")) != -1) {
 		switch (c) {
 		case 'o':
 			output = atoi(optarg);
@@ -558,9 +559,29 @@ int main(int argc, char **argv) {
 		case 'n':
 			animate = true;
 			break;
-		case 'k':
-			keyboard_interactive = true;
+		case 'k': {
+			const struct {
+				const char *name;
+				enum zwlr_layer_surface_v1_keyboard_interactivity value;
+			} kb_int[] = {
+				{ "none", ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE },
+				{ "exclusive", ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE },
+				{ "on_demand", ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND }
+			};
+			found = false;
+			for (size_t i = 0; i < sizeof(kb_int) / sizeof(kb_int[0]); ++i) {
+				if (strcmp(optarg, kb_int[i].name) == 0) {
+					keyboard_interactive = kb_int[i].value;
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				fprintf(stderr, "invalid keyboard interactivity setting %s\n", optarg);
+				return 1;
+			}
 			break;
+		}
 		default:
 			break;
 		}
@@ -610,9 +631,7 @@ int main(int argc, char **argv) {
 	cursor_surface = wl_compositor_create_surface(compositor);
 	assert(cursor_surface);
 
-	EGLint attribs[] = { EGL_ALPHA_SIZE, 8, EGL_NONE };
-	wlr_egl_init(&egl, EGL_PLATFORM_WAYLAND_EXT, display,
-			attribs, WL_SHM_FORMAT_ARGB8888);
+	egl_init(display);
 
 	wl_surface = wl_compositor_create_surface(compositor);
 	assert(wl_surface);
@@ -634,8 +653,9 @@ int main(int argc, char **argv) {
 
 	egl_window = wl_egl_window_create(wl_surface, width, height);
 	assert(egl_window);
-	egl_surface = wlr_egl_create_surface(&egl, egl_window);
-	assert(egl_surface);
+	egl_surface = eglCreatePlatformWindowSurfaceEXT(
+		egl_display, egl_config, egl_window, NULL);
+	assert(egl_surface != EGL_NO_SURFACE);
 
 	wl_display_roundtrip(display);
 	draw();

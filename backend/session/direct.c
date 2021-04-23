@@ -126,7 +126,7 @@ static int vt_handler(int signo, void *data) {
 
 	if (session->base.active) {
 		session->base.active = false;
-		wlr_signal_emit_safe(&session->base.session_signal, session);
+		wlr_signal_emit_safe(&session->base.events.active, NULL);
 
 		struct wlr_device *dev;
 		wl_list_for_each(dev, &session->base.devices, link) {
@@ -149,7 +149,7 @@ static int vt_handler(int signo, void *data) {
 		}
 
 		session->base.active = true;
-		wlr_signal_emit_safe(&session->base.session_signal, session);
+		wlr_signal_emit_safe(&session->base.events.active, NULL);
 	}
 
 	return 1;

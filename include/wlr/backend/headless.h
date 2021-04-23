@@ -17,8 +17,7 @@
  * Creates a headless backend. A headless backend has no outputs or inputs by
  * default.
  */
-struct wlr_backend *wlr_headless_backend_create(struct wl_display *display,
-	wlr_renderer_create_func_t create_renderer_func);
+struct wlr_backend *wlr_headless_backend_create(struct wl_display *display);
 /**
  * Creates a headless backend with an existing renderer.
  */

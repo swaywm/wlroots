@@ -11,6 +11,8 @@
 #include "util/signal.h"
 #include "wlr-layer-shell-unstable-v1-protocol.h"
 
+#define LAYER_SHELL_VERSION 4
+
 static void resource_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -156,7 +158,18 @@ static void layer_surface_handle_set_keyboard_interactivity(
 	if (!surface) {
 		return;
 	}
-	surface->client_pending.keyboard_interactive = !!interactive;
+
+	if (wl_resource_get_version(resource) < ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND_SINCE_VERSION) {
+		surface->client_pending.keyboard_interactive = !!interactive;
+	} else {
+		if (interactive > ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND) {
+			wl_resource_post_error(resource,
+				ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_KEYBOARD_INTERACTIVITY,
+				"wrong keyboard interactivity value: %" PRIu32, interactive);
+		} else {
+			surface->client_pending.keyboard_interactive = interactive;
+		}
+	}
 }
 
 static void layer_surface_handle_get_popup(struct wl_client *client,
@@ -498,7 +511,8 @@ struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display)
 	}
 
 	struct wl_global *global = wl_global_create(display,
-		&zwlr_layer_shell_v1_interface, 2, layer_shell, layer_shell_bind);
+		&zwlr_layer_shell_v1_interface, LAYER_SHELL_VERSION,
+		layer_shell, layer_shell_bind);
 	if (!global) {
 		free(layer_shell);
 		return NULL;
@@ -527,46 +541,13 @@ static void layer_surface_iterator(struct wlr_surface *surface,
 		iter_data->user_data);
 }
 
-static void xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
-		int x, int y, wlr_surface_iterator_func_t iterator, void *user_data) {
-	struct layer_surface_iterator_data data = {
-		.user_iterator = iterator,
-		.user_data = user_data,
-		.x = x, .y = y,
-	};
-	wlr_surface_for_each_surface(
-			surface->surface, layer_surface_iterator, &data);
-
-	struct wlr_xdg_popup *popup_state;
-	wl_list_for_each(popup_state, &surface->popups, link) {
-		struct wlr_xdg_surface *popup = popup_state->base;
-		if (!popup->configured) {
-			continue;
-		}
-
-		double popup_sx = popup_state->geometry.x - popup_state->base->geometry.x;
-		double popup_sy = popup_state->geometry.y - popup_state->base->geometry.y;
-
-		xdg_surface_for_each_surface(popup,
-			x + popup_sx,
-			y + popup_sy,
-			iterator, user_data);
-	}
-}
-
 void wlr_layer_surface_v1_for_each_surface(struct wlr_layer_surface_v1 *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data) {
-	struct layer_surface_iterator_data data = {
-		.user_iterator = iterator,
-		.user_data = user_data,
-		.x = 0, .y = 0,
-	};
-	wlr_surface_for_each_surface(surface->surface,
-			layer_surface_iterator, &data);
-	wlr_layer_surface_v1_for_each_popup(surface, iterator, user_data);
+	wlr_surface_for_each_surface(surface->surface, iterator, user_data);
+	wlr_layer_surface_v1_for_each_popup_surface(surface, iterator, user_data);
 }
 
-void wlr_layer_surface_v1_for_each_popup(struct wlr_layer_surface_v1 *surface,
+void wlr_layer_surface_v1_for_each_popup_surface(struct wlr_layer_surface_v1 *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data){
 	struct wlr_xdg_popup *popup_state;
 	wl_list_for_each(popup_state, &surface->popups, link) {
@@ -579,12 +560,28 @@ void wlr_layer_surface_v1_for_each_popup(struct wlr_layer_surface_v1 *surface,
 		popup_sx = popup->popup->geometry.x - popup->geometry.x;
 		popup_sy = popup->popup->geometry.y - popup->geometry.y;
 
-		xdg_surface_for_each_surface(popup,
-			popup_sx, popup_sy, iterator, user_data);
+		struct layer_surface_iterator_data data = {
+			.user_iterator = iterator,
+			.user_data = user_data,
+			.x = popup_sx, .y = popup_sy,
+		};
+
+		wlr_xdg_surface_for_each_surface(popup, layer_surface_iterator, &data);
 	}
 }
 
 struct wlr_surface *wlr_layer_surface_v1_surface_at(
+		struct wlr_layer_surface_v1 *surface, double sx, double sy,
+		double *sub_x, double *sub_y) {
+	struct wlr_surface *sub = wlr_layer_surface_v1_popup_surface_at(surface,
+			sx, sy, sub_x, sub_y);
+	if (sub != NULL) {
+		return sub;
+	}
+	return wlr_surface_surface_at(surface->surface, sx, sy, sub_x, sub_y);
+}
+
+struct wlr_surface *wlr_layer_surface_v1_popup_surface_at(
 		struct wlr_layer_surface_v1 *surface, double sx, double sy,
 		double *sub_x, double *sub_y) {
 	struct wlr_xdg_popup *popup_state;
@@ -603,5 +600,5 @@ struct wlr_surface *wlr_layer_surface_v1_surface_at(
 		}
 	}
 
-	return wlr_surface_surface_at(surface->surface, sx, sy, sub_x, sub_y);
+	return NULL;
 }

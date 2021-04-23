@@ -385,40 +385,35 @@ struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_from_resource(
 	return dmabuf;
 }
 
+static void linux_dmabuf_send_modifiers(struct wl_resource *resource,
+		const struct wlr_drm_format *fmt) {
+	if (wl_resource_get_version(resource) < ZWP_LINUX_DMABUF_V1_MODIFIER_SINCE_VERSION) {
+		zwp_linux_dmabuf_v1_send_format(resource, fmt->format);
+		return;
+	}
+
+	for (size_t i = 0; i < fmt->len; i++) {
+		uint64_t mod = fmt->modifiers[i];
+		zwp_linux_dmabuf_v1_send_modifier(resource, fmt->format,
+			mod >> 32, mod & 0xFFFFFFFF);
+	}
+
+	// We always support buffers with an implicit modifier
+	zwp_linux_dmabuf_v1_send_modifier(resource, fmt->format,
+		DRM_FORMAT_MOD_INVALID >> 32, DRM_FORMAT_MOD_INVALID & 0xFFFFFFFF);
+}
+
 static void linux_dmabuf_send_formats(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
-		struct wl_resource *resource, uint32_t version) {
-	uint64_t modifier_invalid = DRM_FORMAT_MOD_INVALID;
+		struct wl_resource *resource) {
 	const struct wlr_drm_format_set *formats =
-		wlr_renderer_get_dmabuf_formats(linux_dmabuf->renderer);
+		wlr_renderer_get_dmabuf_texture_formats(linux_dmabuf->renderer);
 	if (formats == NULL) {
 		return;
 	}
 
 	for (size_t i = 0; i < formats->len; i++) {
-		struct wlr_drm_format *fmt = formats->formats[i];
-
-		size_t modifiers_len = fmt->len;
-		uint64_t *modifiers = fmt->modifiers;
-
-		// Send DRM_FORMAT_MOD_INVALID token when no modifiers are supported
-		// for this format
-		if (modifiers_len == 0) {
-			modifiers_len = 1;
-			modifiers = &modifier_invalid;
-		}
-		for (size_t j = 0; j < modifiers_len; j++) {
-			if (version >= ZWP_LINUX_DMABUF_V1_MODIFIER_SINCE_VERSION) {
-				uint32_t modifier_lo = modifiers[j] & 0xFFFFFFFF;
-				uint32_t modifier_hi = modifiers[j] >> 32;
-				zwp_linux_dmabuf_v1_send_modifier(resource,
-					fmt->format,
-					modifier_hi,
-					modifier_lo);
-			} else if (modifiers[j] == DRM_FORMAT_MOD_LINEAR ||
-					modifiers == &modifier_invalid) {
-				zwp_linux_dmabuf_v1_send_format(resource, fmt->format);
-			}
-		}
+		const struct wlr_drm_format *fmt = formats->formats[i];
+		linux_dmabuf_send_modifiers(resource, fmt);
 	}
 }
 
@@ -434,7 +429,7 @@ static void linux_dmabuf_bind(struct wl_client *client, void *data,
 	}
 	wl_resource_set_implementation(resource, &linux_dmabuf_impl,
 		linux_dmabuf, NULL);
-	linux_dmabuf_send_formats(linux_dmabuf, resource, version);
+	linux_dmabuf_send_formats(linux_dmabuf, resource);
 }
 
 static void linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf) {

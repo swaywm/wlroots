@@ -1,12 +1,13 @@
 wlr_files += files(
+	'allocator.c',
 	'dmabuf.c',
 	'egl.c',
 	'drm_format_set.c',
-	'gles2/pixel_format.c',
-	'gles2/renderer.c',
-	'gles2/shaders.c',
-	'gles2/texture.c',
-	'gles2/color.c',
+	'gbm_allocator.c',
+	'pixel_format.c',
+	'swapchain.c',
 	'wlr_renderer.c',
 	'wlr_texture.c',
 )
+
+subdir('gles2')

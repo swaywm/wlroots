@@ -33,7 +33,7 @@ if get_option('logind-provider') == 'auto'
 			version: logind_version,
 		)
 		if logind.found()
-			conf_data.set10('WLR_HAS_SYSTEMD', true)
+			features += { 'systemd': true }
 		else
 			logind = dependency('libelogind',
 				required: get_option('logind'),
@@ -41,7 +41,7 @@ if get_option('logind-provider') == 'auto'
 				version: logind_version,
 			)
 			if logind.found()
-				conf_data.set10('WLR_HAS_ELOGIND', true)
+				features += { 'elogind': true }
 			endif
 		endif
 		logind_found = logind.found()
@@ -53,7 +53,7 @@ else
 		version: logind_version,
 	)
 	if logind.found()
-		conf_data.set10('WLR_HAS_' + get_option('logind-provider').to_upper(), true)
+		features += { get_option('logind-provider'): true }
 		logind_found = true
 	endif
 endif
@@ -65,9 +65,13 @@ endif
 
 # libseat
 
-libseat = dependency('libseat', required: get_option('libseat'), version: '>=0.2.0')
+libseat = dependency('libseat',
+	required: get_option('libseat'),
+	version: '>=0.2.0',
+	fallback: ['seatd', 'libseat'],
+)
 if libseat.found()
 	wlr_files += files('libseat.c')
 	wlr_deps += libseat
-	conf_data.set10('WLR_HAS_LIBSEAT', true)
+	features += { 'libseat': true }
 endif

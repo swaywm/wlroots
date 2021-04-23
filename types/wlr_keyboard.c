@@ -58,11 +58,11 @@ bool keyboard_modifier_update(struct wlr_keyboard *keyboard) {
 
 void keyboard_key_update(struct wlr_keyboard *keyboard,
 		struct wlr_event_keyboard_key *event) {
-	if (event->state == WLR_KEY_PRESSED) {
+	if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
 		set_add(keyboard->keycodes, &keyboard->num_keycodes,
 			WLR_KEYBOARD_KEYS_CAP, event->keycode);
 	}
-	if (event->state == WLR_KEY_RELEASED) {
+	if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED) {
 		set_remove(keyboard->keycodes, &keyboard->num_keycodes,
 			WLR_KEYBOARD_KEYS_CAP, event->keycode);
 	}
@@ -99,7 +99,7 @@ void wlr_keyboard_notify_key(struct wlr_keyboard *keyboard,
 	if (event->update_state) {
 		uint32_t keycode = event->keycode + 8;
 		xkb_state_update_key(keyboard->xkb_state, keycode,
-			event->state == WLR_KEY_PRESSED ? XKB_KEY_DOWN : XKB_KEY_UP);
+			event->state == WL_KEYBOARD_KEY_STATE_PRESSED ? XKB_KEY_DOWN : XKB_KEY_UP);
 	}
 
 	bool updated = keyboard_modifier_update(keyboard);

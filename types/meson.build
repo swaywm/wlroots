@@ -66,3 +66,11 @@ wlr_files += files(
 	'wlr_xdg_decoration_v1.c',
 	'wlr_xdg_output_v1.c',
 )
+
+if features.get('xdg-foreign')
+	wlr_files += files(
+		'wlr_xdg_foreign_v1.c',
+		'wlr_xdg_foreign_v2.c',
+		'wlr_xdg_foreign_registry.c',
+	)
+endif

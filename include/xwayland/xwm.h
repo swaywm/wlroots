@@ -5,9 +5,6 @@
 #include <wlr/config.h>
 #include <wlr/xwayland.h>
 #include <xcb/render.h>
-#if WLR_HAS_XCB_ICCCM
-#include <xcb/xcb_icccm.h>
-#endif
 #if WLR_HAS_XCB_ERRORS
 #include <xcb/xcb_errors.h>
 #endif
@@ -86,13 +83,7 @@ enum atom_name {
 	ATOM_LAST // keep last
 };
 
-extern const char *atom_map[ATOM_LAST];
-
-enum net_wm_state_action {
-	NET_WM_STATE_REMOVE = 0,
-	NET_WM_STATE_ADD = 1,
-	NET_WM_STATE_TOGGLE = 2,
-};
+extern const char *const atom_map[ATOM_LAST];
 
 struct wlr_xwm {
 	struct wlr_xwayland *xwayland;
@@ -109,11 +100,8 @@ struct wlr_xwm {
 	xcb_render_pictformat_t render_format_id;
 	xcb_cursor_t cursor;
 
-	xcb_window_t selection_window;
 	struct wlr_xwm_selection clipboard_selection;
 	struct wlr_xwm_selection primary_selection;
-
-	xcb_window_t dnd_window;
 	struct wlr_xwm_selection dnd_selection;
 
 	struct wlr_xwayland_surface *focus_surface;

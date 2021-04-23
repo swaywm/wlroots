@@ -5,6 +5,11 @@ version_data.set('WLR_VERSION_MAJOR', version_array[0])
 version_data.set('WLR_VERSION_MINOR', version_array[1])
 version_data.set('WLR_VERSION_MICRO', version_array[2])
 
+conf_data = configuration_data()
+foreach name, have : features
+	conf_data.set10('WLR_HAS_' + name.underscorify().to_upper(), have)
+endforeach
+
 conf_h = configure_file(
 	input: 'config.h.in',
 	output: 'config.h',

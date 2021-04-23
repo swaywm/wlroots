@@ -42,6 +42,8 @@ struct wlr_output_damage {
 	pixman_region32_t previous[WLR_OUTPUT_DAMAGE_PREVIOUS_LEN];
 	size_t previous_idx;
 
+	enum wlr_output_state_buffer_type pending_buffer_type;
+
 	struct {
 		struct wl_signal frame;
 		struct wl_signal destroy;
@@ -49,11 +51,10 @@ struct wlr_output_damage {
 
 	struct wl_listener output_destroy;
 	struct wl_listener output_mode;
-	struct wl_listener output_transform;
-	struct wl_listener output_scale;
 	struct wl_listener output_needs_frame;
 	struct wl_listener output_damage;
 	struct wl_listener output_frame;
+	struct wl_listener output_precommit;
 	struct wl_listener output_commit;
 };
 

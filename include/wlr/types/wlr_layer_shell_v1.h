@@ -49,7 +49,7 @@ struct wlr_layer_surface_v1_state {
 	struct {
 		uint32_t top, right, bottom, left;
 	} margin;
-	bool keyboard_interactive;
+	enum zwlr_layer_surface_v1_keyboard_interactivity keyboard_interactive;
 	uint32_t desired_width, desired_height;
 	uint32_t actual_width, actual_height;
 	enum zwlr_layer_shell_v1_layer layer;
@@ -138,8 +138,14 @@ struct wlr_layer_surface_v1 *wlr_layer_surface_v1_from_wlr_surface(
 void wlr_layer_surface_v1_for_each_surface(struct wlr_layer_surface_v1 *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data);
 
-/* Calls the iterator function for each popup of this surface */
-void wlr_layer_surface_v1_for_each_popup(struct wlr_layer_surface_v1 *surface,
+/**
+ * Call `iterator` on each popup's surface and popup's subsurface in the
+ * layer surface's tree, with the surfaces's position relative to the root
+ * layer surface. The function is called from root to leaves (in rendering
+ * order).
+ */
+void wlr_layer_surface_v1_for_each_popup_surface(
+		struct wlr_layer_surface_v1 *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data);
 
 /**
@@ -148,6 +154,15 @@ void wlr_layer_surface_v1_for_each_popup(struct wlr_layer_surface_v1 *surface,
  * coordinate system or NULL if no surface is found at that location.
  */
 struct wlr_surface *wlr_layer_surface_v1_surface_at(
+		struct wlr_layer_surface_v1 *surface, double sx, double sy,
+		double *sub_x, double *sub_y);
+
+/**
+ * Find a surface within this layer-surface's popup tree at the given
+ * surface-local coordinates. Returns the surface and coordinates in the leaf
+ * surface coordinate system or NULL if no surface is found at that location.
+ */
+struct wlr_surface *wlr_layer_surface_v1_popup_surface_at(
 		struct wlr_layer_surface_v1 *surface, double sx, double sy,
 		double *sub_x, double *sub_y);
 

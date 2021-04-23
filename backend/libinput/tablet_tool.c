@@ -13,7 +13,7 @@
 #include "backend/libinput.h"
 #include "util/signal.h"
 
-static struct wlr_tablet_impl tablet_impl;
+static const struct wlr_tablet_impl tablet_impl;
 
 static bool tablet_is_libinput(struct wlr_tablet *tablet) {
 	return tablet->impl == &tablet_impl;
@@ -71,7 +71,7 @@ static void destroy_tablet(struct wlr_tablet *wlr_tablet) {
 	free(tablet);
 }
 
-static struct wlr_tablet_impl tablet_impl = {
+static const struct wlr_tablet_impl tablet_impl = {
 	.destroy = destroy_tablet,
 };
 
@@ -113,10 +113,8 @@ static enum wlr_tablet_tool_type wlr_type_from_libinput_type(
 		return WLR_TABLET_TOOL_TYPE_MOUSE;
 	case LIBINPUT_TABLET_TOOL_TYPE_LENS:
 		return WLR_TABLET_TOOL_TYPE_LENS;
-#if LIBINPUT_MINOR >= 14
 	case LIBINPUT_TABLET_TOOL_TYPE_TOTEM:
 		return WLR_TABLET_TOOL_TYPE_TOTEM;
-#endif
 	}
 	abort(); // unreachable
 }

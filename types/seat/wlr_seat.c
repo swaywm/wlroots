@@ -20,7 +20,7 @@ static void seat_handle_get_pointer(struct wl_client *client,
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
 	if (!(seat_client->seat->accumulated_capabilities & WL_SEAT_CAPABILITY_POINTER)) {
-		wl_resource_post_error(seat_resource, 0,
+		wl_resource_post_error(seat_resource, WL_SEAT_ERROR_MISSING_CAPABILITY,
 				"wl_seat.get_pointer called when no pointer capability has existed");
 		return;
 	}
@@ -34,7 +34,7 @@ static void seat_handle_get_keyboard(struct wl_client *client,
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
 	if (!(seat_client->seat->accumulated_capabilities & WL_SEAT_CAPABILITY_KEYBOARD)) {
-		wl_resource_post_error(seat_resource, 0,
+		wl_resource_post_error(seat_resource, WL_SEAT_ERROR_MISSING_CAPABILITY,
 				"wl_seat.get_keyboard called when no keyboard capability has existed");
 		return;
 	}
@@ -48,7 +48,7 @@ static void seat_handle_get_touch(struct wl_client *client,
 	struct wlr_seat_client *seat_client =
 		wlr_seat_client_from_resource(seat_resource);
 	if (!(seat_client->seat->accumulated_capabilities & WL_SEAT_CAPABILITY_TOUCH)) {
-		wl_resource_post_error(seat_resource, 0,
+		wl_resource_post_error(seat_resource, WL_SEAT_ERROR_MISSING_CAPABILITY,
 				"wl_seat.get_touch called when no touch capability has existed");
 		return;
 	}
@@ -157,6 +157,14 @@ static void seat_handle_bind(struct wl_client *client, void *_wlr_seat,
 void wlr_seat_destroy(struct wlr_seat *seat) {
 	if (!seat) {
 		return;
+	}
+
+	wlr_seat_pointer_clear_focus(seat);
+	wlr_seat_keyboard_clear_focus(seat);
+
+	struct wlr_touch_point *point;
+	wl_list_for_each(point, &seat->touch_state.touch_points, link) {
+		wlr_seat_touch_point_clear_focus(seat, 0, point->touch_id);
 	}
 
 	wlr_signal_emit_safe(&seat->events.destroy, seat);

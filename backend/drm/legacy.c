@@ -17,15 +17,12 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 	uint32_t fb_id = 0;
 	if (crtc->pending.active) {
 		struct wlr_drm_fb *fb = plane_get_next_fb(crtc->primary);
-		struct gbm_bo *bo = drm_fb_acquire(fb, drm, &crtc->primary->mgpu_surf);
-		if (!bo) {
+		if (fb == NULL) {
+			wlr_log(WLR_ERROR, "%s: failed to acquire primary FB",
+				conn->output.name);
 			return false;
 		}
-
-		fb_id = get_fb_for_bo(bo, drm->addfb2_modifiers);
-		if (!fb_id) {
-			return false;
-		}
+		fb_id = fb->id;
 	}
 
 	if (crtc->pending_modeset) {
@@ -42,15 +39,14 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 			DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF;
 		if (drmModeConnectorSetProperty(drm->fd, conn->id, conn->props.dpms,
 				dpms) != 0) {
-			wlr_log_errno(WLR_ERROR, "%s: failed to set DPMS property",
-				conn->output.name);
+			wlr_drm_conn_log_errno(conn, WLR_ERROR,
+				"Failed to set DPMS property");
 			return false;
 		}
 
 		if (drmModeSetCrtc(drm->fd, crtc->id, fb_id, 0, 0,
 				conns, conns_len, mode)) {
-			wlr_log_errno(WLR_ERROR, "%s: failed to set CRTC",
-				conn->output.name);
+			wlr_drm_conn_log_errno(conn, WLR_ERROR, "Failed to set CRTC");
 			return false;
 		}
 	}
@@ -67,46 +63,41 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 		if (drmModeObjectSetProperty(drm->fd, crtc->id, DRM_MODE_OBJECT_CRTC,
 				crtc->props.vrr_enabled,
 				output->pending.adaptive_sync_enabled) != 0) {
-			wlr_log_errno(WLR_ERROR,
+			wlr_drm_conn_log_errno(conn, WLR_ERROR,
 				"drmModeObjectSetProperty(VRR_ENABLED) failed");
 			return false;
 		}
 		output->adaptive_sync_status = output->pending.adaptive_sync_enabled ?
 			WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED :
 			WLR_OUTPUT_ADAPTIVE_SYNC_DISABLED;
-		wlr_log(WLR_DEBUG, "VRR %s on connector '%s'",
-			output->pending.adaptive_sync_enabled ? "enabled" : "disabled",
-			output->name);
+		wlr_drm_conn_log(conn, WLR_DEBUG, "VRR %s",
+			output->pending.adaptive_sync_enabled ? "enabled" : "disabled");
 	}
 
 	if (cursor != NULL && drm_connector_is_cursor_visible(conn)) {
 		struct wlr_drm_fb *cursor_fb = plane_get_next_fb(cursor);
-		struct gbm_bo *cursor_bo =
-			drm_fb_acquire(cursor_fb, drm, &cursor->mgpu_surf);
-		if (!cursor_bo) {
-			wlr_log_errno(WLR_DEBUG, "%s: failed to acquire cursor FB",
-				conn->output.name);
+		if (cursor_fb == NULL) {
+			wlr_drm_conn_log(conn, WLR_DEBUG, "Failed to acquire cursor FB");
 			return false;
 		}
 
-		if (drmModeSetCursor(drm->fd, crtc->id,
-				gbm_bo_get_handle(cursor_bo).u32,
-				cursor->surf.width, cursor->surf.height)) {
-			wlr_log_errno(WLR_DEBUG, "%s: failed to set hardware cursor",
-				conn->output.name);
+		uint32_t cursor_handle = gbm_bo_get_handle(cursor_fb->bo).u32;
+		uint32_t cursor_width = gbm_bo_get_width(cursor_fb->bo);
+		uint32_t cursor_height = gbm_bo_get_height(cursor_fb->bo);
+		if (drmModeSetCursor(drm->fd, crtc->id, cursor_handle,
+				cursor_width, cursor_height)) {
+			wlr_drm_conn_log_errno(conn, WLR_DEBUG, "drmModeSetCursor failed");
 			return false;
 		}
 
 		if (drmModeMoveCursor(drm->fd,
 			crtc->id, conn->cursor_x, conn->cursor_y) != 0) {
-			wlr_log_errno(WLR_ERROR, "%s: failed to move cursor",
-				conn->output.name);
+			wlr_drm_conn_log_errno(conn, WLR_ERROR, "drmModeMoveCursor failed");
 			return false;
 		}
 	} else {
 		if (drmModeSetCursor(drm->fd, crtc->id, 0, 0, 0)) {
-			wlr_log_errno(WLR_DEBUG, "%s: failed to unset hardware cursor",
-				conn->output.name);
+			wlr_drm_conn_log_errno(conn, WLR_DEBUG, "drmModeSetCursor failed");
 			return false;
 		}
 	}
@@ -114,7 +105,7 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 	if (flags & DRM_MODE_PAGE_FLIP_EVENT) {
 		if (drmModePageFlip(drm->fd, crtc->id, fb_id,
 				DRM_MODE_PAGE_FLIP_EVENT, drm)) {
-			wlr_log_errno(WLR_ERROR, "%s: Failed to page flip", conn->output.name);
+			wlr_drm_conn_log_errno(conn, WLR_ERROR, "drmModePageFlip failed");
 			return false;
 		}
 	}

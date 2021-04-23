@@ -166,10 +166,10 @@ struct wlr_output {
 		struct wl_signal commit; // wlr_output_event_commit
 		// Emitted right after the buffer has been presented to the user
 		struct wl_signal present; // wlr_output_event_present
+		// Emitted after a client bound the wl_output global
+		struct wl_signal bind; // wlr_output_event_bind
 		struct wl_signal enable;
 		struct wl_signal mode;
-		struct wl_signal scale;
-		struct wl_signal transform;
 		struct wl_signal description;
 		struct wl_signal destroy;
 	} events;
@@ -233,6 +233,11 @@ struct wlr_output_event_present {
 	// refresh may occur. Zero if unknown.
 	int refresh; // nsec
 	uint32_t flags; // enum wlr_output_present_flag
+};
+
+struct wlr_output_event_bind {
+	struct wlr_output *output;
+	struct wl_resource *resource;
 };
 
 struct wlr_surface;
@@ -337,15 +342,13 @@ void wlr_output_attach_buffer(struct wlr_output *output,
  * Get the preferred format for reading pixels.
  * This function might change the current rendering context.
  */
-bool wlr_output_preferred_read_format(struct wlr_output *output,
-	enum wl_shm_format *fmt);
+uint32_t wlr_output_preferred_read_format(struct wlr_output *output);
 /**
  * Set the damage region for the frame to be submitted. This is the region of
  * the screen that has changed since the last frame.
  *
  * Compositors implementing damage tracking should call this function with the
- * damaged region in output-buffer-local coordinates (ie. scaled and
- * transformed).
+ * damaged region in output-buffer-local coordinates.
  *
  * This region is not to be confused with the renderer's buffer damage, ie. the
  * region compositors need to repaint. Compositors usually need to repaint more

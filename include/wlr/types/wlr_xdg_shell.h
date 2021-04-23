@@ -310,6 +310,12 @@ uint32_t wlr_xdg_toplevel_set_tiled(struct wlr_xdg_surface *surface,
 void wlr_xdg_toplevel_send_close(struct wlr_xdg_surface *surface);
 
 /**
+ * Sets the parent of this toplevel. Parent can be NULL.
+ */
+void wlr_xdg_toplevel_set_parent(struct wlr_xdg_surface *surface,
+		struct wlr_xdg_surface *parent);
+
+/**
  * Request that this xdg popup closes.
  **/
 void wlr_xdg_popup_destroy(struct wlr_xdg_surface *surface);
@@ -340,7 +346,7 @@ void wlr_xdg_popup_get_toplevel_coords(struct wlr_xdg_popup *popup,
  * surface coordinate system.
  */
 void wlr_xdg_popup_unconstrain_from_box(struct wlr_xdg_popup *popup,
-		struct wlr_box *toplevel_sx_box);
+		const struct wlr_box *toplevel_sx_box);
 
 /**
   Invert the right/left anchor and gravity for this positioner. This can be
@@ -360,6 +366,15 @@ void wlr_positioner_invert_y(struct wlr_xdg_positioner *positioner);
  * coordinate system or NULL if no surface is found at that location.
  */
 struct wlr_surface *wlr_xdg_surface_surface_at(
+		struct wlr_xdg_surface *surface, double sx, double sy,
+		double *sub_x, double *sub_y);
+
+/**
+ * Find a surface within this xdg-surface's popup tree at the given
+ * surface-local coordinates. Returns the surface and coordinates in the leaf
+ * surface coordinate system or NULL if no surface is found at that location.
+ */
+struct wlr_surface *wlr_xdg_surface_popup_surface_at(
 		struct wlr_xdg_surface *surface, double sx, double sy,
 		double *sub_x, double *sub_y);
 
@@ -387,17 +402,17 @@ void wlr_xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data);
 
 /**
+ * Call `iterator` on each popup's surface and popup's subsurface in the
+ * xdg-surface tree, with the surfaces's position relative to the root
+ * xdg-surface. The function is called from root to leaves (in rendering order).
+ */
+void wlr_xdg_surface_for_each_popup_surface(struct wlr_xdg_surface *surface,
+		wlr_surface_iterator_func_t iterator, void *user_data);
+
+/**
  * Schedule a surface configuration. This should only be called by protocols
  * extending the shell.
  */
 uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface);
-
-/**
- * Call `iterator` on each popup in the xdg-surface tree, with the popup's
- * position relative to the root xdg-surface. The function is called from root
- * to leaves (in rendering order).
- */
-void wlr_xdg_surface_for_each_popup(struct wlr_xdg_surface *surface,
-	wlr_surface_iterator_func_t iterator, void *user_data);
 
 #endif

@@ -1,12 +1,17 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <gbm.h>
+#include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
+#include "render/pixel_format.h"
+#include "render/wlr_renderer.h"
+#include "backend/backend.h"
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
 		const struct wlr_renderer_impl *impl) {
@@ -16,8 +21,7 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->render_subtexture_with_matrix);
 	assert(impl->render_quad_with_matrix);
 	assert(impl->render_ellipse_with_matrix);
-	assert(impl->formats);
-	assert(impl->format_supported);
+	assert(impl->get_shm_texture_formats);
 	assert(impl->texture_from_pixels);
 	renderer->impl = impl;
 
@@ -37,7 +41,16 @@ void wlr_renderer_destroy(struct wlr_renderer *r) {
 	}
 }
 
-void wlr_renderer_begin(struct wlr_renderer *r, int width, int height) {
+bool wlr_renderer_bind_buffer(struct wlr_renderer *r,
+		struct wlr_buffer *buffer) {
+	assert(!r->rendering);
+	if (!r->impl->bind_buffer) {
+		return false;
+	}
+	return r->impl->bind_buffer(r, buffer);
+}
+
+void wlr_renderer_begin(struct wlr_renderer *r, uint32_t width, uint32_t height) {
 	assert(!r->rendering);
 
 	r->impl->begin(r, width, height);
@@ -72,8 +85,12 @@ void wlr_renderer_color_config(struct wlr_renderer *r, struct wlr_color_config *
 
 bool wlr_render_texture(struct wlr_renderer *r, struct wlr_texture *texture,
 		const float projection[static 9], int x, int y, float alpha) {
-	struct wlr_box box = { .x = x, .y = y };
-	wlr_texture_get_size(texture, &box.width, &box.height);
+	struct wlr_box box = {
+		.x = x,
+		.y = y,
+		.width = texture->width,
+		.height = texture->height,
+	};
 
 	float matrix[9];
 	wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
@@ -140,9 +157,9 @@ void wlr_render_ellipse_with_matrix(struct wlr_renderer *r,
 	r->impl->render_ellipse_with_matrix(r, color, matrix);
 }
 
-const enum wl_shm_format *wlr_renderer_get_formats(
-		struct wlr_renderer *r, size_t *len) {
-	return r->impl->formats(r, len);
+const uint32_t *wlr_renderer_get_shm_texture_formats(struct wlr_renderer *r,
+		size_t *len) {
+	return r->impl->get_shm_texture_formats(r, len);
 }
 
 bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *r,
@@ -161,15 +178,23 @@ void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *r,
 	return r->impl->wl_drm_buffer_get_size(r, buffer, width, height);
 }
 
-const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_formats(
+const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_texture_formats(
 		struct wlr_renderer *r) {
-	if (!r->impl->get_dmabuf_formats) {
+	if (!r->impl->get_dmabuf_texture_formats) {
 		return NULL;
 	}
-	return r->impl->get_dmabuf_formats(r);
+	return r->impl->get_dmabuf_texture_formats(r);
 }
 
-bool wlr_renderer_read_pixels(struct wlr_renderer *r, enum wl_shm_format fmt,
+const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_render_formats(
+		struct wlr_renderer *r) {
+	if (!r->impl->get_dmabuf_render_formats) {
+		return NULL;
+	}
+	return r->impl->get_dmabuf_render_formats(r);
+}
+
+bool wlr_renderer_read_pixels(struct wlr_renderer *r, uint32_t fmt,
 		uint32_t *flags, uint32_t stride, uint32_t width, uint32_t height,
 		uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y,
 		void *data) {
@@ -190,11 +215,6 @@ bool wlr_renderer_blit_dmabuf(struct wlr_renderer *r,
 	return r->impl->blit_dmabuf(r, dst, src);
 }
 
-bool wlr_renderer_format_supported(struct wlr_renderer *r,
-		enum wl_shm_format fmt) {
-	return r->impl->format_supported(r, fmt);
-}
-
 bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 		struct wl_display *wl_display) {
 	if (wl_display_init_shm(wl_display)) {
@@ -203,19 +223,29 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	}
 
 	size_t len;
-	const enum wl_shm_format *formats = wlr_renderer_get_formats(r, &len);
+	const uint32_t *formats = wlr_renderer_get_shm_texture_formats(r, &len);
 	if (formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to initialize shm: cannot get formats");
 		return false;
 	}
 
+	bool argb8888 = false, xrgb8888 = false;
 	for (size_t i = 0; i < len; ++i) {
-		// These formats are already added by default
-		if (formats[i] != WL_SHM_FORMAT_ARGB8888 &&
-				formats[i] != WL_SHM_FORMAT_XRGB8888) {
-			wl_display_add_shm_format(wl_display, formats[i]);
+		// ARGB8888 and XRGB8888 must be supported and are implicitly
+		// advertised by wl_display_init_shm
+		enum wl_shm_format fmt = convert_drm_format_to_wl_shm(formats[i]);
+		switch (fmt) {
+		case WL_SHM_FORMAT_ARGB8888:
+			argb8888 = true;
+			break;
+		case WL_SHM_FORMAT_XRGB8888:
+			xrgb8888 = true;
+			break;
+		default:
+			wl_display_add_shm_format(wl_display, fmt);
 		}
 	}
+	assert(argb8888 && xrgb8888);
 
 	if (r->impl->init_wl_display) {
 		if (!r->impl->init_wl_display(r, wl_display)) {
@@ -226,41 +256,44 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	return true;
 }
 
-struct wlr_renderer *wlr_renderer_autocreate(struct wlr_egl *egl,
-		EGLenum platform, void *remote_display, EGLint *config_attribs,
-		EGLint visual_id) {
-	// Append GLES2-specific bits to the provided EGL config attributes
-	EGLint gles2_config_attribs[] = {
-		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-		EGL_NONE,
-	};
-
-	size_t config_attribs_len = 0; // not including terminating EGL_NONE
-	while (config_attribs != NULL &&
-			config_attribs[config_attribs_len] != EGL_NONE) {
-		++config_attribs_len;
-	}
-
-	size_t all_config_attribs_len = config_attribs_len +
-		sizeof(gles2_config_attribs) / sizeof(gles2_config_attribs[0]);
-	EGLint all_config_attribs[all_config_attribs_len];
-	if (config_attribs_len > 0) {
-		memcpy(all_config_attribs, config_attribs,
-			config_attribs_len * sizeof(EGLint));
-	}
-	memcpy(&all_config_attribs[config_attribs_len], gles2_config_attribs,
-		sizeof(gles2_config_attribs));
-
-	if (!wlr_egl_init(egl, platform, remote_display, all_config_attribs,
-			visual_id)) {
-		wlr_log(WLR_ERROR, "Could not initialize EGL");
+struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
+	struct gbm_device *gbm_device = gbm_create_device(drm_fd);
+	if (!gbm_device) {
+		wlr_log(WLR_ERROR, "Failed to create GBM device");
 		return NULL;
 	}
 
+	struct wlr_egl *egl = wlr_egl_create(EGL_PLATFORM_GBM_KHR, gbm_device);
+	if (egl == NULL) {
+		wlr_log(WLR_ERROR, "Could not initialize EGL");
+		gbm_device_destroy(gbm_device);
+		return NULL;
+	}
+
+	egl->gbm_device = gbm_device;
+
 	struct wlr_renderer *renderer = wlr_gles2_renderer_create(egl);
 	if (!renderer) {
-		wlr_egl_finish(egl);
+		wlr_log(WLR_ERROR, "Failed to create GLES2 renderer");
+		wlr_egl_destroy(egl);
 	}
 
 	return renderer;
+}
+
+struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
+	int drm_fd = backend_get_drm_fd(backend);
+	if (drm_fd < 0) {
+		wlr_log(WLR_ERROR, "Failed to get DRM FD from backend");
+		return NULL;
+	}
+
+	return wlr_renderer_autocreate_with_drm_fd(drm_fd);
+}
+
+int wlr_renderer_get_drm_fd(struct wlr_renderer *r) {
+	if (!r->impl->get_drm_fd) {
+		return -1;
+	}
+	return r->impl->get_drm_fd(r);
 }

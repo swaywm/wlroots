@@ -1,28 +1,36 @@
 image: freebsd/latest
 packages:
-- devel/evdev-proto
-- devel/libepoll-shim
-- devel/libudev-devd
-- devel/meson # implies ninja
-- devel/pkgconf
-- graphics/libdrm
-- graphics/mesa-libs
-- graphics/png
-- graphics/wayland
-- graphics/wayland-protocols
-- multimedia/ffmpeg
-- x11/libX11
-- x11/libinput
-- x11/libxcb
-- x11/libxkbcommon
-- x11/pixman
-- x11/xcb-util-errors
-- x11/xcb-util-wm
-- sysutils/seatd
+  - devel/evdev-proto
+  - devel/libepoll-shim
+  - devel/libudev-devd
+  - devel/meson # implies ninja
+  - devel/pkgconf
+  - graphics/libdrm
+  - graphics/mesa-libs
+  - graphics/png
+  - graphics/wayland
+  - graphics/wayland-protocols
+  - misc/e2fsprogs-libuuid
+  - multimedia/ffmpeg
+  - x11/libX11
+  - x11/libinput
+  - x11/libxcb
+  - x11/libxkbcommon
+  - x11/pixman
+  - x11/xcb-util-errors
+  - x11/xcb-util-renderutil
+  - x11/xcb-util-wm
+  - x11-servers/xwayland
+  - sysutils/seatd
+  - gmake
 sources:
-- https://github.com/swaywm/wlroots
+  - https://github.com/swaywm/wlroots
 tasks:
-- wlroots: |
-    cd wlroots
-    meson build -Dauto_features=enabled -Dlogind=disabled
-    ninja -C build
+  - wlroots: |
+      cd wlroots
+      meson build -Dauto_features=enabled -Dlogind=disabled
+      ninja -C build
+      sudo ninja -C build install
+  - tinywl: |
+      cd wlroots/tinywl
+      gmake
