@@ -7,6 +7,8 @@
 #include <wlr/render/drm_format_set.h>
 
 struct wlr_allocator;
+struct wlr_backend;
+struct wlr_renderer;
 
 struct wlr_allocator_interface {
 	struct wlr_buffer *(*create_buffer)(struct wlr_allocator *alloc,
@@ -22,6 +24,11 @@ struct wlr_allocator {
 	} events;
 };
 
+/**
+ * Creates the adequate wlr_allocator given a backend and a renderer
+ */
+struct wlr_allocator *wlr_allocator_autocreate(struct wlr_backend *backend,
+	struct wlr_renderer *renderer);
 /**
  * Destroy the allocator.
  */

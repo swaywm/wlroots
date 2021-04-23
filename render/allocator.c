@@ -1,12 +1,54 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <fcntl.h>
 #include <stdlib.h>
+#include <wlr/util/log.h>
+#include <xf86drm.h>
+#include "backend/backend.h"
 #include "render/allocator.h"
+#include "render/gbm_allocator.h"
+#include "render/shm_allocator.h"
+#include "render/wlr_renderer.h"
+#include "types/wlr_buffer.h"
 
 void wlr_allocator_init(struct wlr_allocator *alloc,
 		const struct wlr_allocator_interface *impl) {
 	assert(impl && impl->destroy && impl->create_buffer);
 	alloc->impl = impl;
 	wl_signal_init(&alloc->events.destroy);
+}
+
+struct wlr_allocator *wlr_allocator_autocreate(struct wlr_backend *backend,
+		struct wlr_renderer *renderer) {
+	uint32_t backend_caps = backend_get_buffer_caps(backend);
+	uint32_t renderer_caps = renderer_get_render_buffer_caps(renderer);
+	int drm_fd = wlr_backend_get_drm_fd(backend);
+
+	struct wlr_allocator *alloc = NULL;
+	uint32_t gbm_caps = WLR_BUFFER_CAP_DMABUF;
+	if ((backend_caps & gbm_caps) && (renderer_caps & gbm_caps)
+			&& drm_fd != -1) {
+		wlr_log(WLR_DEBUG, "Trying to create gbm allocator");
+		int fd = fcntl(drm_fd, F_DUPFD_CLOEXEC, 0);
+		if (fd < 0) {
+			wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+		} else if ((alloc = wlr_gbm_allocator_create(fd)) != NULL) {
+			return alloc;
+		}
+		wlr_log(WLR_DEBUG, "Failed to create gbm allocator");
+	}
+
+	uint32_t shm_caps = WLR_BUFFER_CAP_SHM | WLR_BUFFER_CAP_DATA_PTR;
+	if ((backend_caps & shm_caps) && (renderer_caps & shm_caps)) {
+		wlr_log(WLR_DEBUG, "Trying to create shm allocator");
+		if ((alloc = wlr_shm_allocator_create()) != NULL) {
+			return alloc;
+		}
+		wlr_log(WLR_DEBUG, "Failed to create shm allocator");
+	}
+
+	wlr_log(WLR_ERROR, "Failed to create allocator");
+	return NULL;
 }
 
 void wlr_allocator_destroy(struct wlr_allocator *alloc) {
