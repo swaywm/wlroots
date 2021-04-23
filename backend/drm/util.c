@@ -228,6 +228,14 @@ uint32_t get_fb_for_bo(struct gbm_bo *bo, bool with_modifiers) {
 			wlr_log_errno(WLR_ERROR, "Unable to add DRM framebuffer");
 		}
 	} else {
+		if (gbm_bo_get_modifier(bo) != DRM_FORMAT_MOD_INVALID &&
+				gbm_bo_get_modifier(bo) != DRM_FORMAT_MOD_LINEAR) {
+			wlr_log(WLR_ERROR, "Failed to add DRM frame-buffer: "
+				"BO has modifier 0x%"PRIX64" but KMS doesn't support modifiers",
+				gbm_bo_get_modifier(bo));
+			return 0;
+		}
+
 		if (drmModeAddFB2(fd, width, height, format, handles, strides,
 				offsets, &id, 0)) {
 			wlr_log_errno(WLR_DEBUG,
