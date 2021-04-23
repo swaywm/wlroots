@@ -172,35 +172,6 @@ const char *conn_get_name(uint32_t type_id) {
 	}
 }
 
-static uint32_t get_fb_for_bo_legacy(struct gbm_bo *bo) {
-	struct gbm_device *gbm = gbm_bo_get_device(bo);
-
-	/* We only support this as a fallback of last resort for ARGB8888 visuals,
-	 * like xf86-video-modesetting does. This is necessary on BE machines. */
-	if (gbm_bo_get_format(bo) != GBM_FORMAT_ARGB8888 ||
-			gbm_bo_get_plane_count(bo) != 1) {
-		wlr_log(WLR_DEBUG,
-			"Invalid visual %x (%d planes) requested for legacy DRM framebuffer",
-			gbm_bo_get_format(bo), gbm_bo_get_plane_count(bo));
-		return 0;
-	}
-
-	int fd = gbm_device_get_fd(gbm);
-	uint32_t width = gbm_bo_get_width(bo);
-	uint32_t height = gbm_bo_get_height(bo);
-	uint32_t depth = 32;
-	uint32_t bpp = gbm_bo_get_bpp(bo);
-	uint32_t pitch = gbm_bo_get_stride(bo);
-	uint32_t handle = gbm_bo_get_handle(bo).u32;
-
-	uint32_t id = 0;
-	if (drmModeAddFB(fd, width, height, depth, bpp, pitch, handle, &id)) {
-		wlr_log_errno(WLR_ERROR, "Unable to add DRM framebuffer");
-	}
-
-	return id;
-}
-
 uint32_t get_fb_for_bo(struct gbm_bo *bo, bool with_modifiers) {
 	struct gbm_device *gbm = gbm_bo_get_device(bo);
 
@@ -236,14 +207,23 @@ uint32_t get_fb_for_bo(struct gbm_bo *bo, bool with_modifiers) {
 			return 0;
 		}
 
-		if (drmModeAddFB2(fd, width, height, format, handles, strides,
-				offsets, &id, 0)) {
-			wlr_log_errno(WLR_DEBUG,
-				"Unable to add DRM framebuffer, trying legacy method");
-			id = get_fb_for_bo_legacy(bo);
-			if (id == 0) {
-				wlr_log(WLR_ERROR, "Unable to add DRM framebuffer");
-			}
+		int ret = drmModeAddFB2(fd, width, height, format, handles, strides,
+			offsets, &id, 0);
+		if (ret != 0 && gbm_bo_get_format(bo) == GBM_FORMAT_ARGB8888 &&
+				gbm_bo_get_plane_count(bo) == 1) {
+			// Some big-endian machines don't support drmModeAddFB2. Try a
+			// last-resort fallback for ARGB8888 buffers, like Xorg's
+			// modesetting driver does.
+			wlr_log(WLR_DEBUG, "drmModeAddFB2 failed (%s), falling back to "
+				"legacy drmModeAddFB", strerror(-ret));
+
+			uint32_t depth = 32;
+			uint32_t bpp = gbm_bo_get_bpp(bo);
+			ret = drmModeAddFB(fd, width, height, depth, bpp, strides[0],
+				handles[0], &id);
+		}
+		if (ret != 0) {
+			wlr_log(WLR_ERROR, "Unable to add DRM framebuffer: %s", strerror(-ret));
 		}
 	}
 
