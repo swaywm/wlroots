@@ -1,8 +1,6 @@
 renderers = get_option('renderers')
-if 'auto' in renderers and get_option('auto_features').enabled()
+if 'auto' in renderers
 	renderers = ['gles2']
-elif 'auto' in renderers and get_option('auto_features').disabled()
-	renderers = []
 endif
 
 wlr_files += files(
