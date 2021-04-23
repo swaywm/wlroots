@@ -27,6 +27,7 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->render_quad_with_matrix);
 	assert(impl->get_shm_texture_formats);
 	assert(impl->texture_from_pixels);
+	assert(impl->get_render_buffer_caps);
 	renderer->impl = impl;
 
 	wl_signal_init(&renderer->events.destroy);
@@ -172,6 +173,10 @@ const struct wlr_drm_format_set *wlr_renderer_get_render_formats(
 		return NULL;
 	}
 	return r->impl->get_render_formats(r);
+}
+
+uint32_t renderer_get_render_buffer_caps(struct wlr_renderer *r) {
+	return r->impl->get_render_buffer_caps();
 }
 
 bool wlr_renderer_read_pixels(struct wlr_renderer *r, uint32_t fmt,
