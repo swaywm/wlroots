@@ -61,6 +61,22 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output,
 		return false;
 	}
 
+	if (output->swapchain->width != width ||
+			output->swapchain->height != height) {
+		struct wlr_swapchain *swapchain = wlr_swapchain_create(
+			output->x11->allocator, width, height, output->x11->drm_format);
+		if (!swapchain) {
+			return false;
+		}
+		wlr_swapchain_destroy(output->swapchain);
+		output->swapchain = swapchain;
+	}
+
+	wlr_output_update_custom_mode(&output->wlr_output, width, height, 0);
+
+	// Move the pointer to its new location
+	update_x11_pointer_position(output, output->x11->time);
+
 	return true;
 }
 
@@ -705,7 +721,6 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 void handle_x11_configure_notify(struct wlr_x11_output *output,
 		xcb_configure_notify_event_t *ev) {
-	// ignore events that set an invalid size:
 	if (ev->width == 0 || ev->height == 0) {
 		wlr_log(WLR_DEBUG,
 			"Ignoring X11 configure event for height=%d, width=%d",
@@ -713,23 +728,17 @@ void handle_x11_configure_notify(struct wlr_x11_output *output,
 		return;
 	}
 
-	if (output->swapchain->width != ev->width ||
-			output->swapchain->height != ev->height) {
-		struct wlr_swapchain *swapchain = wlr_swapchain_create(
-			output->x11->allocator, ev->width, ev->height,
-			output->x11->drm_format);
-		if (!swapchain) {
-			return;
-		}
-		wlr_swapchain_destroy(output->swapchain);
-		output->swapchain = swapchain;
+	if (ev->width == output->wlr_output.width &&
+			ev->height == output->wlr_output.height) {
+		return;
 	}
 
-	wlr_output_update_custom_mode(&output->wlr_output, ev->width,
-		ev->height, 0);
-
-	// Move the pointer to its new location
-	update_x11_pointer_position(output, output->x11->time);
+	struct wlr_output_state state = {
+		.committed = WLR_OUTPUT_STATE_MODE,
+		.mode_type = WLR_OUTPUT_STATE_MODE_CUSTOM,
+		.custom_mode = { .width = ev->width, .height = ev->height },
+	};
+	wlr_output_send_request_state(&output->wlr_output, &state);
 }
 
 bool wlr_output_is_x11(struct wlr_output *wlr_output) {

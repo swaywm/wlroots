@@ -116,6 +116,7 @@ struct wlr_drm_connector {
 	char name[24];
 	enum wlr_drm_connector_state state;
 	struct wlr_output_mode *desired_mode;
+	bool hot_plug_mode;
 	bool desired_enabled;
 	uint32_t id;
 
@@ -153,6 +154,11 @@ bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 	struct wlr_output_mode *mode);
 bool drm_connector_is_cursor_visible(struct wlr_drm_connector *conn);
 bool drm_connector_supports_vrr(struct wlr_drm_connector *conn);
+bool drm_connector_has_hotplug_mode(struct wlr_drm_connector *conn);
+bool drm_connector_get_preferred_mode(drmModeConnector *drm_conn,
+	drmModeModeInfo *drm_mode);
+struct wlr_drm_mode *wlr_drm_connector_create_mode(struct wlr_output *output,
+	const drmModeModeInfo *modeinfo);
 size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc);
 
