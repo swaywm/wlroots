@@ -76,7 +76,7 @@ See [CONTRIBUTING.md].
 
 [Wayland]: https://wayland.freedesktop.org/
 [wiki]: https://github.com/swaywm/wlroots/wiki/Getting-started
-[#sway-devel on Freenode]: ircs://chat.freenode.net/%23sway-devel
+[#sway-devel on Freenode]: https://webchat.freenode.net/?channels=sway-devel
 [Sway]: https://github.com/swaywm/sway
 [wrapper libraries]: https://github.com/search?q=topic%3Abindings+org%3Aswaywm&type=Repositories
 [libseat]: https://git.sr.ht/~kennylevinsen/seatd
