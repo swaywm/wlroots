@@ -410,15 +410,6 @@ void xwm_handle_selection_request(struct wlr_xwm *xwm,
 		return;
 	}
 
-	// No xwayland surface focused, deny access to clipboard
-	if (xwm->focus_surface == NULL && xwm->drag_focus == NULL) {
-		char *selection_name = xwm_get_atom_name(xwm, selection->atom);
-		wlr_log(WLR_DEBUG, "denying read access to selection %u (%s): "
-			"no xwayland surface focused", selection->atom, selection_name);
-		free(selection_name);
-		goto fail_notify_requestor;
-	}
-
 	if (req->target == xwm->atoms[TARGETS]) {
 		xwm_selection_send_targets(selection, req);
 	} else if (req->target == xwm->atoms[TIMESTAMP]) {

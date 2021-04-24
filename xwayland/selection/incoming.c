@@ -467,13 +467,6 @@ void xwm_handle_selection_notify(struct wlr_xwm *xwm,
 			xwm_selection_transfer_destroy(transfer);
 		}
 	} else if (event->target == xwm->atoms[TARGETS]) {
-		// No xwayland surface focused, deny access to clipboard
-		if (xwm->focus_surface == NULL) {
-			wlr_log(WLR_DEBUG, "denying write access to clipboard: "
-				"no xwayland surface focused");
-			return;
-		}
-
 		// This sets the Wayland clipboard (by calling wlr_seat_set_selection)
 		xwm_selection_get_targets(selection);
 	} else if (transfer) {
