@@ -437,14 +437,30 @@ struct wlr_egl *wlr_egl_create_from_drm_fd(int drm_fd) {
 	}
 
 	drmDevice *device = NULL;
-	int ret = drmGetDevice(drm_fd, &device);
-	if (ret < 0) {
-		wlr_log(WLR_ERROR, "Failed to get DRM device: %s", strerror(-ret));
-		goto error;
+	if (drm_fd >= 0) {
+		int ret = drmGetDevice(drm_fd, &device);
+		if (ret < 0) {
+			wlr_log(WLR_ERROR, "Failed to get DRM device: %s", strerror(-ret));
+			goto error;
+		}
 	}
 
 	EGLDeviceEXT egl_device = NULL;
 	for (int i = 0; i < nb_devices; i++) {
+		const char *device_exts_str =
+			egl->procs.eglQueryDeviceStringEXT(egl->device, EGL_EXTENSIONS);
+		if (device_exts_str == NULL) {
+			wlr_log(WLR_ERROR, "eglQueryDeviceStringEXT(EGL_EXTENSIONS) failed");
+			continue;
+		}
+
+		if (device == NULL &&
+				check_egl_ext(device_exts_str, "EGL_MESA_device_software")) {
+			wlr_log(WLR_DEBUG, "Using software EGL device");
+			egl_device = devices[i];
+			break;
+		}
+
 		const char *egl_device_name = egl->procs.eglQueryDeviceStringEXT(
 				devices[i], EGL_DRM_DEVICE_FILE_EXT);
 		if (egl_device_name == NULL) {
