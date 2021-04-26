@@ -40,9 +40,12 @@ struct wlr_pixman_texture {
 	struct wlr_pixman_renderer *renderer;
 	struct wl_list link; // wlr_pixman_renderer.textures
 
-	void *data;
 	pixman_image_t *image;
-	const struct wlr_pixel_format_info *format;
+	pixman_format_code_t format;
+	const struct wlr_pixel_format_info *format_info;
+
+	void *data; // if created via texture_from_pixels
+	struct wlr_buffer *buffer; // if created via texture_from_buffer
 };
 
 pixman_format_code_t get_pixman_format_from_drm(uint32_t fmt);
