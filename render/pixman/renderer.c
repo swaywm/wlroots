@@ -264,7 +264,7 @@ static void pixman_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 
 static const uint32_t *pixman_get_shm_texture_formats(
 		struct wlr_renderer *wlr_renderer, size_t *len) {
-	return get_pixman_drm_formats(len);
+	return get_pixman_texture_drm_formats(len);
 }
 
 static const struct wlr_drm_format_set *pixman_get_render_formats(

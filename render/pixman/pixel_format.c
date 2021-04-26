@@ -49,11 +49,14 @@ pixman_format_code_t get_pixman_format_from_drm(uint32_t fmt) {
 	return 0;
 }
 
-const uint32_t *get_pixman_drm_formats(size_t *len) {
+const uint32_t *get_pixman_texture_drm_formats(size_t *len) {
 	static uint32_t drm_formats[sizeof(formats) / sizeof(formats[0])];
-	*len = sizeof(formats) / sizeof(formats[0]);
+	*len = 0;
 	for (size_t i = 0; i < sizeof(formats) / sizeof(formats[0]); i++) {
-		drm_formats[i] = formats[i].drm_format;
+		if (pixman_format_supported_source(formats[i].pixman_format)) {
+			drm_formats[*len] = formats[i].drm_format;
+			(*len)++;
+		}
 	}
 	return drm_formats;
 }
