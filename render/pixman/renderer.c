@@ -83,25 +83,15 @@ static struct wlr_pixman_buffer *create_buffer(
 	buffer->buffer = wlr_buffer;
 	buffer->renderer = renderer;
 
+	void *data = NULL;
 	uint32_t drm_format;
-	struct wlr_dmabuf_attributes dmabuf = {0};
-	struct wlr_shm_attributes shm = {0};
-	if (wlr_buffer_get_dmabuf(wlr_buffer, &dmabuf)) {
-		drm_format = dmabuf.format;
-	} else if (wlr_buffer_get_shm(wlr_buffer, &shm)) {
-		drm_format = shm.format;
-	} else {
+	size_t stride;
+	if (!buffer_get_data_ptr(wlr_buffer, &data, &drm_format, &stride)) {
+		wlr_log(WLR_ERROR, "Failed to get buffer data");
 		goto error_buffer;
 	}
 
 	uint32_t format = get_pixman_format_from_drm(drm_format);
-
-	void *data = NULL;
-	size_t stride;
-	if (!buffer_get_data_ptr(wlr_buffer, &data, &stride)) {
-		wlr_log(WLR_ERROR, "Failed to get buffer data");
-		goto error_buffer;
-	}
 
 	buffer->image = pixman_image_create_bits(format, wlr_buffer->width,
 			wlr_buffer->height, data, stride);

@@ -67,11 +67,11 @@ bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
 }
 
 bool buffer_get_data_ptr(struct wlr_buffer *buffer, void **data,
-		size_t *size) {
+		uint32_t *format, size_t *stride) {
 	if (!buffer->impl->get_data_ptr) {
 		return false;
 	}
-	return buffer->impl->get_data_ptr(buffer, data, size);
+	return buffer->impl->get_data_ptr(buffer, data, format, stride);
 }
 
 bool wlr_buffer_get_shm(struct wlr_buffer *buffer,
