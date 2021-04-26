@@ -91,7 +91,12 @@ static struct wlr_pixman_buffer *create_buffer(
 		goto error_buffer;
 	}
 
-	uint32_t format = get_pixman_format_from_drm(drm_format);
+	pixman_format_code_t format = get_pixman_format_from_drm(drm_format);
+	if (format == 0) {
+		wlr_log(WLR_ERROR, "Unsupported pixman drm format 0x%"PRIX32,
+				drm_format);
+		return NULL;
+	}
 
 	buffer->image = pixman_image_create_bits(format, wlr_buffer->width,
 			wlr_buffer->height, data, stride);
