@@ -31,9 +31,10 @@ static bool buffer_get_shm(struct wlr_buffer *wlr_buffer,
 }
 
 static bool buffer_get_data_ptr(struct wlr_buffer *wlr_buffer, void **data,
-		size_t *stride) {
+		uint32_t *format, size_t *stride) {
 	struct wlr_shm_buffer *buffer = shm_buffer_from_buffer(wlr_buffer);
 	*data = buffer->data;
+	*format = buffer->shm.format;
 	*stride = buffer->shm.stride;
 	return true;
 }
