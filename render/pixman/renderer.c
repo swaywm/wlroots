@@ -369,6 +369,17 @@ static void pixman_destroy(struct wlr_renderer *wlr_renderer) {
 	free(renderer);
 }
 
+static uint32_t pixman_preferred_read_format(
+		struct wlr_renderer *wlr_renderer) {
+	struct wlr_pixman_renderer *renderer = get_renderer(wlr_renderer);
+	struct wlr_pixman_buffer *buffer = renderer->current_buffer;
+
+	pixman_format_code_t pixman_format = pixman_image_get_format(
+			buffer->image);
+
+	return get_drm_format_from_pixman(pixman_format);
+}
+
 static const struct wlr_renderer_impl renderer_impl = {
 	.begin = pixman_begin,
 	.clear = pixman_clear,
@@ -380,6 +391,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.texture_from_pixels = pixman_texture_from_pixels,
 	.bind_buffer = pixman_bind_buffer,
 	.destroy = pixman_destroy,
+	.preferred_read_format = pixman_preferred_read_format,
 };
 
 struct wlr_renderer *wlr_pixman_renderer_create(void) {
