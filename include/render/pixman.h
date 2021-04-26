@@ -47,5 +47,6 @@ struct wlr_pixman_texture {
 
 pixman_format_code_t get_pixman_format_from_drm(uint32_t fmt);
 const uint32_t *get_pixman_drm_formats(size_t *len);
+void fill_pixman_render_drm_formats(struct wlr_drm_format_set *formats);
 
 #endif

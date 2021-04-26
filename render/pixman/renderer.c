@@ -394,13 +394,7 @@ struct wlr_renderer *wlr_pixman_renderer_create(void) {
 	wl_list_init(&renderer->buffers);
 	wl_list_init(&renderer->textures);
 
-	size_t len = 0;
-	const uint32_t *formats = get_pixman_drm_formats(&len);
-
-	for (size_t i = 0; i < len; ++i) {
-		wlr_drm_format_set_add(&renderer->drm_formats, formats[i],
-				DRM_FORMAT_MOD_LINEAR);
-	}
+	fill_pixman_render_drm_formats(&renderer->drm_formats);
 
 	return &renderer->wlr_renderer;
 }

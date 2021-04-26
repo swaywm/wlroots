@@ -57,3 +57,12 @@ const uint32_t *get_pixman_drm_formats(size_t *len) {
 	}
 	return drm_formats;
 }
+
+void fill_pixman_render_drm_formats(struct wlr_drm_format_set *out) {
+	for (size_t i = 0; i < sizeof(formats) / sizeof(formats[0]); i++) {
+		if (pixman_format_supported_destination(formats[i].pixman_format)) {
+			wlr_drm_format_set_add(out, formats[i].drm_format,
+				DRM_FORMAT_MOD_LINEAR);
+		}
+	}
+}
