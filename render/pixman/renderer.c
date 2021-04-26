@@ -39,13 +39,14 @@ static struct wlr_pixman_texture *get_texture(
 
 static bool texture_is_opaque(struct wlr_texture *wlr_texture) {
 	struct wlr_pixman_texture *texture = get_texture(wlr_texture);
-	return texture->format->has_alpha;
+	return texture->format_info->has_alpha;
 }
 
 static void texture_destroy(struct wlr_texture *wlr_texture) {
 	struct wlr_pixman_texture *texture = get_texture(wlr_texture);
 	wl_list_remove(&texture->link);
 	pixman_image_unref(texture->image);
+	wlr_buffer_unlock(texture->buffer);
 	free(texture->data);
 	free(texture);
 }
@@ -215,6 +216,28 @@ static bool pixman_render_subtexture_with_matrix(
 	struct wlr_pixman_texture *texture = get_texture(wlr_texture);
 	struct wlr_pixman_buffer *buffer = renderer->current_buffer;
 
+	if (texture->buffer != NULL) {
+		void *data;
+		uint32_t drm_format;
+		size_t stride;
+		if (!buffer_begin_data_ptr_access(texture->buffer, &data, &drm_format,
+				&stride)) {
+			return false;
+		}
+
+		// If the data pointer has changed, re-create the Pixman image. This can
+		// happen if it's a client buffer and the wl_shm_pool has been resized.
+		if (data != pixman_image_get_data(texture->image)) {
+			pixman_format_code_t format = get_pixman_format_from_drm(drm_format);
+			assert(format != 0);
+
+			pixman_image_unref(texture->image);
+			texture->image = pixman_image_create_bits_no_clear(format,
+				texture->wlr_texture.width, texture->wlr_texture.height,
+				data, stride);
+		}
+	}
+
 	// TODO: don't create a mask if alpha == 1.0
 	struct pixman_color mask_colour = {0};
 	mask_colour.alpha = 0xFFFF * alpha;
@@ -234,6 +257,10 @@ static bool pixman_render_subtexture_with_matrix(
 	pixman_image_composite32(PIXMAN_OP_OVER, texture->image, mask,
 			buffer->image, 0, 0, 0, 0, 0, 0, renderer->width,
 			renderer->height);
+
+	if (texture->buffer != NULL) {
+		buffer_end_data_ptr_access(texture->buffer);
+	}
 
 	pixman_image_unref(mask);
 
@@ -300,31 +327,47 @@ static const struct wlr_drm_format_set *pixman_get_render_formats(
 	return &renderer->drm_formats;
 }
 
-static struct wlr_texture *pixman_texture_from_pixels(
-		struct wlr_renderer *wlr_renderer, uint32_t drm_format,
-		uint32_t stride, uint32_t width, uint32_t height, const void *data) {
-	struct wlr_pixman_renderer *renderer = get_renderer(wlr_renderer);
+static struct wlr_pixman_texture *pixman_texture_create(
+		struct wlr_pixman_renderer *renderer, uint32_t drm_format,
+		uint32_t width, uint32_t height) {
 	struct wlr_pixman_texture *texture =
 		calloc(1, sizeof(struct wlr_pixman_texture));
 	if (texture == NULL) {
-		wlr_log(WLR_ERROR, "Failed to allocate pixman texture");
+		wlr_log_errno(WLR_ERROR, "Failed to allocate pixman texture");
 		return NULL;
 	}
 
 	wlr_texture_init(&texture->wlr_texture, &texture_impl, width, height);
 	texture->renderer = renderer;
 
-	texture->format = drm_get_pixel_format_info(drm_format);
-	if (!texture->format) {
+	texture->format_info = drm_get_pixel_format_info(drm_format);
+	if (!texture->format_info) {
 		wlr_log(WLR_ERROR, "Unsupported drm format 0x%"PRIX32, drm_format);
+		free(texture);
 		return NULL;
 	}
 
-	pixman_format_code_t format = get_pixman_format_from_drm(drm_format);
-	if (format == 0) {
+	texture->format = get_pixman_format_from_drm(drm_format);
+	if (texture->format == 0) {
 		wlr_log(WLR_ERROR, "Unsupported pixman drm format 0x%"PRIX32,
 				drm_format);
 		free(texture);
+		return NULL;
+	}
+
+	wl_list_insert(&renderer->textures, &texture->link);
+
+	return texture;
+}
+
+static struct wlr_texture *pixman_texture_from_pixels(
+		struct wlr_renderer *wlr_renderer, uint32_t drm_format,
+		uint32_t stride, uint32_t width, uint32_t height, const void *data) {
+	struct wlr_pixman_renderer *renderer = get_renderer(wlr_renderer);
+
+	struct wlr_pixman_texture *texture =
+		pixman_texture_create(renderer, drm_format, width, height);
+	if (texture == NULL) {
 		return NULL;
 	}
 
@@ -332,21 +375,53 @@ static struct wlr_texture *pixman_texture_from_pixels(
 	texture->data = malloc(stride * height);
 	if (texture->data == NULL) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		wl_list_remove(&texture->link);
 		free(texture);
 		return NULL;
 	}
 	memcpy(texture->data, data, stride * height);
 
-	texture->image = pixman_image_create_bits_no_clear(format, width, height,
-			texture->data, stride);
+	texture->image = pixman_image_create_bits_no_clear(texture->format,
+		width, height, texture->data, stride);
 	if (!texture->image) {
 		wlr_log(WLR_ERROR, "Failed to create pixman image");
+		wl_list_remove(&texture->link);
 		free(texture->data);
 		free(texture);
 		return NULL;
 	}
 
-	wl_list_insert(&renderer->textures, &texture->link);
+	return &texture->wlr_texture;
+}
+
+static struct wlr_texture *pixman_texture_from_buffer(
+		struct wlr_renderer *wlr_renderer, struct wlr_buffer *buffer) {
+	struct wlr_pixman_renderer *renderer = get_renderer(wlr_renderer);
+
+	void *data = NULL;
+	uint32_t drm_format;
+	size_t stride;
+	if (!buffer_begin_data_ptr_access(buffer, &data, &drm_format, &stride)) {
+		return NULL;
+	}
+	buffer_end_data_ptr_access(buffer);
+
+	struct wlr_pixman_texture *texture = pixman_texture_create(renderer,
+		drm_format, buffer->width, buffer->height);
+	if (texture == NULL) {
+		return NULL;
+	}
+
+	texture->image = pixman_image_create_bits_no_clear(texture->format,
+		buffer->width, buffer->height, data, stride);
+	if (!texture->image) {
+		wlr_log(WLR_ERROR, "Failed to create pixman image");
+		wl_list_remove(&texture->link);
+		free(texture);
+		return NULL;
+	}
+
+	texture->buffer = wlr_buffer_lock(buffer);
 
 	return &texture->wlr_texture;
 }
@@ -449,6 +524,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.get_shm_texture_formats = pixman_get_shm_texture_formats,
 	.get_render_formats = pixman_get_render_formats,
 	.texture_from_pixels = pixman_texture_from_pixels,
+	.texture_from_buffer = pixman_texture_from_buffer,
 	.bind_buffer = pixman_bind_buffer,
 	.destroy = pixman_destroy,
 	.preferred_read_format = pixman_preferred_read_format,
