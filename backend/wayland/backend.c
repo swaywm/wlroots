@@ -118,7 +118,7 @@ static char *get_render_name(const char *name) {
 	uint32_t flags = 0;
 	int devices_len = drmGetDevices2(flags, NULL, 0);
 	if (devices_len < 0) {
-		wlr_log(WLR_ERROR, "drmGetDevices2 failed");
+		wlr_log(WLR_ERROR, "drmGetDevices2 failed: %s", strerror(-devices_len));
 		return NULL;
 	}
 	drmDevice **devices = calloc(devices_len, sizeof(drmDevice *));
@@ -129,7 +129,7 @@ static char *get_render_name(const char *name) {
 	devices_len = drmGetDevices2(flags, devices, devices_len);
 	if (devices_len < 0) {
 		free(devices);
-		wlr_log(WLR_ERROR, "drmGetDevices2 failed");
+		wlr_log(WLR_ERROR, "drmGetDevices2 failed: %s", strerror(-devices_len));
 		return NULL;
 	}
 

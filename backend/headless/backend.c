@@ -156,7 +156,7 @@ static int open_drm_render_node(void) {
 	uint32_t flags = 0;
 	int devices_len = drmGetDevices2(flags, NULL, 0);
 	if (devices_len < 0) {
-		wlr_log(WLR_ERROR, "drmGetDevices2 failed");
+		wlr_log(WLR_ERROR, "drmGetDevices2 failed: %s", strerror(-devices_len));
 		return -1;
 	}
 	drmDevice **devices = calloc(devices_len, sizeof(drmDevice *));
@@ -167,7 +167,7 @@ static int open_drm_render_node(void) {
 	devices_len = drmGetDevices2(flags, devices, devices_len);
 	if (devices_len < 0) {
 		free(devices);
-		wlr_log(WLR_ERROR, "drmGetDevices2 failed");
+		wlr_log(WLR_ERROR, "drmGetDevices2 failed: %s", strerror(-devices_len));
 		return -1;
 	}
 
