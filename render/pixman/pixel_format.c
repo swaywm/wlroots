@@ -49,6 +49,17 @@ pixman_format_code_t get_pixman_format_from_drm(uint32_t fmt) {
 	return 0;
 }
 
+uint32_t get_drm_format_from_pixman(pixman_format_code_t fmt) {
+	for (size_t i = 0; i < sizeof(formats) / sizeof(*formats); ++i) {
+		if (formats[i].pixman_format == fmt) {
+			return formats[i].drm_format;
+		}
+	}
+
+	wlr_log(WLR_ERROR, "pixman format 0x%"PRIX32" has no drm equivalent", fmt);
+	return DRM_FORMAT_INVALID;
+}
+
 const uint32_t *get_pixman_drm_formats(size_t *len) {
 	static uint32_t drm_formats[sizeof(formats) / sizeof(formats[0])];
 	*len = sizeof(formats) / sizeof(formats[0]);
