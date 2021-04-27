@@ -251,6 +251,7 @@ static void frame_handle_output_precommit(struct wl_listener *listener,
 	wl_shm_buffer_end_access(shm_buffer);
 
 	if (!ok) {
+		wlr_log(WLR_ERROR, "Failed to read pixels from renderer");
 		zwlr_screencopy_frame_v1_send_failed(frame->resource);
 		frame_destroy(frame);
 		return;
