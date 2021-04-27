@@ -380,6 +380,34 @@ static uint32_t pixman_preferred_read_format(
 	return get_drm_format_from_pixman(pixman_format);
 }
 
+static bool pixman_read_pixels(struct wlr_renderer *wlr_renderer,
+		uint32_t drm_format, uint32_t *flags, uint32_t stride,
+		uint32_t width, uint32_t height, uint32_t src_x, uint32_t src_y,
+		uint32_t dst_x, uint32_t dst_y, void *data) {
+	struct wlr_pixman_renderer *renderer = get_renderer(wlr_renderer);
+	struct wlr_pixman_buffer *buffer = renderer->current_buffer;
+
+	pixman_format_code_t fmt = get_pixman_format_from_drm(drm_format);
+	if (fmt == 0) {
+		wlr_log(WLR_ERROR, "Cannot read pixels: unsupported pixel format");
+		return false;
+	}
+
+	const struct wlr_pixel_format_info *drm_fmt =
+		drm_get_pixel_format_info(drm_format);
+	assert(drm_fmt);
+
+	pixman_image_t *dst = pixman_image_create_bits_no_clear(fmt, width, height,
+			data, stride);
+
+	pixman_image_composite32(PIXMAN_OP_SRC, buffer->image, NULL, dst,
+			src_x, src_y, 0, 0, dst_x, dst_y, width, height);
+
+	pixman_image_unref(dst);
+
+	return true;
+}
+
 static const struct wlr_renderer_impl renderer_impl = {
 	.begin = pixman_begin,
 	.clear = pixman_clear,
@@ -392,6 +420,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.bind_buffer = pixman_bind_buffer,
 	.destroy = pixman_destroy,
 	.preferred_read_format = pixman_preferred_read_format,
+	.read_pixels = pixman_read_pixels,
 };
 
 struct wlr_renderer *wlr_pixman_renderer_create(void) {
