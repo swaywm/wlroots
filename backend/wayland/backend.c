@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <wlr/config.h>
-
 #include <drm_fourcc.h>
 #include <wayland-server-core.h>
 #include <xf86drm.h>
@@ -17,11 +15,10 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 
+#include "backend/backend.h"
 #include "backend/wayland.h"
 #include "render/drm_format_set.h"
-#include "render/gbm_allocator.h"
 #include "render/pixel_format.h"
-#include "render/shm_allocator.h"
 #include "render/wlr_renderer.h"
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
@@ -309,23 +306,21 @@ static void backend_destroy(struct wlr_backend *backend) {
 		wlr_input_device_destroy(input_device);
 	}
 
+	struct wlr_wl_buffer *buffer, *tmp_buffer;
+	wl_list_for_each_safe(buffer, tmp_buffer, &wl->buffers, link) {
+		destroy_wl_buffer(buffer);
+	}
+
 	wlr_backend_finish(backend);
 
 	wl_list_remove(&wl->local_display_destroy.link);
 
 	wl_event_source_remove(wl->remote_display_src);
 
-	wlr_renderer_destroy(wl->renderer);
-	wlr_allocator_destroy(wl->allocator);
 	close(wl->drm_fd);
 
 	wlr_drm_format_set_finish(&wl->shm_formats);
 	wlr_drm_format_set_finish(&wl->linux_dmabuf_v1_formats);
-
-	struct wlr_wl_buffer *buffer, *tmp_buffer;
-	wl_list_for_each_safe(buffer, tmp_buffer, &wl->buffers, link) {
-		destroy_wl_buffer(buffer);
-	}
 
 	destroy_wl_seats(wl);
 	if (wl->zxdg_decoration_manager_v1) {
@@ -355,17 +350,12 @@ static void backend_destroy(struct wlr_backend *backend) {
 	free(wl);
 }
 
-static struct wlr_renderer *backend_get_renderer(struct wlr_backend *backend) {
-	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
-	return wl->renderer;
-}
-
 static int backend_get_drm_fd(struct wlr_backend *backend) {
 	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
 	return wl->drm_fd;
 }
 
-static uint32_t backend_get_buffer_caps(struct wlr_backend *backend) {
+static uint32_t get_buffer_caps(struct wlr_backend *backend) {
 	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
 	return (wl->zwp_linux_dmabuf_v1 ? WLR_BUFFER_CAP_DMABUF : 0)
 		| (wl->shm ? WLR_BUFFER_CAP_SHM : 0);
@@ -374,9 +364,8 @@ static uint32_t backend_get_buffer_caps(struct wlr_backend *backend) {
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
-	.get_renderer = backend_get_renderer,
 	.get_drm_fd = backend_get_drm_fd,
-	.get_buffer_caps = backend_get_buffer_caps,
+	.get_buffer_caps = get_buffer_caps,
 };
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {
@@ -456,20 +445,13 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		wl->drm_fd = -1;
 	}
 
-	wl->renderer = wlr_renderer_autocreate(&wl->backend);
-	if (wl->renderer == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create renderer");
-		goto error_renderer;
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(&wl->backend);
+	struct wlr_allocator *allocator = backend_get_allocator(&wl->backend);
+	if (renderer == NULL || allocator == NULL) {
+		goto error_drm_fd;
 	}
 
-	uint32_t caps = renderer_get_render_buffer_caps(wl->renderer);
-
-	wl->allocator = wlr_allocator_autocreate(&wl->backend, wl->renderer);
-	if (wl->allocator == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create allocator");
-		goto error_allocator;
-	}
-
+	uint32_t caps = renderer_get_render_buffer_caps(renderer);
 	const struct wlr_drm_format_set *remote_formats;
 	if ((caps & WLR_BUFFER_CAP_DMABUF) && wl->zwp_linux_dmabuf_v1) {
 		remote_formats = &wl->linux_dmabuf_v1_formats;
@@ -478,14 +460,14 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}  else {
 		wlr_log(WLR_ERROR,
 				"Failed to get remote formats (DRI3 and SHM unavailable)");
-		goto error_allocator;
+		goto error_drm_fd;
 	}
 
 	const struct wlr_drm_format_set *render_formats =
-		wlr_renderer_get_render_formats(wl->renderer);
+		wlr_renderer_get_render_formats(renderer);
 	if (render_formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to get available render-capable formats");
-		goto error_allocator;
+		goto error_drm_fd;
 	}
 
 	uint32_t fmt = DRM_FORMAT_ARGB8888;
@@ -495,21 +477,21 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	if (remote_format == NULL) {
 		wlr_log(WLR_ERROR, "Remote compositor doesn't support DRM format "
 			"0x%"PRIX32, fmt);
-		goto error_allocator;
+		goto error_drm_fd;
 	}
 
 	const struct wlr_drm_format *render_format =
 		wlr_drm_format_set_get(render_formats, fmt);
 	if (render_format == NULL) {
 		wlr_log(WLR_ERROR, "Renderer doesn't support DRM format 0x%"PRIX32, fmt);
-		goto error_allocator;
+		goto error_drm_fd;
 	}
 
 	wl->format = wlr_drm_format_intersect(remote_format, render_format);
 	if (wl->format == NULL) {
 		wlr_log(WLR_ERROR, "Failed to intersect remote and render modifiers "
 			"for format 0x%"PRIX32, fmt);
-		goto error_allocator;
+		goto error_drm_fd;
 	}
 
 	wl->local_display_destroy.notify = handle_display_destroy;
@@ -517,10 +499,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 
 	return &wl->backend;
 
-error_allocator:
-	wlr_allocator_destroy(wl->allocator);
-error_renderer:
-	wlr_renderer_destroy(wl->renderer);
+error_drm_fd:
 	close(wl->drm_fd);
 error_remote_display_src:
 	wl_event_source_remove(wl->remote_display_src);
@@ -536,6 +515,7 @@ error_registry:
 error_display:
 	wl_display_disconnect(wl->remote_display);
 error_wl:
+	wlr_backend_finish(&wl->backend);
 	free(wl);
 	return NULL;
 }
