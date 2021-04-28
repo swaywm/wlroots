@@ -29,6 +29,7 @@ struct wlr_backend {
 	// Private state
 
 	struct wlr_renderer *renderer;
+	struct wlr_allocator *allocator;
 };
 
 /**
