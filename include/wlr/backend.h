@@ -25,6 +25,10 @@ struct wlr_backend {
 		/** Raised when new outputs are added, passed the wlr_output */
 		struct wl_signal new_output;
 	} events;
+
+	// Private state
+
+	struct wlr_renderer *renderer;
 };
 
 /**

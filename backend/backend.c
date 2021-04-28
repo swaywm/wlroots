@@ -15,6 +15,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/backend/wayland.h>
 #include <wlr/config.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 #include "backend/backend.h"
 #include "backend/multi.h"
@@ -35,6 +36,7 @@ void wlr_backend_init(struct wlr_backend *backend,
 
 void wlr_backend_finish(struct wlr_backend *backend) {
 	wlr_signal_emit_safe(&backend->events.destroy, backend);
+	wlr_renderer_destroy(backend->renderer);
 }
 
 bool wlr_backend_start(struct wlr_backend *backend) {
@@ -56,9 +58,31 @@ void wlr_backend_destroy(struct wlr_backend *backend) {
 	}
 }
 
+static bool backend_create_renderer(struct wlr_backend *backend) {
+	if (backend->renderer != NULL) {
+		return true;
+	}
+
+	backend->renderer = wlr_renderer_autocreate(backend);
+	if (backend->renderer == NULL) {
+		return false;
+	}
+
+	return true;
+}
+
 struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend) {
 	if (backend->impl->get_renderer) {
 		return backend->impl->get_renderer(backend);
+	}
+	if (backend_get_buffer_caps(backend) != 0) {
+		// If the backend is capable of presenting buffers, automatically create
+		// the renderer if necessary.
+		if (!backend_create_renderer(backend)) {
+			wlr_log(WLR_ERROR, "Failed to create backend renderer");
+			return NULL;
+		}
+		return backend->renderer;
 	}
 	return NULL;
 }
