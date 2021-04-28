@@ -120,14 +120,11 @@ static void handle_renderer_destroy(struct wl_listener *listener, void *data) {
 }
 
 static bool backend_init(struct wlr_headless_backend *backend,
-		struct wl_display *display, struct wlr_allocator *allocator,
-		struct wlr_renderer *renderer) {
+		struct wl_display *display, struct wlr_renderer *renderer) {
 	wlr_backend_init(&backend->backend, &backend_impl);
 	backend->display = display;
 	wl_list_init(&backend->outputs);
 	wl_list_init(&backend->input_devices);
-
-	backend->allocator = allocator;
 
 	if (renderer == NULL) {
 		renderer = wlr_renderer_autocreate(&backend->backend);
@@ -137,6 +134,12 @@ static bool backend_init(struct wlr_headless_backend *backend,
 		}
 	}
 	backend->renderer = renderer;
+
+	backend->allocator = wlr_allocator_autocreate(&backend->backend, renderer);
+	if (!backend->allocator) {
+		wlr_log(WLR_ERROR, "Failed to create allocator");
+		return false;
+	}
 
 	const struct wlr_drm_format_set *formats =
 		wlr_renderer_get_render_formats(backend->renderer);
@@ -219,33 +222,16 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 	backend->drm_fd = open_drm_render_node();
 	if (backend->drm_fd < 0) {
 		wlr_log(WLR_ERROR, "Failed to open DRM render node");
-		goto error_drm_fd;
 	}
 
-	int drm_fd = fcntl(backend->drm_fd, F_DUPFD_CLOEXEC, 0);
-	if (drm_fd < 0) {
-		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
-		goto error_dup;
-	}
-
-	struct wlr_allocator *alloc = wlr_gbm_allocator_create(drm_fd);
-	if (alloc == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
-		close(drm_fd);
-		goto error_dup;
-	}
-
-	if (!backend_init(backend, display, alloc, NULL)) {
+	if (!backend_init(backend, display, NULL)) {
 		goto error_init;
 	}
 
 	return &backend->backend;
 
 error_init:
-	wlr_allocator_destroy(alloc);
-error_dup:
 	close(backend->drm_fd);
-error_drm_fd:
 	free(backend);
 	return NULL;
 }
@@ -265,23 +251,9 @@ struct wlr_backend *wlr_headless_backend_create_with_renderer(
 	backend->drm_fd = wlr_renderer_get_drm_fd(renderer);
 	if (backend->drm_fd < 0) {
 		wlr_log(WLR_ERROR, "Failed to get DRM device FD from renderer");
-		goto error_drm_fd;
 	}
 
-	int drm_fd = fcntl(backend->drm_fd, F_DUPFD_CLOEXEC, 0);
-	if (drm_fd < 0) {
-		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
-		goto error_dup;
-	}
-
-	struct wlr_allocator *alloc = wlr_gbm_allocator_create(drm_fd);
-	if (alloc == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create GBM allocator");
-		close(drm_fd);
-		goto error_dup;
-	}
-
-	if (!backend_init(backend, display, alloc, renderer)) {
+	if (!backend_init(backend, display, renderer)) {
 		goto error_init;
 	}
 
@@ -291,10 +263,7 @@ struct wlr_backend *wlr_headless_backend_create_with_renderer(
 	return &backend->backend;
 
 error_init:
-	wlr_allocator_destroy(alloc);
-error_dup:
 	close(backend->drm_fd);
-error_drm_fd:
 	free(backend);
 	return NULL;
 }
