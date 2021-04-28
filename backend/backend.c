@@ -16,6 +16,7 @@
 #include <wlr/backend/wayland.h>
 #include <wlr/config.h>
 #include <wlr/util/log.h>
+#include "backend/backend.h"
 #include "backend/multi.h"
 
 #if WLR_HAS_X11_BACKEND
@@ -76,6 +77,14 @@ int wlr_backend_get_drm_fd(struct wlr_backend *backend) {
 		return -1;
 	}
 	return backend->impl->get_drm_fd(backend);
+}
+
+uint32_t backend_get_buffer_caps(struct wlr_backend *backend) {
+	if (!backend->impl->get_buffer_caps) {
+		return 0;
+	}
+
+	return backend->impl->get_buffer_caps(backend);
 }
 
 static size_t parse_outputs_env(const char *name) {
