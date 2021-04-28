@@ -58,7 +58,7 @@ static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
 	}
 
 	// Destroy this backend only after removing all sub-backends
-	wlr_signal_emit_safe(&wlr_backend->events.destroy, backend);
+	wlr_backend_finish(wlr_backend);
 	free(backend);
 }
 

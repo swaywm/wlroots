@@ -67,7 +67,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 		wlr_input_device_destroy(&input_device->wlr_input_device);
 	}
 
-	wlr_signal_emit_safe(&wlr_backend->events.destroy, backend);
+	wlr_backend_finish(wlr_backend);
 
 	free(backend->format);
 

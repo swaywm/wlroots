@@ -191,7 +191,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	wlr_input_device_destroy(&x11->keyboard_dev);
 
-	wlr_signal_emit_safe(&backend->events.destroy, backend);
+	wlr_backend_finish(backend);
 
 	if (x11->event_source) {
 		wl_event_source_remove(x11->event_source);

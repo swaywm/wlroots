@@ -18,6 +18,7 @@
 #include <wlr/util/log.h>
 #include "backend/backend.h"
 #include "backend/multi.h"
+#include "util/signal.h"
 
 #if WLR_HAS_X11_BACKEND
 #include <wlr/backend/x11.h>
@@ -30,6 +31,10 @@ void wlr_backend_init(struct wlr_backend *backend,
 	wl_signal_init(&backend->events.destroy);
 	wl_signal_init(&backend->events.new_input);
 	wl_signal_init(&backend->events.new_output);
+}
+
+void wlr_backend_finish(struct wlr_backend *backend) {
+	wlr_signal_emit_safe(&backend->events.destroy, backend);
 }
 
 bool wlr_backend_start(struct wlr_backend *backend) {
