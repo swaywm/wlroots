@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_texture.h>
+#include "render/wlr_texture.h"
 
 void wlr_texture_init(struct wlr_texture *texture,
 		const struct wlr_texture_impl *impl, uint32_t width, uint32_t height) {
@@ -68,4 +69,11 @@ bool wlr_texture_write_pixels(struct wlr_texture *texture,
 	}
 	return texture->impl->write_pixels(texture, stride, width, height,
 		src_x, src_y, dst_x, dst_y, data);
+}
+
+bool wlr_texture_invalidate(struct wlr_texture *texture) {
+	if (!texture->impl->invalidate) {
+		return false;
+	}
+	return texture->impl->invalidate(texture);
 }

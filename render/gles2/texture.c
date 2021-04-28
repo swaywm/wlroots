@@ -98,6 +98,35 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	return true;
 }
 
+static bool gles2_texture_invalidate(struct wlr_texture *wlr_texture) {
+	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
+
+	if (texture->image == EGL_NO_IMAGE_KHR) {
+		return false;
+	}
+	if (texture->target == GL_TEXTURE_EXTERNAL_OES) {
+		// External changes are immediately made visible by the GL implementation
+		return true;
+	}
+
+	struct wlr_egl_context prev_ctx;
+	wlr_egl_save_context(&prev_ctx);
+	wlr_egl_make_current(texture->renderer->egl);
+
+	push_gles2_debug(texture->renderer);
+
+	glBindTexture(texture->target, texture->tex);
+	texture->renderer->procs.glEGLImageTargetTexture2DOES(texture->target,
+		texture->image);
+	glBindTexture(texture->target, 0);
+
+	pop_gles2_debug(texture->renderer);
+
+	wlr_egl_restore_context(&prev_ctx);
+
+	return true;
+}
+
 static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
 
@@ -122,6 +151,7 @@ static void gles2_texture_destroy(struct wlr_texture *wlr_texture) {
 static const struct wlr_texture_impl texture_impl = {
 	.is_opaque = gles2_texture_is_opaque,
 	.write_pixels = gles2_texture_write_pixels,
+	.invalidate = gles2_texture_invalidate,
 	.destroy = gles2_texture_destroy,
 };
 
