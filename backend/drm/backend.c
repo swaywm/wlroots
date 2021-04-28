@@ -41,7 +41,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 		destroy_drm_connector(conn);
 	}
 
-	wlr_signal_emit_safe(&backend->events.destroy, backend);
+	wlr_backend_finish(backend);
 
 	struct wlr_drm_fb *fb, *fb_tmp;
 	wl_list_for_each_safe(fb, fb_tmp, &drm->fbs, link) {

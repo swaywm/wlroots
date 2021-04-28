@@ -150,7 +150,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 		free(wlr_devices);
 	}
 
-	wlr_signal_emit_safe(&wlr_backend->events.destroy, wlr_backend);
+	wlr_backend_finish(wlr_backend);
 
 	wl_list_remove(&backend->display_destroy.link);
 	wl_list_remove(&backend->session_destroy.link);

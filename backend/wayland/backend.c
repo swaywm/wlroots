@@ -309,7 +309,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 		wlr_input_device_destroy(input_device);
 	}
 
-	wlr_signal_emit_safe(&wl->backend.events.destroy, &wl->backend);
+	wlr_backend_finish(backend);
 
 	wl_list_remove(&wl->local_display_destroy.link);
 

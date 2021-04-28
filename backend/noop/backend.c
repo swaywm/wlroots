@@ -37,7 +37,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 		wlr_output_destroy(&output->wlr_output);
 	}
 
-	wlr_signal_emit_safe(&wlr_backend->events.destroy, backend);
+	wlr_backend_finish(wlr_backend);
 
 	wl_list_remove(&backend->display_destroy.link);
 
