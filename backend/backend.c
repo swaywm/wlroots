@@ -237,6 +237,9 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 
 	char *names = getenv("WLR_BACKENDS");
 	if (names) {
+		wlr_log(WLR_INFO, "Loading user-specified backends due to WLR_BACKENDS: %s",
+			names);
+
 		names = strdup(names);
 		if (names == NULL) {
 			wlr_log(WLR_ERROR, "allocation failed");

@@ -234,6 +234,9 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
 	const char *name = getenv("WLR_RENDERER");
 	if (name) {
+		wlr_log(WLR_INFO, "Loading user-specified renderer due to WLR_RENDERER: %s",
+			name);
+
 #if WLR_HAS_GLES2_RENDERER
 		if (strcmp(name, "gles2") == 0) {
 			if (drm_fd < 0) {
