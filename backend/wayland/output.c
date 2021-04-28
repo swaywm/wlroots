@@ -15,6 +15,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 
+#include "backend/backend.h"
 #include "backend/wayland.h"
 #include "render/pixel_format.h"
 #include "render/swapchain.h"
@@ -99,10 +100,11 @@ static const struct wp_presentation_feedback_listener
 static bool output_set_custom_mode(struct wlr_output *wlr_output,
 		int32_t width, int32_t height, int32_t refresh) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
+	struct wlr_allocator *allocator = backend_get_allocator(wlr_output->backend);
 
 	if (wlr_output->width != width || wlr_output->height != height) {
-		struct wlr_swapchain *swapchain = wlr_swapchain_create(
-			output->backend->allocator, width, height, output->backend->format);
+		struct wlr_swapchain *swapchain = wlr_swapchain_create(allocator,
+			width, height, output->backend->format);
 		if (swapchain == NULL) {
 			return false;
 		}
@@ -117,6 +119,7 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output,
 static bool output_attach_render(struct wlr_output *wlr_output,
 		int *buffer_age) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
 
 	wlr_buffer_unlock(output->back_buffer);
 	output->back_buffer = wlr_swapchain_acquire(output->swapchain, buffer_age);
@@ -125,8 +128,7 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		return false;
 	}
 
-	if (!wlr_renderer_bind_buffer(output->backend->renderer,
-			output->back_buffer)) {
+	if (!wlr_renderer_bind_buffer(renderer, output->back_buffer)) {
 		wlr_log(WLR_ERROR, "Failed to bind buffer to renderer");
 		return false;
 	}
@@ -296,6 +298,7 @@ static bool output_test(struct wlr_output *wlr_output) {
 static bool output_commit(struct wlr_output *wlr_output) {
 	struct wlr_wl_output *output =
 		get_wl_output_from_output(wlr_output);
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
 
 	if (!output_test(wlr_output)) {
 		return false;
@@ -336,7 +339,7 @@ static bool output_commit(struct wlr_output *wlr_output) {
 			assert(output->back_buffer != NULL);
 			wlr_buffer = output->back_buffer;
 
-			wlr_renderer_bind_buffer(output->backend->renderer, NULL);
+			wlr_renderer_bind_buffer(renderer, NULL);
 			break;
 		case WLR_OUTPUT_STATE_BUFFER_SCANOUT:;
 			wlr_buffer = wlr_output->pending.buffer;
@@ -397,8 +400,8 @@ static bool output_commit(struct wlr_output *wlr_output) {
 }
 
 static void output_rollback_render(struct wlr_output *wlr_output) {
-	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
-	wlr_renderer_bind_buffer(output->backend->renderer, NULL);
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
+	wlr_renderer_bind_buffer(renderer, NULL);
 }
 
 static bool output_set_cursor(struct wlr_output *wlr_output,
@@ -407,6 +410,8 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		int32_t hotspot_x, int32_t hotspot_y, bool update_texture) {
 	struct wlr_wl_output *output = get_wl_output_from_output(wlr_output);
 	struct wlr_wl_backend *backend = output->backend;
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(&backend->backend);
+	struct wlr_allocator *allocator = backend_get_allocator(&backend->backend);
 
 	struct wlr_box hotspot = { .x = hotspot_x, .y = hotspot_y };
 	wlr_box_transform(&hotspot, &hotspot,
@@ -437,9 +442,8 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 				output->cursor.swapchain->width != width ||
 				output->cursor.swapchain->height != height) {
 			wlr_swapchain_destroy(output->cursor.swapchain);
-			output->cursor.swapchain = wlr_swapchain_create(
-				output->backend->allocator, width, height,
-				output->backend->format);
+			output->cursor.swapchain = wlr_swapchain_create(allocator,
+				width, height, output->backend->format);
 			if (output->cursor.swapchain == NULL) {
 				return false;
 			}
@@ -451,7 +455,7 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 			return false;
 		}
 
-		if (!wlr_renderer_bind_buffer(output->backend->renderer, wlr_buffer)) {
+		if (!wlr_renderer_bind_buffer(renderer, wlr_buffer)) {
 			return false;
 		}
 
@@ -475,12 +479,12 @@ static bool output_set_cursor(struct wlr_output *wlr_output,
 		float matrix[9];
 		wlr_matrix_project_box(matrix, &cursor_box, transform, 0, output_matrix);
 
-		wlr_renderer_begin(backend->renderer, width, height);
-		wlr_renderer_clear(backend->renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
-		wlr_render_texture_with_matrix(backend->renderer, texture, matrix, 1.0);
-		wlr_renderer_end(backend->renderer);
+		wlr_renderer_begin(renderer, width, height);
+		wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
+		wlr_render_texture_with_matrix(renderer, texture, matrix, 1.0);
+		wlr_renderer_end(renderer);
 
-		wlr_renderer_bind_buffer(output->backend->renderer, NULL);
+		wlr_renderer_bind_buffer(renderer, NULL);
 
 		struct wlr_wl_buffer *buffer =
 			get_or_create_wl_buffer(output->backend, wlr_buffer);
@@ -681,7 +685,8 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 			&xdg_toplevel_listener, output);
 	wl_surface_commit(output->surface);
 
-	output->swapchain = wlr_swapchain_create(output->backend->allocator,
+	struct wlr_allocator *allocator = backend_get_allocator(&backend->backend);
+	output->swapchain = wlr_swapchain_create(allocator,
 		wlr_output->width, wlr_output->height, output->backend->format);
 	if (output->swapchain == NULL) {
 		goto error;

@@ -21,9 +21,7 @@ struct wlr_wl_backend {
 	struct wl_list devices;
 	struct wl_list outputs;
 	int drm_fd;
-	struct wlr_renderer *renderer;
 	struct wlr_drm_format *format;
-	struct wlr_allocator *allocator;
 	struct wl_list buffers; // wlr_wl_buffer.link
 	size_t requested_outputs;
 	size_t last_output_num;
