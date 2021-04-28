@@ -14,7 +14,7 @@
 #include "backend/drm/drm.h"
 #include "backend/drm/util.h"
 #include "render/drm_format_set.h"
-#include "render/gbm_allocator.h"
+#include "render/allocator.h"
 #include "render/pixel_format.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
@@ -35,16 +35,10 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		goto error_gbm;
 	}
 
-	int alloc_fd = fcntl(drm->fd, F_DUPFD_CLOEXEC, 0);
-	if (alloc_fd < 0) {
-		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
-		goto error_wlr_rend;
-	}
-
-	renderer->allocator = wlr_gbm_allocator_create(alloc_fd);
+	renderer->allocator = wlr_allocator_autocreate(&drm->backend,
+			renderer->wlr_rend);
 	if (renderer->allocator == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create allocator");
-		close(alloc_fd);
 		goto error_wlr_rend;
 	}
 

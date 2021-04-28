@@ -444,7 +444,6 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	}
 	wl_event_source_check(wl->remote_display_src);
 
-	wl->drm_fd = -1;
 	if (wl->drm_render_name != NULL) {
 		wlr_log(WLR_DEBUG, "Opening DRM render node %s", wl->drm_render_name);
 		wl->drm_fd = open(wl->drm_render_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
@@ -453,45 +452,40 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 				wl->drm_render_name);
 			goto error_remote_display_src;
 		}
-
-		int drm_fd = fcntl(wl->drm_fd, F_DUPFD_CLOEXEC, 0);
-		if (drm_fd < 0) {
-			wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
-			goto error_drm_fd;
-		}
-
-		wl->allocator = wlr_gbm_allocator_create(drm_fd);
-		if (wl->allocator == NULL) {
-			wlr_log(WLR_ERROR, "Failed to create GBM allocator");
-			close(drm_fd);
-			goto error_drm_fd;
-		}
 	} else {
-		wlr_log(WLR_DEBUG, "No render node found, falling back to shared memory");
-		wl->allocator = wlr_shm_allocator_create();
-		if (wl->allocator == NULL) {
-			wlr_log(WLR_ERROR, "Failed to create shared memory allocator");
-			goto error_remote_display_src;
-		}
+		wl->drm_fd = -1;
 	}
 
 	wl->renderer = wlr_renderer_autocreate(&wl->backend);
 	if (wl->renderer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
+		goto error_renderer;
+	}
+
+	uint32_t caps = renderer_get_render_buffer_caps(wl->renderer);
+
+	wl->allocator = wlr_allocator_autocreate(&wl->backend, wl->renderer);
+	if (wl->allocator == NULL) {
+		wlr_log(WLR_ERROR, "Failed to create allocator");
 		goto error_allocator;
 	}
 
 	const struct wlr_drm_format_set *remote_formats;
-	if (wl->drm_fd >= 0) {
+	if ((caps & WLR_BUFFER_CAP_DMABUF) && wl->zwp_linux_dmabuf_v1) {
 		remote_formats = &wl->linux_dmabuf_v1_formats;
-	} else {
+	} else if ((caps & WLR_BUFFER_CAP_DATA_PTR) && wl->shm) {
 		remote_formats = &wl->shm_formats;
+	}  else {
+		wlr_log(WLR_ERROR,
+				"Failed to get remote formats (DRI3 and SHM unavailable)");
+		goto error_allocator;
 	}
+
 	const struct wlr_drm_format_set *render_formats =
 		wlr_renderer_get_render_formats(wl->renderer);
 	if (render_formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to get available render-capable formats");
-		goto error_renderer;
+		goto error_allocator;
 	}
 
 	uint32_t fmt = DRM_FORMAT_ARGB8888;
@@ -501,21 +495,21 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	if (remote_format == NULL) {
 		wlr_log(WLR_ERROR, "Remote compositor doesn't support DRM format "
 			"0x%"PRIX32, fmt);
-		goto error_renderer;
+		goto error_allocator;
 	}
 
 	const struct wlr_drm_format *render_format =
 		wlr_drm_format_set_get(render_formats, fmt);
 	if (render_format == NULL) {
 		wlr_log(WLR_ERROR, "Renderer doesn't support DRM format 0x%"PRIX32, fmt);
-		goto error_renderer;
+		goto error_allocator;
 	}
 
 	wl->format = wlr_drm_format_intersect(remote_format, render_format);
 	if (wl->format == NULL) {
 		wlr_log(WLR_ERROR, "Failed to intersect remote and render modifiers "
 			"for format 0x%"PRIX32, fmt);
-		goto error_renderer;
+		goto error_allocator;
 	}
 
 	wl->local_display_destroy.notify = handle_display_destroy;
@@ -523,11 +517,10 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 
 	return &wl->backend;
 
-error_renderer:
-	wlr_renderer_destroy(wl->renderer);
 error_allocator:
 	wlr_allocator_destroy(wl->allocator);
-error_drm_fd:
+error_renderer:
+	wlr_renderer_destroy(wl->renderer);
 	close(wl->drm_fd);
 error_remote_display_src:
 	wl_event_source_remove(wl->remote_display_src);

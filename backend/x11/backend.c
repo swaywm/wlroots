@@ -610,7 +610,7 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		return false;
 	}
 
-	const struct wlr_drm_format_set *pixmap_formats;
+	x11->drm_fd = -1;
 	if (x11->have_dri3) {
 		// DRI3 may return a render node (Xwayland) or an authenticated primary
 		// node (plain Glamor).
@@ -619,41 +619,30 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 			wlr_log(WLR_ERROR, "Failed to query DRI3 DRM FD");
 			goto error_event;
 		}
-
-		char *drm_name = drmGetDeviceNameFromFd2(x11->drm_fd);
-		wlr_log(WLR_DEBUG, "Using DRM node %s", drm_name);
-		free(drm_name);
-
-		int drm_fd = fcntl(x11->drm_fd, F_DUPFD_CLOEXEC, 0);
-		if (drm_fd < 0) {
-			wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
-			goto error_event;
-		}
-
-		x11->allocator = wlr_gbm_allocator_create(drm_fd);
-		if (x11->allocator == NULL) {
-			wlr_log(WLR_ERROR, "Failed to create GBM allocator");
-			close(drm_fd);
-			goto error_event;
-		}
-		pixmap_formats = &x11->dri3_formats;
-	} else if (x11->have_shm) {
-		x11->drm_fd = -1;
-		x11->allocator = wlr_shm_allocator_create();
-		if (x11->allocator == NULL) {
-			wlr_log(WLR_ERROR, "Failed to create shared memory allocator");
-			goto error_event;
-		}
-		pixmap_formats = &x11->shm_formats;
-	} else {
-		wlr_log(WLR_ERROR,
-			"Failed to create allocator (DRI3 and SHM unavailable)");
-		goto error_event;
 	}
 
 	x11->renderer = wlr_renderer_autocreate(&x11->backend);
 	if (x11->renderer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
+		goto error_event;
+	}
+
+	uint32_t caps = renderer_get_render_buffer_caps(x11->renderer);
+
+	const struct wlr_drm_format_set *pixmap_formats;
+	if (x11->have_dri3 && (caps & WLR_BUFFER_CAP_DMABUF)) {
+		pixmap_formats = &x11->dri3_formats;
+	} else if (x11->have_shm && (caps & WLR_BUFFER_CAP_DATA_PTR)) {
+		pixmap_formats = &x11->shm_formats;
+	} else {
+		wlr_log(WLR_ERROR,
+				"Failed to create allocator (DRI3 and SHM unavailable)");
+		goto error_event;
+	}
+
+	x11->allocator = wlr_allocator_autocreate(&x11->backend, x11->renderer);
+	if (x11->allocator == NULL) {
+		wlr_log(WLR_ERROR, "Failed to create allocator");
 		goto error_event;
 	}
 
