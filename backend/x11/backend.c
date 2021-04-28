@@ -35,6 +35,7 @@
 #include "render/gbm_allocator.h"
 #include "render/shm_allocator.h"
 #include "render/wlr_renderer.h"
+#include "types/wlr_buffer.h"
 #include "util/signal.h"
 
 // See dri2_format_for_depth in mesa
@@ -223,11 +224,18 @@ static int backend_get_drm_fd(struct wlr_backend *backend) {
 	return x11->drm_fd;
 }
 
+static uint32_t backend_get_buffer_caps(struct wlr_backend *backend) {
+	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
+	return (x11->have_dri3 ? WLR_BUFFER_CAP_DMABUF : 0)
+		| (x11->have_shm ? WLR_BUFFER_CAP_SHM : 0);
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.get_drm_fd = backend_get_drm_fd,
+	.get_buffer_caps = backend_get_buffer_caps,
 };
 
 bool wlr_backend_is_x11(struct wlr_backend *backend) {

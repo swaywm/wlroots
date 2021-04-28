@@ -13,6 +13,7 @@
 #include "render/drm_format_set.h"
 #include "render/gbm_allocator.h"
 #include "render/wlr_renderer.h"
+#include "types/wlr_buffer.h"
 #include "util/signal.h"
 
 struct wlr_headless_backend *headless_backend_from_backend(
@@ -92,11 +93,18 @@ static int backend_get_drm_fd(struct wlr_backend *wlr_backend) {
 	return backend->drm_fd;
 }
 
+static uint32_t backend_get_buffer_caps(struct wlr_backend *wlr_backend) {
+	return WLR_BUFFER_CAP_DATA_PTR
+		| WLR_BUFFER_CAP_DMABUF
+		| WLR_BUFFER_CAP_SHM;
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.get_drm_fd = backend_get_drm_fd,
+	.get_buffer_caps = backend_get_buffer_caps,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {

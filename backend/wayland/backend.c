@@ -23,6 +23,7 @@
 #include "render/pixel_format.h"
 #include "render/shm_allocator.h"
 #include "render/wlr_renderer.h"
+#include "types/wlr_buffer.h"
 #include "util/signal.h"
 
 #include "drm-client-protocol.h"
@@ -364,11 +365,18 @@ static int backend_get_drm_fd(struct wlr_backend *backend) {
 	return wl->drm_fd;
 }
 
+static uint32_t backend_get_buffer_caps(struct wlr_backend *backend) {
+	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
+	return (wl->zwp_linux_dmabuf_v1 ? WLR_BUFFER_CAP_DMABUF : 0)
+		| (wl->shm ? WLR_BUFFER_CAP_SHM : 0);
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.get_drm_fd = backend_get_drm_fd,
+	.get_buffer_caps = backend_get_buffer_caps,
 };
 
 bool wlr_backend_is_wl(struct wlr_backend *b) {

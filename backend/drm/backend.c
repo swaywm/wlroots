@@ -12,6 +12,7 @@
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include "backend/drm/drm.h"
+#include "types/wlr_buffer.h"
 #include "util/signal.h"
 
 struct wlr_drm_backend *get_drm_backend_from_backend(
@@ -89,12 +90,17 @@ static int backend_get_drm_fd(struct wlr_backend *backend) {
 	}
 }
 
+static uint32_t backend_get_buffer_caps(struct wlr_backend *backend) {
+	return WLR_BUFFER_CAP_DMABUF;
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.get_presentation_clock = backend_get_presentation_clock,
 	.get_drm_fd = backend_get_drm_fd,
+	.get_buffer_caps = backend_get_buffer_caps,
 };
 
 bool wlr_backend_is_drm(struct wlr_backend *b) {
