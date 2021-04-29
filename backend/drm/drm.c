@@ -729,9 +729,12 @@ static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 
 	struct wlr_output_mode *wlr_mode = NULL;
 	if (drm_connector_state_active(conn, state)) {
-		assert(state->committed & WLR_OUTPUT_STATE_MODE);
-		assert(state->mode_type == WLR_OUTPUT_STATE_MODE_FIXED);
-		wlr_mode = state->mode;
+		if (state->committed & WLR_OUTPUT_STATE_MODE) {
+			assert(state->mode_type == WLR_OUTPUT_STATE_MODE_FIXED);
+			wlr_mode = state->mode;
+		} else {
+			wlr_mode = conn->output.current_mode;
+		}
 	}
 
 	conn->desired_enabled = wlr_mode != NULL;
