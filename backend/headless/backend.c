@@ -248,9 +248,15 @@ struct wlr_backend *wlr_headless_backend_create_with_renderer(
 	}
 	backend->has_parent_renderer = true;
 
-	backend->drm_fd = wlr_renderer_get_drm_fd(renderer);
-	if (backend->drm_fd < 0) {
-		wlr_log(WLR_ERROR, "Failed to get DRM device FD from renderer");
+	int drm_fd = wlr_renderer_get_drm_fd(renderer);
+	if (drm_fd < 0) {
+		wlr_log(WLR_ERROR, "Failed to get DRM device FD from parent renderer");
+		backend->drm_fd = -1;
+	} else {
+		backend->drm_fd = fcntl(drm_fd, F_DUPFD_CLOEXEC, 0);
+		if (backend->drm_fd < 0) {
+			wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+		}
 	}
 
 	if (!backend_init(backend, display, renderer)) {
