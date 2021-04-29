@@ -354,6 +354,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.mode);
 	wl_signal_init(&output->events.description);
+	wl_signal_init(&output->events.request_state);
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->pending.damage);
 
@@ -738,6 +739,57 @@ void wlr_output_send_present(struct wlr_output *output,
 	}
 
 	wlr_signal_emit_safe(&output->events.present, event);
+}
+
+void wlr_output_send_request_state(struct wlr_output *output,
+		const struct wlr_output_state *state) {
+	struct wlr_output_event_request_state event = {
+		.output = output,
+		.state = *state,
+	};
+	wlr_signal_emit_safe(&output->events.request_state, &event);
+}
+
+void wlr_output_queue_state(struct wlr_output *output,
+		const struct wlr_output_state *state) {
+	assert(state != &output->pending);
+
+	if (state->committed & WLR_OUTPUT_STATE_BUFFER) {
+		assert(state->buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT);
+		wlr_output_attach_buffer(output, state->buffer);
+	}
+	if (state->committed & WLR_OUTPUT_STATE_DAMAGE) {
+		wlr_output_set_damage(output, (pixman_region32_t *)&state->damage);
+	}
+	if (state->committed & WLR_OUTPUT_STATE_MODE) {
+		switch (state->mode_type) {
+		case WLR_OUTPUT_STATE_MODE_FIXED:
+			wlr_output_set_mode(output, state->mode);
+			break;
+		case WLR_OUTPUT_STATE_MODE_CUSTOM:
+			wlr_output_set_custom_mode(output, state->custom_mode.width,
+				state->custom_mode.height, state->custom_mode.refresh);
+			break;
+		}
+	}
+	if (state->committed & WLR_OUTPUT_STATE_ENABLED) {
+		wlr_output_enable(output, state->enabled);
+	}
+	if (state->committed & WLR_OUTPUT_STATE_SCALE) {
+		wlr_output_set_scale(output, state->scale);
+	}
+	if (state->committed & WLR_OUTPUT_STATE_TRANSFORM) {
+		wlr_output_set_transform(output, state->transform);
+	}
+	if (state->committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) {
+		wlr_output_enable_adaptive_sync(output, state->adaptive_sync_enabled);
+	}
+	if (state->committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
+		const uint16_t *r = state->gamma_lut;
+		const uint16_t *g = state->gamma_lut + state->gamma_lut_size;
+		const uint16_t *b = state->gamma_lut + 2 * state->gamma_lut_size;
+		wlr_output_set_gamma(output, state->gamma_lut_size, r, g, b);
+	}
 }
 
 void wlr_output_set_gamma(struct wlr_output *output, size_t size,

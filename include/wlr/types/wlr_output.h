@@ -171,6 +171,7 @@ struct wlr_output {
 		struct wl_signal enable;
 		struct wl_signal mode;
 		struct wl_signal description;
+		struct wl_signal request_state;
 		struct wl_signal destroy;
 	} events;
 
@@ -236,6 +237,11 @@ struct wlr_output_event_present {
 struct wlr_output_event_bind {
 	struct wlr_output *output;
 	struct wl_resource *resource;
+};
+
+struct wlr_output_event_request_state {
+	struct wlr_output *output;
+	struct wlr_output_state state;
 };
 
 struct wlr_surface;
@@ -428,6 +434,13 @@ void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock);
  */
 void wlr_output_render_software_cursors(struct wlr_output *output,
 	pixman_region32_t *damage);
+/**
+ * Queue pending output state from `state`.
+ *
+ * Users need to call `wlr_output_commit` to apply the pending state.
+ */
+void wlr_output_queue_state(struct wlr_output *output,
+	const struct wlr_output_state *state);
 
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);
