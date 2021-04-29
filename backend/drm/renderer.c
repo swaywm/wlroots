@@ -35,8 +35,8 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		goto error_gbm;
 	}
 
-	renderer->allocator = wlr_allocator_autocreate(&drm->backend,
-			renderer->wlr_rend);
+	renderer->allocator = allocator_autocreate_with_drm_fd(&drm->backend,
+		renderer->wlr_rend, drm->fd);
 	if (renderer->allocator == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create allocator");
 		goto error_wlr_rend;
