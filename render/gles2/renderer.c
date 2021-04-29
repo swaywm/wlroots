@@ -253,6 +253,7 @@ static bool gles2_render_subtexture_with_matrix(
 		gles2_get_renderer_in_context(wlr_renderer);
 	struct wlr_gles2_texture *texture =
 		gles2_get_texture(wlr_texture);
+	assert(texture->renderer == renderer);
 
 	struct wlr_gles2_tex_shader *shader = NULL;
 
