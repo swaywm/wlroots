@@ -1,6 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
@@ -29,10 +28,7 @@ struct wlr_allocator *allocator_autocreate_with_drm_fd(
 	if ((backend_caps & gbm_caps) && (renderer_caps & gbm_caps)
 			&& drm_fd != -1) {
 		wlr_log(WLR_DEBUG, "Trying to create gbm allocator");
-		int fd = fcntl(drm_fd, F_DUPFD_CLOEXEC, 0);
-		if (fd < 0) {
-			wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
-		} else if ((alloc = wlr_gbm_allocator_create(fd)) != NULL) {
+		if ((alloc = wlr_gbm_allocator_create(drm_fd)) != NULL) {
 			return alloc;
 		}
 		wlr_log(WLR_DEBUG, "Failed to create gbm allocator");

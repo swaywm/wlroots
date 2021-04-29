@@ -159,7 +159,13 @@ static struct wlr_gbm_allocator *get_gbm_alloc_from_alloc(
 	return (struct wlr_gbm_allocator *)alloc;
 }
 
-struct wlr_allocator *wlr_gbm_allocator_create(int fd) {
+struct wlr_allocator *wlr_gbm_allocator_create(int drm_fd) {
+	int fd = fcntl(drm_fd, F_DUPFD_CLOEXEC, 0);
+	if (fd < 0) {
+		wlr_log(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+		return NULL;
+	}
+
 	uint64_t cap;
 	if (drmGetCap(fd, DRM_CAP_PRIME, &cap) ||
 			!(cap & DRM_PRIME_CAP_EXPORT)) {
