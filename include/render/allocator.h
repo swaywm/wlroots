@@ -46,4 +46,7 @@ struct wlr_buffer *wlr_allocator_create_buffer(struct wlr_allocator *alloc,
 void wlr_allocator_init(struct wlr_allocator *alloc,
 	const struct wlr_allocator_interface *impl);
 
+struct wlr_allocator *allocator_autocreate_with_drm_fd(
+	struct wlr_backend *backend, struct wlr_renderer *renderer, int drm_fd);
+
 #endif
