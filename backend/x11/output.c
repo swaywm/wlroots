@@ -19,6 +19,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 
+#include "backend/backend.h"
 #include "backend/x11.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
@@ -98,7 +99,7 @@ static void output_destroy(struct wlr_output *wlr_output) {
 static bool output_attach_render(struct wlr_output *wlr_output,
 		int *buffer_age) {
 	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
-	struct wlr_x11_backend *x11 = output->x11;
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
 
 	wlr_buffer_unlock(output->back_buffer);
 	output->back_buffer = wlr_swapchain_acquire(output->swapchain, buffer_age);
@@ -107,7 +108,7 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		return false;
 	}
 
-	if (!wlr_renderer_bind_buffer(x11->renderer, output->back_buffer)) {
+	if (!wlr_renderer_bind_buffer(renderer, output->back_buffer)) {
 		wlr_log(WLR_ERROR, "Failed to bind buffer to renderer");
 		return false;
 	}
@@ -271,13 +272,14 @@ static struct wlr_x11_buffer *get_or_create_x11_buffer(
 
 static bool output_commit_buffer(struct wlr_x11_output *output) {
 	struct wlr_x11_backend *x11 = output->x11;
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(&x11->backend);
 
 	struct wlr_buffer *buffer = NULL;
 	switch (output->wlr_output.pending.buffer_type) {
 	case WLR_OUTPUT_STATE_BUFFER_RENDER:
 		assert(output->back_buffer != NULL);
 
-		wlr_renderer_bind_buffer(x11->renderer, NULL);
+		wlr_renderer_bind_buffer(renderer, NULL);
 
 		buffer = output->back_buffer;
 		output->back_buffer = NULL;
@@ -391,10 +393,8 @@ static bool output_commit(struct wlr_output *wlr_output) {
 }
 
 static void output_rollback_render(struct wlr_output *wlr_output) {
-	struct wlr_x11_output *output = get_x11_output_from_output(wlr_output);
-	struct wlr_x11_backend *x11 = output->x11;
-
-	wlr_renderer_bind_buffer(x11->renderer, NULL);
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
+	wlr_renderer_bind_buffer(renderer, NULL);
 }
 
 static void update_x11_output_cursor(struct wlr_x11_output *output,
@@ -423,6 +423,8 @@ static bool output_cursor_to_picture(struct wlr_x11_output *output,
 		struct wlr_texture *texture, enum wl_output_transform transform,
 		int width, int height) {
 	struct wlr_x11_backend *x11 = output->x11;
+	struct wlr_allocator *allocator = backend_get_allocator(&x11->backend);
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(&x11->backend);
 	int depth = 32;
 	int stride = width * 4;
 
@@ -439,9 +441,8 @@ static bool output_cursor_to_picture(struct wlr_x11_output *output,
 			output->cursor.swapchain->width != width ||
 			output->cursor.swapchain->height != height) {
 		wlr_swapchain_destroy(output->cursor.swapchain);
-		output->cursor.swapchain = wlr_swapchain_create(
-			x11->allocator, width, height,
-			x11->drm_format);
+		output->cursor.swapchain = wlr_swapchain_create(allocator,
+			width, height, x11->drm_format);
 		if (output->cursor.swapchain == NULL) {
 			return false;
 		}
@@ -453,7 +454,7 @@ static bool output_cursor_to_picture(struct wlr_x11_output *output,
 		return false;
 	}
 
-	if (!wlr_renderer_bind_buffer(x11->renderer, wlr_buffer)) {
+	if (!wlr_renderer_bind_buffer(renderer, wlr_buffer)) {
 		return false;
 	}
 
@@ -482,17 +483,17 @@ static bool output_cursor_to_picture(struct wlr_x11_output *output,
 	float matrix[9];
 	wlr_matrix_project_box(matrix, &cursor_box, transform, 0, output_matrix);
 
-	wlr_renderer_begin(x11->renderer, width, height);
-	wlr_renderer_clear(x11->renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
-	wlr_render_texture_with_matrix(x11->renderer, texture, matrix, 1.0);
-	wlr_renderer_end(x11->renderer);
+	wlr_renderer_begin(renderer, width, height);
+	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
+	wlr_render_texture_with_matrix(renderer, texture, matrix, 1.0);
+	wlr_renderer_end(renderer);
 
 	bool result = wlr_renderer_read_pixels(
-		x11->renderer, DRM_FORMAT_ARGB8888, NULL,
+		renderer, DRM_FORMAT_ARGB8888, NULL,
 		width * 4, width, height, 0, 0, 0, 0,
 		data);
 
-	wlr_renderer_bind_buffer(x11->renderer, NULL);
+	wlr_renderer_bind_buffer(renderer, NULL);
 
 	wlr_buffer_unlock(wlr_buffer);
 
@@ -594,6 +595,7 @@ static const struct wlr_output_impl output_impl = {
 
 struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
+	struct wlr_allocator *allocator = backend_get_allocator(backend);
 
 	if (!x11->started) {
 		++x11->requested_outputs;
@@ -613,7 +615,7 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 	wlr_output_update_custom_mode(wlr_output, 1024, 768, 0);
 
-	output->swapchain = wlr_swapchain_create(x11->allocator,
+	output->swapchain = wlr_swapchain_create(allocator,
 		wlr_output->width, wlr_output->height, x11->drm_format);
 	if (!output->swapchain) {
 		wlr_log(WLR_ERROR, "Failed to create swapchain");
@@ -705,6 +707,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 void handle_x11_configure_notify(struct wlr_x11_output *output,
 		xcb_configure_notify_event_t *ev) {
+	struct wlr_allocator *allocator = backend_get_allocator(&output->x11->backend);
+
 	// ignore events that set an invalid size:
 	if (ev->width == 0 || ev->height == 0) {
 		wlr_log(WLR_DEBUG,
@@ -716,7 +720,7 @@ void handle_x11_configure_notify(struct wlr_x11_output *output,
 	if (output->swapchain->width != ev->width ||
 			output->swapchain->height != ev->height) {
 		struct wlr_swapchain *swapchain = wlr_swapchain_create(
-			output->x11->allocator, ev->width, ev->height,
+			allocator, ev->width, ev->height,
 			output->x11->drm_format);
 		if (!swapchain) {
 			return;

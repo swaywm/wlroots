@@ -30,6 +30,7 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 
+#include "backend/backend.h"
 #include "backend/x11.h"
 #include "render/drm_format_set.h"
 #include "render/gbm_allocator.h"
@@ -198,8 +199,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	}
 	wl_list_remove(&x11->display_destroy.link);
 
-	wlr_renderer_destroy(x11->renderer);
-	wlr_allocator_destroy(x11->allocator);
 	wlr_drm_format_set_finish(&x11->dri3_formats);
 	wlr_drm_format_set_finish(&x11->shm_formats);
 	free(x11->drm_format);
@@ -213,18 +212,12 @@ static void backend_destroy(struct wlr_backend *backend) {
 	free(x11);
 }
 
-static struct wlr_renderer *backend_get_renderer(
-		struct wlr_backend *backend) {
-	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
-	return x11->renderer;
-}
-
 static int backend_get_drm_fd(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
 	return x11->drm_fd;
 }
 
-static uint32_t backend_get_buffer_caps(struct wlr_backend *backend) {
+static uint32_t get_buffer_caps(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
 	return (x11->have_dri3 ? WLR_BUFFER_CAP_DMABUF : 0)
 		| (x11->have_shm ? WLR_BUFFER_CAP_SHM : 0);
@@ -233,9 +226,8 @@ static uint32_t backend_get_buffer_caps(struct wlr_backend *backend) {
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
-	.get_renderer = backend_get_renderer,
 	.get_drm_fd = backend_get_drm_fd,
-	.get_buffer_caps = backend_get_buffer_caps,
+	.get_buffer_caps = get_buffer_caps,
 };
 
 bool wlr_backend_is_x11(struct wlr_backend *backend) {
@@ -621,14 +613,13 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		}
 	}
 
-	x11->renderer = wlr_renderer_autocreate(&x11->backend);
-	if (x11->renderer == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create renderer");
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(&x11->backend);
+	struct wlr_allocator *allocator = backend_get_allocator(&x11->backend);
+	if (renderer == NULL || allocator == NULL) {
 		goto error_event;
 	}
 
-	uint32_t caps = renderer_get_render_buffer_caps(x11->renderer);
-
+	uint32_t caps = renderer_get_render_buffer_caps(renderer);
 	const struct wlr_drm_format_set *pixmap_formats;
 	if (x11->have_dri3 && (caps & WLR_BUFFER_CAP_DMABUF)) {
 		pixmap_formats = &x11->dri3_formats;
@@ -640,14 +631,8 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
-	x11->allocator = wlr_allocator_autocreate(&x11->backend, x11->renderer);
-	if (x11->allocator == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create allocator");
-		goto error_event;
-	}
-
 	const struct wlr_drm_format_set *render_formats =
-		wlr_renderer_get_render_formats(x11->renderer);
+		wlr_renderer_get_render_formats(renderer);
 	if (render_formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to get available DRM formats from renderer");
 		return false;
