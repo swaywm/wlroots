@@ -9,16 +9,14 @@
 struct wlr_headless_backend {
 	struct wlr_backend backend;
 	int drm_fd;
-	struct wlr_renderer *renderer;
-	struct wlr_allocator *allocator;
 	struct wlr_drm_format *format;
 	struct wl_display *display;
 	struct wl_list outputs;
 	size_t last_output_num;
 	struct wl_list input_devices;
 	struct wl_listener display_destroy;
-	struct wl_listener renderer_destroy;
-	bool has_parent_renderer;
+	struct wlr_renderer *parent_renderer;
+	struct wl_listener parent_renderer_destroy;
 	bool started;
 };
 

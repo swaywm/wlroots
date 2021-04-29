@@ -4,6 +4,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
+#include "backend/backend.h"
 #include "backend/headless.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
@@ -19,13 +20,14 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
 		int32_t height, int32_t refresh) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
+	struct wlr_allocator *allocator = backend_get_allocator(wlr_output->backend);
 
 	if (refresh <= 0) {
 		refresh = HEADLESS_DEFAULT_REFRESH;
 	}
 
 	wlr_swapchain_destroy(output->swapchain);
-	output->swapchain = wlr_swapchain_create(output->backend->allocator,
+	output->swapchain = wlr_swapchain_create(allocator,
 			width, height, output->backend->format);
 	if (!output->swapchain) {
 		wlr_output_destroy(wlr_output);
@@ -42,6 +44,7 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		int *buffer_age) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
 
 	wlr_buffer_unlock(output->back_buffer);
 	output->back_buffer = wlr_swapchain_acquire(output->swapchain, buffer_age);
@@ -50,8 +53,7 @@ static bool output_attach_render(struct wlr_output *wlr_output,
 		return false;
 	}
 
-	if (!wlr_renderer_bind_buffer(output->backend->renderer,
-			output->back_buffer)) {
+	if (!wlr_renderer_bind_buffer(renderer, output->back_buffer)) {
 		wlr_log(WLR_ERROR, "Failed to bind buffer to renderer");
 		return false;
 	}
@@ -75,6 +77,7 @@ static bool output_test(struct wlr_output *wlr_output) {
 static bool output_commit(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
 
 	if (!output_test(wlr_output)) {
 		return false;
@@ -95,7 +98,7 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		case WLR_OUTPUT_STATE_BUFFER_RENDER:
 			assert(output->back_buffer != NULL);
 
-			wlr_renderer_bind_buffer(output->backend->renderer, NULL);
+			wlr_renderer_bind_buffer(renderer, NULL);
 
 			buffer = output->back_buffer;
 			output->back_buffer = NULL;
@@ -120,8 +123,9 @@ static bool output_commit(struct wlr_output *wlr_output) {
 static void output_rollback_render(struct wlr_output *wlr_output) {
 	struct wlr_headless_output *output =
 		headless_output_from_output(wlr_output);
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
 
-	wlr_renderer_bind_buffer(output->backend->renderer, NULL);
+	wlr_renderer_bind_buffer(renderer, NULL);
 
 	wlr_buffer_unlock(output->back_buffer);
 	output->back_buffer = NULL;
@@ -178,6 +182,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		unsigned int width, unsigned int height) {
 	struct wlr_headless_backend *backend =
 		headless_backend_from_backend(wlr_backend);
+	struct wlr_allocator *allocator = backend_get_allocator(wlr_backend);
 
 	struct wlr_headless_output *output =
 		calloc(1, sizeof(struct wlr_headless_output));
@@ -190,7 +195,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 		backend->display);
 	struct wlr_output *wlr_output = &output->wlr_output;
 
-	output->swapchain = wlr_swapchain_create(backend->allocator,
+	output->swapchain = wlr_swapchain_create(allocator,
 		width, height, backend->format);
 	if (!output->swapchain) {
 		goto error;

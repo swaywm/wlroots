@@ -9,6 +9,7 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
+#include "backend/backend.h"
 #include "backend/headless.h"
 #include "render/drm_format_set.h"
 #include "render/gbm_allocator.h"
@@ -54,7 +55,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 	}
 
 	wl_list_remove(&backend->display_destroy.link);
-	wl_list_remove(&backend->renderer_destroy.link);
+	wl_list_remove(&backend->parent_renderer_destroy.link);
 
 	struct wlr_headless_output *output, *output_tmp;
 	wl_list_for_each_safe(output, output_tmp, &backend->outputs, link) {
@@ -71,11 +72,6 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 
 	free(backend->format);
 
-	if (!backend->has_parent_renderer) {
-		wlr_renderer_destroy(backend->renderer);
-	}
-
-	wlr_allocator_destroy(backend->allocator);
 	close(backend->drm_fd);
 	free(backend);
 }
@@ -84,7 +80,11 @@ static struct wlr_renderer *backend_get_renderer(
 		struct wlr_backend *wlr_backend) {
 	struct wlr_headless_backend *backend =
 		headless_backend_from_backend(wlr_backend);
-	return backend->renderer;
+	if (backend->parent_renderer != NULL) {
+		return backend->parent_renderer;
+	} else {
+		return wlr_backend->renderer;
+	}
 }
 
 static int backend_get_drm_fd(struct wlr_backend *wlr_backend) {
@@ -93,7 +93,7 @@ static int backend_get_drm_fd(struct wlr_backend *wlr_backend) {
 	return backend->drm_fd;
 }
 
-static uint32_t backend_get_buffer_caps(struct wlr_backend *wlr_backend) {
+static uint32_t get_buffer_caps(struct wlr_backend *wlr_backend) {
 	return WLR_BUFFER_CAP_DATA_PTR
 		| WLR_BUFFER_CAP_DMABUF
 		| WLR_BUFFER_CAP_SHM;
@@ -104,7 +104,7 @@ static const struct wlr_backend_impl backend_impl = {
 	.destroy = backend_destroy,
 	.get_renderer = backend_get_renderer,
 	.get_drm_fd = backend_get_drm_fd,
-	.get_buffer_caps = backend_get_buffer_caps,
+	.get_buffer_caps = get_buffer_caps,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -115,16 +115,18 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 
 static void handle_renderer_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_headless_backend *backend =
-		wl_container_of(listener, backend, renderer_destroy);
+		wl_container_of(listener, backend, parent_renderer_destroy);
 	backend_destroy(&backend->backend);
 }
 
 static bool backend_init(struct wlr_headless_backend *backend,
 		struct wl_display *display, struct wlr_renderer *renderer) {
 	wlr_backend_init(&backend->backend, &backend_impl);
+
 	backend->display = display;
 	wl_list_init(&backend->outputs);
 	wl_list_init(&backend->input_devices);
+	wl_list_init(&backend->parent_renderer_destroy.link);
 
 	if (renderer == NULL) {
 		renderer = wlr_renderer_autocreate(&backend->backend);
@@ -132,17 +134,20 @@ static bool backend_init(struct wlr_headless_backend *backend,
 			wlr_log(WLR_ERROR, "Failed to create renderer");
 			return false;
 		}
+		backend->backend.renderer = renderer;
+	} else {
+		backend->parent_renderer = renderer;
+		backend->parent_renderer_destroy.notify = handle_renderer_destroy;
+		wl_signal_add(&renderer->events.destroy, &backend->parent_renderer_destroy);
 	}
-	backend->renderer = renderer;
 
-	backend->allocator = wlr_allocator_autocreate(&backend->backend, renderer);
-	if (!backend->allocator) {
+	if (backend_get_allocator(&backend->backend) == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create allocator");
 		return false;
 	}
 
 	const struct wlr_drm_format_set *formats =
-		wlr_renderer_get_render_formats(backend->renderer);
+		wlr_renderer_get_render_formats(renderer);
 	if (formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to get available DMA-BUF formats from renderer");
 		return false;
@@ -157,8 +162,6 @@ static bool backend_init(struct wlr_headless_backend *backend,
 
 	backend->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &backend->display_destroy);
-
-	wl_list_init(&backend->renderer_destroy.link);
 
 	return true;
 }
@@ -246,7 +249,6 @@ struct wlr_backend *wlr_headless_backend_create_with_renderer(
 		wlr_log(WLR_ERROR, "Failed to allocate wlr_headless_backend");
 		return NULL;
 	}
-	backend->has_parent_renderer = true;
 
 	backend->drm_fd = wlr_renderer_get_drm_fd(renderer);
 	if (backend->drm_fd < 0) {
@@ -256,9 +258,6 @@ struct wlr_backend *wlr_headless_backend_create_with_renderer(
 	if (!backend_init(backend, display, renderer)) {
 		goto error_init;
 	}
-
-	backend->renderer_destroy.notify = handle_renderer_destroy;
-	wl_signal_add(&renderer->events.destroy, &backend->renderer_destroy);
 
 	return &backend->backend;
 
