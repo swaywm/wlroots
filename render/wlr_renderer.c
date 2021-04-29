@@ -231,7 +231,7 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	return true;
 }
 
-struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
+struct wlr_renderer *renderer_autocreate_with_drm_fd(int drm_fd) {
 	const char *name = getenv("WLR_RENDERER");
 	if (name) {
 		wlr_log(WLR_INFO, "Loading user-specified renderer due to WLR_RENDERER: %s",
@@ -279,7 +279,7 @@ struct wlr_renderer *wlr_renderer_autocreate_with_drm_fd(int drm_fd) {
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
 	// Note, drm_fd may be negative if unavailable
 	int drm_fd = wlr_backend_get_drm_fd(backend);
-	return wlr_renderer_autocreate_with_drm_fd(drm_fd);
+	return renderer_autocreate_with_drm_fd(drm_fd);
 }
 
 int wlr_renderer_get_drm_fd(struct wlr_renderer *r) {
