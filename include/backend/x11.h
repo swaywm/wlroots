@@ -88,12 +88,10 @@ struct wlr_x11_backend {
 	struct wlr_input_device keyboard_dev;
 
 	int drm_fd;
-	struct wlr_renderer *renderer;
 	struct wlr_drm_format_set dri3_formats;
 	struct wlr_drm_format_set shm_formats;
 	const struct wlr_x11_format *x11_format;
 	struct wlr_drm_format *drm_format;
-	struct wlr_allocator *allocator;
 	struct wl_event_source *event_source;
 
 	struct {
