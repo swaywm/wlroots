@@ -1,3 +1,4 @@
+wayland_protos = dependency('wayland-protocols', version: '>=1.17')
 wl_protocol_dir = wayland_protos.get_variable(pkgconfig: 'pkgdatadir')
 
 wayland_scanner_dep = dependency('wayland-scanner', native: true)
