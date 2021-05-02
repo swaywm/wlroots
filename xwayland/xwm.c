@@ -85,6 +85,7 @@ const char *const atom_map[ATOM_LAST] = {
 	[DND_ACTION_ASK] = "XdndActionAsk",
 	[DND_ACTION_PRIVATE] = "XdndActionPrivate",
 	[NET_CLIENT_LIST] = "_NET_CLIENT_LIST",
+	[NET_CLIENT_LIST_STACKING] = "_NET_CLIENT_LIST_STACKING",
 };
 
 static const struct wlr_surface_role xwayland_surface_role;
@@ -147,6 +148,7 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 	surface->height = height;
 	surface->override_redirect = override_redirect;
 	wl_list_init(&surface->children);
+	wl_list_init(&surface->stack_link);
 	wl_list_init(&surface->parent_link);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.request_configure);
@@ -223,6 +225,10 @@ static void xwm_send_wm_message(struct wlr_xwayland_surface *surface,
 }
 
 static void xwm_set_net_client_list(struct wlr_xwm *xwm) {
+	// FIXME: _NET_CLIENT_LIST is expected to be ordered by map time, but the
+	// order of surfaces in `xwm->surfaces` is by creation time. The order of
+	// windows _NET_CLIENT_LIST exposed by wlroots is wrong.
+
 	size_t mapped_surfaces = 0;
 	struct wlr_xwayland_surface *surface;
 	wl_list_for_each(surface, &xwm->surfaces, link) {
@@ -242,6 +248,24 @@ static void xwm_set_net_client_list(struct wlr_xwm *xwm) {
 	xcb_change_property(xwm->xcb_conn, XCB_PROP_MODE_REPLACE,
 			xwm->screen->root, xwm->atoms[NET_CLIENT_LIST],
 			XCB_ATOM_WINDOW, 32, mapped_surfaces, windows);
+}
+
+static void xwm_set_net_client_list_stacking(struct wlr_xwm *xwm) {
+	size_t num_surfaces = wl_list_length(&xwm->surfaces_in_stack_order);
+	xcb_window_t windows[num_surfaces + 1];
+
+	// We store surfaces in top-to-bottom order because this is easier to reason
+	// about, but _NET_CLIENT_LIST_STACKING is supposed to be in bottom-to-top
+	// order, so iterate backwards through the list.
+	size_t i = 0;
+	struct wlr_xwayland_surface *xsurface;
+	wl_list_for_each(xsurface, &xwm->surfaces_in_stack_order, stack_link) {
+		windows[i++] = xsurface->window_id;
+	}
+
+	xcb_change_property(xwm->xcb_conn, XCB_PROP_MODE_REPLACE, xwm->screen->root,
+			xwm->atoms[NET_CLIENT_LIST_STACKING], XCB_ATOM_WINDOW, 32, num_surfaces,
+			windows);
 }
 
 static void xsurface_set_net_wm_state(struct wlr_xwayland_surface *xsurface);
@@ -285,11 +309,7 @@ static void xwm_set_focus_window(struct wlr_xwm *xwm,
 		xwm->last_focus_seq = cookie.sequence;
 	}
 
-	uint32_t values[1];
-	values[0] = XCB_STACK_MODE_ABOVE;
-	xcb_configure_window(xwm->xcb_conn, xsurface->window_id,
-		XCB_CONFIG_WINDOW_STACK_MODE, values);
-
+	wlr_xwayland_surface_restack(xsurface, NULL, XCB_STACK_MODE_ABOVE);
 	xsurface_set_net_wm_state(xsurface);
 }
 
@@ -358,6 +378,7 @@ static void xwayland_surface_destroy(
 	}
 
 	wl_list_remove(&xsurface->link);
+	wl_list_remove(&xsurface->stack_link);
 	wl_list_remove(&xsurface->parent_link);
 
 	struct wlr_xwayland_surface *child, *next;
@@ -964,6 +985,47 @@ static void xsurface_set_wm_state(struct wlr_xwayland_surface *xsurface,
 		sizeof(property) / sizeof(property[0]), property);
 }
 
+void wlr_xwayland_surface_restack(struct wlr_xwayland_surface *xsurface,
+		struct wlr_xwayland_surface *sibling, enum xcb_stack_mode_t mode) {
+	struct wlr_xwm *xwm = xsurface->xwm;
+	uint32_t values[2];
+	size_t idx = 0;
+	uint32_t flags = XCB_CONFIG_WINDOW_STACK_MODE;
+
+	if (sibling != NULL) {
+		values[idx++] = sibling->window_id;
+		flags |= XCB_CONFIG_WINDOW_SIBLING;
+	}
+	values[idx++] = mode;
+
+	xcb_configure_window(xwm->xcb_conn, xsurface->window_id, flags, values);
+
+	wl_list_remove(&xsurface->stack_link);
+
+	struct wl_list *node;
+	if (mode == XCB_STACK_MODE_ABOVE) {
+		if (sibling) {
+			node = &sibling->stack_link;
+		} else {
+			node = xwm->surfaces_in_stack_order.prev;
+		}
+	} else if (mode == XCB_STACK_MODE_BELOW) {
+		if (sibling) {
+			node = sibling->stack_link.prev;
+		} else {
+			node = &xwm->surfaces_in_stack_order;
+		}
+	} else {
+		// Not implementing XCB_STACK_MODE_TOP_IF | XCB_STACK_MODE_BOTTOM_IF |
+		// XCB_STACK_MODE_OPPOSITE.
+		abort();
+	}
+
+	wl_list_insert(node, &xsurface->stack_link);
+	xwm_set_net_client_list_stacking(xwm);
+	xcb_flush(xwm->xcb_conn);
+}
+
 static void xwm_handle_map_request(struct wlr_xwm *xwm,
 		xcb_map_request_event_t *ev) {
 	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->window);
@@ -974,11 +1036,7 @@ static void xwm_handle_map_request(struct wlr_xwm *xwm,
 	xsurface_set_wm_state(xsurface, XCB_ICCCM_WM_STATE_NORMAL);
 	xsurface_set_net_wm_state(xsurface);
 
-	uint32_t values[1];
-	values[0] = XCB_STACK_MODE_BELOW;
-	xcb_configure_window(xwm->xcb_conn, ev->window,
-			XCB_CONFIG_WINDOW_STACK_MODE, values);
-
+	wlr_xwayland_surface_restack(xsurface, NULL, XCB_STACK_MODE_BELOW);
 	xcb_map_window(xwm->xcb_conn, ev->window);
 }
 
@@ -1531,23 +1589,6 @@ void wlr_xwayland_surface_activate(struct wlr_xwayland_surface *xsurface,
 	}
 }
 
-void wlr_xwayland_surface_restack(struct wlr_xwayland_surface *surface,
-		struct wlr_xwayland_surface *sibling, enum xcb_stack_mode_t mode) {
-	struct wlr_xwm *xwm = surface->xwm;
-	uint32_t values[2];
-	size_t idx = 0;
-	uint32_t flags = XCB_CONFIG_WINDOW_STACK_MODE;
-
-	if (sibling != NULL) {
-		values[idx++] = sibling->window_id;
-		flags |= XCB_CONFIG_WINDOW_SIBLING;
-	}
-	values[idx++] = mode;
-
-	xcb_configure_window(xwm->xcb_conn, surface->window_id, flags, values);
-	xcb_flush(xwm->xcb_conn);
-}
-
 void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *xsurface,
 		int16_t x, int16_t y, uint16_t width, uint16_t height) {
 	xsurface->x = x;
@@ -1878,6 +1919,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 
 	xwm->xwayland = xwayland;
 	wl_list_init(&xwm->surfaces);
+	wl_list_init(&xwm->surfaces_in_stack_order);
 	wl_list_init(&xwm->unpaired_surfaces);
 	xwm->ping_timeout = 10000;
 
@@ -1937,6 +1979,7 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 		xwm->atoms[NET_WM_STATE_MAXIMIZED_HORZ],
 		xwm->atoms[NET_WM_STATE_HIDDEN],
 		xwm->atoms[NET_CLIENT_LIST],
+		xwm->atoms[NET_CLIENT_LIST_STACKING],
 	};
 	xcb_change_property(xwm->xcb_conn,
 		XCB_PROP_MODE_REPLACE,

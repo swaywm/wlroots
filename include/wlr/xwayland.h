@@ -121,7 +121,7 @@ struct wlr_xwayland_surface_size_hints {
 
 /**
  * This represents the input focus described as follows:
- * 
+ *
  * https://www.x.org/releases/X11R7.6/doc/xorg-docs/specs/ICCCM/icccm.html#input_focus
  */
 enum wlr_xwayland_icccm_input_model {
@@ -146,6 +146,7 @@ struct wlr_xwayland_surface {
 	uint32_t surface_id;
 
 	struct wl_list link;
+	struct wl_list stack_link;
 	struct wl_list unpaired_link;
 
 	struct wlr_surface *surface;
