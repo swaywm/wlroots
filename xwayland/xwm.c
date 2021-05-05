@@ -320,7 +320,6 @@ static void xwm_set_focus_window(struct wlr_xwm *xwm,
 		xwm->last_focus_seq = cookie.sequence;
 	}
 
-	wlr_xwayland_surface_restack(xsurface, NULL, XCB_STACK_MODE_ABOVE);
 	xsurface_set_net_wm_state(xsurface);
 }
 
