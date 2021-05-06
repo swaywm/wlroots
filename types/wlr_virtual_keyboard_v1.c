@@ -8,6 +8,7 @@
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "util/signal.h"
+#include "util/time.h"
 #include "virtual-keyboard-unstable-v1-protocol.h"
 
 
@@ -118,9 +119,31 @@ static void virtual_keyboard_modifiers(struct wl_client *client,
 		mods_depressed, mods_latched, mods_locked, group);
 }
 
+/**
+ * Send release event for each pressed key to bring the keyboard back to
+ * neutral state.
+ *
+ * This may be needed for virtual keyboards. For physical devices, kernel
+ * or libinput will deal with the removal of devices.
+ */
+static void keyboard_release_pressed_keys(struct wlr_keyboard *keyboard) {
+	size_t orig_num_keycodes = keyboard->num_keycodes;
+	for (size_t i = 0; i < orig_num_keycodes; ++i) {
+		assert(keyboard->num_keycodes == orig_num_keycodes - i);
+		struct wlr_event_keyboard_key event = {
+			.time_msec = get_current_time_msec(),
+			.keycode = keyboard->keycodes[orig_num_keycodes - i - 1],
+			.update_state = false,
+			.state = WL_KEYBOARD_KEY_STATE_RELEASED,
+		};
+		wlr_keyboard_notify_key(keyboard, &event);  // updates num_keycodes
+	}
+}
+
 static void virtual_keyboard_destroy_resource(struct wl_resource *resource) {
 	struct wlr_virtual_keyboard_v1 *keyboard =
 		virtual_keyboard_from_resource(resource);
+	keyboard_release_pressed_keys(keyboard->input_device.keyboard);
 	wlr_signal_emit_safe(&keyboard->events.destroy, keyboard);
 	wl_list_remove(&keyboard->link);
 	wlr_input_device_destroy(&keyboard->input_device);
