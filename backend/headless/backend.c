@@ -4,17 +4,17 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <xf86drm.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
-#include <xf86drm.h>
-#include "backend/headless.h"
+#include "render/allocator.h"
 #include "render/drm_format_set.h"
-#include "render/gbm_allocator.h"
 #include "render/wlr_renderer.h"
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
+#include "backend/headless.h"
 
 struct wlr_headless_backend *headless_backend_from_backend(
 		struct wlr_backend *wlr_backend) {
