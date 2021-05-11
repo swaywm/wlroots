@@ -251,7 +251,7 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 			"eglQueryWaylandBufferWL");
 	}
 
-	const char *device_exts_str = NULL;
+	const char *device_exts_str = NULL, *driver_name = NULL;
 	if (check_egl_ext(client_exts_str, "EGL_EXT_device_query")) {
 		load_egl_proc(&egl->procs.eglQueryDisplayAttribEXT,
 			"eglQueryDisplayAttribEXT");
@@ -285,6 +285,13 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 			}
 		}
 
+#ifdef EGL_DRIVER_NAME_EXT
+		if (check_egl_ext(device_exts_str, "EGL_EXT_device_persistent_id")) {
+			driver_name = egl->procs.eglQueryDeviceStringEXT(egl->device,
+				EGL_DRIVER_NAME_EXT);
+		}
+#endif
+
 		egl->exts.device_drm_ext =
 			check_egl_ext(device_exts_str, "EGL_EXT_device_drm");
 	}
@@ -309,6 +316,9 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 		wlr_log(WLR_INFO, "Supported EGL device extensions: %s", device_exts_str);
 	}
 	wlr_log(WLR_INFO, "EGL vendor: %s", eglQueryString(egl->display, EGL_VENDOR));
+	if (driver_name != NULL) {
+		wlr_log(WLR_INFO, "EGL driver name: %s", driver_name);
+	}
 
 	init_dmabuf_formats(egl);
 
