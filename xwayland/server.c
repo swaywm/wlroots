@@ -119,13 +119,13 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 		wlr_log(WLR_INFO, "Using Xwayland binary '%s' due to WLR_XWAYLAND",
 			xwayland_path);
 	} else {
-		xwayland_path = "Xwayland";
+		xwayland_path = XWAYLAND_PATH;
 	}
 
 	// This returns if and only if the call fails
 	execvp(xwayland_path, argv);
 
-	wlr_log_errno(WLR_ERROR, "failed to exec Xwayland");
+	wlr_log_errno(WLR_ERROR, "failed to exec %s", xwayland_path);
 	close(devnull);
 	_exit(EXIT_FAILURE);
 }
