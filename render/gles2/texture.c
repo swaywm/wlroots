@@ -269,12 +269,6 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 		return NULL;
 	}
 
-	if (!renderer->egl->exts.image_dmabuf_import_ext) {
-		wlr_log(WLR_ERROR, "Cannot create DMA-BUF texture: EGL extension "
-			"unavailable");
-		return NULL;
-	}
-
 	struct wlr_gles2_texture *texture =
 		calloc(1, sizeof(struct wlr_gles2_texture));
 	if (texture == NULL) {
