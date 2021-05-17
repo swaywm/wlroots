@@ -24,7 +24,7 @@ struct wlr_texture *wlr_texture_from_pixels(struct wlr_renderer *renderer,
 		const void *data) {
 	assert(width > 0);
 	assert(height > 0);
-	assert(stride >= width);
+	assert(stride > 0);
 	assert(data);
 	return renderer->impl->texture_from_pixels(renderer, fmt, stride, width,
 		height, data);
