@@ -230,10 +230,14 @@ static void pixman_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 	memcpy(m, matrix, sizeof(m));
 
 	// TODO get the width/height from the caller instead of extracting them
-	// TODO detect non rotation with matrix[1] == 0 and matrix[4] == 0 to avoid
-	// doing the calculation
-	float width = sqrt(matrix[0] * matrix[0] + matrix[1] * matrix[1]);
-	float height = sqrt(matrix[3] * matrix[3] + matrix[4] * matrix[4]);
+	float width, height;
+	if (matrix[1] == 0.0 && matrix[3] == 0.0) {
+		width = fabs(matrix[0]);
+		height = fabs(matrix[4]);
+	} else {
+		width = sqrt(matrix[0] * matrix[0] + matrix[1] * matrix[1]);
+		height = sqrt(matrix[3] * matrix[3] + matrix[4] * matrix[4]);
+	}
 
 	wlr_matrix_scale(m, 1.0 / width, 1.0 / height);
 
