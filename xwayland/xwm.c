@@ -1633,7 +1633,7 @@ void xwm_destroy(struct wlr_xwm *xwm) {
 	wl_list_for_each_safe(xsurface, tmp, &xwm->surfaces, link) {
 		xwayland_surface_destroy(xsurface);
 	}
-	wl_list_for_each_safe(xsurface, tmp, &xwm->unpaired_surfaces, link) {
+	wl_list_for_each_safe(xsurface, tmp, &xwm->unpaired_surfaces, unpaired_link) {
 		xwayland_surface_destroy(xsurface);
 	}
 	wl_list_remove(&xwm->compositor_new_surface.link);
