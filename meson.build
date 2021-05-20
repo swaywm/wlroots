@@ -50,7 +50,7 @@ add_project_arguments(cc.get_supported_arguments([
 
 # Compute the relative path used by compiler invocations.
 source_root = meson.current_source_dir().split('/')
-build_root = meson.build_root().split('/')
+build_root = meson.project_build_root().split('/')
 relative_dir_parts = []
 i = 0
 in_prefix = true
