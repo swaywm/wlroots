@@ -237,7 +237,11 @@ static void xwm_set_net_client_list(struct wlr_xwm *xwm) {
 		}
 	}
 
-	xcb_window_t windows[mapped_surfaces + 1];
+	xcb_window_t *windows = malloc(sizeof(xcb_window_t) * mapped_surfaces);
+	if (!windows) {
+		return;
+	}
+
 	size_t index = 0;
 	wl_list_for_each(surface, &xwm->surfaces, link) {
 		if (surface->mapped) {
@@ -248,11 +252,15 @@ static void xwm_set_net_client_list(struct wlr_xwm *xwm) {
 	xcb_change_property(xwm->xcb_conn, XCB_PROP_MODE_REPLACE,
 			xwm->screen->root, xwm->atoms[NET_CLIENT_LIST],
 			XCB_ATOM_WINDOW, 32, mapped_surfaces, windows);
+	free(windows);
 }
 
 static void xwm_set_net_client_list_stacking(struct wlr_xwm *xwm) {
 	size_t num_surfaces = wl_list_length(&xwm->surfaces_in_stack_order);
-	xcb_window_t windows[num_surfaces + 1];
+	xcb_window_t *windows = malloc(sizeof(xcb_window_t) * num_surfaces);
+	if (!windows) {
+		return;
+	}
 
 	// We store surfaces in top-to-bottom order because this is easier to reason
 	// about, but _NET_CLIENT_LIST_STACKING is supposed to be in bottom-to-top
@@ -266,6 +274,7 @@ static void xwm_set_net_client_list_stacking(struct wlr_xwm *xwm) {
 	xcb_change_property(xwm->xcb_conn, XCB_PROP_MODE_REPLACE, xwm->screen->root,
 			xwm->atoms[NET_CLIENT_LIST_STACKING], XCB_ATOM_WINDOW, 32, num_surfaces,
 			windows);
+	free(windows);
 }
 
 static void xsurface_set_net_wm_state(struct wlr_xwayland_surface *xsurface);
