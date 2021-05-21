@@ -30,7 +30,7 @@ them work independently of one another and freely compose with anything you want
 to implement yourself.
 
 Check out our [wiki] to get started with wlroots. Join our IRC channel:
-[#sway-devel on Freenode].
+[#sway-devel on OFTC].
 
 wlroots is developed under the direction of the [sway] project. A variety of
 [wrapper libraries] are available for using it with your favorite programming
@@ -76,7 +76,7 @@ See [CONTRIBUTING.md].
 
 [Wayland]: https://wayland.freedesktop.org/
 [wiki]: https://github.com/swaywm/wlroots/wiki/Getting-started
-[#sway-devel on Freenode]: https://webchat.freenode.net/?channels=sway-devel
+[#sway-devel on Freenode]: https://webchat.oftc.net/?channels=sway-devel
 [Sway]: https://github.com/swaywm/sway
 [wrapper libraries]: https://github.com/search?q=topic%3Abindings+org%3Aswaywm&type=Repositories
 [libseat]: https://git.sr.ht/~kennylevinsen/seatd
