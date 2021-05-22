@@ -132,5 +132,7 @@ int main(int argc, char *argv[]) {
 	zwlr_virtual_pointer_v1_frame(pointer);
 	zwlr_virtual_pointer_v1_destroy(pointer);
 
+	wl_display_flush(display);
+
 	return EXIT_SUCCESS;
 }
