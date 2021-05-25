@@ -34,6 +34,13 @@ bool wlr_output_is_drm(struct wlr_output *output);
 uint32_t wlr_drm_connector_get_id(struct wlr_output *output);
 
 /**
+ * Tries to open non-master DRM FD. The compositor must not call `drmSetMaster`
+ * on the returned FD.
+ * Returns a valid opened DRM FD, or -1 on error.
+ */
+int wlr_drm_backend_get_non_master_fd(struct wlr_backend *backend);
+
+/**
  * Leases a given output to the caller. The output must be from the associated
  * DRM backend.
  * Returns a valid opened DRM FD or -1 on error.

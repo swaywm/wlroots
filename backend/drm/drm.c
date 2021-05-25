@@ -3,6 +3,7 @@
 #include <drm_fourcc.h>
 #include <drm_mode.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -1477,6 +1478,31 @@ void destroy_drm_connector(struct wlr_drm_connector *conn) {
 
 	wl_list_remove(&conn->link);
 	free(conn);
+}
+
+int wlr_drm_backend_get_non_master_fd(struct wlr_backend *backend) {
+	assert(backend);
+
+	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
+	char *path = drmGetDeviceNameFromFd2(drm->fd);
+	if (!path) {
+		wlr_log(WLR_ERROR, "Failed to get device name from DRM fd");
+		return -1;
+	}
+
+	int fd = open(path, O_RDWR | O_CLOEXEC);
+	if (fd < 0) {
+		wlr_log_errno(WLR_ERROR, "Unable to clone DRM fd for client fd");
+		free(path);
+		return -1;
+	}
+
+	if (drmIsMaster(fd) && drmDropMaster(fd) < 0) {
+		wlr_log_errno(WLR_ERROR, "Failed to drop master");
+		return -1;
+	}
+
+	return fd;
 }
 
 /* TODO: make the function return a `wlr_drm_lease` to provide a destroy event
