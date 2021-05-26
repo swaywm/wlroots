@@ -2,7 +2,7 @@
 
 Contributing just involves sending a pull request. You will probably be more
 successful with your contribution if you visit
-[#sway-devel on Libera.chat](https://libera.chat/guides/connect) upfront and
+[#sway-devel on Libera Chat](https://web.libera.chat/?channels=#sway-devel) upfront and
 discuss your plans.
 
 Note: rules are made to be broken. Adjust or ignore any/all of these as you see
