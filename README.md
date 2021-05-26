@@ -30,7 +30,7 @@ them work independently of one another and freely compose with anything you want
 to implement yourself.
 
 Check out our [wiki] to get started with wlroots. Join our IRC channel:
-[#sway-devel on Libera.chat].
+[#sway-devel on Libera Chat].
 
 wlroots is developed under the direction of the [sway] project. A variety of
 [wrapper libraries] are available for using it with your favorite programming
