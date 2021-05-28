@@ -21,6 +21,10 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl);
 struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *renderer);
 bool wlr_gles2_renderer_check_ext(struct wlr_renderer *renderer,
 	const char *ext);
+/**
+ * Returns the OpenGL FBO of current buffer.
+ */
+GLuint wlr_gles2_renderer_get_current_fbo(struct wlr_renderer *wlr_renderer);
 
 struct wlr_gles2_texture_attribs {
 	GLenum target; /* either GL_TEXTURE_2D or GL_TEXTURE_EXTERNAL_OES */

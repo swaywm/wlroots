@@ -567,3 +567,10 @@ pixman_image_t *wlr_pixman_texture_get_image(struct wlr_texture *wlr_texture) {
 	struct wlr_pixman_texture *texture = get_texture(wlr_texture);
 	return texture->image;
 }
+
+pixman_image_t *wlr_pixman_renderer_get_current_image(
+		struct wlr_renderer *wlr_renderer) {
+	struct wlr_pixman_renderer *renderer = get_renderer(wlr_renderer);
+	assert(renderer->current_buffer);
+	return renderer->current_buffer->image;
+}
