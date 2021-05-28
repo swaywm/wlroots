@@ -30,6 +30,7 @@ struct wlr_gles2_texture_attribs {
 	bool has_alpha;
 };
 
+bool wlr_renderer_is_gles2(struct wlr_renderer *wlr_renderer);
 bool wlr_texture_is_gles2(struct wlr_texture *texture);
 void wlr_gles2_texture_get_attribs(struct wlr_texture *texture,
 	struct wlr_gles2_texture_attribs *attribs);
