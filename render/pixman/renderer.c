@@ -12,9 +12,13 @@
 
 static const struct wlr_renderer_impl renderer_impl;
 
+bool wlr_renderer_is_pixman(struct wlr_renderer *wlr_renderer) {
+	return wlr_renderer->impl == &renderer_impl;
+}
+
 static struct wlr_pixman_renderer *get_renderer(
 		struct wlr_renderer *wlr_renderer) {
-	assert(wlr_renderer->impl == &renderer_impl);
+	assert(wlr_renderer_is_pixman(wlr_renderer));
 	return (struct wlr_pixman_renderer *)wlr_renderer;
 }
 
@@ -31,9 +35,13 @@ static struct wlr_pixman_buffer *get_buffer(
 
 static const struct wlr_texture_impl texture_impl;
 
+bool wlr_texture_is_pixman(struct wlr_texture *texture) {
+	return texture->impl == &texture_impl;
+}
+
 static struct wlr_pixman_texture *get_texture(
 		struct wlr_texture *wlr_texture) {
-	assert(wlr_texture->impl == &texture_impl);
+	assert(wlr_texture_is_pixman(wlr_texture));
 	return (struct wlr_pixman_texture *)wlr_texture;
 }
 
@@ -553,4 +561,9 @@ struct wlr_renderer *wlr_pixman_renderer_create(void) {
 	}
 
 	return &renderer->wlr_renderer;
+}
+
+pixman_image_t *wlr_pixman_texture_get_image(struct wlr_texture *wlr_texture) {
+	struct wlr_pixman_texture *texture = get_texture(wlr_texture);
+	return texture->image;
 }
