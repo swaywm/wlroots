@@ -28,9 +28,13 @@ static const GLfloat verts[] = {
 
 static const struct wlr_renderer_impl renderer_impl;
 
+bool wlr_renderer_is_gles2(struct wlr_renderer *wlr_renderer) {
+	return wlr_renderer->impl == &renderer_impl;
+}
+
 struct wlr_gles2_renderer *gles2_get_renderer(
 		struct wlr_renderer *wlr_renderer) {
-	assert(wlr_renderer->impl == &renderer_impl);
+	assert(wlr_renderer_is_gles2(wlr_renderer));
 	return (struct wlr_gles2_renderer *)wlr_renderer;
 }
 
