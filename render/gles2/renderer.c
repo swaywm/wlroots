@@ -919,3 +919,9 @@ bool wlr_gles2_renderer_check_ext(struct wlr_renderer *wlr_renderer,
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 	return check_gl_ext(renderer->exts_str, ext);
 }
+
+GLuint wlr_gles2_renderer_get_current_fbo(struct wlr_renderer *wlr_renderer) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	assert(renderer->current_buffer);
+	return renderer->current_buffer->fbo;
+}
