@@ -182,6 +182,7 @@ int main(void) {
 		wlr_backend_destroy(backend);
 		exit(1);
 	}
+	wlr_backend_destroy(backend);
 	wl_display_run(display);
 	wl_display_destroy(display);
 }

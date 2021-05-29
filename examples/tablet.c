@@ -373,5 +373,6 @@ int main(int argc, char *argv[]) {
 	}
 	wl_display_run(display);
 
+	wlr_backend_destroy(wlr);
 	wl_display_destroy(display);
 }

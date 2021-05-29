@@ -300,6 +300,7 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 	wl_display_run(display);
+	wlr_backend_destroy(wlr);
 	wl_display_destroy(display);
 
 	struct sample_cursor *cursor, *tmp_cursor;

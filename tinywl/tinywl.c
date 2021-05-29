@@ -966,6 +966,7 @@ int main(int argc, char *argv[]) {
 			socket);
 	wl_display_run(server.wl_display);
 
+	wlr_backend_destroy(server.backend);
 	/* Once wl_display_run returns, we shut down the server. */
 	wl_display_destroy_clients(server.wl_display);
 	wl_display_destroy(server.wl_display);
