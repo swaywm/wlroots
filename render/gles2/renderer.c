@@ -546,7 +546,7 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 
 	struct wlr_gles2_texture *tex, *tex_tmp;
 	wl_list_for_each_safe(tex, tex_tmp, &renderer->textures, link) {
-		wlr_texture_destroy(&tex->wlr_texture);
+		gles2_texture_destroy(tex);
 	}
 
 	push_gles2_debug(renderer);
