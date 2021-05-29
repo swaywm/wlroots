@@ -128,6 +128,7 @@ struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
 	struct wlr_dmabuf_attributes *attribs);
 struct wlr_texture *gles2_texture_from_buffer(struct wlr_renderer *wlr_renderer,
 	struct wlr_buffer *buffer);
+void gles2_texture_destroy(struct wlr_gles2_texture *texture);
 
 void push_gles2_debug_(struct wlr_gles2_renderer *renderer,
 	const char *file, const char *func);

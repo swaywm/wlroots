@@ -125,7 +125,7 @@ static bool gles2_texture_invalidate(struct wlr_gles2_texture *texture) {
 	return true;
 }
 
-static void gles2_texture_destroy(struct wlr_gles2_texture *texture) {
+void gles2_texture_destroy(struct wlr_gles2_texture *texture) {
 	wl_list_remove(&texture->link);
 	wl_list_remove(&texture->buffer_destroy.link);
 
