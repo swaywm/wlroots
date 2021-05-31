@@ -191,59 +191,68 @@ static struct wlr_drm_format *create_linear_format(uint32_t format) {
 	return fmt;
 }
 
-bool drm_plane_init_surface(struct wlr_drm_plane *plane,
-		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
-		bool with_modifiers) {
-	uint32_t format = DRM_FORMAT_ARGB8888;
+static struct wlr_drm_format *drm_plane_pick_render_format(
+		struct wlr_drm_plane *plane, struct wlr_drm_renderer *renderer) {
+	const struct wlr_drm_format_set *render_formats =
+		wlr_renderer_get_render_formats(renderer->wlr_rend);
+	if (render_formats == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get render formats");
+		return NULL;
+	}
 
-	if (!wlr_drm_format_set_has(&plane->formats, format, DRM_FORMAT_MOD_INVALID)) {
-		const struct wlr_pixel_format_info *info =
-			drm_get_pixel_format_info(format);
-		if (!info) {
-			wlr_log(WLR_ERROR,
-				"Failed to fallback on DRM opaque substitute for format "
-				"0x%"PRIX32, format);
-			return false;
-		}
-		format = info->opaque_substitute;
+	const struct wlr_drm_format_set *plane_formats = &plane->formats;
+
+	uint32_t fmt = DRM_FORMAT_ARGB8888;
+	if (!wlr_drm_format_set_has(&plane->formats, fmt, DRM_FORMAT_MOD_INVALID)) {
+		const struct wlr_pixel_format_info *format_info =
+			drm_get_pixel_format_info(fmt);
+		assert(format_info != NULL &&
+			format_info->opaque_substitute != DRM_FORMAT_INVALID);
+		fmt = format_info->opaque_substitute;
+	}
+
+	const struct wlr_drm_format *render_format =
+		wlr_drm_format_set_get(render_formats, fmt);
+	if (render_format == NULL) {
+		wlr_log(WLR_DEBUG, "Renderer doesn't support format 0x%"PRIX32, fmt);
+		return NULL;
 	}
 
 	const struct wlr_drm_format *plane_format =
-		wlr_drm_format_set_get(&plane->formats, format);
+		wlr_drm_format_set_get(plane_formats, fmt);
 	if (plane_format == NULL) {
-		wlr_log(WLR_ERROR, "Plane %"PRIu32" doesn't support format 0x%"PRIX32,
-			plane->id, format);
-		return false;
+		wlr_log(WLR_DEBUG, "Plane %"PRIu32" doesn't support format 0x%"PRIX32,
+			plane->id, fmt);
+		return NULL;
 	}
 
-	const struct wlr_drm_format_set *render_formats =
-		wlr_renderer_get_render_formats(drm->renderer.wlr_rend);
-	if (render_formats == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get render formats");
-		return false;
-	}
-	const struct wlr_drm_format *render_format =
-		wlr_drm_format_set_get(render_formats, format);
-	if (render_format == NULL) {
-		wlr_log(WLR_ERROR, "Renderer doesn't support format 0x%"PRIX32,
-			format);
-		return false;
-	}
-
-	struct wlr_drm_format *format_implicit_modifier = NULL;
-	if (!with_modifiers) {
-		format_implicit_modifier = wlr_drm_format_create(format);
-		render_format = format_implicit_modifier;
-	}
-
-	struct wlr_drm_format *drm_format =
+	struct wlr_drm_format *format =
 		wlr_drm_format_intersect(plane_format, render_format);
-	if (drm_format == NULL) {
-		wlr_log(WLR_ERROR,
-			"Failed to intersect plane and render formats 0x%"PRIX32,
-			format);
-		free(format_implicit_modifier);
+	if (format == NULL) {
+		wlr_log(WLR_DEBUG, "Failed to intersect plane and render "
+			"modifiers for format 0x%"PRIX32, fmt);
+		return NULL;
+	}
+
+	return format;
+}
+
+bool drm_plane_init_surface(struct wlr_drm_plane *plane,
+		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
+		bool with_modifiers) {
+	struct wlr_drm_format *format =
+		drm_plane_pick_render_format(plane, &drm->renderer);
+	if (format == NULL) {
+		wlr_log(WLR_ERROR, "Failed to pick render format for plane %"PRIu32,
+			plane->id);
 		return false;
+	}
+
+	if (!with_modifiers) {
+		struct wlr_drm_format *format_implicit_modifier =
+			wlr_drm_format_create(format->format);
+		free(format);
+		format = format_implicit_modifier;
 	}
 
 	drm_plane_finish_surface(plane);
@@ -251,28 +260,26 @@ bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 	bool ok = true;
 	if (!drm->parent) {
 		ok = init_drm_surface(&plane->surf, &drm->renderer,
-			width, height, drm_format);
+			width, height, format);
 	} else {
-		struct wlr_drm_format *drm_format_linear = create_linear_format(format);
-		if (drm_format_linear == NULL) {
-			free(drm_format);
-			free(format_implicit_modifier);
+		struct wlr_drm_format *format_linear = create_linear_format(format->format);
+		if (format_linear == NULL) {
+			free(format);
 			return false;
 		}
 
 		ok = init_drm_surface(&plane->surf, &drm->parent->renderer,
-			width, height, drm_format_linear);
-		free(drm_format_linear);
+			width, height, format_linear);
+		free(format_linear);
 
 		if (ok && !init_drm_surface(&plane->mgpu_surf, &drm->renderer,
-				width, height, drm_format)) {
+				width, height, format)) {
 			finish_drm_surface(&plane->surf);
 			ok = false;
 		}
 	}
 
-	free(drm_format);
-	free(format_implicit_modifier);
+	free(format);
 
 	return ok;
 }
