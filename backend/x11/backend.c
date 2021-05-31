@@ -32,9 +32,8 @@
 
 #include "backend/backend.h"
 #include "backend/x11.h"
+#include "render/allocator.h"
 #include "render/drm_format_set.h"
-#include "render/gbm_allocator.h"
-#include "render/shm_allocator.h"
 #include "render/wlr_renderer.h"
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
@@ -619,11 +618,10 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
-	uint32_t caps = renderer_get_render_buffer_caps(renderer);
 	const struct wlr_drm_format_set *pixmap_formats;
-	if (x11->have_dri3 && (caps & WLR_BUFFER_CAP_DMABUF)) {
+	if (x11->have_dri3 && (allocator->buffer_caps & WLR_BUFFER_CAP_DMABUF)) {
 		pixmap_formats = &x11->dri3_formats;
-	} else if (x11->have_shm && (caps & WLR_BUFFER_CAP_DATA_PTR)) {
+	} else if (x11->have_shm && (allocator->buffer_caps & WLR_BUFFER_CAP_SHM)) {
 		pixmap_formats = &x11->shm_formats;
 	} else {
 		wlr_log(WLR_ERROR,
