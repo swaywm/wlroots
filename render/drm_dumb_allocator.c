@@ -195,6 +195,11 @@ static const struct wlr_allocator_interface allocator_impl = {
 };
 
 struct wlr_allocator *wlr_drm_dumb_allocator_create(int fd) {
+	if (!drmIsMaster(fd)) {
+		wlr_log(WLR_ERROR, "Cannot use DRM dumb buffers with non-master DRM FD");
+		return NULL;
+	}
+
 	/* Re-open the DRM node to avoid GEM handle ref'counting issues. See:
 	 * https://gitlab.freedesktop.org/mesa/drm/-/merge_requests/110
 	 * TODO: don't assume we have the permission to just open the DRM node,
