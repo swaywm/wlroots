@@ -15,6 +15,7 @@
 
 #include "render/drm_dumb_allocator.h"
 #include "render/pixel_format.h"
+#include "types/wlr_buffer.h"
 
 static const struct wlr_buffer_impl buffer_impl;
 
@@ -127,7 +128,7 @@ create_err:
 	return NULL;
 }
 
-static bool buffer_get_data_ptr(struct wlr_buffer *wlr_buffer, void **data,
+static bool drm_dumb_buffer_get_data_ptr(struct wlr_buffer *wlr_buffer, void **data,
 		uint32_t *format, size_t *stride) {
 	struct wlr_drm_dumb_buffer *buf = drm_dumb_buffer_from_buffer(wlr_buffer);
 	*data = buf->data;
@@ -152,7 +153,7 @@ static void buffer_destroy(struct wlr_buffer *wlr_buffer) {
 static const struct wlr_buffer_impl buffer_impl = {
 	.destroy = buffer_destroy,
 	.get_dmabuf = buffer_get_dmabuf,
-	.get_data_ptr = buffer_get_data_ptr,
+	.get_data_ptr = drm_dumb_buffer_get_data_ptr,
 };
 
 static const struct wlr_allocator_interface allocator_impl;
@@ -231,7 +232,8 @@ struct wlr_allocator *wlr_drm_dumb_allocator_create(int fd) {
 		free(path);
 		return NULL;
 	}
-	wlr_allocator_init(&alloc->base, &allocator_impl);
+	wlr_allocator_init(&alloc->base, &allocator_impl,
+		WLR_BUFFER_CAP_DATA_PTR | WLR_BUFFER_CAP_DMABUF);
 
 	alloc->drm_fd = drm_fd;
 	wl_list_init(&alloc->buffers);

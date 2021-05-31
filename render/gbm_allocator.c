@@ -7,6 +7,7 @@
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include "render/gbm_allocator.h"
+#include "types/wlr_buffer.h"
 
 static const struct wlr_buffer_impl buffer_impl;
 
@@ -181,7 +182,7 @@ struct wlr_allocator *wlr_gbm_allocator_create(int drm_fd) {
 	if (alloc == NULL) {
 		return NULL;
 	}
-	wlr_allocator_init(&alloc->base, &allocator_impl);
+	wlr_allocator_init(&alloc->base, &allocator_impl, WLR_BUFFER_CAP_DMABUF);
 
 	alloc->fd = fd;
 	wl_list_init(&alloc->buffers);
