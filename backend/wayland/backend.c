@@ -17,6 +17,7 @@
 
 #include "backend/backend.h"
 #include "backend/wayland.h"
+#include "render/allocator.h"
 #include "render/drm_format_set.h"
 #include "render/pixel_format.h"
 #include "render/wlr_renderer.h"
@@ -451,11 +452,10 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		goto error_drm_fd;
 	}
 
-	uint32_t caps = renderer_get_render_buffer_caps(renderer);
 	const struct wlr_drm_format_set *remote_formats;
-	if ((caps & WLR_BUFFER_CAP_DMABUF) && wl->zwp_linux_dmabuf_v1) {
+	if ((allocator->buffer_caps & WLR_BUFFER_CAP_DMABUF) && wl->zwp_linux_dmabuf_v1) {
 		remote_formats = &wl->linux_dmabuf_v1_formats;
-	} else if ((caps & WLR_BUFFER_CAP_DATA_PTR) && wl->shm) {
+	} else if ((allocator->buffer_caps & WLR_BUFFER_CAP_SHM) && wl->shm) {
 		remote_formats = &wl->shm_formats;
 	}  else {
 		wlr_log(WLR_ERROR,
