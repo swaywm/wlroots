@@ -193,7 +193,9 @@ static struct wlr_drm_format *create_linear_format(uint32_t format) {
 
 bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
-		uint32_t format, bool with_modifiers) {
+		bool with_modifiers) {
+	uint32_t format = DRM_FORMAT_ARGB8888;
+
 	if (!wlr_drm_format_set_has(&plane->formats, format, DRM_FORMAT_MOD_INVALID)) {
 		const struct wlr_pixel_format_info *info =
 			drm_get_pixel_format_info(format);

@@ -57,7 +57,7 @@ bool drm_surface_render_black_frame(struct wlr_drm_surface *surf);
 
 bool drm_plane_init_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
-		uint32_t format, bool with_modifiers);
+		bool with_modifiers);
 void drm_plane_finish_surface(struct wlr_drm_plane *plane);
 bool drm_plane_lock_surface(struct wlr_drm_plane *plane,
 		struct wlr_drm_backend *drm);
