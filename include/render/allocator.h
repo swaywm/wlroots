@@ -19,6 +19,9 @@ struct wlr_allocator_interface {
 struct wlr_allocator {
 	const struct wlr_allocator_interface *impl;
 
+	// Capabilites of the buffers created with this allocator
+	uint32_t buffer_caps;
+
 	struct {
 		struct wl_signal destroy;
 	} events;
@@ -44,7 +47,7 @@ struct wlr_buffer *wlr_allocator_create_buffer(struct wlr_allocator *alloc,
 
 // For wlr_allocator implementors
 void wlr_allocator_init(struct wlr_allocator *alloc,
-	const struct wlr_allocator_interface *impl);
+	const struct wlr_allocator_interface *impl, uint32_t buffer_caps);
 
 struct wlr_allocator *allocator_autocreate_with_drm_fd(
 	struct wlr_backend *backend, struct wlr_renderer *renderer, int drm_fd);

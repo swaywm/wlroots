@@ -7,6 +7,7 @@
 #include "render/pixel_format.h"
 #include "render/shm_allocator.h"
 #include "util/shm.h"
+#include "types/wlr_buffer.h"
 
 static const struct wlr_buffer_impl buffer_impl;
 
@@ -30,7 +31,7 @@ static bool buffer_get_shm(struct wlr_buffer *wlr_buffer,
 	return true;
 }
 
-static bool buffer_get_data_ptr(struct wlr_buffer *wlr_buffer, void **data,
+static bool shm_buffer_get_data_ptr(struct wlr_buffer *wlr_buffer, void **data,
 		uint32_t *format, size_t *stride) {
 	struct wlr_shm_buffer *buffer = shm_buffer_from_buffer(wlr_buffer);
 	*data = buffer->data;
@@ -42,7 +43,7 @@ static bool buffer_get_data_ptr(struct wlr_buffer *wlr_buffer, void **data,
 static const struct wlr_buffer_impl buffer_impl = {
 	.destroy = buffer_destroy,
 	.get_shm = buffer_get_shm,
-	.get_data_ptr = buffer_get_data_ptr,
+	.get_data_ptr = shm_buffer_get_data_ptr,
 };
 
 static struct wlr_buffer *allocator_create_buffer(
@@ -103,7 +104,8 @@ struct wlr_allocator *wlr_shm_allocator_create(void) {
 	if (allocator == NULL) {
 		return NULL;
 	}
-	wlr_allocator_init(&allocator->base, &allocator_impl);
+	wlr_allocator_init(&allocator->base, &allocator_impl,
+		WLR_BUFFER_CAP_DATA_PTR | WLR_BUFFER_CAP_SHM);
 
 	wlr_log(WLR_DEBUG, "Created shm allocator");
 	return &allocator->base;

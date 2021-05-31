@@ -11,9 +11,10 @@
 #include "types/wlr_buffer.h"
 
 void wlr_allocator_init(struct wlr_allocator *alloc,
-		const struct wlr_allocator_interface *impl) {
+		const struct wlr_allocator_interface *impl, uint32_t buffer_caps) {
 	assert(impl && impl->destroy && impl->create_buffer);
 	alloc->impl = impl;
+	alloc->buffer_caps = buffer_caps;
 	wl_signal_init(&alloc->events.destroy);
 }
 
@@ -74,5 +75,19 @@ void wlr_allocator_destroy(struct wlr_allocator *alloc) {
 
 struct wlr_buffer *wlr_allocator_create_buffer(struct wlr_allocator *alloc,
 		int width, int height, const struct wlr_drm_format *format) {
-	return alloc->impl->create_buffer(alloc, width, height, format);
+	struct wlr_buffer *buffer =
+		alloc->impl->create_buffer(alloc, width, height, format);
+	if (buffer == NULL) {
+		return NULL;
+	}
+	if (alloc->buffer_caps & WLR_BUFFER_CAP_DATA_PTR) {
+		assert(buffer->impl->get_data_ptr);
+	}
+	if (alloc->buffer_caps & WLR_BUFFER_CAP_DMABUF) {
+		assert(buffer->impl->get_dmabuf);
+	}
+	if (alloc->buffer_caps & WLR_BUFFER_CAP_SHM) {
+		assert(buffer->impl->get_shm);
+	}
+	return buffer;
 }
