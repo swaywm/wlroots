@@ -69,3 +69,9 @@ wlr_files += files(
 	'wlr_xdg_foreign_registry.c',
 	'wlr_xdg_output_v1.c',
 )
+
+if features.get('drm-backend')
+	wlr_files += files(
+		'wlr_drm_lease_v1.c',
+	)
+endif
