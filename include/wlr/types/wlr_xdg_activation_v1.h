@@ -26,12 +26,14 @@ struct wlr_xdg_activation_token_v1 {
 
 	char *token;
 	struct wl_resource *resource; // can be NULL
+	struct wl_event_source *timeout; // can be NULL
 
 	struct wl_listener seat_destroy;
 	struct wl_listener surface_destroy;
 };
 
 struct wlr_xdg_activation_v1 {
+	uint32_t token_timeout_msec; // token timeout in milliseconds (0 to disable)
 
 	struct wl_list tokens; // wlr_xdg_activation_token_v1.link
 

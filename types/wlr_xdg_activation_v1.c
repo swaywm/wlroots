@@ -28,12 +28,22 @@ static void token_destroy(struct wlr_xdg_activation_token_v1 *token) {
 	if (token->resource != NULL) {
 		wl_resource_set_user_data(token->resource, NULL); // make inert
 	}
+	if (token->timeout != NULL) {
+		wl_event_source_remove(token->timeout);
+	}
 	wl_list_remove(&token->link);
 	wl_list_remove(&token->seat_destroy.link);
 	wl_list_remove(&token->surface_destroy.link);
 	free(token->app_id);
 	free(token->token);
 	free(token);
+}
+
+static int token_handle_timeout(void *data) {
+	struct wlr_xdg_activation_token_v1 *token = data;
+	wlr_log(WLR_DEBUG, "Activation token '%s' has expired", token->token);
+	token_destroy(token);
+	return 0;
 }
 
 static void token_handle_resource_destroy(struct wl_resource *resource) {
@@ -91,12 +101,24 @@ static void token_handle_commit(struct wl_client *client,
 		return;
 	}
 
+	if (token->activation->token_timeout_msec > 0) {
+		struct wl_display *display = wl_client_get_display(client);
+		struct wl_event_loop *loop = wl_display_get_event_loop(display);
+		token->timeout =
+			wl_event_loop_add_timer(loop, token_handle_timeout, token);
+		if (token->timeout == NULL) {
+			wl_client_post_no_memory(client);
+			return;
+		}
+		wl_event_source_timer_update(token->timeout,
+			token->activation->token_timeout_msec);
+	}
+
 	assert(wl_list_empty(&token->link));
 	wl_list_insert(&token->activation->tokens, &token->link);
 
 	xdg_activation_token_v1_send_done(token_resource, token_str);
 
-	// TODO: figure out when to discard the token
 	// TODO: consider emitting a new_token event
 
 	return;
@@ -308,6 +330,7 @@ struct wlr_xdg_activation_v1 *wlr_xdg_activation_v1_create(
 		return NULL;
 	}
 
+	activation->token_timeout_msec = 30000; // 30s
 	wl_list_init(&activation->tokens);
 	wl_signal_init(&activation->events.destroy);
 	wl_signal_init(&activation->events.request_activate);
