@@ -139,10 +139,13 @@ struct wlr_surface {
 		struct wl_signal destroy;
 	} events;
 
-	struct wl_list subsurfaces; // wlr_subsurface::parent_link
+	// wlr_subsurface.parent_link
+	struct wl_list subsurfaces_below;
+	struct wl_list subsurfaces_above;
 
-	// wlr_subsurface::parent_pending_link
-	struct wl_list subsurface_pending_list;
+	// wlr_subsurface.parent_pending_link
+	struct wl_list subsurfaces_pending_below;
+	struct wl_list subsurfaces_pending_above;
 
 	struct wl_list current_outputs; // wlr_surface_output::link
 
