@@ -63,6 +63,16 @@ void wlr_renderer_begin(struct wlr_renderer *r, uint32_t width, uint32_t height)
 	r->rendering = true;
 }
 
+bool wlr_renderer_begin_with_buffer(struct wlr_renderer *r,
+		struct wlr_buffer *buffer) {
+	if (!wlr_renderer_bind_buffer(r, buffer)) {
+		return false;
+	}
+	wlr_renderer_begin(r, buffer->width, buffer->height);
+	r->rendering_with_buffer = true;
+	return true;
+}
+
 void wlr_renderer_end(struct wlr_renderer *r) {
 	assert(r->rendering);
 
@@ -71,6 +81,11 @@ void wlr_renderer_end(struct wlr_renderer *r) {
 	}
 
 	r->rendering = false;
+
+	if (r->rendering_with_buffer) {
+		wlr_renderer_bind_buffer(r, NULL);
+		r->rendering_with_buffer = false;
+	}
 }
 
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]) {
