@@ -321,6 +321,11 @@ void wlr_xdg_toplevel_set_parent(struct wlr_xdg_surface *surface,
 void wlr_xdg_popup_destroy(struct wlr_xdg_surface *surface);
 
 /**
+ * Get the position for this popup in the surface parent's coordinate system.
+ */
+void wlr_xdg_popup_get_position(struct wlr_xdg_popup *popup,
+		double *popup_sx, double *popup_sy);
+/**
  * Get the geometry for this positioner based on the anchor rect, gravity, and
  * size of this positioner.
  */
