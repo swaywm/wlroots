@@ -27,6 +27,7 @@ struct wlr_renderer {
 	const struct wlr_renderer_impl *impl;
 
 	bool rendering;
+	bool rendering_with_buffer;
 
 	struct {
 		struct wl_signal destroy;
@@ -36,6 +37,8 @@ struct wlr_renderer {
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend);
 
 void wlr_renderer_begin(struct wlr_renderer *r, uint32_t width, uint32_t height);
+bool wlr_renderer_begin_with_buffer(struct wlr_renderer *r,
+	struct wlr_buffer *buffer);
 void wlr_renderer_end(struct wlr_renderer *r);
 void wlr_renderer_clear(struct wlr_renderer *r, const float color[static 4]);
 /**
