@@ -31,8 +31,8 @@ static bool buffer_get_shm(struct wlr_buffer *wlr_buffer,
 	return true;
 }
 
-static bool shm_buffer_get_data_ptr(struct wlr_buffer *wlr_buffer, void **data,
-		uint32_t *format, size_t *stride) {
+static bool shm_buffer_begin_data_ptr_access(struct wlr_buffer *wlr_buffer,
+		void **data, uint32_t *format, size_t *stride) {
 	struct wlr_shm_buffer *buffer = shm_buffer_from_buffer(wlr_buffer);
 	*data = buffer->data;
 	*format = buffer->shm.format;
@@ -40,10 +40,15 @@ static bool shm_buffer_get_data_ptr(struct wlr_buffer *wlr_buffer, void **data,
 	return true;
 }
 
+static void shm_buffer_end_data_ptr_access(struct wlr_buffer *wlr_buffer) {
+	// This space is intentionally left blank
+}
+
 static const struct wlr_buffer_impl buffer_impl = {
 	.destroy = buffer_destroy,
 	.get_shm = buffer_get_shm,
-	.get_data_ptr = shm_buffer_get_data_ptr,
+	.begin_data_ptr_access = shm_buffer_begin_data_ptr_access,
+	.end_data_ptr_access = shm_buffer_end_data_ptr_access,
 };
 
 static struct wlr_buffer *allocator_create_buffer(

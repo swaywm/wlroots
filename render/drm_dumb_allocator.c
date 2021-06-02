@@ -128,13 +128,17 @@ create_err:
 	return NULL;
 }
 
-static bool drm_dumb_buffer_get_data_ptr(struct wlr_buffer *wlr_buffer, void **data,
-		uint32_t *format, size_t *stride) {
+static bool drm_dumb_buffer_begin_data_ptr_access(struct wlr_buffer *wlr_buffer,
+		void **data, uint32_t *format, size_t *stride) {
 	struct wlr_drm_dumb_buffer *buf = drm_dumb_buffer_from_buffer(wlr_buffer);
 	*data = buf->data;
 	*stride = buf->stride;
 	*format = buf->format;
 	return true;
+}
+
+static void drm_dumb_buffer_end_data_ptr_access(struct wlr_buffer *wlr_buffer) {
+	// This space is intentionally left blank
 }
 
 static bool buffer_get_dmabuf(struct wlr_buffer *wlr_buffer,
@@ -153,7 +157,8 @@ static void buffer_destroy(struct wlr_buffer *wlr_buffer) {
 static const struct wlr_buffer_impl buffer_impl = {
 	.destroy = buffer_destroy,
 	.get_dmabuf = buffer_get_dmabuf,
-	.get_data_ptr = drm_dumb_buffer_get_data_ptr,
+	.begin_data_ptr_access = drm_dumb_buffer_begin_data_ptr_access,
+	.end_data_ptr_access = drm_dumb_buffer_end_data_ptr_access,
 };
 
 static const struct wlr_allocator_interface allocator_impl;

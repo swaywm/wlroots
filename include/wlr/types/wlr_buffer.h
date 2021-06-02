@@ -26,10 +26,11 @@ struct wlr_buffer_impl {
 	void (*destroy)(struct wlr_buffer *buffer);
 	bool (*get_dmabuf)(struct wlr_buffer *buffer,
 		struct wlr_dmabuf_attributes *attribs);
-	bool (*get_data_ptr)(struct wlr_buffer *buffer, void **data,
-		uint32_t *format, size_t *stride);
 	bool (*get_shm)(struct wlr_buffer *buffer,
 		struct wlr_shm_attributes *attribs);
+	bool (*begin_data_ptr_access)(struct wlr_buffer *buffer, void **data,
+		uint32_t *format, size_t *stride);
+	void (*end_data_ptr_access)(struct wlr_buffer *buffer);
 };
 
 /**
@@ -47,6 +48,7 @@ struct wlr_buffer {
 
 	bool dropped;
 	size_t n_locks;
+	bool accessing_data_ptr;
 
 	struct {
 		struct wl_signal destroy;

@@ -16,13 +16,16 @@ enum wlr_buffer_cap {
 };
 
 /**
- * Access a pointer to the allocated data from the underlying implementation,
- * its format and its stride.
+ * Get a pointer to a region of memory referring to the buffer's underlying
+ * storage. The format and stride can be used to interpret the memory region
+ * contents.
  *
- * The returned pointer should be pointing to a valid memory location for read
- * and write operations.
+ * The returned pointer should be pointing to a valid memory region for read
+ * and write operations. The returned pointer is only valid up to the next
+ * buffer_end_data_ptr_access call.
  */
-bool buffer_get_data_ptr(struct wlr_buffer *buffer, void **data,
+bool buffer_begin_data_ptr_access(struct wlr_buffer *buffer, void **data,
 	uint32_t *format, size_t *stride);
+void buffer_end_data_ptr_access(struct wlr_buffer *buffer);
 
 #endif
