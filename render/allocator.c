@@ -81,7 +81,8 @@ struct wlr_buffer *wlr_allocator_create_buffer(struct wlr_allocator *alloc,
 		return NULL;
 	}
 	if (alloc->buffer_caps & WLR_BUFFER_CAP_DATA_PTR) {
-		assert(buffer->impl->get_data_ptr);
+		assert(buffer->impl->begin_data_ptr_access &&
+			buffer->impl->end_data_ptr_access);
 	}
 	if (alloc->buffer_caps & WLR_BUFFER_CAP_DMABUF) {
 		assert(buffer->impl->get_dmabuf);

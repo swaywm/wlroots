@@ -12,6 +12,9 @@
 void wlr_buffer_init(struct wlr_buffer *buffer,
 		const struct wlr_buffer_impl *impl, int width, int height) {
 	assert(impl->destroy);
+	if (impl->begin_data_ptr_access || impl->end_data_ptr_access) {
+		assert(impl->begin_data_ptr_access && impl->end_data_ptr_access);
+	}
 	buffer->impl = impl;
 	buffer->width = width;
 	buffer->height = height;
@@ -23,6 +26,8 @@ static void buffer_consider_destroy(struct wlr_buffer *buffer) {
 	if (!buffer->dropped || buffer->n_locks > 0) {
 		return;
 	}
+
+	assert(!buffer->accessing_data_ptr);
 
 	wlr_signal_emit_safe(&buffer->events.destroy, NULL);
 
@@ -67,12 +72,23 @@ bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
 	return buffer->impl->get_dmabuf(buffer, attribs);
 }
 
-bool buffer_get_data_ptr(struct wlr_buffer *buffer, void **data,
+bool buffer_begin_data_ptr_access(struct wlr_buffer *buffer, void **data,
 		uint32_t *format, size_t *stride) {
-	if (!buffer->impl->get_data_ptr) {
+	assert(!buffer->accessing_data_ptr);
+	if (!buffer->impl->begin_data_ptr_access) {
 		return false;
 	}
-	return buffer->impl->get_data_ptr(buffer, data, format, stride);
+	if (!buffer->impl->begin_data_ptr_access(buffer, data, format, stride)) {
+		return false;
+	}
+	buffer->accessing_data_ptr = true;
+	return true;
+}
+
+void buffer_end_data_ptr_access(struct wlr_buffer *buffer) {
+	assert(buffer->accessing_data_ptr);
+	buffer->impl->end_data_ptr_access(buffer);
+	buffer->accessing_data_ptr = false;
 }
 
 bool wlr_buffer_get_shm(struct wlr_buffer *buffer,
