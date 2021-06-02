@@ -458,24 +458,6 @@ static void surface_commit_state(struct wlr_surface *surface,
 	wlr_signal_emit_safe(&surface->events.commit, surface);
 }
 
-static void surface_commit_pending(struct wlr_surface *surface) {
-	if (!surface_state_finalize(surface, &surface->pending)) {
-		return;
-	}
-
-	if (surface->role && surface->role->precommit) {
-		surface->role->precommit(surface);
-	}
-
-	uint32_t next_seq = surface->pending.seq + 1;
-	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
-		surface_cache_pending(surface);
-	} else {
-		surface_commit_state(surface, &surface->pending);
-	}
-	surface->pending.seq = next_seq;
-}
-
 static bool subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
 	while (subsurface != NULL) {
 		if (subsurface->synchronized) {
@@ -515,35 +497,25 @@ static void subsurface_parent_commit(struct wlr_subsurface *subsurface,
 	}
 }
 
-static void subsurface_commit(struct wlr_subsurface *subsurface) {
-	struct wlr_surface *surface = subsurface->surface;
-
-	if (subsurface_is_synchronized(subsurface)) {
-		if (subsurface->has_cache) {
-			// We already lock a previous commit. The prevents any future
-			// commit to be applied before we release the previous commit.
-			return;
-		}
-		subsurface->has_cache = true;
-		subsurface->cached_seq = wlr_surface_lock_pending(surface);
-	}
-}
-
 static void surface_commit(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 
-	struct wlr_subsurface *subsurface = wlr_surface_is_subsurface(surface) ?
-		wlr_subsurface_from_wlr_surface(surface) : NULL;
-	if (subsurface != NULL) {
-		subsurface_commit(subsurface);
+	if (!surface_state_finalize(surface, &surface->pending)) {
+		return;
 	}
 
-	surface_commit_pending(surface);
-
-	wl_list_for_each(subsurface, &surface->subsurfaces, parent_link) {
-		subsurface_parent_commit(subsurface, false);
+	if (surface->role && surface->role->precommit) {
+		surface->role->precommit(surface);
 	}
+
+	uint32_t next_seq = surface->pending.seq + 1;
+	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
+		surface_cache_pending(surface);
+	} else {
+		surface_commit_state(surface, &surface->pending);
+	}
+	surface->pending.seq = next_seq;
 }
 
 static void surface_set_buffer_transform(struct wl_client *client,
@@ -1054,6 +1026,11 @@ static void subsurface_role_commit(struct wlr_surface *surface) {
 	}
 
 	subsurface_consider_map(subsurface, true);
+
+	struct wlr_subsurface *child_subsurface;
+	wl_list_for_each(child_subsurface, &surface->subsurfaces, parent_link) {
+		subsurface_parent_commit(child_subsurface, false);
+	}
 }
 
 static void subsurface_role_precommit(struct wlr_surface *surface) {
@@ -1061,6 +1038,16 @@ static void subsurface_role_precommit(struct wlr_surface *surface) {
 		wlr_subsurface_from_wlr_surface(surface);
 	if (subsurface == NULL) {
 		return;
+	}
+
+	if (subsurface_is_synchronized(subsurface)) {
+		if (subsurface->has_cache) {
+			// We already lock a previous commit. The prevents any future
+			// commit to be applied before we release the previous commit.
+			return;
+		}
+		subsurface->has_cache = true;
+		subsurface->cached_seq = wlr_surface_lock_pending(surface);
 	}
 
 	if (surface->pending.committed & WLR_SURFACE_STATE_BUFFER &&
