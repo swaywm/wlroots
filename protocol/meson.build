@@ -1,5 +1,9 @@
-wayland_protos = dependency('wayland-protocols', version: '>=1.21')
-wl_protocol_dir = wayland_protos.get_variable(pkgconfig: 'pkgdatadir')
+wayland_protos = dependency('wayland-protocols',
+	version: '>=1.21',
+	fallback: ['wayland-protocols', 'wayland_protocols'],
+	default_options: ['tests=false'],
+)
+wl_protocol_dir = wayland_protos.get_variable(pkgconfig: 'pkgdatadir', internal: 'pkgdatadir')
 
 wayland_scanner_dep = dependency('wayland-scanner', native: true)
 wayland_scanner = find_program(
