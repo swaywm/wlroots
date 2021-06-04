@@ -99,6 +99,37 @@ bool wlr_buffer_get_shm(struct wlr_buffer *buffer,
 	return buffer->impl->get_shm(buffer, attribs);
 }
 
+struct client_buffer_impl_registration {
+	const struct wlr_client_buffer_impl *impl;
+	struct wl_list link;
+};
+
+static struct wl_list impls = {0};
+
+void wlr_client_buffer_register_impl(
+		const struct wlr_client_buffer_impl *impl) {
+	if (impls.prev == 0 && impls.next == 0) {
+		wl_list_init(&impls);
+	}
+
+	struct client_buffer_impl_registration *r;
+	wl_list_for_each(r, &impls, link) {
+		if (r->impl == impl) {
+			return; /* no-op */
+		}
+	}
+
+	assert(impl->is_instance);
+	assert(impl->get_buffer_size);
+	assert(impl->create);
+	assert(impl->destroy);
+
+	r = calloc(1, sizeof(struct client_buffer_impl_registration));
+	r->impl = impl;
+	wl_list_init(&r->link);
+	wl_list_insert(&impls, &r->link);
+}
+
 bool wlr_resource_is_buffer(struct wl_resource *resource) {
 	return strcmp(wl_resource_get_class(resource), wl_buffer_interface.name) == 0;
 }

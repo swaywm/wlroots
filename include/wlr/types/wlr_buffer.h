@@ -100,11 +100,17 @@ bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
 bool wlr_buffer_get_shm(struct wlr_buffer *buffer,
 	struct wlr_shm_attributes *attribs);
 
+struct wlr_renderer;
+struct wlr_client_buffer;
+struct wlr_client_buffer_impl;
+
 /**
  * A client buffer.
  */
 struct wlr_client_buffer {
 	struct wlr_buffer base;
+
+	const struct wlr_client_buffer_impl *impl;
 
 	/**
 	 * The buffer resource, if any. Will be NULL if the client destroys it.
@@ -124,8 +130,20 @@ struct wlr_client_buffer {
 	struct wl_listener release;
 };
 
-struct wlr_renderer;
+struct wlr_client_buffer_impl {
+	bool (*is_instance)(struct wl_resource *resource);
+	bool (*get_buffer_size)(struct wl_resource *resource, int *width,
+			int *height);
+	struct wlr_client_buffer *(*create)(struct wl_resource *resource,
+			struct wlr_renderer *renderer);
+	void (*destroy)(struct wlr_client_buffer *buffer);
+};
 
+
+/**
+ * Allows a client to registered a custom implementation of a client buffer
+ */
+void wlr_client_buffer_register_impl(const struct wlr_client_buffer_impl *impl);
 /**
  * Get a client buffer from a generic buffer. If the buffer isn't a client
  * buffer, returns NULL.
