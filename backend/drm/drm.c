@@ -1540,8 +1540,6 @@ static void page_flip_handler(int fd, unsigned seq,
 }
 
 int handle_drm_event(int fd, uint32_t mask, void *data) {
-	struct wlr_drm_backend *drm = data;
-
 	drmEventContext event = {
 		.version = 3,
 		.page_flip_handler2 = page_flip_handler,
@@ -1549,7 +1547,9 @@ int handle_drm_event(int fd, uint32_t mask, void *data) {
 
 	if (drmHandleEvent(fd, &event) != 0) {
 		wlr_log(WLR_ERROR, "drmHandleEvent failed");
-		wl_display_terminate(drm->display);
+		wlr_log(WLR_ERROR, "ignoring failed drmHandleEvent - since could be triggered by device unplug");
+		// TODO: how to handle this gracefully. Ignoring the error doesn't seem good long-term.
+		// wl_display_terminate(drm->display);
 	}
 	return 1;
 }

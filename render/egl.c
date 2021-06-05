@@ -265,7 +265,23 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 			goto error;
 		}
 		egl->device = (EGLDeviceEXT)device_attrib;
-
+		// TODO: without https://gitlab.freedesktop.org/glvnd/libglvnd/-/merge_requests/239
+		//       this call currently fails if the GPU was not loaded on application startup.
+		//
+		// I believe even though https://github.com/swaywm/wlroots/pull/2671
+		// was reverted (the patch using EGL_EXT_device_enumeration), we still run into
+		// issues with libglvnd.
+		//
+		// From here:
+		// https://gitlab.freedesktop.org/glvnd/libglvnd/-/issues/210
+		//
+		// > kbrenneman:
+		// >
+		// > So, as long as the device that the vendor returns from eglQueryDisplayAttribEXT is also returned from eglQueryDevicesEXT, it'll work.
+		// > In practice, that's probably a safe assumption.
+		//
+		// If we try to create a renderer for a GPU which didn't exist when sway was started,
+		// then using the returned `egl->device` gives EGL_BAD_DEVICE.
 		device_exts_str =
 			egl->procs.eglQueryDeviceStringEXT(egl->device, EGL_EXTENSIONS);
 		if (device_exts_str == NULL) {
