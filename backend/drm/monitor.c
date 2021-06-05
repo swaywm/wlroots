@@ -3,9 +3,7 @@
 #include <backend/drm/drm.h>
 #include <backend/multi.h>
 #include <stdlib.h>
-#include <wlr/backend/session/interface.h>
-#include <unistd.h>
-#include "backend/session/session.h"
+#include <backend/session/session.h>
 
 static void destroy_drm_backend_monitor(struct wlr_drm_backend_monitor* monitor) {
 	wlr_log(WLR_DEBUG, "Destroying DRM backend monitor");
