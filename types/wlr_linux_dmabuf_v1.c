@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
+#include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include "linux-dmabuf-unstable-v1-protocol.h"
 #include "render/drm_format_set.h"
@@ -46,6 +47,17 @@ struct wlr_linux_dmabuf_feedback_v1_table_entry {
 // https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=255290
 _Static_assert(sizeof(struct wlr_linux_dmabuf_feedback_v1_table_entry) == 16,
 	"Expected wlr_linux_dmabuf_feedback_v1_table_entry to be tightly packed");
+
+struct wlr_linux_dmabuf_v1_surface {
+	struct wlr_surface *surface;
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf;
+	struct wl_list link; // wlr_linux_dmabuf_v1.surfaces
+
+	struct wlr_addon addon;
+	struct wlr_linux_dmabuf_feedback_v1_compiled *feedback;
+
+	struct wl_list feedback_resources; // wl_resource_get_link
+};
 
 static void buffer_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -451,6 +463,36 @@ static const struct zwp_linux_dmabuf_feedback_v1_interface
 	.destroy = linux_dmabuf_feedback_destroy,
 };
 
+static ssize_t get_drm_format_set_index(const struct wlr_drm_format_set *set,
+		uint32_t format, uint64_t modifier) {
+	bool format_found = false;
+	const struct wlr_drm_format *fmt;
+	size_t idx = 0;
+	for (size_t i = 0; i < set->len; i++) {
+		fmt = set->formats[i];
+		if (fmt->format == format) {
+			format_found = true;
+			break;
+		}
+		idx += 1 + fmt->len;
+	}
+	if (!format_found) {
+		return -1;
+	}
+
+	if (modifier == DRM_FORMAT_MOD_INVALID) {
+		return idx;
+	}
+
+	for (size_t i = 0; i < fmt->len; i++) {
+		if (fmt->modifiers[i] == modifier) {
+			return idx;
+		}
+		idx++;
+	}
+	return -1;
+}
+
 static struct wlr_linux_dmabuf_feedback_v1_compiled *feedback_compile(
 		const struct wlr_linux_dmabuf_feedback_v1 *feedback) {
 	assert(feedback->tranches_len > 0);
@@ -523,7 +565,53 @@ static struct wlr_linux_dmabuf_feedback_v1_compiled *feedback_compile(
 
 	// Build the indices lists for all but the last (fallback) tranches
 	for (size_t i = 0; i < feedback->tranches_len - 1; i++) {
-		assert(false); // TODO: unimplemented
+		const struct wlr_linux_dmabuf_feedback_v1_tranche *tranche =
+			&feedback->tranches[i];
+		struct wlr_linux_dmabuf_feedback_v1_compiled_tranche *compiled_tranche =
+			&compiled->tranches[i];
+
+		compiled_tranche->target_device = tranche->target_device;
+		compiled_tranche->flags = tranche->flags;
+
+		wl_array_init(&compiled_tranche->indices);
+		if (!wl_array_add(&compiled_tranche->indices, table_len * sizeof(uint16_t))) {
+			wlr_log(WLR_ERROR, "Failed to allocate tranche indices array");
+			goto error_compiled;
+		}
+
+		n = 0;
+		uint16_t *indices = compiled_tranche->indices.data;
+		for (size_t j = 0; j < tranche->formats->len; j++) {
+			const struct wlr_drm_format *fmt = tranche->formats->formats[j];
+
+			ssize_t index = get_drm_format_set_index(
+				fallback_tranche->formats, fmt->format,
+				DRM_FORMAT_MOD_INVALID);
+			if (index < 0) {
+				wlr_log(WLR_ERROR, "Format 0x%" PRIX32 " and modifier "
+					"INVALID are in tranche #%zu but are missing "
+					"from the fallback tranche",
+					fmt->format, i);
+				goto error_compiled;
+			}
+			indices[n] = index;
+			n++;
+
+			for (size_t k = 0; k < fmt->len; k++) {
+				ssize_t index = get_drm_format_set_index(
+					fallback_tranche->formats, fmt->format, fmt->modifiers[k]);
+				if (index < 0) {
+					wlr_log(WLR_ERROR, "Format 0x%" PRIX32 " and modifier "
+						"0x%" PRIX64 " are in tranche #%zu but are missing "
+						"from the fallback tranche",
+						fmt->format, fmt->modifiers[k], i);
+					goto error_compiled;
+				}
+				indices[n] = index;
+				n++;
+			}
+		}
+		compiled_tranche->indices.size = n * sizeof(uint16_t);
 	}
 
 	struct wlr_linux_dmabuf_feedback_v1_compiled_tranche *fallback_compiled_tranche =
@@ -556,6 +644,9 @@ error_compiled:
 
 static void compiled_feedback_destroy(
 		struct wlr_linux_dmabuf_feedback_v1_compiled *feedback) {
+	if (feedback == NULL) {
+		return;
+	}
 	for (size_t i = 0; i < feedback->tranches_len; i++) {
 		wl_array_release(&feedback->tranches[i].indices);
 	}
@@ -656,11 +747,96 @@ static void linux_dmabuf_get_default_feedback(struct wl_client *client,
 	feedback_send(linux_dmabuf->default_feedback, feedback_resource);
 }
 
+static void surface_destroy(struct wlr_linux_dmabuf_v1_surface *surface) {
+	struct wl_resource *resource, *resource_tmp;
+	wl_resource_for_each_safe(resource, resource_tmp, &surface->feedback_resources) {
+		struct wl_list *link = wl_resource_get_link(resource);
+		wl_list_remove(link);
+		wl_list_init(link);
+	}
+
+	compiled_feedback_destroy(surface->feedback);
+
+	wlr_addon_finish(&surface->addon);
+	wl_list_remove(&surface->link);
+	free(surface);
+}
+
+static void surface_addon_destroy(struct wlr_addon *addon) {
+	struct wlr_linux_dmabuf_v1_surface *surface =
+		wl_container_of(addon, surface, addon);
+	surface_destroy(surface);
+}
+
+static const struct wlr_addon_interface surface_addon_impl = {
+	.name = "wlr_linux_dmabuf_v1_surface",
+	.destroy = surface_addon_destroy,
+};
+
+static struct wlr_linux_dmabuf_v1_surface *surface_get_or_create(
+		struct wlr_linux_dmabuf_v1 *linux_dmabuf,
+		struct wlr_surface *wlr_surface) {
+	struct wlr_addon *addon =
+		wlr_addon_find(&wlr_surface->addons, linux_dmabuf, &surface_addon_impl);
+	if (addon != NULL) {
+		struct wlr_linux_dmabuf_v1_surface *surface =
+			wl_container_of(addon, surface, addon);
+		return surface;
+	}
+
+	struct wlr_linux_dmabuf_v1_surface *surface = calloc(1, sizeof(*surface));
+	if (surface == NULL) {
+		return NULL;
+	}
+
+	surface->surface = wlr_surface;
+	surface->linux_dmabuf = linux_dmabuf;
+	wl_list_init(&surface->feedback_resources);
+	wlr_addon_init(&surface->addon, &wlr_surface->addons, linux_dmabuf,
+		&surface_addon_impl);
+	wl_list_insert(&linux_dmabuf->surfaces, &surface->link);
+
+	return surface;
+}
+
+static const struct wlr_linux_dmabuf_feedback_v1_compiled *surface_get_feedback(
+		struct wlr_linux_dmabuf_v1_surface *surface) {
+	if (surface->feedback != NULL) {
+		return surface->feedback;
+	}
+	return surface->linux_dmabuf->default_feedback;
+}
+
+static void surface_feedback_handle_resource_destroy(struct wl_resource *resource) {
+	wl_list_remove(wl_resource_get_link(resource));
+}
+
 static void linux_dmabuf_get_surface_feedback(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id,
 		struct wl_resource *surface_resource) {
-	// TODO: implement per-surface feedback
-	linux_dmabuf_get_default_feedback(client, resource, id);
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
+		linux_dmabuf_from_resource(resource);
+	struct wlr_surface *wlr_surface = wlr_surface_from_resource(surface_resource);
+
+	struct wlr_linux_dmabuf_v1_surface *surface =
+		surface_get_or_create(linux_dmabuf, wlr_surface);
+	if (surface == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+
+	uint32_t version = wl_resource_get_version(resource);
+	struct wl_resource *feedback_resource = wl_resource_create(client,
+		&zwp_linux_dmabuf_feedback_v1_interface, version, id);
+	if (feedback_resource == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+	wl_resource_set_implementation(feedback_resource, &linux_dmabuf_feedback_impl,
+		NULL, surface_feedback_handle_resource_destroy);
+	wl_list_insert(&surface->feedback_resources, wl_resource_get_link(feedback_resource));
+
+	feedback_send(surface_get_feedback(surface), feedback_resource);
 }
 
 static void linux_dmabuf_destroy(struct wl_client *client,
@@ -736,6 +912,11 @@ static void linux_dmabuf_bind(struct wl_client *client, void *data,
 static void linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf) {
 	wlr_signal_emit_safe(&linux_dmabuf->events.destroy, linux_dmabuf);
 
+	struct wlr_linux_dmabuf_v1_surface *surface, *surface_tmp;
+	wl_list_for_each_safe(surface, surface_tmp, &linux_dmabuf->surfaces, link) {
+		surface_destroy(surface);
+	}
+
 	compiled_feedback_destroy(linux_dmabuf->default_feedback);
 
 	wl_list_remove(&linux_dmabuf->display_destroy.link);
@@ -767,6 +948,7 @@ struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *displa
 	}
 	linux_dmabuf->renderer = renderer;
 
+	wl_list_init(&linux_dmabuf->surfaces);
 	wl_signal_init(&linux_dmabuf->events.destroy);
 
 	linux_dmabuf->global =
@@ -793,4 +975,33 @@ struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *displa
 	wl_signal_add(&renderer->events.destroy, &linux_dmabuf->renderer_destroy);
 
 	return linux_dmabuf;
+}
+
+bool wlr_linux_dmabuf_v1_set_surface_feedback(
+		struct wlr_linux_dmabuf_v1 *linux_dmabuf,
+		struct wlr_surface *wlr_surface,
+		const struct wlr_linux_dmabuf_feedback_v1 *feedback) {
+	struct wlr_linux_dmabuf_v1_surface *surface =
+		surface_get_or_create(linux_dmabuf, wlr_surface);
+	if (surface == NULL) {
+		return false;
+	}
+
+	struct wlr_linux_dmabuf_feedback_v1_compiled *compiled = NULL;
+	if (feedback != NULL) {
+		compiled = feedback_compile(feedback);
+		if (compiled == NULL) {
+			return false;
+		}
+	}
+
+	compiled_feedback_destroy(surface->feedback);
+	surface->feedback = compiled;
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &surface->feedback_resources) {
+		feedback_send(surface_get_feedback(surface), resource);
+	}
+
+	return true;
 }

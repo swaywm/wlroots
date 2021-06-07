@@ -15,6 +15,8 @@
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/render/dmabuf.h>
 
+struct wlr_surface;
+
 struct wlr_dmabuf_v1_buffer {
 	struct wlr_buffer base;
 
@@ -63,6 +65,7 @@ struct wlr_linux_dmabuf_v1 {
 	// private state
 
 	struct wlr_linux_dmabuf_feedback_v1_compiled *default_feedback;
+	struct wl_list surfaces; // wlr_linux_dmabuf_v1_surface.link
 
 	struct wl_listener display_destroy;
 	struct wl_listener renderer_destroy;
@@ -73,5 +76,14 @@ struct wlr_linux_dmabuf_v1 {
  */
 struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *display,
 	struct wlr_renderer *renderer);
+
+/**
+ * Set a surface's DMA-BUF feedback.
+ *
+ * Passing a NULL feedback resets it to the default feedback.
+ */
+bool wlr_linux_dmabuf_v1_set_surface_feedback(
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf, struct wlr_surface *surface,
+	const struct wlr_linux_dmabuf_feedback_v1 *feedback);
 
 #endif
