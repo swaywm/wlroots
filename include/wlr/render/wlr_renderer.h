@@ -99,11 +99,17 @@ bool wlr_renderer_read_pixels(struct wlr_renderer *r, uint32_t fmt,
 	uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y, void *data);
 
 /**
- * Creates necessary shm and invokes the initialization of the implementation.
+ * Initializes wl_shm, linux-dmabuf and other buffer factory protocols.
  *
  * Returns false on failure.
  */
 bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
+	struct wl_display *wl_display);
+
+/**
+ * Initializes wl_shm on the provided wl_display.
+ */
+bool wlr_renderer_init_wl_shm(struct wlr_renderer *r,
 	struct wl_display *wl_display);
 
 /**
