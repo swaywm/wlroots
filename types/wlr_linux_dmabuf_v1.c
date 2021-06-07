@@ -3,12 +3,11 @@
 #include <drm_fourcc.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/stat.h>
-#include <wlr/render/drm_format_set.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include "linux-dmabuf-unstable-v1-protocol.h"
+#include "render/drm_format_set.h"
 #include "util/signal.h"
 
 #define LINUX_DMABUF_VERSION 4
@@ -410,6 +409,113 @@ static const struct zwp_linux_dmabuf_hints_v1_interface
 	.destroy = linux_dmabuf_hints_destroy,
 };
 
+static bool hints_tranche_init_with_renderer(
+		struct wlr_linux_dmabuf_hints_v1_tranche *tranche,
+		struct wlr_renderer *renderer) {
+	memset(tranche, 0, sizeof(*tranche));
+
+	int drm_fd = wlr_renderer_get_drm_fd(renderer);
+	if (drm_fd < 0) {
+		wlr_log(WLR_ERROR, "Failed to get DRM FD from renderer");
+		return false;
+	}
+
+	struct stat stat;
+	if (fstat(drm_fd, &stat) != 0) {
+		wlr_log_errno(WLR_ERROR, "fstat failed");
+		return false;
+	}
+	tranche->target_device = stat.st_rdev;
+
+	const struct wlr_drm_format_set *formats =
+		wlr_renderer_get_dmabuf_texture_formats(renderer);
+	if (formats == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get renderer DMA-BUF texture formats");
+		return false;
+	}
+
+	if (!wlr_drm_format_set_copy(&tranche->formats, formats)) {
+		wlr_log(WLR_ERROR, "Failed to copy DRM format set");
+		return false;
+	}
+
+	return true;
+}
+
+static bool hints_init_with_renderer(struct wlr_linux_dmabuf_hints_v1 *hints,
+		struct wlr_renderer *renderer) {
+	memset(hints, 0, sizeof(*hints));
+
+	struct wlr_linux_dmabuf_hints_v1_tranche *tranche =
+		calloc(1, sizeof(*tranche));
+	if (tranche == NULL) {
+		return false;
+	}
+
+	if (!hints_tranche_init_with_renderer(tranche, renderer)) {
+		free(tranche);
+		return false;
+	}
+
+	hints->main_device = tranche->target_device;
+	hints->tranches = tranche;
+	hints->tranches_len = 1;
+
+	return true;
+}
+
+static void hints_finish(struct wlr_linux_dmabuf_hints_v1 *hints) {
+	for (size_t i = 0; i < hints->tranches_len; i++) {
+		struct wlr_linux_dmabuf_hints_v1_tranche *tranche = &hints->tranches[i];
+		wlr_drm_format_set_finish(&tranche->formats);
+	}
+	free(hints->tranches);
+}
+
+static void hints_tranche_send(
+		const struct wlr_linux_dmabuf_hints_v1_tranche *tranche,
+		struct wl_resource *resource) {
+	struct wl_array dev_array = {
+		.size = sizeof(tranche->target_device),
+		.data = (void *)&tranche->target_device,
+	};
+	zwp_linux_dmabuf_hints_v1_send_tranche_target_device(resource, &dev_array);
+
+	zwp_linux_dmabuf_hints_v1_send_tranche_flags(resource, tranche->flags);
+
+	for (size_t i = 0; i < tranche->formats.len; i++) {
+		const struct wlr_drm_format *fmt = tranche->formats.formats[i];
+
+		// We always support buffers with an implicit modifier
+		zwp_linux_dmabuf_hints_v1_send_tranche_modifier(resource, fmt->format,
+			DRM_FORMAT_MOD_INVALID >> 32, DRM_FORMAT_MOD_INVALID & 0xFFFFFFFF);
+
+		for (size_t j = 0; j < fmt->len; j++) {
+			uint32_t modifier_lo = fmt->modifiers[j] & 0xFFFFFFFF;
+			uint32_t modifier_hi = fmt->modifiers[j] >> 32;
+			zwp_linux_dmabuf_hints_v1_send_tranche_modifier(resource,
+				fmt->format, modifier_hi, modifier_lo);
+		}
+	}
+
+	zwp_linux_dmabuf_hints_v1_send_tranche_done(resource);
+}
+
+static void hints_send(const struct wlr_linux_dmabuf_hints_v1 *hints,
+		struct wl_resource *resource) {
+	struct wl_array dev_array = {
+		.size = sizeof(hints->main_device),
+		.data = (void *)&hints->main_device,
+	};
+	zwp_linux_dmabuf_hints_v1_send_main_device(resource, &dev_array);
+
+	for (size_t i = 0; i < hints->tranches_len; i++) {
+		hints_tranche_send(&hints->tranches[i], resource);
+	}
+
+	zwp_linux_dmabuf_hints_v1_send_done(resource);
+}
+
 static void linux_dmabuf_get_default_hints(struct wl_client *client,
 		struct wl_resource *resource, uint32_t id) {
 	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
@@ -425,62 +531,7 @@ static void linux_dmabuf_get_default_hints(struct wl_client *client,
 	wl_resource_set_implementation(hints_resource, &linux_dmabuf_hints_impl,
 		NULL, NULL);
 
-	int drm_fd = wlr_renderer_get_drm_fd(linux_dmabuf->renderer);
-	if (drm_fd < 0) {
-		wlr_log(WLR_ERROR, "Failed to get DRM FD from renderer");
-		return;
-	}
-
-	struct stat stat;
-	if (fstat(drm_fd, &stat) != 0) {
-		wlr_log_errno(WLR_ERROR, "fstat failed");
-		return;
-	}
-
-	struct wl_array dev_array = {
-		.size = sizeof(stat.st_rdev),
-		.data = &stat.st_rdev,
-	};
-
-	zwp_linux_dmabuf_hints_v1_send_main_device(hints_resource, &dev_array);
-
-	zwp_linux_dmabuf_hints_v1_send_tranche_target_device(hints_resource,
-		&dev_array);
-
-	zwp_linux_dmabuf_hints_v1_send_tranche_flags(hints_resource, 0);
-
-	const struct wlr_drm_format_set *formats =
-		wlr_renderer_get_dmabuf_texture_formats(linux_dmabuf->renderer);
-	if (formats == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get renderer DMA-BUF texture formats");
-		return;
-	}
-
-	for (size_t i = 0; i < formats->len; i++) {
-		struct wlr_drm_format *fmt = formats->formats[i];
-
-		size_t modifiers_len = fmt->len;
-		const uint64_t *modifiers = fmt->modifiers;
-
-		uint64_t modifier_invalid = DRM_FORMAT_MOD_INVALID;
-		if (modifiers_len == 0) {
-			// Send DRM_FORMAT_MOD_INVALID token when no modifiers are supported
-			// for this format
-			modifiers_len = 1;
-			modifiers = &modifier_invalid;
-		}
-
-		for (size_t j = 0; j < modifiers_len; j++) {
-			uint32_t modifier_lo = modifiers[j] & 0xFFFFFFFF;
-			uint32_t modifier_hi = modifiers[j] >> 32;
-			zwp_linux_dmabuf_hints_v1_send_tranche_modifier(hints_resource,
-				fmt->format, modifier_hi, modifier_lo);
-		}
-	}
-
-	zwp_linux_dmabuf_hints_v1_send_tranche_done(hints_resource);
-
-	zwp_linux_dmabuf_hints_v1_send_done(hints_resource);
+	hints_send(&linux_dmabuf->default_hints, hints_resource);
 }
 
 static void linux_dmabuf_get_surface_hints(struct wl_client *client,
@@ -552,6 +603,8 @@ static void linux_dmabuf_bind(struct wl_client *client, void *data,
 static void linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf) {
 	wlr_signal_emit_safe(&linux_dmabuf->events.destroy, linux_dmabuf);
 
+	hints_finish(&linux_dmabuf->default_hints);
+
 	wl_list_remove(&linux_dmabuf->display_destroy.link);
 	wl_list_remove(&linux_dmabuf->renderer_destroy.link);
 
@@ -588,6 +641,13 @@ struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *displa
 			LINUX_DMABUF_VERSION, linux_dmabuf, linux_dmabuf_bind);
 	if (!linux_dmabuf->global) {
 		wlr_log(WLR_ERROR, "could not create linux dmabuf v1 wl global");
+		free(linux_dmabuf);
+		return NULL;
+	}
+
+	if (!hints_init_with_renderer(&linux_dmabuf->default_hints, renderer)) {
+		wlr_log(WLR_ERROR, "Failed to init default linux-dmabuf hints");
+		wl_global_destroy(linux_dmabuf->global);
 		free(linux_dmabuf);
 		return NULL;
 	}

@@ -10,9 +10,11 @@
 #define WLR_TYPES_WLR_LINUX_DMABUF_H
 
 #include <stdint.h>
+#include <sys/stat.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/render/dmabuf.h>
+#include <wlr/render/drm_format_set.h>
 
 struct wlr_dmabuf_v1_buffer {
 	struct wlr_buffer base;
@@ -43,6 +45,18 @@ struct wlr_linux_buffer_params_v1 {
 	bool has_modifier;
 };
 
+struct wlr_linux_dmabuf_hints_v1 {
+	dev_t main_device;
+	size_t tranches_len;
+	struct wlr_linux_dmabuf_hints_v1_tranche *tranches;
+};
+
+struct wlr_linux_dmabuf_hints_v1_tranche {
+	dev_t target_device;
+	uint32_t flags; // bitfield of enum zwp_linux_dmabuf_hints_v1_tranche_flags
+	struct wlr_drm_format_set formats;
+};
+
 /* the protocol interface */
 struct wlr_linux_dmabuf_v1 {
 	struct wl_global *global;
@@ -51,6 +65,10 @@ struct wlr_linux_dmabuf_v1 {
 	struct {
 		struct wl_signal destroy;
 	} events;
+
+	// private state
+
+	struct wlr_linux_dmabuf_hints_v1 default_hints;
 
 	struct wl_listener display_destroy;
 	struct wl_listener renderer_destroy;
