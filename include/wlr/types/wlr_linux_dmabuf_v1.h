@@ -16,6 +16,8 @@
 #include <wlr/render/dmabuf.h>
 #include <wlr/render/drm_format_set.h>
 
+struct wlr_surface;
+
 struct wlr_dmabuf_v1_buffer {
 	struct wlr_buffer base;
 
@@ -69,6 +71,7 @@ struct wlr_linux_dmabuf_v1 {
 	// private state
 
 	struct wlr_linux_dmabuf_hints_v1 default_hints;
+	struct wl_list surfaces; // wlr_linux_dmabuf_v1_surface.link
 
 	struct wl_listener display_destroy;
 	struct wl_listener renderer_destroy;
@@ -79,5 +82,14 @@ struct wlr_linux_dmabuf_v1 {
  */
 struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *display,
 	struct wlr_renderer *renderer);
+
+/**
+ * Set a surface's DMA-BUF hints.
+ *
+ * Passing a NULL hints resets it to the default hints.
+ */
+bool wlr_linux_dmabuf_v1_set_surface_hints(
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf, struct wlr_surface *surface,
+	const struct wlr_linux_dmabuf_hints_v1 *hints);
 
 #endif
