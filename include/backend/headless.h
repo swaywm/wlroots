@@ -25,8 +25,6 @@ struct wlr_headless_output {
 	struct wlr_headless_backend *backend;
 	struct wl_list link;
 
-	struct wlr_buffer *front_buffer;
-
 	struct wl_event_source *frame_timer;
 	int frame_delay; // ms
 };
