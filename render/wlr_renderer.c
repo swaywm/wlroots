@@ -49,8 +49,7 @@ void wlr_renderer_destroy(struct wlr_renderer *r) {
 	}
 }
 
-bool wlr_renderer_bind_buffer(struct wlr_renderer *r,
-		struct wlr_buffer *buffer) {
+bool renderer_bind_buffer(struct wlr_renderer *r, struct wlr_buffer *buffer) {
 	assert(!r->rendering);
 	if (!r->impl->bind_buffer) {
 		return false;
@@ -68,7 +67,7 @@ void wlr_renderer_begin(struct wlr_renderer *r, uint32_t width, uint32_t height)
 
 bool wlr_renderer_begin_with_buffer(struct wlr_renderer *r,
 		struct wlr_buffer *buffer) {
-	if (!wlr_renderer_bind_buffer(r, buffer)) {
+	if (!renderer_bind_buffer(r, buffer)) {
 		return false;
 	}
 	wlr_renderer_begin(r, buffer->width, buffer->height);
@@ -86,7 +85,7 @@ void wlr_renderer_end(struct wlr_renderer *r) {
 	r->rendering = false;
 
 	if (r->rendering_with_buffer) {
-		wlr_renderer_bind_buffer(r, NULL);
+		renderer_bind_buffer(r, NULL);
 		r->rendering_with_buffer = false;
 	}
 }

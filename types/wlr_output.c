@@ -533,7 +533,7 @@ static bool output_attach_back_buffer(struct wlr_output *output,
 		return false;
 	}
 
-	if (!wlr_renderer_bind_buffer(renderer, buffer)) {
+	if (!renderer_bind_buffer(renderer, buffer)) {
 		wlr_buffer_unlock(buffer);
 		return false;
 	}
@@ -550,7 +550,7 @@ static void output_clear_back_buffer(struct wlr_output *output) {
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	assert(renderer != NULL);
 
-	wlr_renderer_bind_buffer(renderer, NULL);
+	renderer_bind_buffer(renderer, NULL);
 
 	wlr_buffer_unlock(output->back_buffer);
 	output->back_buffer = NULL;
