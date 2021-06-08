@@ -16,11 +16,11 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/interfaces/wlr_touch.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 
 #include "backend/x11.h"
-#include "render/wlr_renderer.h"
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
 #include "util/time.h"
@@ -390,12 +390,13 @@ static bool output_cursor_to_picture(struct wlr_x11_output *output,
 	int depth = 32;
 	int stride = buffer->width * 4;
 
-	if (!wlr_renderer_bind_buffer(renderer, buffer)) {
+	uint8_t *data = malloc(buffer->height * stride);
+	if (data == NULL) {
 		return false;
 	}
 
-	uint8_t *data = malloc(buffer->height * stride);
-	if (data == NULL) {
+	if (!wlr_renderer_begin_with_buffer(renderer, buffer)) {
+		free(data);
 		return false;
 	}
 
@@ -404,7 +405,7 @@ static bool output_cursor_to_picture(struct wlr_x11_output *output,
 		stride, buffer->width, buffer->height, 0, 0, 0, 0,
 		data);
 
-	wlr_renderer_bind_buffer(renderer, NULL);
+	wlr_renderer_end(renderer);
 
 	if (!result) {
 		free(data);
