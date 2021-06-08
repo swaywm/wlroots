@@ -355,7 +355,7 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 		return;
 	}
 
-	if (surface->buffer != NULL && surface->buffer->resource_released) {
+	if (surface->buffer != NULL) {
 		struct wlr_client_buffer *updated_buffer =
 			wlr_client_buffer_apply_damage(surface->buffer, resource,
 			&surface->buffer_damage);

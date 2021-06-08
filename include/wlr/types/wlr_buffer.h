@@ -123,17 +123,12 @@ struct wlr_client_buffer {
 	 */
 	struct wl_resource *resource;
 	/**
-	 * Whether a release event has been sent to the resource.
-	 */
-	bool resource_released;
-	/**
 	 * The buffer's texture, if any. A buffer will not have a texture if the
 	 * client destroys the buffer before it has been released.
 	 */
 	struct wlr_texture *texture;
 
 	struct wl_listener resource_destroy;
-	struct wl_listener release;
 };
 
 struct wlr_renderer;
