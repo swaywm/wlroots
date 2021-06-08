@@ -390,6 +390,9 @@ void wlr_output_destroy(struct wlr_output *output) {
 		return;
 	}
 
+	wlr_buffer_unlock(output->front_buffer);
+	output->front_buffer = NULL;
+
 	wl_list_remove(&output->display_destroy.link);
 	wlr_output_destroy_global(output);
 	output_clear_back_buffer(output);
@@ -790,6 +793,15 @@ bool wlr_output_commit(struct wlr_output *output) {
 		wlr_output_schedule_done(output);
 	}
 
+	// Unset the front-buffer when a new buffer will replace it or when the
+	// output is getting disabled
+	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) ||
+			((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) &&
+				!output->pending.enabled)) {
+		wlr_buffer_unlock(output->front_buffer);
+		output->front_buffer = NULL;
+	}
+
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		output->frame_pending = true;
 		output->needs_frame = false;
@@ -797,7 +809,8 @@ bool wlr_output_commit(struct wlr_output *output) {
 
 	if (back_buffer != NULL) {
 		wlr_swapchain_set_buffer_submitted(output->swapchain, back_buffer);
-		wlr_buffer_unlock(back_buffer);
+		wlr_buffer_unlock(output->front_buffer);
+		output->front_buffer = back_buffer;
 	}
 
 	uint32_t committed = output->pending.committed;
@@ -913,10 +926,19 @@ size_t wlr_output_get_gamma_size(struct wlr_output *output) {
 
 bool wlr_output_export_dmabuf(struct wlr_output *output,
 		struct wlr_dmabuf_attributes *attribs) {
-	if (!output->impl->export_dmabuf) {
+	if (output->impl->export_dmabuf) {
+		return output->impl->export_dmabuf(output, attribs);
+	}
+
+	if (output->front_buffer == NULL) {
 		return false;
 	}
-	return output->impl->export_dmabuf(output, attribs);
+
+	struct wlr_dmabuf_attributes buf_attribs = {0};
+	if (!wlr_buffer_get_dmabuf(output->front_buffer, &buf_attribs)) {
+		return false;
+	}
+	return wlr_dmabuf_attributes_copy(attribs, &buf_attribs);
 }
 
 void wlr_output_update_needs_frame(struct wlr_output *output) {
