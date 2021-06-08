@@ -329,21 +329,6 @@ static struct wlr_drm_connector *get_drm_connector_from_output(
 	return (struct wlr_drm_connector *)wlr_output;
 }
 
-static bool drm_connector_attach_render(struct wlr_output *output,
-		int *buffer_age) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	return drm_surface_make_current(&conn->crtc->primary->surf, buffer_age);
-}
-
-static void drm_plane_set_committed(struct wlr_drm_plane *plane) {
-	drm_fb_move(&plane->queued_fb, &plane->pending_fb);
-
-	if (plane->queued_fb && plane->surf.swapchain) {
-		wlr_swapchain_set_buffer_submitted(plane->surf.swapchain,
-			plane->queued_fb->wlr_buf);
-	}
-}
-
 static bool drm_crtc_commit(struct wlr_drm_connector *conn,
 		const struct wlr_output_state *state, uint32_t flags, bool test_only) {
 	// Disallow atomic-only flags
@@ -353,9 +338,9 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn,
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	bool ok = drm->iface->crtc_commit(conn, state, flags, test_only);
 	if (ok && !test_only) {
-		drm_plane_set_committed(crtc->primary);
+		drm_fb_move(&crtc->primary->queued_fb, &crtc->primary->pending_fb);
 		if (crtc->cursor != NULL) {
-			drm_plane_set_committed(crtc->cursor);
+			drm_fb_move(&crtc->cursor->queued_fb, &crtc->cursor->pending_fb);
 		}
 	} else {
 		drm_fb_clear(&crtc->primary->pending_fb);
@@ -411,21 +396,37 @@ static bool drm_connector_set_pending_fb(struct wlr_drm_connector *conn,
 	struct wlr_drm_plane *plane = crtc->primary;
 
 	assert(state->committed & WLR_OUTPUT_STATE_BUFFER);
-	switch (state->buffer_type) {
-	case WLR_OUTPUT_STATE_BUFFER_RENDER:
-		if (!drm_plane_lock_surface(plane, drm)) {
-			wlr_drm_conn_log(conn, WLR_ERROR, "drm_plane_lock_surface failed");
+	assert(state->buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT);
+
+	struct wlr_buffer *local_buf;
+	if (drm->parent) {
+		struct wlr_drm_format *format =
+			drm_plane_pick_render_format(plane, &drm->renderer);
+		if (format == NULL) {
+			wlr_log(WLR_ERROR, "Failed to pick primary plane format");
 			return false;
 		}
-		break;
-	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:;
-		if (!drm_fb_import(&plane->pending_fb, drm, state->buffer,
-				&crtc->primary->formats)) {
-			wlr_drm_conn_log(conn, WLR_DEBUG,
-				"Failed to import buffer for scan-out");
+
+		// TODO: fallback to modifier-less buffer allocation
+		bool ok = init_drm_surface(&plane->mgpu_surf, &drm->renderer,
+			state->buffer->width, state->buffer->height, format);
+		free(format);
+		if (!ok) {
 			return false;
 		}
-		break;
+
+		local_buf = drm_surface_blit(&plane->mgpu_surf, state->buffer);
+	} else {
+		local_buf = wlr_buffer_lock(state->buffer);
+	}
+
+	bool ok = drm_fb_import(&plane->pending_fb, drm, local_buf,
+		&crtc->primary->formats);
+	wlr_buffer_unlock(local_buf);
+	if (!ok) {
+		wlr_drm_conn_log(conn, WLR_DEBUG,
+			"Failed to import buffer for scan-out");
+		return false;
 	}
 
 	return true;
@@ -572,11 +573,6 @@ static bool drm_connector_commit(struct wlr_output *output) {
 	return drm_connector_commit_state(conn, &output->pending);
 }
 
-static void drm_connector_rollback_render(struct wlr_output *output) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	return drm_surface_unset_current(&conn->crtc->primary->surf);
-}
-
 size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 		struct wlr_drm_crtc *crtc) {
 	if (crtc->props.gamma_lut_size == 0 || drm->iface == &legacy_iface) {
@@ -615,34 +611,6 @@ struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
 	return plane->current_fb;
 }
 
-static bool drm_connector_test_renderer(struct wlr_drm_connector *conn,
-		const struct wlr_output_state *state) {
-	struct wlr_drm_backend *drm = conn->backend;
-
-	if (drm->iface == &legacy_iface) {
-		return true;
-	}
-
-	struct wlr_drm_plane *plane = conn->crtc->primary;
-
-	struct wlr_drm_fb *prev_fb = NULL;
-	drm_fb_move(&prev_fb, &plane->pending_fb);
-
-	bool ok = false;
-	if (!drm_surface_render_black_frame(&plane->surf)) {
-		goto out;
-	}
-	if (!drm_plane_lock_surface(plane, drm)) {
-		goto out;
-	}
-
-	ok = drm_crtc_commit(conn, state, 0, true);
-
-out:
-	drm_fb_move(&plane->pending_fb, &prev_fb);
-	return ok;
-}
-
 static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 		const struct wlr_output_state *state) {
 	struct wlr_drm_backend *drm = conn->backend;
@@ -654,37 +622,33 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 
 	assert(conn->crtc != NULL);
 
-	wlr_drm_conn_log(conn, WLR_DEBUG, "Initializing renderer");
+	if (drm->parent) {
+		wlr_drm_conn_log(conn, WLR_DEBUG, "Initializing multi-GPU renderer");
 
-	drmModeModeInfo mode = {0};
-	drm_connector_state_mode(conn, state, &mode);
+		drmModeModeInfo mode = {0};
+		drm_connector_state_mode(conn, state, &mode);
 
-	struct wlr_drm_plane *plane = conn->crtc->primary;
-	int width = mode.hdisplay;
-	int height = mode.vdisplay;
+		struct wlr_drm_plane *plane = conn->crtc->primary;
+		int width = mode.hdisplay;
+		int height = mode.vdisplay;
 
-	if (drm->addfb2_modifiers) {
-		// Modifiers are supported, try to use them
-		if (drm_plane_init_surface(plane, drm, width, height, true) &&
-				drm_connector_test_renderer(conn, state)) {
-			return true;
+		struct wlr_drm_format *format =
+			drm_plane_pick_render_format(plane, &drm->renderer);
+		if (format == NULL) {
+			wlr_log(WLR_ERROR, "Failed to pick primary plane format");
+			return false;
 		}
 
-		// If page-flipping with modifiers enabled doesn't work, retry without
-		// modifiers
-		wlr_drm_conn_log(conn, WLR_INFO,
-			"Page-flip failed with primary FB modifiers enabled, "
-			"retrying without modifiers");
+		// TODO: fallback to modifier-less buffer allocation
+		bool ok = init_drm_surface(&plane->mgpu_surf, &drm->renderer,
+			width, height, format);
+		free(format);
+		if (!ok) {
+			return false;
+		}
 	}
 
-	if (drm_plane_init_surface(plane, drm, width, height, false) &&
-			drm_connector_test_renderer(conn, state)) {
-		return true;
-	}
-
-	wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer: "
-		"initial page-flip failed");
-	return false;
+	return true;
 }
 
 static void realloc_crtcs(struct wlr_drm_backend *drm);
@@ -778,12 +742,8 @@ static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 	// drm_crtc_page_flip expects a FB to be available
 	struct wlr_drm_plane *plane = conn->crtc->primary;
 	if (!plane_get_next_fb(plane)) {
-		if (!drm_surface_render_black_frame(&plane->surf)) {
-			return false;
-		}
-		if (!drm_plane_lock_surface(plane, drm)) {
-			return false;
-		}
+		wlr_drm_conn_log(conn, WLR_ERROR, "Missing FB in modeset");
+		return false;
 	}
 
 	if (!drm_crtc_page_flip(conn, state)) {
@@ -1023,10 +983,8 @@ static const struct wlr_output_impl output_impl = {
 	.set_cursor = drm_connector_set_cursor,
 	.move_cursor = drm_connector_move_cursor,
 	.destroy = drm_connector_destroy_output,
-	.attach_render = drm_connector_attach_render,
 	.test = drm_connector_test,
 	.commit = drm_connector_commit,
-	.rollback_render = drm_connector_rollback_render,
 	.get_gamma_size = drm_connector_get_gamma_size,
 	.get_cursor_formats = drm_connector_get_cursor_formats,
 	.get_cursor_size = drm_connector_get_cursor_size,
