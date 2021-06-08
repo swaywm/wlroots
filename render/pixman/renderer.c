@@ -510,7 +510,7 @@ static bool pixman_read_pixels(struct wlr_renderer *wlr_renderer,
 	return true;
 }
 
-static uint32_t pixman_get_render_buffer_caps(void) {
+static uint32_t pixman_get_render_buffer_caps(struct wlr_renderer *renderer) {
 	return WLR_BUFFER_CAP_DATA_PTR;
 }
 

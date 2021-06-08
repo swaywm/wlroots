@@ -524,7 +524,7 @@ static int gles2_get_drm_fd(struct wlr_renderer *wlr_renderer) {
 	return renderer->drm_fd;
 }
 
-static uint32_t gles2_get_render_buffer_caps(void) {
+static uint32_t gles2_get_render_buffer_caps(struct wlr_renderer *wlr_renderer) {
 	return WLR_BUFFER_CAP_DMABUF;
 }
 

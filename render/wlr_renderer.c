@@ -194,7 +194,7 @@ const struct wlr_drm_format_set *wlr_renderer_get_render_formats(
 }
 
 uint32_t renderer_get_render_buffer_caps(struct wlr_renderer *r) {
-	return r->impl->get_render_buffer_caps();
+	return r->impl->get_render_buffer_caps(r);
 }
 
 bool wlr_renderer_read_pixels(struct wlr_renderer *r, uint32_t fmt,

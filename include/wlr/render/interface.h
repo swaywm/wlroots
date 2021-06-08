@@ -56,7 +56,7 @@ struct wlr_renderer_impl {
 	bool (*init_wl_display)(struct wlr_renderer *renderer,
 		struct wl_display *wl_display);
 	int (*get_drm_fd)(struct wlr_renderer *renderer);
-	uint32_t (*get_render_buffer_caps)(void);
+	uint32_t (*get_render_buffer_caps)(struct wlr_renderer *renderer);
 	struct wlr_texture *(*texture_from_buffer)(struct wlr_renderer *renderer,
 		struct wlr_buffer *buffer);
 };
