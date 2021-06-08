@@ -198,7 +198,7 @@ struct wlr_client_buffer *wlr_client_buffer_import(
 		struct wlr_renderer *renderer, struct wl_resource *resource) {
 	assert(wlr_resource_is_buffer(resource));
 
-	struct wlr_texture *texture = NULL;
+	struct wlr_buffer *buffer;
 	if (wl_shm_buffer_get(resource) != NULL) {
 		struct wlr_shm_client_buffer *shm_client_buffer =
 			shm_client_buffer_create(resource);
@@ -208,21 +208,16 @@ struct wlr_client_buffer *wlr_client_buffer_import(
 		}
 
 		// Ensure the buffer will be released before being destroyed
-		wlr_buffer_lock(&shm_client_buffer->base);
+		buffer = wlr_buffer_lock(&shm_client_buffer->base);
 		wlr_buffer_drop(&shm_client_buffer->base);
-
-		texture = wlr_texture_from_buffer(renderer, &shm_client_buffer->base);
-
-		// The renderer should've locked the buffer by now if necessary
-		wlr_buffer_unlock(&shm_client_buffer->base);
 	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
 		struct wlr_dmabuf_v1_buffer *dmabuf =
 			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
-		texture = wlr_texture_from_buffer(renderer, &dmabuf->base);
+		buffer = wlr_buffer_lock(&dmabuf->base);
 	} else if (wlr_drm_buffer_is_resource(resource)) {
 		struct wlr_drm_buffer *drm_buffer =
 			wlr_drm_buffer_from_resource(resource);
-		texture = wlr_texture_from_buffer(renderer, &drm_buffer->base);
+		buffer = wlr_buffer_lock(&drm_buffer->base);
 	} else {
 		wlr_log(WLR_ERROR, "Cannot upload texture: unknown buffer type");
 
@@ -232,32 +227,34 @@ struct wlr_client_buffer *wlr_client_buffer_import(
 		return NULL;
 	}
 
+	struct wlr_texture *texture = wlr_texture_from_buffer(renderer, buffer);
+	wlr_buffer_unlock(buffer);
 	if (texture == NULL) {
-		wlr_log(WLR_ERROR, "Failed to upload texture");
+		wlr_log(WLR_ERROR, "Failed to create texture");
 		wl_buffer_send_release(resource);
 		return NULL;
 	}
 
-	struct wlr_client_buffer *buffer =
+	struct wlr_client_buffer *client_buffer =
 		calloc(1, sizeof(struct wlr_client_buffer));
-	if (buffer == NULL) {
+	if (client_buffer == NULL) {
 		wlr_texture_destroy(texture);
 		wl_resource_post_no_memory(resource);
 		return NULL;
 	}
-	wlr_buffer_init(&buffer->base, &client_buffer_impl,
+	wlr_buffer_init(&client_buffer->base, &client_buffer_impl,
 		texture->width, texture->height);
-	buffer->resource = resource;
-	buffer->texture = texture;
+	client_buffer->resource = resource;
+	client_buffer->texture = texture;
 
-	wl_resource_add_destroy_listener(resource, &buffer->resource_destroy);
-	buffer->resource_destroy.notify = client_buffer_resource_handle_destroy;
+	wl_resource_add_destroy_listener(resource, &client_buffer->resource_destroy);
+	client_buffer->resource_destroy.notify = client_buffer_resource_handle_destroy;
 
 	// Ensure the buffer will be released before being destroyed
-	wlr_buffer_lock(&buffer->base);
-	wlr_buffer_drop(&buffer->base);
+	wlr_buffer_lock(&client_buffer->base);
+	wlr_buffer_drop(&client_buffer->base);
 
-	return buffer;
+	return client_buffer;
 }
 
 struct wlr_client_buffer *wlr_client_buffer_apply_damage(
