@@ -176,20 +176,7 @@ void drm_plane_finish_surface(struct wlr_drm_plane *plane) {
 	drm_fb_clear(&plane->queued_fb);
 	drm_fb_clear(&plane->current_fb);
 
-	finish_drm_surface(&plane->surf);
 	finish_drm_surface(&plane->mgpu_surf);
-}
-
-static struct wlr_drm_format *create_linear_format(uint32_t format) {
-	struct wlr_drm_format *fmt = wlr_drm_format_create(format);
-	if (fmt == NULL) {
-		return NULL;
-	}
-	if (!wlr_drm_format_add(&fmt, DRM_FORMAT_MOD_LINEAR)) {
-		free(fmt);
-		return NULL;
-	}
-	return fmt;
 }
 
 struct wlr_drm_format *drm_plane_pick_render_format(
@@ -238,53 +225,6 @@ struct wlr_drm_format *drm_plane_pick_render_format(
 	return format;
 }
 
-bool drm_plane_init_surface(struct wlr_drm_plane *plane,
-		struct wlr_drm_backend *drm, int32_t width, uint32_t height,
-		bool with_modifiers) {
-	struct wlr_drm_format *format =
-		drm_plane_pick_render_format(plane, &drm->renderer);
-	if (format == NULL) {
-		wlr_log(WLR_ERROR, "Failed to pick render format for plane %"PRIu32,
-			plane->id);
-		return false;
-	}
-
-	if (!with_modifiers) {
-		struct wlr_drm_format *format_implicit_modifier =
-			wlr_drm_format_create(format->format);
-		free(format);
-		format = format_implicit_modifier;
-	}
-
-	drm_plane_finish_surface(plane);
-
-	bool ok = true;
-	if (!drm->parent) {
-		ok = init_drm_surface(&plane->surf, &drm->renderer,
-			width, height, format);
-	} else {
-		struct wlr_drm_format *format_linear = create_linear_format(format->format);
-		if (format_linear == NULL) {
-			free(format);
-			return false;
-		}
-
-		ok = init_drm_surface(&plane->surf, &drm->parent->renderer,
-			width, height, format_linear);
-		free(format_linear);
-
-		if (ok && !init_drm_surface(&plane->mgpu_surf, &drm->renderer,
-				width, height, format)) {
-			finish_drm_surface(&plane->surf);
-			ok = false;
-		}
-	}
-
-	free(format);
-
-	return ok;
-}
-
 void drm_fb_clear(struct wlr_drm_fb **fb_ptr) {
 	if (*fb_ptr == NULL) {
 		return;
@@ -294,36 +234,6 @@ void drm_fb_clear(struct wlr_drm_fb **fb_ptr) {
 	wlr_buffer_unlock(fb->wlr_buf); // may destroy the buffer
 
 	*fb_ptr = NULL;
-}
-
-bool drm_plane_lock_surface(struct wlr_drm_plane *plane,
-		struct wlr_drm_backend *drm) {
-	assert(plane->surf.back_buffer != NULL);
-	struct wlr_buffer *buf = wlr_buffer_lock(plane->surf.back_buffer);
-
-	// Unset the current EGL context ASAP, because other operations may require
-	// making another context current.
-	drm_surface_unset_current(&plane->surf);
-
-	struct wlr_buffer *local_buf;
-	if (drm->parent) {
-		// Perform a copy across GPUs
-		local_buf = drm_surface_blit(&plane->mgpu_surf, buf);
-		if (!local_buf) {
-			wlr_log(WLR_ERROR, "Failed to blit buffer across GPUs");
-			return false;
-		}
-	} else {
-		local_buf = wlr_buffer_lock(buf);
-	}
-	wlr_buffer_unlock(buf);
-
-	bool ok = drm_fb_import(&plane->pending_fb, drm, local_buf, NULL);
-	if (!ok) {
-		wlr_log(WLR_ERROR, "Failed to import buffer");
-	}
-	wlr_buffer_unlock(local_buf);
-	return ok;
 }
 
 static struct gbm_bo *get_bo_for_dmabuf(struct gbm_device *gbm,
@@ -477,17 +387,4 @@ void drm_fb_move(struct wlr_drm_fb **new, struct wlr_drm_fb **old) {
 	drm_fb_clear(new);
 	*new = *old;
 	*old = NULL;
-}
-
-bool drm_surface_render_black_frame(struct wlr_drm_surface *surf) {
-	if (!drm_surface_make_current(surf, NULL)) {
-		return false;
-	}
-
-	struct wlr_renderer *renderer = surf->renderer->wlr_rend;
-	wlr_renderer_begin(renderer, surf->width, surf->height);
-	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 1.0 });
-	wlr_renderer_end(renderer);
-
-	return true;
 }
