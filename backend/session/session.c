@@ -139,6 +139,27 @@ static bool is_drm_card(const char *sysname) {
 	return true;
 }
 
+static void read_udev_change_event(struct wlr_device_change_event *event,
+		struct udev_device *udev_dev) {
+	const char *hotplug = udev_device_get_property_value(udev_dev, "HOTPLUG");
+	if (hotplug != NULL && strcmp(hotplug, "1") == 0) {
+		event->type = WLR_DEVICE_HOTPLUG;
+		struct wlr_device_hotplug_event *hotplug = &event->hotplug;
+
+		const char *connector =
+			udev_device_get_property_value(udev_dev, "CONNECTOR");
+		if (connector != NULL) {
+			hotplug->connector_id = strtoul(connector, NULL, 10);
+		}
+
+		const char *prop =
+			udev_device_get_property_value(udev_dev, "PROPERTY");
+		if (prop != NULL) {
+			hotplug->prop_id = strtoul(prop, NULL, 10);
+		}
+	}
+}
+
 static int handle_udev_event(int fd, uint32_t mask, void *data) {
 	struct wlr_session *session = data;
 
@@ -180,7 +201,9 @@ static int handle_udev_event(int fd, uint32_t mask, void *data) {
 
 			if (strcmp(action, "change") == 0) {
 				wlr_log(WLR_DEBUG, "DRM device %s changed", sysname);
-				wlr_signal_emit_safe(&dev->events.change, NULL);
+				struct wlr_device_change_event event = {0};
+				read_udev_change_event(&event, udev_dev);
+				wlr_signal_emit_safe(&dev->events.change, &event);
 			} else if (strcmp(action, "remove") == 0) {
 				wlr_log(WLR_DEBUG, "DRM device %s removed", sysname);
 				wlr_signal_emit_safe(&dev->events.remove, NULL);
