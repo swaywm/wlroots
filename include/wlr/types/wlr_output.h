@@ -46,6 +46,17 @@ struct wlr_output_cursor {
 	} events;
 };
 
+struct wlr_output_tile_info {
+	uint32_t group_id;
+	uint32_t tile_is_single_monitor;
+	uint32_t num_h_tile;
+	uint32_t num_v_tile;
+	uint32_t tile_h_loc;
+	uint32_t tile_v_loc;
+	uint32_t tile_h_size;
+	uint32_t tile_v_size;
+};
+
 enum wlr_output_adaptive_sync_status {
 	WLR_OUTPUT_ADAPTIVE_SYNC_DISABLED,
 	WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED,
@@ -128,6 +139,7 @@ struct wlr_output {
 	char model[16];
 	char serial[16];
 	int32_t phys_width, phys_height; // mm
+	struct wlr_output_tile_info tile_info;
 
 	// Note: some backends may have zero modes
 	struct wl_list modes; // wlr_output_mode::link

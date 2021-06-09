@@ -1369,6 +1369,12 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 			parse_edid(&wlr_conn->output, edid_len, edid);
 			free(edid);
 
+			size_t tile_len = 0;
+			uint8_t *tile = get_drm_prop_blob(drm->fd,
+				wlr_conn->id, wlr_conn->props.tile, &tile_len);
+			parse_tile(&wlr_conn->output, tile_len, tile);
+			free(tile);
+
 			char *subconnector = NULL;
 			if (wlr_conn->props.subconnector) {
 				subconnector = get_drm_prop_enum(drm->fd,
