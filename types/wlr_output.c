@@ -737,6 +737,7 @@ bool wlr_output_commit(struct wlr_output *output) {
 	wlr_signal_emit_safe(&output->events.precommit, &pre_event);
 
 	if (!output->impl->commit(output)) {
+		output_clear_back_buffer(output);
 		output_state_clear(&output->pending);
 		return false;
 	}
