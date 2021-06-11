@@ -654,6 +654,50 @@ static void output_pending_resolution(struct wlr_output *output, int *width,
 	}
 }
 
+static bool output_attach_empty_buffer(struct wlr_output *output) {
+	assert(!(output->pending.committed & WLR_OUTPUT_STATE_BUFFER));
+
+	if (!wlr_output_attach_render(output, NULL)) {
+		return false;
+	}
+
+	int width, height;
+	output_pending_resolution(output, &width, &height);
+
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	wlr_renderer_begin(renderer, width, height);
+	wlr_renderer_clear(renderer, (float[]){0, 0, 0, 0});
+	wlr_renderer_end(renderer);
+
+	return true;
+}
+
+static bool output_ensure_buffer(struct wlr_output *output) {
+	// If we're lighting up an output or changing its mode, make sure to
+	// provide a new buffer
+	bool needs_new_buffer = false;
+	if ((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) &&
+			output->pending.enabled) {
+		needs_new_buffer = true;
+	}
+	if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
+		needs_new_buffer = true;
+	}
+	if (!needs_new_buffer ||
+			(output->pending.committed & WLR_OUTPUT_STATE_BUFFER)) {
+		return true;
+	}
+
+	wlr_log(WLR_DEBUG, "Attaching empty buffer to output for modeset");
+
+	if (!output_attach_empty_buffer(output)) {
+		output_clear_back_buffer(output);
+		return false;
+	}
+
+	return true;
+}
+
 static bool output_basic_test(struct wlr_output *output) {
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		if (output->frame_pending) {
@@ -721,6 +765,9 @@ bool wlr_output_test(struct wlr_output *output) {
 	if (!output_basic_test(output)) {
 		return false;
 	}
+	if (!output_ensure_buffer(output)) {
+		return false;
+	}
 	if (!output->impl->test) {
 		return true;
 	}
@@ -730,6 +777,10 @@ bool wlr_output_test(struct wlr_output *output) {
 bool wlr_output_commit(struct wlr_output *output) {
 	if (!output_basic_test(output)) {
 		wlr_log(WLR_ERROR, "Basic output test failed for %s", output->name);
+		return false;
+	}
+
+	if (!output_ensure_buffer(output)) {
 		return false;
 	}
 
