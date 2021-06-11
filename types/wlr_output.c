@@ -477,9 +477,15 @@ static void output_state_clear_buffer(struct wlr_output_state *state) {
 
 static struct wlr_drm_format *output_pick_format(struct wlr_output *output,
 		const struct wlr_drm_format_set *display_formats);
+static void output_pending_resolution(struct wlr_output *output, int *width,
+		int *height);
 
 static bool output_create_swapchain(struct wlr_output *output) {
-	if (output->swapchain != NULL) {
+	int width, height;
+	output_pending_resolution(output, &width, &height);
+
+	if (output->swapchain != NULL && output->swapchain->width == width &&
+			output->swapchain->height == height) {
 		return true;
 	}
 
@@ -508,13 +514,16 @@ static bool output_create_swapchain(struct wlr_output *output) {
 	wlr_log(WLR_DEBUG, "Choosing primary buffer format 0x%"PRIX32" for output '%s'",
 		format->format, output->name);
 
-	output->swapchain = wlr_swapchain_create(allocator, output->width,
-		output->height, format);
+	struct wlr_swapchain *swapchain =
+		wlr_swapchain_create(allocator, width, height, format);
 	free(format);
-	if (output->swapchain == NULL) {
+	if (swapchain == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create output swapchain");
 		return false;
 	}
+
+	wlr_swapchain_destroy(output->swapchain);
+	output->swapchain = swapchain;
 
 	return true;
 }
