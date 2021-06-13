@@ -920,7 +920,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			local_buf = wlr_buffer_lock(buffer);
 		}
 
-		bool ok = drm_fb_import(&plane->pending_fb, drm, local_buf,
+		bool ok = drm_fb_import(&plane->current_fb, drm, local_buf,
 			&plane->formats);
 		wlr_buffer_unlock(local_buf);
 		if (!ok) {
