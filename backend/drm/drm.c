@@ -466,8 +466,7 @@ static bool drm_connector_test(struct wlr_output *output) {
 		}
 	}
 
-	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
-			output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
+	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) && !conn->backend->parent) {
 		if (!drm_connector_set_pending_fb(conn, &output->pending)) {
 			return false;
 		}
