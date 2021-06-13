@@ -36,7 +36,6 @@ static bool legacy_crtc_test(struct wlr_drm_connector *conn,
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
 	if ((state->committed & WLR_OUTPUT_STATE_BUFFER) &&
-			state->buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT &&
 			!drm_connector_state_is_modeset(state)) {
 		struct wlr_drm_fb *pending_fb = crtc->primary->pending_fb;
 
