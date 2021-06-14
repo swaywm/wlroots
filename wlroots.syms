@@ -1,11 +1,7 @@
 {
 	global:
 		wlr_*;
-		_wlr_log;
-		_wlr_vlog;
-		_wlr_strip_path;
+		_wlr_*;
 	local:
-		wlr_signal_emit_safe;
-		wlr_global_destroy_safe;
 		*;
 };
