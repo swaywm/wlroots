@@ -150,7 +150,29 @@ lib_wlr = library(
 	install: true,
 	link_args: symbols_flag,
 	link_depends: symbols_file,
+	prelink: true,
 )
+
+if get_option('default_library') != 'shared'
+	lib_target = lib_wlr
+	if get_option('default_library') == 'both'
+		lib_target = lib_wlr.get_static_lib()
+	endif
+	objcopy_prog = find_program('objcopy', native: true)
+	custom_target('libwlroots',
+		input: lib_target,
+		output: lib_target.name() + '.is-stripped',
+		capture: true,
+		command: [
+			objcopy_prog.full_path(), '-w',
+			'--localize-symbol=!wlr_*',
+			'--localize-symbol=!_wlr_*',
+			'--localize-symbol=*',
+			'@INPUT@',
+		],
+		build_by_default: true,
+	)
+endif
 
 wlr_vars = {}
 foreach name, have : features
