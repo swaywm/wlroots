@@ -127,7 +127,7 @@ static void libseat_session_finish(struct wlr_session *session) {
 }
 
 static bool is_drm_card(const char *sysname) {
-	const char prefix[] = "card";
+	const char prefix[] = DRM_PRIMARY_MINOR_NAME;
 	if (strncmp(sysname, prefix, strlen(prefix)) != 0) {
 		return false;
 	}
@@ -408,7 +408,7 @@ static struct udev_enumerate *enumerate_drm_cards(struct udev *udev) {
 	}
 
 	udev_enumerate_add_match_subsystem(en, "drm");
-	udev_enumerate_add_match_sysname(en, "card[0-9]*");
+	udev_enumerate_add_match_sysname(en, DRM_PRIMARY_MINOR_NAME "[0-9]*");
 
 	if (udev_enumerate_scan_devices(en) != 0) {
 		wlr_log(WLR_ERROR, "udev_enumerate_scan_devices failed");
