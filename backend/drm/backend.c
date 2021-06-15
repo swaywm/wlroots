@@ -281,6 +281,9 @@ error_event:
 	wl_event_source_remove(drm->drm_event);
 error_fd:
 	wlr_session_close_file(drm->session, dev);
+	wl_list_remove(&drm->parent_destroy.link);
+	wl_list_remove(&drm->dev_change.link);
+	wl_list_remove(&drm->dev_remove.link);
 	free(drm);
 	return NULL;
 }

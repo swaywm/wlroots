@@ -340,7 +340,7 @@ bool wlr_session_change_vt(struct wlr_session *session, unsigned vt) {
 /* Tests if 'path' is KMS compatible by trying to open it.
  * It leaves the open device in *fd_out it it succeeds.
  */
-static struct wlr_device *open_if_kms(struct wlr_session *restrict session,
+struct wlr_device *session_open_if_kms(struct wlr_session *restrict session,
 		const char *restrict path) {
 	if (!path) {
 		return NULL;
@@ -388,7 +388,7 @@ static ssize_t explicit_find_gpus(struct wlr_session *session,
 			break;
 		}
 
-		ret[i] = open_if_kms(session, ptr);
+		ret[i] = session_open_if_kms(session, ptr);
 		if (!ret[i]) {
 			wlr_log(WLR_ERROR, "Unable to open %s as DRM device", ptr);
 		} else {
@@ -524,7 +524,7 @@ ssize_t wlr_session_find_gpus(struct wlr_session *session,
 		}
 
 		struct wlr_device *wlr_dev =
-			open_if_kms(session, udev_device_get_devnode(dev));
+			session_open_if_kms(session, udev_device_get_devnode(dev));
 		if (!wlr_dev) {
 			udev_device_unref(dev);
 			continue;
