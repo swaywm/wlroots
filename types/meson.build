@@ -53,6 +53,7 @@ wlr_files += files(
 	'wlr_screencopy_v1.c',
 	'wlr_server_decoration.c',
 	'wlr_surface.c',
+	'wlr_surface_suspension_v1.c',
 	'wlr_switch.c',
 	'wlr_tablet_pad.c',
 	'wlr_tablet_tool.c',
