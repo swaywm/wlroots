@@ -339,7 +339,7 @@ struct wlr_xdg_activation_v1 *wlr_xdg_activation_v1_create(
 		&xdg_activation_v1_interface, XDG_ACTIVATION_V1_VERSION, activation,
 		activation_bind);
 	if (activation->global == NULL) {
-		free(activation->global);
+		free(activation);
 		return NULL;
 	}
 
