@@ -204,8 +204,10 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	bool prev_vrr_enabled =
 		output->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED;
 	bool vrr_enabled = prev_vrr_enabled;
-	if ((state->committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) &&
-			drm_connector_supports_vrr(conn)) {
+	if (state->committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) {
+		if (!drm_connector_supports_vrr(conn)) {
+			return false;
+		}
 		vrr_enabled = state->adaptive_sync_enabled;
 	}
 
