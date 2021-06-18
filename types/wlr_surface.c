@@ -417,6 +417,8 @@ static void surface_cache_pending(struct wlr_surface *surface) {
 	wl_list_insert(surface->cached.prev, &cached->cached_state_link);
 
 	surface->pending.seq++;
+
+	wlr_signal_emit_safe(&surface->events.cache, cached);
 }
 
 static void surface_commit_state(struct wlr_surface *surface,
@@ -746,6 +748,7 @@ struct wlr_surface *surface_create(struct wl_client *client,
 	surface->pending.seq = 1;
 
 	wl_signal_init(&surface->events.commit);
+	wl_signal_init(&surface->events.cache);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.new_subsurface);
 	wl_list_init(&surface->subsurfaces_above);
