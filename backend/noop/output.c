@@ -6,6 +6,10 @@
 #include "backend/noop.h"
 #include "util/signal.h"
 
+static const uint32_t SUPPORTED_OUTPUT_STATE =
+	WLR_OUTPUT_STATE_BACKEND_OPTIONAL |
+	WLR_OUTPUT_STATE_MODE;
+
 static struct wlr_noop_output *noop_output_from_output(
 		struct wlr_output *wlr_output) {
 	assert(wlr_output_is_noop(wlr_output));
@@ -22,8 +26,11 @@ static void output_rollback_render(struct wlr_output *wlr_output) {
 }
 
 static bool output_commit(struct wlr_output *wlr_output) {
-	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
-		wlr_log(WLR_DEBUG, "Cannot disable a noop output");
+	uint32_t unsupported =
+		wlr_output->pending.committed & ~SUPPORTED_OUTPUT_STATE;
+	if (unsupported != 0) {
+		wlr_log(WLR_DEBUG, "Unsupported output state fields: 0x%"PRIx32,
+			unsupported);
 		return false;
 	}
 

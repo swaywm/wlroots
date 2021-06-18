@@ -15,6 +15,15 @@
 #include <wlr/types/wlr_output.h>
 
 /**
+ * Output state fields that don't require backend support. Backends can ignore
+ * them without breaking the API contract.
+ */
+#define WLR_OUTPUT_STATE_BACKEND_OPTIONAL \
+	(WLR_OUTPUT_STATE_DAMAGE | \
+	WLR_OUTPUT_STATE_SCALE | \
+	WLR_OUTPUT_STATE_TRANSFORM)
+
+/**
  * A backend implementation of wlr_output.
  *
  * The commit function is mandatory. Other functions are optional.

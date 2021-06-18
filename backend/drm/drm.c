@@ -31,6 +31,14 @@
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
 
+static const uint32_t SUPPORTED_OUTPUT_STATE =
+	WLR_OUTPUT_STATE_BACKEND_OPTIONAL |
+	WLR_OUTPUT_STATE_BUFFER |
+	WLR_OUTPUT_STATE_MODE |
+	WLR_OUTPUT_STATE_ENABLED |
+	WLR_OUTPUT_STATE_GAMMA_LUT |
+	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED;
+
 bool check_drm_features(struct wlr_drm_backend *drm) {
 	if (drmGetCap(drm->fd, DRM_CAP_CURSOR_WIDTH, &drm->cursor_width)) {
 		drm->cursor_width = 64;
@@ -435,6 +443,13 @@ static bool drm_connector_test(struct wlr_output *output) {
 		return false;
 	}
 
+	uint32_t unsupported = output->pending.committed & ~SUPPORTED_OUTPUT_STATE;
+	if (unsupported != 0) {
+		wlr_log(WLR_DEBUG, "Unsupported output state fields: 0x%"PRIx32,
+			unsupported);
+		return false;
+	}
+
 	if ((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) &&
 			output->pending.enabled) {
 		if (output->current_mode == NULL &&
@@ -443,6 +458,12 @@ static bool drm_connector_test(struct wlr_output *output) {
 				"Can't enable an output without a mode");
 			return false;
 		}
+	}
+
+	if ((output->pending.committed & WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED) &&
+			output->pending.adaptive_sync_enabled &&
+			!drm_connector_supports_vrr(conn)) {
+		return false;
 	}
 
 	if (drm_connector_state_active(conn, &output->pending)) {

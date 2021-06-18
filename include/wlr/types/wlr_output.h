@@ -285,7 +285,10 @@ void wlr_output_set_transform(struct wlr_output *output,
 	enum wl_output_transform transform);
 /**
  * Enables or disables adaptive sync (ie. variable refresh rate) on this
- * output. This is just a hint, the backend is free to ignore this setting.
+ * output. On some backends, this is just a hint and may be ignored.
+ * Compositors can inspect `wlr_output.adaptive_sync_status` to query the
+ * effective status. Backends that don't support adaptive sync will reject
+ * the output commit.
  *
  * When enabled, compositors can submit frames a little bit later than the
  * deadline without dropping a frame.
