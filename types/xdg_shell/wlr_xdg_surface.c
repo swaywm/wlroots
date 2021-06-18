@@ -87,9 +87,8 @@ void unmap_xdg_surface(struct wlr_xdg_surface *surface) {
 	}
 	surface->configure_next_serial = 0;
 
-	surface->has_next_geometry = false;
+	surface->pending.has_geometry = false;
 	memset(&surface->geometry, 0, sizeof(struct wlr_box));
-	memset(&surface->next_geometry, 0, sizeof(struct wlr_box));
 }
 
 
@@ -285,11 +284,11 @@ static void xdg_surface_handle_set_window_geometry(struct wl_client *client,
 		return;
 	}
 
-	surface->has_next_geometry = true;
-	surface->next_geometry.height = height;
-	surface->next_geometry.width = width;
-	surface->next_geometry.x = x;
-	surface->next_geometry.y = y;
+	surface->pending.has_geometry = true;
+	surface->pending.geometry.x = x;
+	surface->pending.geometry.y = y;
+	surface->pending.geometry.width = width;
+	surface->pending.geometry.height = height;
 }
 
 static void xdg_surface_handle_destroy(struct wl_client *client,
@@ -346,6 +345,47 @@ static void xdg_surface_handle_surface_commit(struct wl_listener *listener,
 	}
 }
 
+static void xdg_surface_handle_surface_cache(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xdg_surface *surface =
+		wl_container_of(listener, surface, surface_cache);
+
+	if (!surface->pending.has_geometry) {
+		goto out;
+	}
+
+	struct wlr_xdg_surface_state *cached = calloc(1, sizeof(*cached));
+	if (cached == NULL) {
+		goto out;
+	}
+	*cached = surface->pending;
+	wl_list_insert(&surface->cached, &cached->cached_state_link);
+
+out:
+	surface->pending.seq = surface->surface->pending.seq;
+}
+
+static bool xdg_surface_pop_state(struct wlr_xdg_surface *surface,
+		uint32_t seq, struct wlr_xdg_surface_state *out) {
+	if (surface->pending.seq == seq) {
+		*out = surface->pending;
+		memset(&surface->pending, 0, sizeof(surface->pending));
+		return true;
+	}
+
+	struct wlr_xdg_surface_state *cached;
+	wl_list_for_each(cached, &surface->cached, cached_state_link) {
+		if (cached->seq == seq) {
+			wl_list_remove(&cached->cached_state_link);
+			*out = *cached;
+			free(cached);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 	struct wlr_xdg_surface *surface =
 		wlr_xdg_surface_from_wlr_surface(wlr_surface);
@@ -353,12 +393,16 @@ void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 		return;
 	}
 
-	if (surface->has_next_geometry) {
-		surface->has_next_geometry = false;
-		surface->geometry.x = surface->next_geometry.x;
-		surface->geometry.y = surface->next_geometry.y;
-		surface->geometry.width = surface->next_geometry.width;
-		surface->geometry.height = surface->next_geometry.height;
+	struct wlr_xdg_surface_state next;
+	bool has_next =
+		xdg_surface_pop_state(surface, wlr_surface->current.seq, &next);
+	surface->pending.seq = wlr_surface->pending.seq;
+	if (!has_next) {
+		return;
+	}
+
+	if (next.has_geometry) {
+		surface->geometry = next.geometry;
 	}
 
 	switch (surface->role) {
@@ -445,6 +489,7 @@ struct wlr_xdg_surface *create_xdg_surface(
 
 	wl_list_init(&xdg_surface->configure_list);
 	wl_list_init(&xdg_surface->popups);
+	wl_list_init(&xdg_surface->cached);
 
 	wl_signal_init(&xdg_surface->events.destroy);
 	wl_signal_init(&xdg_surface->events.ping_timeout);
@@ -462,12 +507,18 @@ struct wlr_xdg_surface *create_xdg_surface(
 		&xdg_surface->surface_commit);
 	xdg_surface->surface_commit.notify = xdg_surface_handle_surface_commit;
 
+	wl_signal_add(&xdg_surface->surface->events.cache,
+		&xdg_surface->surface_cache);
+	xdg_surface->surface_cache.notify = xdg_surface_handle_surface_cache;
+
 	wlr_log(WLR_DEBUG, "new xdg_surface %p (res %p)", xdg_surface,
 		xdg_surface->resource);
 	wl_resource_set_implementation(xdg_surface->resource,
 		&xdg_surface_implementation, xdg_surface,
 		xdg_surface_handle_resource_destroy);
 	wl_list_insert(&client->surfaces, &xdg_surface->link);
+
+	xdg_surface->pending.seq = surface->pending.seq;
 
 	return xdg_surface;
 }
@@ -518,9 +569,17 @@ void destroy_xdg_surface(struct wlr_xdg_surface *surface) {
 	wl_resource_set_user_data(surface->resource, NULL);
 	surface->surface->role_data = NULL;
 
+	struct wlr_xdg_surface_state *cached, *cached_tmp;
+	wl_list_for_each_safe(cached, cached_tmp, &surface->cached,
+			cached_state_link) {
+		wl_list_remove(&cached->cached_state_link);
+		free(cached);
+	}
+
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy.link);
 	wl_list_remove(&surface->surface_commit.link);
+	wl_list_remove(&surface->surface_cache.link);
 	free(surface);
 }
 
