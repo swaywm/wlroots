@@ -25,6 +25,11 @@
 #include "util/signal.h"
 #include "util/time.h"
 
+static const uint32_t SUPPORTED_OUTPUT_STATE =
+	WLR_OUTPUT_STATE_BACKEND_OPTIONAL |
+	WLR_OUTPUT_STATE_BUFFER |
+	WLR_OUTPUT_STATE_MODE;
+
 static void parse_xcb_setup(struct wlr_output *output,
 		xcb_connection_t *xcb) {
 	const xcb_setup_t *xcb_setup = xcb_get_setup(xcb);
@@ -94,8 +99,11 @@ static void output_destroy(struct wlr_output *wlr_output) {
 }
 
 static bool output_test(struct wlr_output *wlr_output) {
-	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
-		wlr_log(WLR_DEBUG, "Cannot disable an X11 output");
+	uint32_t unsupported =
+		wlr_output->pending.committed & ~SUPPORTED_OUTPUT_STATE;
+	if (unsupported != 0) {
+		wlr_log(WLR_DEBUG, "Unsupported output state fields: 0x%"PRIx32,
+			unsupported);
 		return false;
 	}
 
