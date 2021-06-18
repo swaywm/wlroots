@@ -31,6 +31,13 @@
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
 
+static const uint32_t SUPPORTED_OUTPUT_STATE =
+	WLR_OUTPUT_STATE_BACKEND_OPTIONAL |
+	WLR_OUTPUT_STATE_BUFFER |
+	WLR_OUTPUT_STATE_MODE |
+	WLR_OUTPUT_STATE_ENABLED |
+	WLR_OUTPUT_STATE_GAMMA_LUT;
+
 bool check_drm_features(struct wlr_drm_backend *drm) {
 	if (drmGetCap(drm->fd, DRM_CAP_CURSOR_WIDTH, &drm->cursor_width)) {
 		drm->cursor_width = 64;
@@ -432,6 +439,13 @@ static bool drm_connector_test(struct wlr_output *output) {
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 
 	if (!conn->backend->session->active) {
+		return false;
+	}
+
+	uint32_t unsupported = output->pending.committed & ~SUPPORTED_OUTPUT_STATE;
+	if (unsupported != 0) {
+		wlr_log(WLR_DEBUG, "Unsupported output state fields: 0x%"PRIx32,
+			unsupported);
 		return false;
 	}
 
