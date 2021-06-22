@@ -18,8 +18,7 @@ else
 	libepoll = dependency('', required: false)
 endif
 
-# Check if libavutil is found because of https://github.com/mesonbuild/meson/issues/6010
-if libavutil.found() and not cc.has_header('libavutil/hwcontext_drm.h', dependencies: libavutil)
+if not cc.has_header('libavutil/hwcontext_drm.h', dependencies: libavutil)
 	libavutil = disabler()
 endif
 
