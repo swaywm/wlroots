@@ -11,10 +11,11 @@ struct wlr_egl_context {
 };
 
 /**
- * Initializes an EGL context for the given platform and remote display.
- * Will attempt to load all possibly required api functions.
+ * Initializes an EGL context for the given DRM FD.
+ *
+ * Will attempt to load all possibly required API functions.
  */
-struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display);
+struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd);
 
 /**
  * Frees all related EGL resources, makes the context not-current and

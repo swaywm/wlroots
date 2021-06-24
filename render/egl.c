@@ -156,7 +156,7 @@ out:
 	free(formats);
 }
 
-struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
+struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 	struct wlr_egl *egl = calloc(1, sizeof(struct wlr_egl));
 	if (egl == NULL) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
@@ -173,11 +173,9 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 		return NULL;
 	}
 
-	if (platform == EGL_PLATFORM_GBM_KHR) {
-		if (!check_egl_ext(client_exts_str, "EGL_KHR_platform_gbm")) {
-			wlr_log(WLR_ERROR, "EGL_KHR_platform_gbm not supported");
-			return NULL;
-		}
+	if (!check_egl_ext(client_exts_str, "EGL_KHR_platform_gbm")) {
+		wlr_log(WLR_ERROR, "EGL_KHR_platform_gbm not supported");
+		return NULL;
 	}
 
 	if (!check_egl_ext(client_exts_str, "EGL_EXT_platform_base")) {
@@ -206,8 +204,14 @@ struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display) {
 		goto error;
 	}
 
-	egl->display = egl->procs.eglGetPlatformDisplayEXT(platform,
-		remote_display, NULL);
+	egl->gbm_device = gbm_create_device(drm_fd);
+	if (!egl->gbm_device) {
+		wlr_log(WLR_ERROR, "Failed to create GBM device");
+		goto error;
+	}
+
+	egl->display = egl->procs.eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_KHR,
+		egl->gbm_device, NULL);
 	if (egl->display == EGL_NO_DISPLAY) {
 		wlr_log(WLR_ERROR, "Failed to create EGL display");
 		goto error;
