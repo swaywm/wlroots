@@ -1,0 +1,76 @@
+#ifndef RENDER_EGL_H
+#define RENDER_EGL_H
+
+#include <wlr/render/egl.h>
+
+struct wlr_egl_context {
+	EGLDisplay display;
+	EGLContext context;
+	EGLSurface draw_surface;
+	EGLSurface read_surface;
+};
+
+/**
+ * Initializes an EGL context for the given platform and remote display.
+ * Will attempt to load all possibly required api functions.
+ */
+struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display);
+
+/**
+ * Frees all related EGL resources, makes the context not-current and
+ * unbinds a bound wayland display.
+ */
+void wlr_egl_destroy(struct wlr_egl *egl);
+
+/**
+ * Binds the given display to the EGL instance.
+ * This will allow clients to create EGL surfaces from wayland ones and render
+ * to it.
+ */
+bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display);
+
+/**
+ * Creates an EGL image from the given wl_drm buffer resource.
+ */
+EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
+	struct wl_resource *data, EGLint *fmt, int *width, int *height,
+	bool *inverted_y);
+
+/**
+ * Creates an EGL image from the given dmabuf attributes. Check usability
+ * of the dmabuf with wlr_egl_check_import_dmabuf once first.
+ */
+EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
+	struct wlr_dmabuf_attributes *attributes, bool *external_only);
+
+/**
+ * Get DMA-BUF formats suitable for sampling usage.
+ */
+const struct wlr_drm_format_set *wlr_egl_get_dmabuf_texture_formats(
+	struct wlr_egl *egl);
+/**
+ * Get DMA-BUF formats suitable for rendering usage.
+ */
+const struct wlr_drm_format_set *wlr_egl_get_dmabuf_render_formats(
+	struct wlr_egl *egl);
+
+/**
+ * Destroys an EGL image created with the given wlr_egl.
+ */
+bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImageKHR image);
+
+int wlr_egl_dup_drm_fd(struct wlr_egl *egl);
+
+/**
+ * Save the current EGL context to the structure provided in the argument.
+ *
+ * This includes display, context, draw surface and read surface.
+ */
+void wlr_egl_save_context(struct wlr_egl_context *context);
+
+/**
+ * Restore EGL context that was previously saved using wlr_egl_save_current().
+ */
+bool wlr_egl_restore_context(struct wlr_egl_context *context);
+
+#endif
