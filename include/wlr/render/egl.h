@@ -117,10 +117,6 @@ const struct wlr_drm_format_set *wlr_egl_get_dmabuf_texture_formats(
 const struct wlr_drm_format_set *wlr_egl_get_dmabuf_render_formats(
 	struct wlr_egl *egl);
 
-bool wlr_egl_export_image_to_dmabuf(struct wlr_egl *egl, EGLImageKHR image,
-	int32_t width, int32_t height, uint32_t flags,
-	struct wlr_dmabuf_attributes *attribs);
-
 /**
  * Destroys an EGL image created with the given wlr_egl.
  */
