@@ -1515,7 +1515,7 @@ static int mhz_to_nsec(int mhz) {
 	return 1000000000000LL / mhz;
 }
 
-static void page_flip_handler(int fd, unsigned seq,
+static void handle_page_flip(int fd, unsigned seq,
 		unsigned tv_sec, unsigned tv_usec, unsigned crtc_id, void *data) {
 	struct wlr_drm_backend *drm = data;
 
@@ -1585,7 +1585,7 @@ int handle_drm_event(int fd, uint32_t mask, void *data) {
 
 	drmEventContext event = {
 		.version = 3,
-		.page_flip_handler2 = page_flip_handler,
+		.page_flip_handler2 = handle_page_flip,
 	};
 
 	if (drmHandleEvent(fd, &event) != 0) {
