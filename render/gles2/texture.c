@@ -11,6 +11,7 @@
 #include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
+#include "render/egl.h"
 #include "render/gles2.h"
 #include "render/pixel_format.h"
 #include "types/wlr_buffer.h"
