@@ -425,6 +425,41 @@ error:
 	return NULL;
 }
 
+struct wlr_egl *wlr_egl_from_context(EGLDisplay display, EGLContext context, EGLenum platform) {
+	struct wlr_egl *egl = wlr_egl_alloc();
+	if(egl == NULL)
+		return NULL;
+
+	const char *client_extensions_str = wlr_egl_load_client_exts(platform, egl);
+	if(client_extensions_str == NULL)
+		return NULL;
+
+	egl->display = display;
+
+	const char *display_extensions_str = wlr_egl_load_display_exts(egl);
+	if(display_extensions_str == NULL)
+		goto error;
+
+	const char *device_extensions_str = wlr_egl_load_device_exts(client_extensions_str, egl);
+	if(device_extensions_str == NULL)
+		goto error;
+
+	init_dmabuf_formats(egl);
+
+	egl->context = context;
+	egl->has_external_context = true;
+
+	return egl;
+
+error:
+	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	if (egl->display) {
+		eglTerminate(egl->display);
+	}
+	eglReleaseThread();
+	return NULL;
+}
+
 void wlr_egl_destroy(struct wlr_egl *egl) {
 	if (egl == NULL || !egl->has_external_context) {
 		return;
