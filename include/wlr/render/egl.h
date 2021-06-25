@@ -35,6 +35,8 @@ struct wlr_egl {
 	EGLDeviceEXT device; // may be EGL_NO_DEVICE_EXT
 	struct gbm_device *gbm_device;
 
+	bool has_external_context;
+
 	struct {
 		// Display extensions
 		bool bind_wayland_display_wl;

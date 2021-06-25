@@ -411,6 +411,8 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 
 	if(!wlr_egl_create_context(display_extensions_str, egl))
 		goto error;
+	
+	egl->has_external_context = false;
 
 	return egl;
 
@@ -424,7 +426,7 @@ error:
 }
 
 void wlr_egl_destroy(struct wlr_egl *egl) {
-	if (egl == NULL) {
+	if (egl == NULL || !egl->has_external_context) {
 		return;
 	}
 
