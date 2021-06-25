@@ -19,6 +19,11 @@
 struct wlr_xwm;
 struct wlr_xwayland_cursor;
 
+struct wlr_xwayland_server_options {
+	bool lazy;
+	bool enable_wm;
+};
+
 struct wlr_xwayland_server {
 	pid_t pid;
 	struct wl_client *client;
@@ -33,8 +38,7 @@ struct wlr_xwayland_server {
 	char display_name[16];
 	int x_fd[2];
 	struct wl_event_source *x_fd_read_event[2];
-	bool lazy;
-	bool enable_wm;
+	struct wlr_xwayland_server_options options;
 
 	struct wl_display *wl_display;
 
@@ -47,11 +51,6 @@ struct wlr_xwayland_server {
 	struct wl_listener display_destroy;
 
 	void *data;
-};
-
-struct wlr_xwayland_server_options {
-	bool lazy;
-	bool enable_wm;
 };
 
 struct wlr_xwayland_server_ready_event {
