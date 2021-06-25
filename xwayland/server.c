@@ -32,7 +32,7 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 		wlr_log(WLR_ERROR, "Failed to unset CLOEXEC on FD");
 		_exit(EXIT_FAILURE);
 	}
-	if (server->enable_wm && !set_cloexec(server->wm_fd[1], false)) {
+	if (server->options.enable_wm && !set_cloexec(server->wm_fd[1], false)) {
 		wlr_log(WLR_ERROR, "Failed to unset CLOEXEC on FD");
 		_exit(EXIT_FAILURE);
 	}
@@ -67,7 +67,7 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 #endif
 
 	char wmfd[16];
-	if (server->enable_wm) {
+	if (server->options.enable_wm) {
 		snprintf(wmfd, sizeof(wmfd), "%d", server->wm_fd[1]);
 		argv[i++] = "-wm";
 		argv[i++] = wmfd;
@@ -187,7 +187,7 @@ static void handle_client_destroy(struct wl_listener *listener, void *data) {
 	server_finish_process(server);
 
 	if (time(NULL) - server->server_start > 5) {
-		if (server->lazy) {
+		if (server->options.lazy) {
 			wlr_log(WLR_INFO, "Restarting Xwayland (lazy)");
 			server_start_lazy(server);
 		} else  {
@@ -287,7 +287,7 @@ static bool server_start(struct wlr_xwayland_server *server) {
 		server_finish_process(server);
 		return false;
 	}
-	if (server->enable_wm) {
+	if (server->options.enable_wm) {
 		if (socketpair(AF_UNIX, SOCK_STREAM, 0, server->wm_fd) != 0) {
 			wlr_log_errno(WLR_ERROR, "socketpair failed");
 			server_finish_process(server);
@@ -443,8 +443,7 @@ struct wlr_xwayland_server *wlr_xwayland_server_create(
 	}
 
 	server->wl_display = wl_display;
-	server->lazy = options->lazy;
-	server->enable_wm = options->enable_wm;
+	server->options = *options;
 
 	server->x_fd[0] = server->x_fd[1] = -1;
 	server->wl_fd[0] = server->wl_fd[1] = -1;
@@ -457,7 +456,7 @@ struct wlr_xwayland_server *wlr_xwayland_server_create(
 		goto error_alloc;
 	}
 
-	if (server->lazy) {
+	if (server->options.lazy) {
 		if (!server_start_lazy(server)) {
 			goto error_display;
 		}
