@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -24,27 +25,6 @@ static void safe_close(int fd) {
 	}
 }
 
-static int fill_arg(char ***argv, const char *fmt, ...) {
-	int len;
-	char **cur_arg = *argv;
-	va_list args;
-	va_start(args, fmt);
-	len = vsnprintf(NULL, 0, fmt, args) + 1;
-	va_end(args);
-	while (*cur_arg) {
-		cur_arg++;
-	}
-	*cur_arg = malloc(len);
-	if (!*cur_arg) {
-		return -1;
-	}
-	*argv = cur_arg;
-	va_start(args, fmt);
-	len = vsnprintf(*cur_arg, len, fmt, args);
-	va_end(args);
-	return len;
-}
-
 noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 	if (!set_cloexec(server->x_fd[0], false) ||
 			!set_cloexec(server->x_fd[1], false) ||
@@ -61,36 +41,41 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 	/* TODO: can we use -displayfd instead? */
 	signal(SIGUSR1, SIG_IGN);
 
-	char *argv[] = {
-		"Xwayland", NULL /* display, e.g. :1 */,
-		"-rootless", "-terminate", "-core",
-#if HAVE_XWAYLAND_LISTENFD
-		"-listenfd", NULL /* x_fd[0] */,
-		"-listenfd", NULL /* x_fd[1] */,
-#else
-		"-listen", NULL /* x_fd[0] */,
-		"-listen", NULL /* x_fd[1] */,
-#endif
-		"-wm", NULL /* wm_fd[1] */,
-		NULL,
-	};
-	char **cur_arg = argv;
+	char *argv[64] = {0};
+	size_t i = 0;
 
-	if (fill_arg(&cur_arg, ":%d", server->display) < 0 ||
-			fill_arg(&cur_arg, "%d", server->x_fd[0]) < 0 ||
-			fill_arg(&cur_arg, "%d", server->x_fd[1]) < 0) {
-		wlr_log_errno(WLR_ERROR, "alloc/print failure");
-		_exit(EXIT_FAILURE);
-	}
+	char listenfd0[16], listenfd1[16];
+	snprintf(listenfd0, sizeof(listenfd0), "%d", server->x_fd[0]);
+	snprintf(listenfd1, sizeof(listenfd1), "%d", server->x_fd[1]);
+
+	argv[i++] = "Xwayland";
+	argv[i++] = server->display_name;
+	argv[i++] = "-rootless";
+	argv[i++] = "-terminate";
+	argv[i++] = "-core";
+
+#if HAVE_XWAYLAND_LISTENFD
+	argv[i++] = "-listenfd";
+	argv[i++] = listenfd0;
+	argv[i++] = "-listenfd";
+	argv[i++] = listenfd1;
+#else
+	argv[i++] = "-listen";
+	argv[i++] = listenfd0;
+	argv[i++] = "-listen";
+	argv[i++] = listenfd1;
+#endif
+
+	char wmfd[16];
 	if (server->enable_wm) {
-		if (fill_arg(&cur_arg, "%d", server->wm_fd[1]) < 0) {
-			wlr_log_errno(WLR_ERROR, "alloc/print failure");
-			_exit(EXIT_FAILURE);
-		}
-	} else {
-		cur_arg++;
-		*cur_arg = NULL;
+		snprintf(wmfd, sizeof(wmfd), "%d", server->wm_fd[1]);
+		argv[i++] = "-wm";
+		argv[i++] = wmfd;
 	}
+
+	argv[i++] = NULL;
+
+	assert(i < sizeof(argv) / sizeof(argv[0]));
 
 	char wayland_socket_str[16];
 	snprintf(wayland_socket_str, sizeof(wayland_socket_str), "%d", server->wl_fd[1]);
