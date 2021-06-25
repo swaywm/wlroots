@@ -22,6 +22,7 @@ struct wlr_xwayland_cursor;
 struct wlr_xwayland_server_options {
 	bool lazy;
 	bool enable_wm;
+	int terminate_delay; // in seconds, 0 to terminate immediately
 };
 
 struct wlr_xwayland_server {

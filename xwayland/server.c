@@ -51,8 +51,17 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 	argv[i++] = "Xwayland";
 	argv[i++] = server->display_name;
 	argv[i++] = "-rootless";
-	argv[i++] = "-terminate";
 	argv[i++] = "-core";
+
+	argv[i++] = "-terminate";
+#if HAVE_XWAYLAND_TERMINATE_DELAY
+	char terminate_delay[16];
+	if (server->options.terminate_delay > 0) {
+		snprintf(terminate_delay, sizeof(terminate_delay), "%d",
+			server->options.terminate_delay);
+		argv[i++] = terminate_delay;
+	}
+#endif
 
 #if HAVE_XWAYLAND_LISTENFD
 	argv[i++] = "-listenfd";
@@ -444,6 +453,10 @@ struct wlr_xwayland_server *wlr_xwayland_server_create(
 
 	server->wl_display = wl_display;
 	server->options = *options;
+
+#if !HAVE_XWAYLAND_TERMINATE_DELAY
+	server->options.terminate_delay = 0;
+#endif
 
 	server->x_fd[0] = server->x_fd[1] = -1;
 	server->wl_fd[0] = server->wl_fd[1] = -1;
