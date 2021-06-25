@@ -27,7 +27,7 @@ sources:
 tasks:
   - wlroots: |
       cd wlroots
-      meson build -Dauto_features=enabled
+      meson build --fatal-meson-warnings -Dauto_features=enabled
       ninja -C build
       sudo ninja -C build install
   - tinywl: |
