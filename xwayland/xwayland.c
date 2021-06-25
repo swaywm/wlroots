@@ -87,6 +87,9 @@ struct wlr_xwayland *wlr_xwayland_create(struct wl_display *wl_display,
 	struct wlr_xwayland_server_options options = {
 		.lazy = lazy,
 		.enable_wm = true,
+#if HAS_XCB_XFIXES_SET_CLIENT_DISCONNECT_MODE
+		.terminate_delay = lazy ? 10 : 0,
+#endif
 	};
 	xwayland->server = wlr_xwayland_server_create(wl_display, &options);
 	if (xwayland->server == NULL) {
