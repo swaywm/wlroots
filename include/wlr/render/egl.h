@@ -74,6 +74,7 @@ struct wlr_egl {
  */
 struct wlr_egl *wlr_egl_from_context(EGLDisplay display, EGLContext context, EGLenum platform);
 
+/*
  * Make the EGL context current.
  *
  * Callers are expected to clear the current context when they are done by
