@@ -609,6 +609,12 @@ void wlr_output_set_damage(struct wlr_output *output,
 	output->pending.committed |= WLR_OUTPUT_STATE_DAMAGE;
 }
 
+void wlr_output_set_source_box(struct wlr_output *output,
+		struct wlr_box source_box) {
+	output->pending.source_box = source_box;
+	output->pending.committed |= WLR_OUTPUT_STATE_SOURCE_BOX;
+}
+
 static void output_state_clear_gamma_lut(struct wlr_output_state *state) {
 	free(state->gamma_lut);
 	state->gamma_lut = NULL;

@@ -16,6 +16,7 @@
 #include <wayland-util.h>
 #include <wlr/render/dmabuf.h>
 #include <wlr/types/wlr_buffer.h>
+#include <wlr/types/wlr_box.h>
 
 struct wlr_output_mode {
 	int32_t width, height;
@@ -72,6 +73,7 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_TRANSFORM = 1 << 5,
 	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED = 1 << 6,
 	WLR_OUTPUT_STATE_GAMMA_LUT = 1 << 7,
+	WLR_OUTPUT_STATE_SOURCE_BOX = 1 << 8,
 };
 
 enum wlr_output_state_buffer_type {
@@ -94,6 +96,9 @@ struct wlr_output_state {
 	float scale;
 	enum wl_output_transform transform;
 	bool adaptive_sync_enabled;
+	/* allow partial buffer scanout for tiling displays
+	 * only valid if WLR_OUTPUT_STATE_SOURCE_BOX */
+	struct wlr_box source_box; // source box for respective output
 
 	// only valid if WLR_OUTPUT_STATE_BUFFER
 	enum wlr_output_state_buffer_type buffer_type;
@@ -371,6 +376,14 @@ uint32_t wlr_output_preferred_read_format(struct wlr_output *output);
  */
 void wlr_output_set_damage(struct wlr_output *output,
 	pixman_region32_t *damage);
+/**
+ * This can be used in case the output buffer is larger than the buffer that
+ * is supposed to be presented on the actual screen attached to the DRM
+ * connector. Current use case are hi-res tiling displays which use multiple
+ * DRM connectors to make up the full monitor.
+ */
+void wlr_output_set_source_box(struct wlr_output *output,
+	struct wlr_box source_box);
 /**
  * Test whether the pending output state would be accepted by the backend. If
  * this function returns true, `wlr_output_commit` can only fail due to a
