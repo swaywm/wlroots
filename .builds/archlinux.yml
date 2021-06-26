@@ -20,8 +20,8 @@ sources:
 tasks:
   - setup: |
       cd wlroots
-      CC=gcc meson build-gcc -Dauto_features=enabled --prefix /usr
-      CC=clang meson build-clang -Dauto_features=enabled
+      CC=gcc meson build-gcc --fatal-meson-warnings --default-library=both -Dauto_features=enabled --prefix /usr
+      CC=clang meson build-clang --fatal-meson-warnings -Dauto_features=enabled
   - gcc: |
       cd wlroots/build-gcc
       ninja

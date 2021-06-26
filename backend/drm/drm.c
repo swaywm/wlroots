@@ -31,6 +31,13 @@
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
 
+static const uint32_t SUPPORTED_OUTPUT_STATE =
+	WLR_OUTPUT_STATE_BACKEND_OPTIONAL |
+	WLR_OUTPUT_STATE_BUFFER |
+	WLR_OUTPUT_STATE_MODE |
+	WLR_OUTPUT_STATE_ENABLED |
+	WLR_OUTPUT_STATE_GAMMA_LUT;
+
 bool check_drm_features(struct wlr_drm_backend *drm) {
 	if (drmGetCap(drm->fd, DRM_CAP_CURSOR_WIDTH, &drm->cursor_width)) {
 		drm->cursor_width = 64;
@@ -387,57 +394,7 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn,
 	return true;
 }
 
-static bool test_buffer(struct wlr_drm_connector *conn,
-		struct wlr_buffer *wlr_buffer) {
-	struct wlr_drm_backend *drm = conn->backend;
-
-	if (!drm->session->active) {
-		return false;
-	}
-
-	/* Legacy never gets to have nice things. But I doubt this would ever work,
-	 * and there is no reliable way to try, without risking messing up the
-	 * modesetting state. */
-	if (drm->iface == &legacy_iface) {
-		return false;
-	}
-
-	struct wlr_drm_crtc *crtc = conn->crtc;
-	if (!crtc) {
-		return false;
-	}
-
-	if (!drm_fb_import(&crtc->primary->pending_fb, drm, wlr_buffer,
-			&crtc->primary->formats)) {
-		return false;
-	}
-	return drm_crtc_commit(conn, &conn->output.pending, DRM_MODE_ATOMIC_TEST_ONLY);
-}
-
-static bool drm_connector_test(struct wlr_output *output) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-
-	if ((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) &&
-			output->pending.enabled) {
-		if (output->current_mode == NULL &&
-				!(output->pending.committed & WLR_OUTPUT_STATE_MODE)) {
-			wlr_drm_conn_log(conn, WLR_DEBUG,
-				"Can't enable an output without a mode");
-			return false;
-		}
-	}
-
-	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
-			output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
-		if (!test_buffer(conn, output->pending.buffer)) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
-static bool drm_connector_commit_buffer(struct wlr_drm_connector *conn,
+static bool drm_connector_set_pending_fb(struct wlr_drm_connector *conn,
 		const struct wlr_output_state *state) {
 	struct wlr_drm_backend *drm = conn->backend;
 
@@ -456,16 +413,68 @@ static bool drm_connector_commit_buffer(struct wlr_drm_connector *conn,
 		}
 		break;
 	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:;
+		/* Legacy never gets to have nice things. But I doubt this would ever work,
+		 * and there is no reliable way to try, without risking messing up the
+		 * modesetting state. */
+		if (drm->iface == &legacy_iface) {
+			wlr_drm_conn_log(conn, WLR_DEBUG,
+				"Cannot use direct scan-out with legacy KMS API");
+			return false;
+		}
 		if (!drm_fb_import(&plane->pending_fb, drm, state->buffer,
 				&crtc->primary->formats)) {
-			wlr_log(WLR_ERROR, "Failed to import buffer");
+			wlr_drm_conn_log(conn, WLR_DEBUG,
+				"Failed to import buffer for scan-out");
 			return false;
 		}
 		break;
 	}
 
-	if (!drm_crtc_page_flip(conn, state)) {
+	return true;
+}
+
+static bool drm_connector_alloc_crtc(struct wlr_drm_connector *conn);
+
+static bool drm_connector_test(struct wlr_output *output) {
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+
+	if (!conn->backend->session->active) {
 		return false;
+	}
+
+	uint32_t unsupported = output->pending.committed & ~SUPPORTED_OUTPUT_STATE;
+	if (unsupported != 0) {
+		wlr_log(WLR_DEBUG, "Unsupported output state fields: 0x%"PRIx32,
+			unsupported);
+		return false;
+	}
+
+	if ((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) &&
+			output->pending.enabled) {
+		if (output->current_mode == NULL &&
+				!(output->pending.committed & WLR_OUTPUT_STATE_MODE)) {
+			wlr_drm_conn_log(conn, WLR_DEBUG,
+				"Can't enable an output without a mode");
+			return false;
+		}
+	}
+
+	if (drm_connector_state_active(conn, &output->pending)) {
+		if (!drm_connector_alloc_crtc(conn)) {
+			wlr_drm_conn_log(conn, WLR_DEBUG,
+				"No CRTC available for this connector");
+			return false;
+		}
+	}
+
+	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
+			output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
+		if (!drm_connector_set_pending_fb(conn, &output->pending)) {
+			return false;
+		}
+		if (!drm_crtc_commit(conn, &output->pending, DRM_MODE_ATOMIC_TEST_ONLY)) {
+			return false;
+		}
 	}
 
 	return true;
@@ -509,6 +518,20 @@ bool drm_connector_commit_state(struct wlr_drm_connector *conn,
 		return false;
 	}
 
+	if (drm_connector_state_active(conn, &state)) {
+		if (!drm_connector_alloc_crtc(conn)) {
+			wlr_drm_conn_log(conn, WLR_ERROR,
+				"No CRTC available for this connector");
+			return false;
+		}
+	}
+
+	if (state.committed & WLR_OUTPUT_STATE_BUFFER) {
+		if (!drm_connector_set_pending_fb(conn, &state)) {
+			return false;
+		}
+	}
+
 	if (state.committed & (WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_ENABLED)) {
 		if ((state.committed & WLR_OUTPUT_STATE_MODE) &&
 				state.mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM) {
@@ -526,8 +549,7 @@ bool drm_connector_commit_state(struct wlr_drm_connector *conn,
 			return false;
 		}
 	} else if (state.committed & WLR_OUTPUT_STATE_BUFFER) {
-		// TODO: support modesetting with a buffer
-		if (!drm_connector_commit_buffer(conn, &state)) {
+		if (!drm_crtc_page_flip(conn, &state)) {
 			return false;
 		}
 	} else if (state.committed & (WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED |
@@ -631,27 +653,32 @@ struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
 	return plane->current_fb;
 }
 
-static bool drm_connector_pageflip_renderer(struct wlr_drm_connector *conn,
+static bool drm_connector_test_renderer(struct wlr_drm_connector *conn,
 		const struct wlr_output_state *state) {
 	struct wlr_drm_backend *drm = conn->backend;
-	struct wlr_drm_crtc *crtc = conn->crtc;
-	if (!crtc) {
-		wlr_drm_conn_log(conn, WLR_ERROR, "Page-flip failed: no CRTC");
-		return false;
+
+	if (drm->iface == &legacy_iface) {
+		return true;
 	}
 
-	// drm_crtc_page_flip expects a FB to be available
-	struct wlr_drm_plane *plane = crtc->primary;
-	if (!plane_get_next_fb(plane)) {
-		if (!drm_surface_render_black_frame(&plane->surf)) {
-			return false;
-		}
-		if (!drm_plane_lock_surface(plane, drm)) {
-			return false;
-		}
+	struct wlr_drm_plane *plane = conn->crtc->primary;
+
+	struct wlr_drm_fb *prev_fb = NULL;
+	drm_fb_move(&prev_fb, &plane->pending_fb);
+
+	bool ok = false;
+	if (!drm_surface_render_black_frame(&plane->surf)) {
+		goto out;
+	}
+	if (!drm_plane_lock_surface(plane, drm)) {
+		goto out;
 	}
 
-	return drm_crtc_page_flip(conn, state);
+	ok = drm_crtc_commit(conn, state, DRM_MODE_ATOMIC_TEST_ONLY);
+
+out:
+	drm_fb_move(&plane->pending_fb, &prev_fb);
+	return ok;
 }
 
 static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
@@ -663,29 +690,22 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 		return false;
 	}
 
-	wlr_drm_conn_log(conn, WLR_DEBUG, "Initializing renderer");
+	assert(conn->crtc != NULL);
 
-	struct wlr_drm_crtc *crtc = conn->crtc;
-	if (!crtc) {
-		wlr_drm_conn_log(conn, WLR_ERROR,
-			"Failed to initialize renderer: no CRTC");
-		return false;
-	}
-	struct wlr_drm_plane *plane = crtc->primary;
+	wlr_drm_conn_log(conn, WLR_DEBUG, "Initializing renderer");
 
 	drmModeModeInfo mode = {0};
 	drm_connector_state_mode(conn, state, &mode);
 
+	struct wlr_drm_plane *plane = conn->crtc->primary;
 	int width = mode.hdisplay;
 	int height = mode.vdisplay;
 
-	bool modifiers = drm->addfb2_modifiers;
-	if (!drm_plane_init_surface(plane, drm, width, height, modifiers) ||
-			!drm_connector_pageflip_renderer(conn, state)) {
-		if (!modifiers) {
-			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer:"
-				"initial page-flip failed");
-			return false;
+	if (drm->addfb2_modifiers) {
+		// Modifiers are supported, try to use them
+		if (drm_plane_init_surface(plane, drm, width, height, true) &&
+				drm_connector_test_renderer(conn, state)) {
+			return true;
 		}
 
 		// If page-flipping with modifiers enabled doesn't work, retry without
@@ -693,19 +713,16 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 		wlr_drm_conn_log(conn, WLR_INFO,
 			"Page-flip failed with primary FB modifiers enabled, "
 			"retrying without modifiers");
-		modifiers = false;
-
-		if (!drm_plane_init_surface(plane, drm, width, height, modifiers)) {
-			return false;
-		}
-		if (!drm_connector_pageflip_renderer(conn, state)) {
-			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer:"
-				"initial page-flip failed");
-			return false;
-		}
 	}
 
-	return true;
+	if (drm_plane_init_surface(plane, drm, width, height, false) &&
+			drm_connector_test_renderer(conn, state)) {
+		return true;
+	}
+
+	wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer: "
+		"initial page-flip failed");
+	return false;
 }
 
 static void realloc_crtcs(struct wlr_drm_backend *drm);
@@ -729,6 +746,19 @@ static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
 			drm_connector_commit_state(conn, &state);
 		}
 	}
+}
+
+static bool drm_connector_alloc_crtc(struct wlr_drm_connector *conn) {
+	if (conn->crtc != NULL) {
+		return true;
+	}
+
+	bool prev_desired_enabled = conn->desired_enabled;
+	conn->desired_enabled = true;
+	realloc_crtcs(conn->backend);
+	conn->desired_enabled = prev_desired_enabled;
+
+	return conn->crtc != NULL;
 }
 
 static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
@@ -767,11 +797,7 @@ static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 		return false;
 	}
 
-	if (conn->crtc == NULL) {
-		// Maybe we can steal a CRTC from a disabled output
-		realloc_crtcs(drm);
-	}
-	if (conn->crtc == NULL) {
+	if (!drm_connector_alloc_crtc(conn)) {
 		wlr_drm_conn_log(conn, WLR_ERROR,
 			"Cannot perform modeset: no CRTC for this connector");
 		return false;
@@ -784,6 +810,21 @@ static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 	if (!drm_connector_init_renderer(conn, state)) {
 		wlr_drm_conn_log(conn, WLR_ERROR,
 			"Failed to initialize renderer for plane");
+		return false;
+	}
+
+	// drm_crtc_page_flip expects a FB to be available
+	struct wlr_drm_plane *plane = conn->crtc->primary;
+	if (!plane_get_next_fb(plane)) {
+		if (!drm_surface_render_black_frame(&plane->surf)) {
+			return false;
+		}
+		if (!drm_plane_lock_surface(plane, drm)) {
+			return false;
+		}
+	}
+
+	if (!drm_crtc_page_flip(conn, state)) {
 		return false;
 	}
 
@@ -893,7 +934,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			local_buf = wlr_buffer_lock(buffer);
 		}
 
-		bool ok = drm_fb_import(&plane->pending_fb, drm, local_buf,
+		bool ok = drm_fb_import(&plane->current_fb, drm, local_buf,
 			&plane->formats);
 		wlr_buffer_unlock(local_buf);
 		if (!ok) {
@@ -1480,7 +1521,7 @@ static int mhz_to_nsec(int mhz) {
 	return 1000000000000LL / mhz;
 }
 
-static void page_flip_handler(int fd, unsigned seq,
+static void handle_page_flip(int fd, unsigned seq,
 		unsigned tv_sec, unsigned tv_usec, unsigned crtc_id, void *data) {
 	struct wlr_drm_backend *drm = data;
 
@@ -1550,7 +1591,7 @@ int handle_drm_event(int fd, uint32_t mask, void *data) {
 
 	drmEventContext event = {
 		.version = 3,
-		.page_flip_handler2 = page_flip_handler,
+		.page_flip_handler2 = handle_page_flip,
 	};
 
 	if (drmHandleEvent(fd, &event) != 0) {

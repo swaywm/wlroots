@@ -27,6 +27,11 @@
 #include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
+static const uint32_t SUPPORTED_OUTPUT_STATE =
+	WLR_OUTPUT_STATE_BACKEND_OPTIONAL |
+	WLR_OUTPUT_STATE_BUFFER |
+	WLR_OUTPUT_STATE_MODE;
+
 static struct wlr_wl_output *get_wl_output_from_output(
 		struct wlr_output *wlr_output) {
 	assert(wlr_output_is_wl(wlr_output));
@@ -244,8 +249,11 @@ static bool output_test(struct wlr_output *wlr_output) {
 	struct wlr_wl_output *output =
 		get_wl_output_from_output(wlr_output);
 
-	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
-		wlr_log(WLR_DEBUG, "Cannot disable a Wayland output");
+	uint32_t unsupported =
+		wlr_output->pending.committed & ~SUPPORTED_OUTPUT_STATE;
+	if (unsupported != 0) {
+		wlr_log(WLR_DEBUG, "Unsupported output state fields: 0x%"PRIx32,
+			unsupported);
 		return false;
 	}
 

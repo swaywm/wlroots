@@ -19,7 +19,7 @@ sources:
 tasks:
   - setup: |
       cd wlroots
-      meson build -Dauto_features=enabled -Dlibseat=disabled -Dxcb-errors=disabled
+      meson build --fatal-meson-warnings --default-library=both -Dauto_features=enabled -Dxcb-errors=disabled
   - build: |
       cd wlroots
       ninja -C build

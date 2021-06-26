@@ -10,6 +10,7 @@
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include <xf86drm.h>
+#include "render/egl.h"
 
 static enum wlr_log_importance egl_log_importance_to_wlr(EGLint type) {
 	switch (type) {

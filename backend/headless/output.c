@@ -7,6 +7,11 @@
 #include "backend/headless.h"
 #include "util/signal.h"
 
+static const uint32_t SUPPORTED_OUTPUT_STATE =
+	WLR_OUTPUT_STATE_BACKEND_OPTIONAL |
+	WLR_OUTPUT_STATE_BUFFER |
+	WLR_OUTPUT_STATE_MODE;
+
 static struct wlr_headless_output *headless_output_from_output(
 		struct wlr_output *wlr_output) {
 	assert(wlr_output_is_headless(wlr_output));
@@ -29,8 +34,11 @@ static bool output_set_custom_mode(struct wlr_output *wlr_output, int32_t width,
 }
 
 static bool output_test(struct wlr_output *wlr_output) {
-	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
-		wlr_log(WLR_DEBUG, "Cannot disable a headless output");
+	uint32_t unsupported =
+		wlr_output->pending.committed & ~SUPPORTED_OUTPUT_STATE;
+	if (unsupported != 0) {
+		wlr_log(WLR_DEBUG, "Unsupported output state fields: 0x%"PRIx32,
+			unsupported);
 		return false;
 	}
 

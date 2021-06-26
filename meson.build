@@ -1,9 +1,9 @@
 project(
 	'wlroots',
 	'c',
-	version: '0.14.0',
+	version: '0.15.0',
 	license: 'MIT',
-	meson_version: '>=0.56.0',
+	meson_version: '>=0.58.1',
 	default_options: [
 		'c_std=c11',
 		'warning_level=2',
@@ -15,7 +15,7 @@ project(
 # necessary for bugfix releases. Increasing soversion is required because
 # wlroots never guarantees ABI stability -- only API stability is guaranteed
 # between minor releases.
-soversion = 9
+soversion = 10
 
 little_endian = host_machine.endian() == 'little'
 big_endian = host_machine.endian() == 'big'
@@ -50,7 +50,7 @@ add_project_arguments(cc.get_supported_arguments([
 
 # Compute the relative path used by compiler invocations.
 source_root = meson.current_source_dir().split('/')
-build_root = meson.build_root().split('/')
+build_root = meson.global_build_root().split('/')
 relative_dir_parts = []
 i = 0
 in_prefix = true
@@ -96,7 +96,7 @@ internal_features = {
 
 wayland_server = dependency('wayland-server', version: '>=1.19')
 wayland_client = dependency('wayland-client')
-drm = dependency('libdrm', version: '>=2.4.95')
+drm = dependency('libdrm', version: '>=2.4.105')
 gbm = dependency('gbm', version: '>=17.1.0')
 libinput = dependency('libinput', version: '>=1.14.0')
 xkbcommon = dependency('xkbcommon')

@@ -533,7 +533,7 @@ static bool output_attach_back_buffer(struct wlr_output *output,
 		return false;
 	}
 
-	if (!wlr_renderer_bind_buffer(renderer, buffer)) {
+	if (!renderer_bind_buffer(renderer, buffer)) {
 		wlr_buffer_unlock(buffer);
 		return false;
 	}
@@ -550,7 +550,7 @@ static void output_clear_back_buffer(struct wlr_output *output) {
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	assert(renderer != NULL);
 
-	wlr_renderer_bind_buffer(renderer, NULL);
+	renderer_bind_buffer(renderer, NULL);
 
 	wlr_buffer_unlock(output->back_buffer);
 	output->back_buffer = NULL;
@@ -737,6 +737,7 @@ bool wlr_output_commit(struct wlr_output *output) {
 	wlr_signal_emit_safe(&output->events.precommit, &pre_event);
 
 	if (!output->impl->commit(output)) {
+		output_clear_back_buffer(output);
 		output_state_clear(&output->pending);
 		return false;
 	}
@@ -1263,11 +1264,6 @@ static struct wlr_buffer *render_cursor_buffer(struct wlr_output_cursor *cursor)
 		return NULL;
 	}
 
-	if (!wlr_renderer_bind_buffer(renderer, buffer)) {
-		wlr_buffer_unlock(buffer);
-		return NULL;
-	}
-
 	struct wlr_box cursor_box = {
 		.width = texture->width * output->scale / scale,
 		.height = texture->height * output->scale / scale,
@@ -1292,12 +1288,15 @@ static struct wlr_buffer *render_cursor_buffer(struct wlr_output_cursor *cursor)
 	float matrix[9];
 	wlr_matrix_project_box(matrix, &cursor_box, transform, 0, output_matrix);
 
-	wlr_renderer_begin(renderer, width, height);
+	if (!wlr_renderer_begin_with_buffer(renderer, buffer)) {
+		wlr_buffer_unlock(buffer);
+		return NULL;
+	}
+
 	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 	wlr_render_texture_with_matrix(renderer, texture, matrix, 1.0);
-	wlr_renderer_end(renderer);
 
-	wlr_renderer_bind_buffer(renderer, NULL);
+	wlr_renderer_end(renderer);
 
 	return buffer;
 }

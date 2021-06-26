@@ -127,7 +127,7 @@ static void libseat_session_finish(struct wlr_session *session) {
 }
 
 static bool is_drm_card(const char *sysname) {
-	const char prefix[] = "card";
+	const char prefix[] = DRM_PRIMARY_MINOR_NAME;
 	if (strncmp(sysname, prefix, strlen(prefix)) != 0) {
 		return false;
 	}
@@ -337,9 +337,8 @@ bool wlr_session_change_vt(struct wlr_session *session, unsigned vt) {
 	return libseat_switch_session(session->seat_handle, vt) == 0;
 }
 
-/* Tests if 'path' is KMS compatible by trying to open it.
- * It leaves the open device in *fd_out it it succeeds.
- */
+/* Tests if 'path' is KMS compatible by trying to open it. Returns the opened
+ * device on success. */
 static struct wlr_device *open_if_kms(struct wlr_session *restrict session,
 		const char *restrict path) {
 	if (!path) {
@@ -351,25 +350,13 @@ static struct wlr_device *open_if_kms(struct wlr_session *restrict session,
 		return NULL;
 	}
 
-	// The kernel errors out with EOPNOTSUPP if DRIVER_MODESET isn't set
-	drmModeRes *res = drmModeGetResources(dev->fd);
-	if (!res) {
-		if (errno != EOPNOTSUPP) {
-			wlr_log_errno(WLR_ERROR, "drmModeGetResources(%s) failed", path);
-		}
-		goto out_dev;
+	if (!drmIsKMS(dev->fd)) {
+		wlr_log(WLR_DEBUG, "Ignoring '%s': not a KMS device", path);
+		wlr_session_close_file(session, dev);
+		return NULL;
 	}
-	if (res->count_crtcs == 0) {
-		drmModeFreeResources(res);
-		goto out_dev;
-	}
-	drmModeFreeResources(res);
 
 	return dev;
-
-out_dev:
-	wlr_session_close_file(session, dev);
-	return NULL;
 }
 
 static ssize_t explicit_find_gpus(struct wlr_session *session,
@@ -408,7 +395,7 @@ static struct udev_enumerate *enumerate_drm_cards(struct udev *udev) {
 	}
 
 	udev_enumerate_add_match_subsystem(en, "drm");
-	udev_enumerate_add_match_sysname(en, "card[0-9]*");
+	udev_enumerate_add_match_sysname(en, DRM_PRIMARY_MINOR_NAME "[0-9]*");
 
 	if (udev_enumerate_scan_devices(en) != 0) {
 		wlr_log(WLR_ERROR, "udev_enumerate_scan_devices failed");

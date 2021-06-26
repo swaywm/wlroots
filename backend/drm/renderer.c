@@ -109,7 +109,7 @@ bool drm_surface_make_current(struct wlr_drm_surface *surf,
 		return false;
 	}
 
-	if (!wlr_renderer_bind_buffer(surf->renderer->wlr_rend, surf->back_buffer)) {
+	if (!renderer_bind_buffer(surf->renderer->wlr_rend, surf->back_buffer)) {
 		wlr_log(WLR_ERROR, "Failed to bind buffer to renderer");
 		return false;
 	}
@@ -120,7 +120,7 @@ bool drm_surface_make_current(struct wlr_drm_surface *surf,
 void drm_surface_unset_current(struct wlr_drm_surface *surf) {
 	assert(surf->back_buffer != NULL);
 
-	wlr_renderer_bind_buffer(surf->renderer->wlr_rend, NULL);
+	renderer_bind_buffer(surf->renderer->wlr_rend, NULL);
 
 	wlr_buffer_unlock(surf->back_buffer);
 	surf->back_buffer = NULL;

@@ -15,6 +15,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
+#include "render/egl.h"
 #include "render/gles2.h"
 #include "render/pixel_format.h"
 #include "types/wlr_buffer.h"
@@ -28,9 +29,13 @@ static const GLfloat verts[] = {
 
 static const struct wlr_renderer_impl renderer_impl;
 
+bool wlr_renderer_is_gles2(struct wlr_renderer *wlr_renderer) {
+	return wlr_renderer->impl == &renderer_impl;
+}
+
 struct wlr_gles2_renderer *gles2_get_renderer(
 		struct wlr_renderer *wlr_renderer) {
-	assert(wlr_renderer->impl == &renderer_impl);
+	assert(wlr_renderer_is_gles2(wlr_renderer));
 	return (struct wlr_gles2_renderer *)wlr_renderer;
 }
 
@@ -524,7 +529,7 @@ static int gles2_get_drm_fd(struct wlr_renderer *wlr_renderer) {
 	return renderer->drm_fd;
 }
 
-static uint32_t gles2_get_render_buffer_caps(void) {
+static uint32_t gles2_get_render_buffer_caps(struct wlr_renderer *wlr_renderer) {
 	return WLR_BUFFER_CAP_DMABUF;
 }
 
@@ -914,4 +919,10 @@ bool wlr_gles2_renderer_check_ext(struct wlr_renderer *wlr_renderer,
 		const char *ext) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 	return check_gl_ext(renderer->exts_str, ext);
+}
+
+GLuint wlr_gles2_renderer_get_current_fbo(struct wlr_renderer *wlr_renderer) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	assert(renderer->current_buffer);
+	return renderer->current_buffer->fbo;
 }
