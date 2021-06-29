@@ -368,40 +368,6 @@ static struct wlr_pixman_texture *pixman_texture_create(
 	return texture;
 }
 
-static struct wlr_texture *pixman_texture_from_pixels(
-		struct wlr_renderer *wlr_renderer, uint32_t drm_format,
-		uint32_t stride, uint32_t width, uint32_t height, const void *data) {
-	struct wlr_pixman_renderer *renderer = get_renderer(wlr_renderer);
-
-	struct wlr_pixman_texture *texture =
-		pixman_texture_create(renderer, drm_format, width, height);
-	if (texture == NULL) {
-		return NULL;
-	}
-
-	// TODO: avoid this copy
-	texture->data = malloc(stride * height);
-	if (texture->data == NULL) {
-		wlr_log_errno(WLR_ERROR, "Allocation failed");
-		wl_list_remove(&texture->link);
-		free(texture);
-		return NULL;
-	}
-	memcpy(texture->data, data, stride * height);
-
-	texture->image = pixman_image_create_bits_no_clear(texture->format,
-		width, height, texture->data, stride);
-	if (!texture->image) {
-		wlr_log(WLR_ERROR, "Failed to create pixman image");
-		wl_list_remove(&texture->link);
-		free(texture->data);
-		free(texture);
-		return NULL;
-	}
-
-	return &texture->wlr_texture;
-}
-
 static struct wlr_texture *pixman_texture_from_buffer(
 		struct wlr_renderer *wlr_renderer, struct wlr_buffer *buffer) {
 	struct wlr_pixman_renderer *renderer = get_renderer(wlr_renderer);
@@ -531,7 +497,6 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.render_quad_with_matrix = pixman_render_quad_with_matrix,
 	.get_shm_texture_formats = pixman_get_shm_texture_formats,
 	.get_render_formats = pixman_get_render_formats,
-	.texture_from_pixels = pixman_texture_from_pixels,
 	.texture_from_buffer = pixman_texture_from_buffer,
 	.bind_buffer = pixman_bind_buffer,
 	.destroy = pixman_destroy,
