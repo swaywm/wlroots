@@ -309,7 +309,8 @@ error_ctx:
 	return NULL;
 }
 
-struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
+static struct wlr_texture *gles2_texture_from_dmabuf(
+		struct wlr_renderer *wlr_renderer,
 		struct wlr_dmabuf_attributes *attribs) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
