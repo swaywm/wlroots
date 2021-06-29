@@ -140,7 +140,7 @@ void wlr_output_destroy_global(struct wlr_output *output) {
 		wl_list_init(wl_resource_get_link(resource));
 	}
 
-	wlr_global_destroy_safe(output->global, output->display);
+	wlr_global_destroy_safe(output->global);
 	output->global = NULL;
 }
 
