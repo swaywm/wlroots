@@ -128,7 +128,7 @@ create_err:
 }
 
 static bool drm_dumb_buffer_begin_data_ptr_access(struct wlr_buffer *wlr_buffer,
-		void **data, uint32_t *format, size_t *stride) {
+		uint32_t flags, void **data, uint32_t *format, size_t *stride) {
 	struct wlr_drm_dumb_buffer *buf = drm_dumb_buffer_from_buffer(wlr_buffer);
 	*data = buf->data;
 	*stride = buf->stride;

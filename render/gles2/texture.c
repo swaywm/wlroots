@@ -346,7 +346,8 @@ struct wlr_texture *gles2_texture_from_buffer(struct wlr_renderer *wlr_renderer,
 	struct wlr_dmabuf_attributes dmabuf;
 	if (wlr_buffer_get_dmabuf(buffer, &dmabuf)) {
 		return gles2_texture_from_dmabuf_buffer(renderer, buffer, &dmabuf);
-	} else if (buffer_begin_data_ptr_access(buffer, &data, &format, &stride)) {
+	} else if (buffer_begin_data_ptr_access(buffer,
+			WLR_BUFFER_DATA_PTR_ACCESS_READ, &data, &format, &stride)) {
 		struct wlr_texture *tex = gles2_texture_from_pixels(wlr_renderer,
 			format, stride, buffer->width, buffer->height, data);
 		buffer_end_data_ptr_access(buffer);
