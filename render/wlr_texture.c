@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_texture.h>
+#include "types/wlr_buffer.h"
 #include "render/wlr_texture.h"
 
 void wlr_texture_init(struct wlr_texture *texture,
@@ -27,8 +28,21 @@ struct wlr_texture *wlr_texture_from_pixels(struct wlr_renderer *renderer,
 	assert(height > 0);
 	assert(stride > 0);
 	assert(data);
-	return renderer->impl->texture_from_pixels(renderer, fmt, stride, width,
-		height, data);
+
+	struct wlr_readonly_data_buffer *buffer =
+		readonly_data_buffer_create(fmt, stride, width, height, data);
+	if (buffer == NULL) {
+		return NULL;
+	}
+
+	struct wlr_texture *texture =
+		wlr_texture_from_buffer(renderer, &buffer->base);
+
+	// By this point, the renderer should have locked the buffer if it still
+	// needs to access it in the future.
+	readonly_data_buffer_drop(buffer);
+
+	return texture;
 }
 
 struct wlr_texture *wlr_texture_from_wl_drm(struct wlr_renderer *renderer,
