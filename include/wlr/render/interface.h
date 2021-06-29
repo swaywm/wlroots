@@ -47,8 +47,6 @@ struct wlr_renderer_impl {
 		void *data);
 	struct wlr_texture *(*texture_from_wl_drm)(struct wlr_renderer *renderer,
 		struct wl_resource *data);
-	struct wlr_texture *(*texture_from_dmabuf)(struct wlr_renderer *renderer,
-		struct wlr_dmabuf_attributes *attribs);
 	void (*destroy)(struct wlr_renderer *renderer);
 	bool (*init_wl_display)(struct wlr_renderer *renderer,
 		struct wl_display *wl_display);

@@ -593,7 +593,6 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.preferred_read_format = gles2_preferred_read_format,
 	.read_pixels = gles2_read_pixels,
 	.texture_from_wl_drm = gles2_texture_from_wl_drm,
-	.texture_from_dmabuf = gles2_texture_from_dmabuf,
 	.init_wl_display = gles2_init_wl_display,
 	.get_drm_fd = gles2_get_drm_fd,
 	.get_render_buffer_caps = gles2_get_render_buffer_caps,
