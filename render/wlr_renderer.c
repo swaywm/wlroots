@@ -26,7 +26,6 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->render_subtexture_with_matrix);
 	assert(impl->render_quad_with_matrix);
 	assert(impl->get_shm_texture_formats);
-	assert(impl->texture_from_pixels);
 	assert(impl->get_render_buffer_caps);
 	renderer->impl = impl;
 

@@ -179,7 +179,8 @@ static struct wlr_gles2_texture *gles2_texture_create(
 	return texture;
 }
 
-struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
+static struct wlr_texture *gles2_texture_from_pixels(
+		struct wlr_renderer *wlr_renderer,
 		uint32_t drm_format, uint32_t stride, uint32_t width,
 		uint32_t height, const void *data) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
