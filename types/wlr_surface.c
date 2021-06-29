@@ -15,7 +15,6 @@
 #include "util/time.h"
 
 #define CALLBACK_VERSION 1
-#define SURFACE_VERSION 4
 #define SUBSURFACE_VERSION 1
 
 static int min(int fst, int snd) {
@@ -722,8 +721,6 @@ static void surface_handle_renderer_destroy(struct wl_listener *listener,
 
 struct wlr_surface *surface_create(struct wl_client *client,
 		uint32_t version, uint32_t id, struct wlr_renderer *renderer) {
-	assert(version <= SURFACE_VERSION);
-
 	struct wlr_surface *surface = calloc(1, sizeof(struct wlr_surface));
 	if (!surface) {
 		wl_client_post_no_memory(client);
