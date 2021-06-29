@@ -15,7 +15,6 @@
 #include "util/time.h"
 
 #define CALLBACK_VERSION 1
-#define SUBSURFACE_VERSION 1
 
 static int min(int fst, int snd) {
 	if (fst < snd) {
@@ -860,7 +859,6 @@ static struct wlr_subsurface *subsurface_from_resource(
 
 static void subsurface_resource_destroy(struct wl_resource *resource) {
 	struct wlr_subsurface *subsurface = subsurface_from_resource(resource);
-	wl_list_remove(wl_resource_get_link(resource));
 	subsurface_destroy(subsurface);
 }
 
@@ -1133,11 +1131,8 @@ static void subsurface_handle_surface_destroy(struct wl_listener *listener,
 	subsurface_destroy(subsurface);
 }
 
-struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
-		struct wlr_surface *parent, uint32_t version, uint32_t id,
-		struct wl_list *resource_list) {
-	assert(version <= SUBSURFACE_VERSION);
-
+struct wlr_subsurface *subsurface_create(struct wlr_surface *surface,
+		struct wlr_surface *parent, uint32_t version, uint32_t id) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
 
 	struct wlr_subsurface *subsurface =
@@ -1156,8 +1151,7 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 		return NULL;
 	}
 	wl_resource_set_implementation(subsurface->resource,
-		&subsurface_implementation, subsurface,
-		subsurface_resource_destroy);
+		&subsurface_implementation, subsurface, subsurface_resource_destroy);
 
 	wl_signal_init(&subsurface->events.destroy);
 	wl_signal_init(&subsurface->events.map);
@@ -1175,13 +1169,6 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 		&subsurface->parent_pending_link);
 
 	surface->role_data = subsurface;
-
-	struct wl_list *resource_link = wl_resource_get_link(subsurface->resource);
-	if (resource_list != NULL) {
-		wl_list_insert(resource_list, resource_link);
-	} else {
-		wl_list_init(resource_link);
-	}
 
 	wlr_signal_emit_safe(&parent->events.new_subsurface, subsurface);
 

@@ -214,14 +214,6 @@ bool wlr_surface_has_buffer(struct wlr_surface *surface);
 struct wlr_texture *wlr_surface_get_texture(struct wlr_surface *surface);
 
 /**
- * Create a new subsurface resource with the provided new ID. If `resource_list`
- * is non-NULL, adds the subsurface's resource to the list.
- */
-struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
-		struct wlr_surface *parent, uint32_t version, uint32_t id,
-		struct wl_list *resource_list);
-
-/**
  * Get the root of the subsurface tree for this surface. Can return NULL if
  * a surface in the tree has been destroyed.
  */

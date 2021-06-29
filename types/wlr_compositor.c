@@ -67,8 +67,7 @@ static void subcompositor_handle_get_subsurface(struct wl_client *client,
 		return;
 	}
 
-	wlr_subsurface_create(surface, parent, wl_resource_get_version(resource),
-		id, NULL);
+	subsurface_create(surface, parent, wl_resource_get_version(resource), id);
 }
 
 static const struct wl_subcompositor_interface subcompositor_impl = {
