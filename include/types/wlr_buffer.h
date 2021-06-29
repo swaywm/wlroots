@@ -70,16 +70,30 @@ struct wlr_dmabuf_buffer *dmabuf_buffer_create(
 bool dmabuf_buffer_drop(struct wlr_dmabuf_buffer *buffer);
 
 /**
+ * Buffer data pointer access flags.
+ */
+enum wlr_buffer_data_ptr_access_flag {
+	/**
+	 * The buffer contents can be read back.
+	 */
+	WLR_BUFFER_DATA_PTR_ACCESS_READ = 1 << 0,
+	/**
+	 * The buffer contents can be written to.
+	 */
+	WLR_BUFFER_DATA_PTR_ACCESS_WRITE = 1 << 1,
+};
+
+/**
  * Get a pointer to a region of memory referring to the buffer's underlying
  * storage. The format and stride can be used to interpret the memory region
  * contents.
  *
- * The returned pointer should be pointing to a valid memory region for read
- * and write operations. The returned pointer is only valid up to the next
- * buffer_end_data_ptr_access call.
+ * The returned pointer should be pointing to a valid memory region for the
+ * operations specified in the flags. The returned pointer is only valid up to
+ * the next buffer_end_data_ptr_access call.
  */
-bool buffer_begin_data_ptr_access(struct wlr_buffer *buffer, void **data,
-	uint32_t *format, size_t *stride);
+bool buffer_begin_data_ptr_access(struct wlr_buffer *buffer, uint32_t flags,
+	void **data, uint32_t *format, size_t *stride);
 void buffer_end_data_ptr_access(struct wlr_buffer *buffer);
 
 #endif

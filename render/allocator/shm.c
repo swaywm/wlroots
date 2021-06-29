@@ -31,7 +31,7 @@ static bool buffer_get_shm(struct wlr_buffer *wlr_buffer,
 }
 
 static bool shm_buffer_begin_data_ptr_access(struct wlr_buffer *wlr_buffer,
-		void **data, uint32_t *format, size_t *stride) {
+		uint32_t flags, void **data, uint32_t *format, size_t *stride) {
 	struct wlr_shm_buffer *buffer = shm_buffer_from_buffer(wlr_buffer);
 	*data = buffer->data;
 	*format = buffer->shm.format;

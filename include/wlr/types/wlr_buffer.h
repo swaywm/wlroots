@@ -30,8 +30,8 @@ struct wlr_buffer_impl {
 		struct wlr_dmabuf_attributes *attribs);
 	bool (*get_shm)(struct wlr_buffer *buffer,
 		struct wlr_shm_attributes *attribs);
-	bool (*begin_data_ptr_access)(struct wlr_buffer *buffer, void **data,
-		uint32_t *format, size_t *stride);
+	bool (*begin_data_ptr_access)(struct wlr_buffer *buffer, uint32_t flags,
+		void **data, uint32_t *format, size_t *stride);
 	void (*end_data_ptr_access)(struct wlr_buffer *buffer);
 };
 

@@ -96,7 +96,9 @@ static struct wlr_pixman_buffer *create_buffer(
 	void *data = NULL;
 	uint32_t drm_format;
 	size_t stride;
-	if (!buffer_begin_data_ptr_access(wlr_buffer, &data, &drm_format, &stride)) {
+	if (!buffer_begin_data_ptr_access(wlr_buffer,
+			WLR_BUFFER_DATA_PTR_ACCESS_READ | WLR_BUFFER_DATA_PTR_ACCESS_WRITE,
+			&data, &drm_format, &stride)) {
 		wlr_log(WLR_ERROR, "Failed to get buffer data");
 		goto error_buffer;
 	}
@@ -143,7 +145,9 @@ static void pixman_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 	void *data = NULL;
 	uint32_t drm_format;
 	size_t stride;
-	buffer_begin_data_ptr_access(buffer->buffer, &data, &drm_format, &stride);
+	buffer_begin_data_ptr_access(buffer->buffer,
+		WLR_BUFFER_DATA_PTR_ACCESS_READ | WLR_BUFFER_DATA_PTR_ACCESS_WRITE,
+		&data, &drm_format, &stride);
 
 	// If the data pointer has changed, re-create the Pixman image. This can
 	// happen if it's a client buffer and the wl_shm_pool has been resized.
@@ -229,8 +233,8 @@ static bool pixman_render_subtexture_with_matrix(
 		void *data;
 		uint32_t drm_format;
 		size_t stride;
-		if (!buffer_begin_data_ptr_access(texture->buffer, &data, &drm_format,
-				&stride)) {
+		if (!buffer_begin_data_ptr_access(texture->buffer,
+				WLR_BUFFER_DATA_PTR_ACCESS_READ, &data, &drm_format, &stride)) {
 			return false;
 		}
 
@@ -376,7 +380,8 @@ static struct wlr_texture *pixman_texture_from_buffer(
 	void *data = NULL;
 	uint32_t drm_format;
 	size_t stride;
-	if (!buffer_begin_data_ptr_access(buffer, &data, &drm_format, &stride)) {
+	if (!buffer_begin_data_ptr_access(buffer, WLR_BUFFER_DATA_PTR_ACCESS_READ,
+			&data, &drm_format, &stride)) {
 		return NULL;
 	}
 	buffer_end_data_ptr_access(buffer);
