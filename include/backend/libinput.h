@@ -82,6 +82,8 @@ void handle_touch_motion(struct libinput_event *event,
 		struct libinput_device *device);
 void handle_touch_cancel(struct libinput_event *event,
 		struct libinput_device *device);
+void handle_touch_frame(struct libinput_event *event,
+		struct libinput_device *device);
 
 struct wlr_tablet *create_libinput_tablet(
 		struct libinput_device *device);

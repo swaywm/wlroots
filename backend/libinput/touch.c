@@ -95,3 +95,14 @@ void handle_touch_cancel(struct libinput_event *event,
 	wlr_event.touch_id = libinput_event_touch_get_seat_slot(tevent);
 	wlr_signal_emit_safe(&wlr_dev->touch->events.cancel, &wlr_event);
 }
+
+void handle_touch_frame(struct libinput_event *event,
+		struct libinput_device *libinput_dev) {
+	struct wlr_input_device *wlr_dev =
+		get_appropriate_device(WLR_INPUT_DEVICE_TOUCH, libinput_dev);
+	if (!wlr_dev) {
+		wlr_log(WLR_DEBUG, "Got a touch event for a device with no touch?");
+		return;
+	}
+	wlr_signal_emit_safe(&wlr_dev->touch->events.frame, NULL);
+}

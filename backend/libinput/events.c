@@ -271,7 +271,7 @@ void handle_libinput_event(struct wlr_libinput_backend *backend,
 		handle_touch_cancel(event, libinput_dev);
 		break;
 	case LIBINPUT_EVENT_TOUCH_FRAME:
-		// no-op (at least for now)
+		handle_touch_frame(event, libinput_dev);
 		break;
 	case LIBINPUT_EVENT_TABLET_TOOL_AXIS:
 		handle_tablet_tool_axis(event, libinput_dev);
