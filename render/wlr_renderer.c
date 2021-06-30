@@ -4,6 +4,7 @@
 #include <wlr/render/interface.h>
 #include <wlr/render/pixman.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 
@@ -248,7 +249,12 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	return true;
 }
 
+extern const struct wlr_client_buffer_impl shm_client_buffer_impl;
+
 struct wlr_renderer *renderer_autocreate_with_drm_fd(int drm_fd) {
+
+	wlr_client_buffer_register_impl(&shm_client_buffer_impl);
+
 	const char *name = getenv("WLR_RENDERER");
 	if (name) {
 		wlr_log(WLR_INFO, "Loading user-specified renderer due to WLR_RENDERER: %s",

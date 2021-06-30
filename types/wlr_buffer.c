@@ -286,28 +286,7 @@ struct wlr_client_buffer *wlr_client_buffer_import(
 		buffer->resource = resource;
 		buffer->resource_released = false;
 
-		if (wl_shm_buffer_get(resource) != NULL) {
-			struct wlr_shm_client_buffer *shm_client_buffer =
-					shm_client_buffer_create(resource);
-			if (shm_client_buffer == NULL) {
-				wlr_log(WLR_ERROR, "Failed to create shm client buffer");
-				return NULL;
-			}
-
-			// Ensure the buffer will be released before being destroyed
-			wlr_buffer_lock(&shm_client_buffer->base);
-			wlr_buffer_drop(&shm_client_buffer->base);
-
-			buffer->texture = wlr_texture_from_buffer(renderer,
-					&shm_client_buffer->base);
-
-			// The renderer should've locked the buffer by now if necessary
-			wlr_buffer_unlock(&shm_client_buffer->base);
-
-			// The renderer is responsible for releasing the buffer when
-			// appropriate
-			buffer->resource_released = true;
-		} else if (wlr_renderer_resource_is_wl_drm_buffer(renderer, resource)) {
+		if (wlr_renderer_resource_is_wl_drm_buffer(renderer, resource)) {
 			buffer->texture = wlr_texture_from_wl_drm(renderer, resource);
 		} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
 			struct wlr_dmabuf_v1_buffer *dmabuf =
@@ -420,11 +399,78 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 	return buffer;
 }
 
-static const struct wlr_buffer_impl shm_client_buffer_impl;
+static bool shm_wlr_client_buffer_is_instance(struct wl_resource *resource) {
+	return wl_shm_buffer_get(resource) != NULL;
+}
+
+static bool shm_wlr_client_buffer_get_buffer_size(struct wl_resource *resource,
+		int *width, int *height) {
+	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
+	if (!shm_buf) {
+		wlr_log(WLR_ERROR, "resource is not a wl_shm_buffer");
+		*width = *height = 0;
+		return false;
+	}
+
+	*width = wl_shm_buffer_get_width(shm_buf);
+	*height = wl_shm_buffer_get_height(shm_buf);
+	return true;
+}
+
+static struct wlr_client_buffer *shm_wlr_client_buffer_create(
+		struct wl_resource *resource, struct wlr_renderer *renderer) {
+	if (!wl_shm_buffer_get(resource)) {
+		wlr_log(WLR_ERROR, "resource is not a wl_shm_buffer");
+		return NULL;
+	}
+
+	struct wlr_client_buffer *buffer =
+			calloc(1, sizeof(struct wlr_client_buffer));
+	if (!buffer) {
+		wlr_log(WLR_ERROR, "Failed to allocate shm wlr_shm_client_buffer");
+		return NULL;
+	}
+
+	buffer->resource = resource;
+
+	struct wlr_shm_client_buffer *shm_client_buffer =
+			shm_client_buffer_create(resource);
+	if (shm_client_buffer == NULL) {
+		wlr_log(WLR_ERROR, "Failed to create shm client buffer");
+		free(buffer);
+		return NULL;
+	}
+
+	wlr_buffer_lock(&shm_client_buffer->base);
+	wlr_buffer_drop(&shm_client_buffer->base);
+
+	buffer->texture = wlr_texture_from_buffer(renderer, &shm_client_buffer->base);
+
+	wlr_buffer_unlock(&shm_client_buffer->base);
+
+	return buffer;
+}
+
+static void shm_wlr_client_buffer_destroy(struct wlr_client_buffer *buffer) {
+	if (buffer->resource != NULL) {
+		wl_buffer_send_release(buffer->resource);
+	}
+	wlr_texture_destroy(buffer->texture);
+	free(buffer);
+}
+
+const struct wlr_client_buffer_impl shm_client_buffer_impl = {
+	.is_instance = shm_wlr_client_buffer_is_instance,
+	.get_buffer_size = shm_wlr_client_buffer_get_buffer_size,
+	.create = shm_wlr_client_buffer_create,
+	.destroy = shm_wlr_client_buffer_destroy,
+};
+
+static const struct wlr_buffer_impl shm_buffer_impl;
 
 static struct wlr_shm_client_buffer *shm_client_buffer_from_buffer(
 		struct wlr_buffer *buffer) {
-	assert(buffer->impl == &shm_client_buffer_impl);
+	assert(buffer->impl == &shm_buffer_impl);
 	return (struct wlr_shm_client_buffer *)buffer;
 }
 
@@ -462,7 +508,7 @@ static void shm_client_buffer_end_data_ptr_access(struct wlr_buffer *wlr_buffer)
 	}
 }
 
-static const struct wlr_buffer_impl shm_client_buffer_impl = {
+static const struct wlr_buffer_impl shm_buffer_impl = {
 	.destroy = shm_client_buffer_destroy,
 	.begin_data_ptr_access = shm_client_buffer_begin_data_ptr_access,
 	.end_data_ptr_access = shm_client_buffer_end_data_ptr_access,
@@ -506,7 +552,7 @@ struct wlr_shm_client_buffer *shm_client_buffer_create(
 	if (buffer == NULL) {
 		return NULL;
 	}
-	wlr_buffer_init(&buffer->base, &shm_client_buffer_impl, width, height);
+	wlr_buffer_init(&buffer->base, &shm_buffer_impl, width, height);
 	buffer->resource = resource;
 	buffer->shm_buffer = shm_buffer;
 
