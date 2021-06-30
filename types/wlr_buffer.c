@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_buffer.h>
+#include <wlr/types/wlr_drm.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include "render/pixel_format.h"
@@ -120,6 +121,11 @@ bool wlr_resource_get_buffer_size(struct wl_resource *resource,
 			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
 		*width = dmabuf->attributes.width;
 		*height = dmabuf->attributes.height;
+	} else if (wlr_drm_buffer_is_resource(resource)) {
+		struct wlr_drm_buffer *drm_buffer =
+			wlr_drm_buffer_from_resource(resource);
+		*width = drm_buffer->base.width;
+		*height = drm_buffer->base.height;
 	} else {
 		*width = *height = 0;
 		return false;
@@ -240,6 +246,14 @@ struct wlr_client_buffer *wlr_client_buffer_import(
 		struct wlr_dmabuf_v1_buffer *dmabuf =
 			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
 		texture = wlr_texture_from_buffer(renderer, &dmabuf->base);
+
+		// The renderer is responsible for releasing the buffer when
+		// appropriate
+		resource_released = true;
+	} else if (wlr_drm_buffer_is_resource(resource)) {
+		struct wlr_drm_buffer *drm_buffer =
+			wlr_drm_buffer_from_resource(resource);
+		texture = wlr_texture_from_buffer(renderer, &drm_buffer->base);
 
 		// The renderer is responsible for releasing the buffer when
 		// appropriate
