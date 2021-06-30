@@ -63,6 +63,7 @@ struct wlr_cursor {
 		struct wl_signal touch_down;
 		struct wl_signal touch_motion;
 		struct wl_signal touch_cancel;
+		struct wl_signal touch_frame;
 
 		struct wl_signal tablet_tool_axis;
 		struct wl_signal tablet_tool_proximity;

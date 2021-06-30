@@ -36,6 +36,7 @@ struct wlr_cursor_device {
 	struct wl_listener touch_up;
 	struct wl_listener touch_motion;
 	struct wl_listener touch_cancel;
+	struct wl_listener touch_frame;
 
 	struct wl_listener tablet_tool_axis;
 	struct wl_listener tablet_tool_proximity;
@@ -104,6 +105,7 @@ struct wlr_cursor *wlr_cursor_create(void) {
 	wl_signal_init(&cur->events.touch_down);
 	wl_signal_init(&cur->events.touch_motion);
 	wl_signal_init(&cur->events.touch_cancel);
+	wl_signal_init(&cur->events.touch_frame);
 
 	// tablet tool signals
 	wl_signal_init(&cur->events.tablet_tool_tip);
@@ -162,6 +164,7 @@ static void cursor_device_destroy(struct wlr_cursor_device *c_device) {
 		wl_list_remove(&c_device->touch_up.link);
 		wl_list_remove(&c_device->touch_motion.link);
 		wl_list_remove(&c_device->touch_cancel.link);
+		wl_list_remove(&c_device->touch_frame.link);
 	} else if (dev->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
 		wl_list_remove(&c_device->tablet_tool_axis.link);
 		wl_list_remove(&c_device->tablet_tool_proximity.link);
@@ -524,6 +527,12 @@ static void handle_touch_cancel(struct wl_listener *listener, void *data) {
 	wlr_signal_emit_safe(&device->cursor->events.touch_cancel, event);
 }
 
+static void handle_touch_frame(struct wl_listener *listener, void *data) {
+	struct wlr_cursor_device *device =
+		wl_container_of(listener, device, touch_frame);
+	wlr_signal_emit_safe(&device->cursor->events.touch_frame, NULL);
+}
+
 static void handle_tablet_tool_tip(struct wl_listener *listener, void *data) {
 	struct wlr_event_tablet_tool_tip *event = data;
 	struct wlr_cursor_device *device;
@@ -662,6 +671,9 @@ static struct wlr_cursor_device *cursor_device_create(
 
 		wl_signal_add(&device->touch->events.cancel, &c_device->touch_cancel);
 		c_device->touch_cancel.notify = handle_touch_cancel;
+
+		wl_signal_add(&device->touch->events.frame, &c_device->touch_frame);
+		c_device->touch_frame.notify = handle_touch_frame;
 	} else if (device->type == WLR_INPUT_DEVICE_TABLET_TOOL) {
 		wl_signal_add(&device->tablet->events.tip,
 			&c_device->tablet_tool_tip);
