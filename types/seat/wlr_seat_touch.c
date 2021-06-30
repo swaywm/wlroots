@@ -33,6 +33,10 @@ static void default_touch_enter(struct wlr_seat_touch_grab *grab,
 	// not handled by default
 }
 
+static void default_touch_frame(struct wlr_seat_touch_grab *grab) {
+	wlr_seat_touch_send_frame(grab->seat);
+}
+
 static void default_touch_cancel(struct wlr_seat_touch_grab *grab) {
 	// cannot be cancelled
 }
@@ -42,6 +46,7 @@ const struct wlr_touch_grab_interface default_touch_grab_impl = {
 	.up = default_touch_up,
 	.motion = default_touch_motion,
 	.enter = default_touch_enter,
+	.frame = default_touch_frame,
 	.cancel = default_touch_cancel,
 };
 
@@ -226,6 +231,13 @@ void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time,
 	grab->interface->motion(grab, time, point);
 }
 
+void wlr_seat_touch_notify_frame(struct wlr_seat *seat) {
+	struct wlr_seat_touch_grab *grab = seat->touch_state.grab;
+	if (grab->interface->frame) {
+		grab->interface->frame(grab);
+	}
+}
+
 static void handle_point_focus_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_touch_point *point =
@@ -303,8 +315,9 @@ uint32_t wlr_seat_touch_send_down(struct wlr_seat *seat,
 		}
 		wl_touch_send_down(resource, serial, time, surface->resource,
 			touch_id, wl_fixed_from_double(sx), wl_fixed_from_double(sy));
-		wl_touch_send_frame(resource);
 	}
+
+	point->client->needs_touch_frame = true;
 
 	return serial;
 }
@@ -323,8 +336,9 @@ void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time, int32_t touch_
 			continue;
 		}
 		wl_touch_send_up(resource, serial, time, touch_id);
-		wl_touch_send_frame(resource);
 	}
+
+	point->client->needs_touch_frame = true;
 }
 
 void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time, int32_t touch_id,
@@ -342,7 +356,23 @@ void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time, int32_t to
 		}
 		wl_touch_send_motion(resource, time, touch_id, wl_fixed_from_double(sx),
 			wl_fixed_from_double(sy));
-		wl_touch_send_frame(resource);
+	}
+
+	point->client->needs_touch_frame = true;
+}
+
+void wlr_seat_touch_send_frame(struct wlr_seat *seat) {
+	struct wlr_seat_client *seat_client;
+	wl_list_for_each(seat_client, &seat->clients, link) {
+		if (!seat_client->needs_touch_frame) {
+			continue;
+		}
+
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &seat_client->touches) {
+			wl_touch_send_frame(resource);
+		}
+		seat_client->needs_touch_frame = false;
 	}
 }
 

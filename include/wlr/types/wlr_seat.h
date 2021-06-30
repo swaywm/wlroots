@@ -52,11 +52,12 @@ struct wlr_seat_client {
 	// set of serials which were sent to the client on this seat
 	// for use by wlr_seat_client_{next_serial,validate_event_serial}
 	struct wlr_serial_ringset serials;
+	bool needs_touch_frame;
 };
 
 struct wlr_touch_point {
 	int32_t touch_id;
-	struct wlr_surface *surface;
+	struct wlr_surface *surface; // may be NULL if destroyed
 	struct wlr_seat_client *client;
 
 	struct wlr_surface *focus_surface;
@@ -116,6 +117,7 @@ struct wlr_touch_grab_interface {
 			struct wlr_touch_point *point);
 	void (*enter)(struct wlr_seat_touch_grab *grab, uint32_t time_msec,
 			struct wlr_touch_point *point);
+	void (*frame)(struct wlr_seat_touch_grab *grab);
 	// XXX this will conflict with the actual touch cancel which is different so
 	// we need to rename this
 	void (*cancel)(struct wlr_seat_touch_grab *grab);
@@ -607,6 +609,8 @@ void wlr_seat_touch_send_up(struct wlr_seat *seat, uint32_t time_msec,
 void wlr_seat_touch_send_motion(struct wlr_seat *seat, uint32_t time_msec,
 		int32_t touch_id, double sx, double sy);
 
+void wlr_seat_touch_send_frame(struct wlr_seat *seat);
+
 /**
  * Notify the seat of a touch down on the given surface. Defers to any grab of
  * the touch device.
@@ -630,6 +634,8 @@ void wlr_seat_touch_notify_up(struct wlr_seat *seat, uint32_t time_msec,
  */
 void wlr_seat_touch_notify_motion(struct wlr_seat *seat, uint32_t time_msec,
 		int32_t touch_id, double sx, double sy);
+
+void wlr_seat_touch_notify_frame(struct wlr_seat *seat);
 
 /**
  * How many touch points are currently down for the seat.
