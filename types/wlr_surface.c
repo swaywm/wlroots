@@ -167,7 +167,7 @@ static void surface_state_viewport_src_size(struct wlr_surface_state *state,
 	}
 }
 
-static bool surface_state_finalize(struct wlr_surface *surface,
+static void surface_state_finalize(struct wlr_surface *surface,
 		struct wlr_surface_state *state) {
 	if ((state->committed & WLR_SURFACE_STATE_BUFFER)) {
 		if (state->buffer_resource != NULL) {
@@ -187,7 +187,6 @@ static bool surface_state_finalize(struct wlr_surface *surface,
 		wlr_log(WLR_DEBUG, "Client bug: submitted a buffer whose size (%dx%d) "
 			"is not divisible by scale (%d)", state->buffer_width,
 			state->buffer_height, state->scale);
-		return false;
 	}
 
 	if (state->viewport.has_dst) {
@@ -207,8 +206,6 @@ static bool surface_state_finalize(struct wlr_surface *surface,
 	pixman_region32_intersect_rect(&state->buffer_damage,
 		&state->buffer_damage, 0, 0, state->buffer_width,
 		state->buffer_height);
-
-	return true;
 }
 
 static void surface_update_damage(pixman_region32_t *buffer_damage,
@@ -470,9 +467,7 @@ static void surface_commit_state(struct wlr_surface *surface,
 }
 
 static void surface_commit_pending(struct wlr_surface *surface) {
-	if (!surface_state_finalize(surface, &surface->pending)) {
-		return;
-	}
+	surface_state_finalize(surface, &surface->pending);
 
 	if (surface->role && surface->role->precommit) {
 		surface->role->precommit(surface);
