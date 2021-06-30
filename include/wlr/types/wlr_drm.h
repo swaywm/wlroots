@@ -13,6 +13,15 @@
 
 struct wlr_renderer;
 
+struct wlr_drm_buffer {
+	struct wlr_buffer base;
+
+	struct wl_resource *resource; // can be NULL if the client destroyed it
+	struct wlr_dmabuf_attributes dmabuf;
+
+	struct wl_listener release;
+};
+
 /**
  * A stub implementation of Mesa's wl_drm protocol.
  *
@@ -21,6 +30,7 @@ struct wlr_renderer;
  */
 struct wlr_drm {
 	struct wl_global *global;
+	struct wlr_renderer *renderer;
 	char *node_name;
 
 	struct {
@@ -28,7 +38,13 @@ struct wlr_drm {
 	} events;
 
 	struct wl_listener display_destroy;
+	struct wl_listener renderer_destroy;
 };
+
+bool wlr_drm_buffer_is_resource(struct wl_resource *resource);
+
+struct wlr_drm_buffer *wlr_drm_buffer_from_resource(
+	struct wl_resource *resource);
 
 struct wlr_drm *wlr_drm_create(struct wl_display *display,
 	struct wlr_renderer *renderer);
