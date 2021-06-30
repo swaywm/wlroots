@@ -18,10 +18,10 @@ struct wlr_touch {
 	const struct wlr_touch_impl *impl;
 
 	struct {
-		struct wl_signal down;
-		struct wl_signal up;
-		struct wl_signal motion;
-		struct wl_signal cancel;
+		struct wl_signal down; // struct wlr_event_touch_down
+		struct wl_signal up; // struct wlr_event_touch_up
+		struct wl_signal motion; // struct wlr_event_touch_motion
+		struct wl_signal cancel; // struct wlr_event_touch_cancel
 	} events;
 
 	void *data;
