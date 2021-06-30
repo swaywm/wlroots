@@ -131,6 +131,10 @@ static void xdg_touch_grab_enter(struct wlr_seat_touch_grab *grab,
 		uint32_t time, struct wlr_touch_point *point) {
 }
 
+static void xdg_touch_grab_frame(struct wlr_seat_touch_grab *grab) {
+	wlr_seat_touch_send_frame(grab->seat);
+}
+
 static void xdg_touch_grab_cancel(struct wlr_seat_touch_grab *grab) {
 	wlr_seat_touch_end_grab(grab->seat);
 }
@@ -140,6 +144,7 @@ static const struct wlr_touch_grab_interface xdg_touch_grab_impl = {
 	.up = xdg_touch_grab_up,
 	.motion = xdg_touch_grab_motion,
 	.enter = xdg_touch_grab_enter,
+	.frame = xdg_touch_grab_frame,
 	.cancel = xdg_touch_grab_cancel
 };
 
