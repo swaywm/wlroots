@@ -1,5 +1,6 @@
 #include "util/array.h"
 #include <assert.h>
+#include <string.h>
 
 // https://www.geeksforgeeks.org/move-zeroes-end-array/
 size_t push_zeroes_to_end(uint32_t arr[], size_t n) {
@@ -45,4 +46,12 @@ bool set_remove(uint32_t values[], size_t *len, size_t cap, uint32_t target) {
 		}
 	}
 	return false;
+}
+
+void array_remove_at(struct wl_array *arr, size_t offset, size_t size) {
+	assert(arr->size >= offset + size);
+
+	char *data = arr->data;
+	memmove(&data[offset], &data[offset + size], arr->size - offset - size);
+	arr->size -= size;
 }
