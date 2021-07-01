@@ -12,7 +12,6 @@
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include "backend/drm/drm.h"
-#include "types/wlr_buffer.h"
 #include "util/signal.h"
 
 struct wlr_drm_backend *get_drm_backend_from_backend(

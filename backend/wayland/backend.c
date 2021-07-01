@@ -21,7 +21,6 @@
 #include "render/drm_format_set.h"
 #include "render/pixel_format.h"
 #include "render/wlr_renderer.h"
-#include "types/wlr_buffer.h"
 #include "util/signal.h"
 
 #include "drm-client-protocol.h"

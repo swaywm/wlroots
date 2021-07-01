@@ -33,7 +33,6 @@
 #include "backend/x11.h"
 #include "render/allocator.h"
 #include "render/drm_format_set.h"
-#include "types/wlr_buffer.h"
 #include "util/signal.h"
 
 // See dri2_format_for_depth in mesa

@@ -19,7 +19,6 @@
 #include "render/pixel_format.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
-#include "types/wlr_buffer.h"
 #include "util/signal.h"
 
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
