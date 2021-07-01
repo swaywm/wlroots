@@ -2,8 +2,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <wayland-server-protocol.h>
-#include <wlr/types/wlr_box.h>
+#include <wlr/util/box.h>
 #include <wlr/util/log.h>
 
 void wlr_box_closest_point(const struct wlr_box *box, double x, double y,

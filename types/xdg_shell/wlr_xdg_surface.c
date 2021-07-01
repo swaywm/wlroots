@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wlr/util/box.h>
 #include <wlr/util/log.h>
 #include "types/wlr_xdg_shell.h"
 #include "util/signal.h"

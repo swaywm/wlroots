@@ -8,7 +8,6 @@
 
 #include <wlr/backend/wayland.h>
 #include <wlr/render/wlr_renderer.h>
-#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/render/drm_format_set.h>
 

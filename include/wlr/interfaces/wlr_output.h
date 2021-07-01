@@ -11,7 +11,6 @@
 
 #include <stdbool.h>
 #include <wlr/backend.h>
-#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 
 /**

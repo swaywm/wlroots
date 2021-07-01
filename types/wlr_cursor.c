@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/types/wlr_tablet_tool.h>
 #include <wlr/types/wlr_touch.h>
+#include <wlr/util/box.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
 

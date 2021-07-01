@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <time.h>
 #include <wayland-server-core.h>
-#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output_damage.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/util/box.h>
 #include "util/signal.h"
 
 static void output_handle_destroy(struct wl_listener *listener, void *data) {

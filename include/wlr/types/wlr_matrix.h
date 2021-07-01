@@ -16,8 +16,9 @@
 #ifndef WLR_TYPES_WLR_MATRIX_H
 #define WLR_TYPES_WLR_MATRIX_H
 
-#include <wayland-server-core.h>
-#include <wlr/types/wlr_box.h>
+#include <wayland-server-protocol.h>
+
+struct wlr_box;
 
 /** Writes the identity matrix into mat */
 void wlr_matrix_identity(float mat[static 9]);

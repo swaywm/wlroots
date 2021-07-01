@@ -11,9 +11,9 @@
 
 #include <stdbool.h>
 #include <wayland-util.h>
-#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 
+struct wlr_box;
 struct wlr_output_layout_state;
 
 /**
