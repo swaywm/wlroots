@@ -110,9 +110,9 @@ static bool backend_start(struct wlr_backend *wlr_backend) {
 			no_devs = NULL;
 		}
 	}
-	if (!no_devs && backend->wlr_device_lists.length == 0) {
+	if (!no_devs && backend->wlr_device_lists.size == 0) {
 		handle_libinput_readable(libinput_fd, WL_EVENT_READABLE, backend);
-		if (backend->wlr_device_lists.length == 0) {
+		if (backend->wlr_device_lists.size == 0) {
 			wlr_log(WLR_ERROR, "libinput initialization failed, no input devices");
 			wlr_log(WLR_ERROR, "Set WLR_LIBINPUT_NO_DEVICES=1 to suppress this check");
 			return false;
@@ -141,8 +141,8 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 	struct wlr_libinput_backend *backend =
 		get_libinput_backend_from_backend(wlr_backend);
 
-	for (size_t i = 0; i < backend->wlr_device_lists.length; i++) {
-		struct wl_list *wlr_devices = backend->wlr_device_lists.items[i];
+	struct wl_list *wlr_devices;
+	wl_array_for_each(wlr_devices, &backend->wlr_device_lists) {
 		struct wlr_input_device *wlr_dev, *next;
 		wl_list_for_each_safe(wlr_dev, next, wlr_devices, link) {
 			wlr_input_device_destroy(wlr_dev);
@@ -156,7 +156,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 	wl_list_remove(&backend->session_destroy.link);
 	wl_list_remove(&backend->session_signal.link);
 
-	wlr_list_finish(&backend->wlr_device_lists);
+	wl_array_release(&backend->wlr_device_lists);
 	if (backend->input_event) {
 		wl_event_source_remove(backend->input_event);
 	}
@@ -211,10 +211,7 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 	}
 	wlr_backend_init(&backend->backend, &backend_impl);
 
-	if (!wlr_list_init(&backend->wlr_device_lists)) {
-		wlr_log(WLR_ERROR, "Allocation failed: %s", strerror(errno));
-		goto error_backend;
-	}
+	wl_array_init(&backend->wlr_device_lists);
 
 	backend->session = session;
 	backend->display = display;
@@ -229,9 +226,6 @@ struct wlr_backend *wlr_libinput_backend_create(struct wl_display *display,
 	wl_display_add_destroy_listener(display, &backend->display_destroy);
 
 	return &backend->backend;
-error_backend:
-	free(backend);
-	return NULL;
 }
 
 struct libinput_device *wlr_libinput_get_device_handle(
