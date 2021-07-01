@@ -2,7 +2,7 @@
 #include <pixman.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <wayland-server-core.h>
+#include <wayland-server-protocol.h>
 #include <wlr/types/wlr_region.h>
 #include "types/wlr_region.h"
 
