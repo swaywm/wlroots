@@ -39,11 +39,4 @@ bool wlr_box_empty(const struct wlr_box *box);
 void wlr_box_transform(struct wlr_box *dest, const struct wlr_box *box,
 	enum wl_output_transform transform, int width, int height);
 
-/**
- * Creates the smallest box that contains the box rotated about its center.
- */
-void wlr_box_rotated_bounds(struct wlr_box *dest, const struct wlr_box *box, float rotation);
-
-void wlr_box_from_pixman_box32(struct wlr_box *dest, const pixman_box32_t box);
-
 #endif
