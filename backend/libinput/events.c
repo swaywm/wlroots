@@ -7,6 +7,7 @@
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "backend/libinput.h"
+#include "util/array.h"
 #include "util/signal.h"
 
 static struct wlr_libinput_input_device *get_libinput_device_from_device(
@@ -183,8 +184,13 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 	}
 
 	if (!wl_list_empty(wlr_devices)) {
+		struct wl_list **dst = wl_array_add(&backend->wlr_device_lists, sizeof(wlr_devices));
+		if (!dst) {
+			goto fail;
+		}
+		*dst = wlr_devices;
+
 		libinput_device_set_user_data(libinput_dev, wlr_devices);
-		wlr_list_push(&backend->wlr_device_lists, wlr_devices);
 	} else {
 		free(wlr_devices);
 	}
@@ -213,11 +219,15 @@ static void handle_device_removed(struct wlr_libinput_backend *backend,
 	wl_list_for_each_safe(dev, tmp_dev, wlr_devices, link) {
 		wlr_input_device_destroy(dev);
 	}
-	for (size_t i = 0; i < backend->wlr_device_lists.length; i++) {
-		if (backend->wlr_device_lists.items[i] == wlr_devices) {
-			wlr_list_del(&backend->wlr_device_lists, i);
+	size_t i = 0;
+	struct wl_list *iter;
+	wl_array_for_each(iter, &backend->wlr_device_lists) {
+		if (iter == wlr_devices) {
+			array_remove_at(&backend->wlr_device_lists,
+				i * sizeof(struct wl_list *), sizeof(struct wl_list *));
 			break;
 		}
+		i++;
 	}
 	free(wlr_devices);
 }
