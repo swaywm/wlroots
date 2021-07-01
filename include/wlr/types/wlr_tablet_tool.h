@@ -12,7 +12,6 @@
 #include <stdint.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_input_device.h>
-#include <wlr/types/wlr_list.h>
 
 /*
  * Copy+Paste from libinput, but this should neither use libinput, nor
@@ -71,7 +70,7 @@ struct wlr_tablet {
 	} events;
 
 	char *name;
-	struct wlr_list paths; // char *
+	struct wl_array paths; // char *
 
 	void *data;
 };

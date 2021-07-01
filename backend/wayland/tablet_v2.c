@@ -336,7 +336,8 @@ static void handle_tablet_pad_path(void *data,
 	struct wlr_wl_input_device *dev = data;
 	struct wlr_tablet_pad *tablet_pad = dev->wlr_input_device.tablet_pad;
 
-	wlr_list_push(&tablet_pad->paths, strdup(path));
+	char **dst = wl_array_add(&tablet_pad->paths, sizeof(char *));
+	*dst = strdup(path);
 }
 
 static void handle_tablet_pad_buttons(void *data,
@@ -854,7 +855,8 @@ static void handle_tablet_path(void *data, struct zwp_tablet_v2 *zwp_tablet_v2,
 	struct wlr_wl_input_device *dev = data;
 	struct wlr_tablet *tablet = dev->wlr_input_device.tablet;
 
-	wlr_list_push(&tablet->paths, strdup(path));
+	char **dst = wl_array_add(&tablet->paths, sizeof(char *));
+	*dst = strdup(path);
 }
 
 static void handle_tablet_done(void *data, struct zwp_tablet_v2 *zwp_tablet_v2) {
