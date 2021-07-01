@@ -9,7 +9,6 @@
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/types/wlr_list.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include "backend/drm/drm.h"
