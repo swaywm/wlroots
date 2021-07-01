@@ -28,7 +28,6 @@
 #include "render/drm_format_set.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
-#include "types/wlr_buffer.h"
 #include "util/signal.h"
 
 static const uint32_t SUPPORTED_OUTPUT_STATE =

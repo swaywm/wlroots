@@ -15,7 +15,6 @@
 
 #include "render/drm_dumb_allocator.h"
 #include "render/pixel_format.h"
-#include "types/wlr_buffer.h"
 
 static const struct wlr_buffer_impl buffer_impl;
 

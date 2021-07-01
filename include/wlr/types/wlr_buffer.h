@@ -34,6 +34,18 @@ struct wlr_buffer_impl {
 };
 
 /**
+ * Buffer capabilities.
+ *
+ * These bits indicate the features supported by a wlr_buffer. There is one bit
+ * per function in wlr_buffer_impl.
+ */
+enum wlr_buffer_cap {
+	WLR_BUFFER_CAP_DATA_PTR = 1 << 0,
+	WLR_BUFFER_CAP_DMABUF = 1 << 1,
+	WLR_BUFFER_CAP_SHM = 1 << 2,
+};
+
+/**
  * A buffer containing pixel data.
  *
  * A buffer has a single producer (the party who created the buffer) and
