@@ -115,8 +115,9 @@ void add_tablet_tool_client(struct wlr_tablet_seat_client_v2 *seat,
 	client->tool = tool;
 	client->seat = seat;
 
-	client->resource =
-		wl_resource_create(seat->wl_client, &zwp_tablet_tool_v2_interface, 1, 0);
+	uint32_t version = wl_resource_get_version(seat->resource);
+	client->resource = wl_resource_create(seat->wl_client,
+		&zwp_tablet_tool_v2_interface, version, 0);
 	if (!client->resource) {
 		free(client);
 		return;
