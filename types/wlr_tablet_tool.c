@@ -11,6 +11,7 @@ void wlr_tablet_init(struct wlr_tablet *tablet,
 	wl_signal_init(&tablet->events.proximity);
 	wl_signal_init(&tablet->events.tip);
 	wl_signal_init(&tablet->events.button);
+	wl_array_init(&tablet->paths);
 }
 
 void wlr_tablet_destroy(struct wlr_tablet *tablet) {
@@ -18,8 +19,11 @@ void wlr_tablet_destroy(struct wlr_tablet *tablet) {
 		return;
 	}
 
-	wlr_list_for_each(&tablet->paths, free);
-	wlr_list_finish(&tablet->paths);
+	char *path;
+	wl_array_for_each(path, &tablet->paths) {
+		free(path);
+	}
+	wl_array_release(&tablet->paths);
 
 	if (tablet->impl && tablet->impl->destroy) {
 		tablet->impl->destroy(tablet);

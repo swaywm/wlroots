@@ -85,7 +85,8 @@ struct wlr_tablet_pad *create_libinput_tablet_pad(
 		libinput_device_tablet_pad_get_num_strips(libinput_dev);
 
 	struct udev_device *udev = libinput_device_get_udev_device(libinput_dev);
-	wlr_list_push(&wlr_tablet_pad->paths, strdup(udev_device_get_syspath(udev)));
+	char **dst = wl_array_add(&wlr_tablet_pad->paths, sizeof(char *));
+	*dst = strdup(udev_device_get_syspath(udev));
 
 	int groups = libinput_device_tablet_pad_get_num_mode_groups(libinput_dev);
 	for (int i = 0; i < groups; ++i) {

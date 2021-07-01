@@ -325,10 +325,12 @@ void add_tablet_pad_client(struct wlr_tablet_seat_client_v2 *seat,
 	if (pad->wlr_pad->button_count) {
 		zwp_tablet_pad_v2_send_buttons(client->resource, pad->wlr_pad->button_count);
 	}
-	for (size_t i = 0; i < pad->wlr_pad->paths.length; ++i) {
-		zwp_tablet_pad_v2_send_path(client->resource,
-			pad->wlr_pad->paths.items[i]);
+
+	const char *path;
+	wl_array_for_each(path, &pad->wlr_pad->paths) {
+		zwp_tablet_pad_v2_send_path(client->resource, path);
 	}
+
 	size_t i = 0;
 	struct wlr_tablet_pad_group *group;
 	client->group_count = pad->group_count;

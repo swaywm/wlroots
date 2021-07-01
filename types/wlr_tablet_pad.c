@@ -13,7 +13,7 @@ void wlr_tablet_pad_init(struct wlr_tablet_pad *pad,
 	wl_signal_init(&pad->events.attach_tablet);
 
 	wl_list_init(&pad->groups);
-	wlr_list_init(&pad->paths);
+	wl_array_init(&pad->paths);
 }
 
 void wlr_tablet_pad_destroy(struct wlr_tablet_pad *pad) {
@@ -21,8 +21,11 @@ void wlr_tablet_pad_destroy(struct wlr_tablet_pad *pad) {
 		return;
 	}
 
-	wlr_list_for_each(&pad->paths, free);
-	wlr_list_finish(&pad->paths);
+	char *path;
+	wl_array_for_each(path, &pad->paths) {
+		free(path);
+	}
+	wl_array_release(&pad->paths);
 
 	if (pad->impl && pad->impl->destroy) {
 		pad->impl->destroy(pad);
