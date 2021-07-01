@@ -2,7 +2,6 @@
 #include <math.h>
 #include <limits.h>
 #include <stdlib.h>
-#include <wlr/types/wlr_box.h>
 #include <wlr/util/region.h>
 
 void wlr_region_scale(pixman_region32_t *dst, pixman_region32_t *src,

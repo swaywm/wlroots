@@ -9,13 +9,13 @@
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 #include <wlr/render/wlr_renderer.h>
-#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_tablet_pad.h>
 #include <wlr/types/wlr_tablet_tool.h>
+#include <wlr/util/box.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 

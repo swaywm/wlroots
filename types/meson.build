@@ -16,7 +16,6 @@ wlr_files += files(
 	'xdg_shell/wlr_xdg_shell.c',
 	'xdg_shell/wlr_xdg_surface.c',
 	'xdg_shell/wlr_xdg_toplevel.c',
-	'wlr_box.c',
 	'wlr_buffer.c',
 	'wlr_compositor.c',
 	'wlr_cursor.c',

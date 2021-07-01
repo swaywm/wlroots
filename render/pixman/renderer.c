@@ -5,6 +5,7 @@
 #include <wayland-server.h>
 #include <wlr/render/interface.h>
 #include <wlr/types/wlr_matrix.h>
+#include <wlr/util/box.h>
 #include <wlr/util/log.h>
 
 #include "render/pixman.h"

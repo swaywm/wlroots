@@ -14,6 +14,7 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
+#include <wlr/util/box.h>
 #include <wlr/util/log.h>
 #include "render/egl.h"
 #include "render/gles2.h"
