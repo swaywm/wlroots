@@ -11,6 +11,7 @@
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "backend/libinput.h"
+#include "util/array.h"
 #include "util/signal.h"
 
 static const struct wlr_tablet_impl tablet_impl;
@@ -29,18 +30,9 @@ struct wlr_libinput_tablet_tool {
 	size_t pad_refs;
 };
 
-// TODO: Maybe this should be a wlr_list? Do we keep it, or want to get rid of
-// it?
-struct tablet_tool_list_elem {
-	struct wl_list link;
-
-	struct wlr_libinput_tablet_tool *tool;
-};
-
 struct wlr_libinput_tablet {
 	struct wlr_tablet wlr_tablet;
-
-	struct wl_list tools; // tablet_tool_list_elem::link
+	struct wl_array tools; // struct wlr_libinput_tablet_tool *
 };
 
 static void destroy_tool(struct wlr_libinput_tablet_tool *tool) {
@@ -56,17 +48,13 @@ static void destroy_tablet(struct wlr_tablet *wlr_tablet) {
 	struct wlr_libinput_tablet *tablet =
 		wl_container_of(wlr_tablet, tablet, wlr_tablet);
 
-	struct tablet_tool_list_elem *pos;
-	struct tablet_tool_list_elem *tmp;
-	wl_list_for_each_safe(pos, tmp, &tablet->tools, link) {
-		struct wlr_libinput_tablet_tool *tool = pos->tool;
-		wl_list_remove(&pos->link);
-		free(pos);
-
+	struct wlr_libinput_tablet_tool *tool;
+	wl_array_for_each(tool, &tablet->tools) {
 		if (--tool->pad_refs == 0) {
 			destroy_tool(tool);
 		}
 	}
+	wl_array_release(&tablet->tools);
 
 	free(tablet);
 }
@@ -94,7 +82,7 @@ struct wlr_tablet *create_libinput_tablet(
 
 	wlr_tablet->name = strdup(libinput_device_get_name(libinput_dev));
 
-	wl_list_init(&libinput_tablet->tools);
+	wl_array_init(&libinput_tablet->tools);
 
 	return wlr_tablet;
 }
@@ -163,9 +151,9 @@ static void ensure_tool_reference(struct wlr_libinput_tablet_tool *tool,
 	struct wlr_libinput_tablet *tablet =
 		wl_container_of(wlr_dev, tablet, wlr_tablet);
 
-	struct tablet_tool_list_elem *pos;
-	wl_list_for_each(pos, &tablet->tools, link) {
-		if (pos->tool == tool) { // We already have a ref
+	struct wlr_libinput_tablet_tool *iter;
+	wl_array_for_each(iter, &tablet->tools) {
+		if (iter == tool) { // We already have a ref
 			// XXX: We *could* optimize the tool to the front of
 			// the list here, since we will probably get the next
 			// couple of events from the same tool.
@@ -176,15 +164,13 @@ static void ensure_tool_reference(struct wlr_libinput_tablet_tool *tool,
 		}
 	}
 
-	struct tablet_tool_list_elem *new =
-		calloc(1, sizeof(struct tablet_tool_list_elem));
-	if (!new) {
+	struct wlr_libinput_tablet_tool **dst =
+		wl_array_add(&tablet->tools, sizeof(tool));
+	if (!dst) {
 		wlr_log(WLR_ERROR, "Failed to allocate memory for tracking tablet tool");
 		return;
 	}
-
-	new->tool = tool;
-	wl_list_insert(&tablet->tools, &new->link);
+	*dst = tool;
 	++tool->pad_refs;
 }
 
@@ -297,15 +283,15 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 		assert(tablet_is_libinput(wlr_dev->tablet));
 		struct wlr_libinput_tablet *tablet =
 			wl_container_of(wlr_dev->tablet, tablet, wlr_tablet);
-		struct tablet_tool_list_elem *pos;
-		struct tablet_tool_list_elem *tmp;
 
-		wl_list_for_each_safe(pos, tmp, &tablet->tools, link) {
-			if (pos->tool == tool) {
-				wl_list_remove(&pos->link);
-				free(pos);
+		size_t i = 0;
+		struct wlr_libinput_tablet_tool *iter;
+		wl_array_for_each(iter, &tablet->tools) {
+			if (iter == tool) {
+				array_remove_at(&tablet->tools, i * sizeof(tool), sizeof(tool));
 				break;
 			}
+			i++;
 		}
 
 		destroy_tool(tool);
