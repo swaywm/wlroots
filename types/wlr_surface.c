@@ -417,6 +417,8 @@ static void surface_cache_pending(struct wlr_surface *surface) {
 	surface_state_move(cached, &surface->pending);
 
 	wl_list_insert(surface->cached.prev, &cached->cached_state_link);
+
+	surface->pending.seq++;
 }
 
 static void surface_commit_state(struct wlr_surface *surface,
@@ -461,6 +463,12 @@ static void surface_commit_state(struct wlr_surface *surface,
 		}
 	}
 
+	// If we're committing the pending state, bump the pending sequence number
+	// here, to allow commit listeners to lock the new pending state.
+	if (next == &surface->pending) {
+		surface->pending.seq++;
+	}
+
 	if (surface->role && surface->role->commit) {
 		surface->role->commit(surface);
 	}
@@ -475,13 +483,11 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 		surface->role->precommit(surface);
 	}
 
-	uint32_t next_seq = surface->pending.seq + 1;
 	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
 		surface_cache_pending(surface);
 	} else {
 		surface_commit_state(surface, &surface->pending);
 	}
-	surface->pending.seq = next_seq;
 }
 
 static bool subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
