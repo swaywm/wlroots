@@ -156,7 +156,7 @@ out:
 	free(formats);
 }
 
-static struct wlr_egl *wlr_egl_alloc() {
+static struct wlr_egl *wlr_egl_alloc(void) {
 	struct wlr_egl *egl = calloc(1, sizeof(struct wlr_egl));
 	if (egl == NULL) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
@@ -165,7 +165,7 @@ static struct wlr_egl *wlr_egl_alloc() {
 	return egl;
 }
 
-static const char *wlr_egl_load_client_exts(EGLenum platform, struct wlr_egl *egl) {
+static const char *wlr_egl_load_client_exts(struct wlr_egl *egl) {
 	const char *client_exts_str = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
 	if (client_exts_str == NULL) {
 		if (eglGetError() == EGL_BAD_DISPLAY) {
@@ -390,7 +390,7 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 	if(egl == NULL)
 		return NULL;
 
-	const char *client_extensions_str = wlr_egl_load_client_exts(platform, egl);
+	const char *client_extensions_str = wlr_egl_load_client_exts(egl);
 	if(client_extensions_str == NULL)
 		return NULL;
 
@@ -430,7 +430,7 @@ struct wlr_egl *wlr_egl_from_context(EGLDisplay display, EGLContext context) {
 	if(egl == NULL)
 		return NULL;
 
-	const char *client_extensions_str = wlr_egl_load_client_exts(0, egl);
+	const char *client_extensions_str = wlr_egl_load_client_exts(egl);
 	if(client_extensions_str == NULL)
 		return NULL;
 
