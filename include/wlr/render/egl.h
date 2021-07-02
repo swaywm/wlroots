@@ -72,7 +72,7 @@ struct wlr_egl {
  * Uses an existing EGL context for the given platform and functions.
  * Will attempt to load all possibly required api functions.
  */
-struct wlr_egl *wlr_egl_from_context(EGLDisplay display, EGLContext context, EGLenum platform);
+struct wlr_egl *wlr_egl_from_context(EGLDisplay display, EGLContext context);
 
 /*
  * Make the EGL context current.

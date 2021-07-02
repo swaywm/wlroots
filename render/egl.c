@@ -425,12 +425,12 @@ error:
 	return NULL;
 }
 
-struct wlr_egl *wlr_egl_from_context(EGLDisplay display, EGLContext context, EGLenum platform) {
+struct wlr_egl *wlr_egl_from_context(EGLDisplay display, EGLContext context) {
 	struct wlr_egl *egl = wlr_egl_alloc();
 	if(egl == NULL)
 		return NULL;
 
-	const char *client_extensions_str = wlr_egl_load_client_exts(platform, egl);
+	const char *client_extensions_str = wlr_egl_load_client_exts(0, egl);
 	if(client_extensions_str == NULL)
 		return NULL;
 
