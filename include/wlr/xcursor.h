@@ -45,20 +45,30 @@
 #include <stdint.h>
 #include <wlr/util/edges.h>
 
+/**
+ * A still cursor image.
+ *
+ * The buffer contains pixels layed out in a packed DRM_FORMAT_ARGB8888 format.
+ */
 struct wlr_xcursor_image {
-	uint32_t width;		/* actual width */
-	uint32_t height;	/* actual height */
-	uint32_t hotspot_x;	/* hot spot x (must be inside image) */
-	uint32_t hotspot_y;	/* hot spot y (must be inside image) */
-	uint32_t delay;		/* animation delay to next frame (ms) */
-	uint8_t *buffer;
+	uint32_t width; /* actual width */
+	uint32_t height; /* actual height */
+	uint32_t hotspot_x; /* hot-spot x (must be inside image) */
+	uint32_t hotspot_y; /* hot-spot y (must be inside image) */
+	uint32_t delay; /* animation delay to next frame (ms) */
+	uint8_t *buffer; /* pixel data */
 };
 
+/**
+ * A cursor.
+ *
+ * If the cursor is animated, it may contain more than a single image.
+ */
 struct wlr_xcursor {
 	unsigned int image_count;
 	struct wlr_xcursor_image **images;
 	char *name;
-	uint32_t total_delay; /* length of the animation in ms */
+	uint32_t total_delay; /* total duration of the animation in ms */
 };
 
 /**
@@ -72,30 +82,46 @@ struct wlr_xcursor_theme {
 };
 
 /**
- * Loads the named xcursor theme at the given cursor size (in pixels). This is
- * useful if you need cursor images for your compositor to use when a
- * client-side cursors is not available or you wish to override client-side
+ * Loads the named Xcursor theme.
+ *
+ * This is useful if you need cursor images for your compositor to use when a
+ * client-side cursor is not available or you wish to override client-side
  * cursors for a particular UI interaction (such as using a grab cursor when
  * moving a window around).
+ *
+ * The size is given in pixels.
+ *
+ * If a cursor theme with the given name couldn't be loaded, a fallback theme
+ * is loaded.
+ *
+ * On error, NULL is returned.
  */
 struct wlr_xcursor_theme *wlr_xcursor_theme_load(const char *name, int size);
 
+/**
+ * Destroy a cursor theme.
+ *
+ * This implicitly destroys all child cursors and cursor images.
+ */
 void wlr_xcursor_theme_destroy(struct wlr_xcursor_theme *theme);
 
 /**
- * Obtains a wlr_xcursor image for the specified cursor name (e.g. "left_ptr").
+ * Obtain a cursor for the specified name (e.g. "left_ptr").
+ *
+ * If the cursor could not be found, NULL is returned.
  */
 struct wlr_xcursor *wlr_xcursor_theme_get_cursor(
 	struct wlr_xcursor_theme *theme, const char *name);
 
 /**
- * Returns the current frame number for an animated cursor give a monotonic time
- * reference.
+ * Find the frame for a given elapsed time in a cursor animation.
+ *
+ * This function converts a timestamp (in ms) to a cursor image index.
  */
 int wlr_xcursor_frame(struct wlr_xcursor *cursor, uint32_t time);
 
 /**
- * Get the name of the resize cursor image for the given edges.
+ * Get the name of the resize cursor for the given edges.
  */
 const char *wlr_xcursor_get_resize_name(enum wlr_edges edges);
 
