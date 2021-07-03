@@ -34,9 +34,8 @@
  * the layout and size of structs used by wlroots may change, requiring code
  * depending on this header to be recompiled (but not edited).
  *
- * Breaking changes are announced by email and follow a 1-year deprecation
- * schedule. Send an email to ~sircmpwn/wlroots-announce+subscribe@lists.sr.ht
- * to receive these announcements.
+ * Breaking changes are announced in the release notes and follow a 1-year
+ * deprecation schedule.
  */
 
 #ifndef WLR_XCURSOR_H
