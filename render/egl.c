@@ -461,7 +461,7 @@ error:
 }
 
 void wlr_egl_destroy(struct wlr_egl *egl) {
-	if (egl == NULL || !egl->has_external_context) {
+	if (egl == NULL) {
 		return;
 	}
 
@@ -474,8 +474,10 @@ void wlr_egl_destroy(struct wlr_egl *egl) {
 		egl->procs.eglUnbindWaylandDisplayWL(egl->display, egl->wl_display);
 	}
 
-	eglDestroyContext(egl->display, egl->context);
-	eglTerminate(egl->display);
+	if (!egl->has_external_context) {
+		eglDestroyContext(egl->display, egl->context);
+		eglTerminate(egl->display);
+	}
 	eglReleaseThread();
 
 	if (egl->gbm_device) {
