@@ -35,6 +35,8 @@ struct wlr_egl {
 	EGLDeviceEXT device; // may be EGL_NO_DEVICE_EXT
 	struct gbm_device *gbm_device;
 
+	bool has_external_context;
+
 	struct {
 		// Display extensions
 		bool bind_wayland_display_wl;
@@ -67,6 +69,12 @@ struct wlr_egl {
 };
 
 /**
+ * Uses an existing EGL context for the given platform and functions.
+ * Will attempt to load all possibly required api functions.
+ */
+struct wlr_egl *wlr_egl_from_context(EGLDisplay display, EGLContext context);
+
+/*
  * Make the EGL context current.
  *
  * Callers are expected to clear the current context when they are done by
