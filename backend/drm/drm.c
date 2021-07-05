@@ -355,9 +355,12 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn,
 		}
 	} else {
 		drm_fb_clear(&crtc->primary->pending_fb);
-		if (crtc->cursor != NULL) {
-			drm_fb_clear(&crtc->cursor->pending_fb);
-		}
+		// The set_cursor() hook is a bit special: it's not really synchronized
+		// to commit() or test(). Once set_cursor() returns true, the new
+		// cursor is effectively committed. So don't roll it back here, or we
+		// risk ending up in a state where we don't have a cursor FB but
+		// wlr_drm_connector.cursor_enabled is true.
+		// TODO: fix our output interface to avoid this issue.
 	}
 	return ok;
 }
