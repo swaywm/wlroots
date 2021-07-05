@@ -387,30 +387,36 @@ static bool create_egl_context(const char *display_extensions_str, struct wlr_eg
 
 struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 	struct wlr_egl *egl = alloc_egl();
-	if(egl == NULL)
+	if (egl == NULL) {
 		return NULL;
+	}
 
 	const char *client_extensions_str = load_client_exts(egl);
-	if(client_extensions_str == NULL)
+	if (client_extensions_str == NULL) {
 		return NULL;
+	}
 
-	if(!init_egl(drm_fd, egl))
+	if (!init_egl(drm_fd, egl)) {
 		goto error;
+	}
 
 	const char *display_extensions_str = load_display_exts(egl);
-	if(display_extensions_str == NULL)
+	if (display_extensions_str == NULL) {
 		goto error;
+	}
 
 	const char *device_extensions_str = load_device_exts(client_extensions_str, egl);
-	if(device_extensions_str == NULL)
+	if (device_extensions_str == NULL) {
 		goto error;
+	}
 
 	wlr_log(WLR_INFO, "EGL vendor: %s", eglQueryString(egl->display, EGL_VENDOR));
 
 	init_dmabuf_formats(egl);
 
-	if(!create_egl_context(display_extensions_str, egl))
+	if (!create_egl_context(display_extensions_str, egl)) {
 		goto error;
+	}
 	
 	egl->has_external_context = false;
 
@@ -427,22 +433,26 @@ error:
 
 struct wlr_egl *wlr_egl_from_context(EGLDisplay display, EGLContext context) {
 	struct wlr_egl *egl = alloc_egl();
-	if(egl == NULL)
+	if (egl == NULL) {
 		return NULL;
+	}
 
 	const char *client_extensions_str = load_client_exts(egl);
-	if(client_extensions_str == NULL)
+	if (client_extensions_str == NULL) {
 		return NULL;
+	}
 
 	egl->display = display;
 
 	const char *display_extensions_str = load_display_exts(egl);
-	if(display_extensions_str == NULL)
+	if (display_extensions_str == NULL) {
 		goto error;
+	}
 
 	const char *device_extensions_str = load_device_exts(client_extensions_str, egl);
-	if(device_extensions_str == NULL)
+	if (device_extensions_str == NULL) {
 		goto error;
+	}
 
 	init_dmabuf_formats(egl);
 
