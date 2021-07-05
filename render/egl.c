@@ -156,7 +156,7 @@ out:
 	free(formats);
 }
 
-static struct wlr_egl *wlr_egl_alloc(void) {
+static struct wlr_egl *alloc_egl(void) {
 	struct wlr_egl *egl = calloc(1, sizeof(struct wlr_egl));
 	if (egl == NULL) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
@@ -165,7 +165,7 @@ static struct wlr_egl *wlr_egl_alloc(void) {
 	return egl;
 }
 
-static const char *wlr_egl_load_client_exts(struct wlr_egl *egl) {
+static const char *load_client_exts(struct wlr_egl *egl) {
 	const char *client_exts_str = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
 	if (client_exts_str == NULL) {
 		if (eglGetError() == EGL_BAD_DISPLAY) {
@@ -206,7 +206,7 @@ static const char *wlr_egl_load_client_exts(struct wlr_egl *egl) {
 	return client_exts_str;
 }
 
-static const char *wlr_egl_load_display_exts(struct wlr_egl *egl) {
+static const char *load_display_exts(struct wlr_egl *egl) {
 	const char *display_exts_str = eglQueryString(egl->display, EGL_EXTENSIONS);
 	if (display_exts_str == NULL) {
 		wlr_log(WLR_ERROR, "Failed to query EGL display extensions");
@@ -257,7 +257,7 @@ static const char *wlr_egl_load_display_exts(struct wlr_egl *egl) {
 	return display_exts_str;
 }
 
-static const char *wlr_egl_load_device_exts(const char *client_exts_str, struct wlr_egl *egl) {
+static const char *load_device_exts(const char *client_exts_str, struct wlr_egl *egl) {
 	const char *device_exts_str = NULL, *driver_name = NULL;
 	if (check_egl_ext(client_exts_str, "EGL_EXT_device_query")) {
 		load_egl_proc(&egl->procs.eglQueryDisplayAttribEXT,
@@ -313,7 +313,7 @@ static const char *wlr_egl_load_device_exts(const char *client_exts_str, struct 
 	return device_exts_str;
  }
 
-static bool wlr_egl_init(int drm_fd, struct wlr_egl *egl) {
+static bool init_egl(int drm_fd, struct wlr_egl *egl) {
 	if (eglBindAPI(EGL_OPENGL_ES_API) == EGL_FALSE) {
 		wlr_log(WLR_ERROR, "Failed to bind to the OpenGL ES API");
 		return false;
@@ -342,7 +342,7 @@ static bool wlr_egl_init(int drm_fd, struct wlr_egl *egl) {
 	return true;
 }
 
-static bool wlr_egl_create_context(const char *display_extensions_str, struct wlr_egl *egl) {
+static bool create_egl_context(const char *display_extensions_str, struct wlr_egl *egl) {
 	bool ext_context_priority =
 		check_egl_ext(display_extensions_str, "EGL_IMG_context_priority");
 
@@ -386,22 +386,22 @@ static bool wlr_egl_create_context(const char *display_extensions_str, struct wl
 }
 
 struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
-	struct wlr_egl *egl = wlr_egl_alloc();
+	struct wlr_egl *egl = alloc_egl();
 	if(egl == NULL)
 		return NULL;
 
-	const char *client_extensions_str = wlr_egl_load_client_exts(egl);
+	const char *client_extensions_str = load_client_exts(egl);
 	if(client_extensions_str == NULL)
 		return NULL;
 
-	if(!wlr_egl_init(drm_fd, egl))
+	if(!init_egl(drm_fd, egl))
 		goto error;
 
-	const char *display_extensions_str = wlr_egl_load_display_exts(egl);
+	const char *display_extensions_str = load_display_exts(egl);
 	if(display_extensions_str == NULL)
 		goto error;
 
-	const char *device_extensions_str = wlr_egl_load_device_exts(client_extensions_str, egl);
+	const char *device_extensions_str = load_device_exts(client_extensions_str, egl);
 	if(device_extensions_str == NULL)
 		goto error;
 
@@ -409,7 +409,7 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 
 	init_dmabuf_formats(egl);
 
-	if(!wlr_egl_create_context(display_extensions_str, egl))
+	if(!create_egl_context(display_extensions_str, egl))
 		goto error;
 	
 	egl->has_external_context = false;
@@ -426,21 +426,21 @@ error:
 }
 
 struct wlr_egl *wlr_egl_from_context(EGLDisplay display, EGLContext context) {
-	struct wlr_egl *egl = wlr_egl_alloc();
+	struct wlr_egl *egl = alloc_egl();
 	if(egl == NULL)
 		return NULL;
 
-	const char *client_extensions_str = wlr_egl_load_client_exts(egl);
+	const char *client_extensions_str = load_client_exts(egl);
 	if(client_extensions_str == NULL)
 		return NULL;
 
 	egl->display = display;
 
-	const char *display_extensions_str = wlr_egl_load_display_exts(egl);
+	const char *display_extensions_str = load_display_exts(egl);
 	if(display_extensions_str == NULL)
 		goto error;
 
-	const char *device_extensions_str = wlr_egl_load_device_exts(client_extensions_str, egl);
+	const char *device_extensions_str = load_device_exts(client_extensions_str, egl);
 	if(device_extensions_str == NULL)
 		goto error;
 
