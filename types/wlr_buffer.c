@@ -194,9 +194,9 @@ static void client_buffer_resource_handle_destroy(struct wl_listener *listener,
 	// which case we'll read garbage. We decide to accept this risk.
 }
 
-struct wlr_client_buffer *wlr_client_buffer_import(
-		struct wlr_renderer *renderer, struct wl_resource *resource) {
-	assert(wlr_resource_is_buffer(resource));
+struct wlr_buffer *wlr_buffer_from_resource(struct wlr_renderer *renderer,
+		struct wl_resource *resource) {
+	assert(resource && wlr_resource_is_buffer(resource));
 
 	struct wlr_buffer *buffer;
 	if (wl_shm_buffer_get(resource) != NULL) {
@@ -219,16 +219,16 @@ struct wlr_client_buffer *wlr_client_buffer_import(
 			wlr_drm_buffer_from_resource(resource);
 		buffer = wlr_buffer_lock(&drm_buffer->base);
 	} else {
-		wlr_log(WLR_ERROR, "Cannot upload texture: unknown buffer type");
-
-		// Instead of just logging the error, also disconnect the client with a
-		// fatal protocol error so that it's clear something went wrong.
-		wl_resource_post_error(resource, 0, "unknown buffer type");
+		wlr_log(WLR_ERROR, "Unknown buffer type");
 		return NULL;
 	}
 
+	return buffer;
+}
+
+struct wlr_client_buffer *wlr_client_buffer_create(struct wlr_buffer *buffer,
+		struct wlr_renderer *renderer, struct wl_resource *resource) {
 	struct wlr_texture *texture = wlr_texture_from_buffer(renderer, buffer);
-	wlr_buffer_unlock(buffer);
 	if (texture == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create texture");
 		wl_buffer_send_release(resource);
@@ -307,10 +307,6 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 	}
 
 	wl_shm_buffer_end_access(shm_buf);
-
-	// We have uploaded the data, we don't need to access the wl_buffer
-	// anymore
-	wl_buffer_send_release(resource);
 
 	wl_list_remove(&buffer->resource_destroy.link);
 	wl_resource_add_destroy_listener(resource, &buffer->resource_destroy);
