@@ -14,6 +14,7 @@
 #include <wlr/render/dmabuf.h>
 
 struct wlr_buffer;
+struct wlr_renderer;
 
 struct wlr_shm_attributes {
 	int fd;
@@ -111,6 +112,14 @@ bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
  */
 bool wlr_buffer_get_shm(struct wlr_buffer *buffer,
 	struct wlr_shm_attributes *attribs);
+/**
+ * Transforms a wl_resource into a wlr_buffer and locks it. Once the caller is
+ * done with the buffer, they must call wlr_buffer_unlock.
+ *
+ * The provided wl_resource must be a wl_buffer.
+ */
+struct wlr_buffer *wlr_buffer_from_resource(struct wlr_renderer *renderer,
+	struct wl_resource *resource);
 
 /**
  * A client buffer.
@@ -131,7 +140,12 @@ struct wlr_client_buffer {
 	struct wl_listener resource_destroy;
 };
 
-struct wlr_renderer;
+/**
+ * Creates a wlr_client_buffer from a given wlr_buffer by creating a texture
+ * from it, and copying its wl_resource.
+ */
+struct wlr_client_buffer *wlr_client_buffer_create(struct wlr_buffer *buffer,
+	struct wlr_renderer *renderer, struct wl_resource *resource);
 
 /**
  * Get a client buffer from a generic buffer. If the buffer isn't a client
@@ -147,13 +161,6 @@ bool wlr_resource_is_buffer(struct wl_resource *resource);
  */
 bool wlr_resource_get_buffer_size(struct wl_resource *resource,
 	int *width, int *height);
-/**
- * Import a client buffer and lock it.
- *
- * Once the caller is done with the buffer, they must call wlr_buffer_unlock.
- */
-struct wlr_client_buffer *wlr_client_buffer_import(
-	struct wlr_renderer *renderer, struct wl_resource *resource);
 /**
  * Try to update the buffer's content. On success, returns the updated buffer
  * and destroys the provided `buffer`. On error, `buffer` is intact and NULL is

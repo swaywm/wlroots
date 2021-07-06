@@ -365,12 +365,13 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 		}
 	}
 
-	struct wlr_client_buffer *buffer =
-		wlr_client_buffer_import(surface->renderer, resource);
+	struct wlr_client_buffer *buffer = wlr_client_buffer_create(
+			surface->current.buffer, surface->renderer, resource);
 	if (buffer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to upload buffer");
 		return;
 	}
+	wlr_buffer_unlock(surface->current.buffer);
 
 	if (surface->buffer != NULL) {
 		wlr_buffer_unlock(&surface->buffer->base);
