@@ -683,8 +683,14 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 
 static void surface_output_destroy(struct wlr_surface_output *surface_output);
 
-static void surface_handle_resource_destroy(struct wl_resource *resource) {
-	struct wlr_surface *surface = wlr_surface_from_resource(resource);
+/**
+ * Destroys the wlr_surface if the client has destroyed the protocol object
+ * and the compositor has released all cache locks.
+ */
+static void surface_consider_destroy(struct wlr_surface *surface) {
+	if (surface->resource != NULL || !wl_list_empty(&surface->cached)) {
+		return;
+	}
 
 	struct wlr_surface_output *surface_output, *surface_output_tmp;
 	wl_list_for_each_safe(surface_output, surface_output_tmp,
@@ -710,6 +716,11 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 		wlr_buffer_unlock(&surface->buffer->base);
 	}
 	free(surface);
+}
+
+static void surface_handle_resource_destroy(struct wl_resource *resource) {
+	struct wlr_surface *surface = wlr_surface_from_resource(resource);
+	surface_consider_destroy(surface);
 }
 
 static void surface_handle_renderer_destroy(struct wl_listener *listener,
@@ -847,6 +858,8 @@ void wlr_surface_unlock_cached(struct wlr_surface *surface, uint32_t seq) {
 		surface_commit_state(surface, next);
 		surface_state_destroy_cached(next);
 	}
+
+	surface_consider_destroy(surface);
 }
 
 static const struct wl_subsurface_interface subsurface_implementation;
