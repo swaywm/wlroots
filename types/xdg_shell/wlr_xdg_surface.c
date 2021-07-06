@@ -142,7 +142,7 @@ static void xdg_surface_handle_ack_configure(struct wl_client *client,
 	}
 
 	surface->configured = true;
-	surface->configure_serial = serial;
+	surface->pending.configure_serial = serial;
 
 	wlr_signal_emit_safe(&surface->events.ack_configure, configure);
 	xdg_surface_configure_destroy(configure);
@@ -401,6 +401,7 @@ void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 		return;
 	}
 
+	surface->configure_serial = next.configure_serial;
 	if (next.has_geometry) {
 		surface->geometry = next.geometry;
 	}

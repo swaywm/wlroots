@@ -150,6 +150,7 @@ struct wlr_xdg_surface_configure {
 };
 
 struct wlr_xdg_surface_state {
+	uint32_t configure_serial;
 	bool has_geometry;
 	struct wlr_box geometry;
 
