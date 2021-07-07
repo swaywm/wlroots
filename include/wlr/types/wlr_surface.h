@@ -35,6 +35,7 @@ struct wlr_surface_state {
 	// overflow.
 	uint32_t seq;
 
+	struct wlr_buffer *buffer;
 	struct wl_resource *buffer_resource;
 	int32_t dx, dy; // relative to previous position
 	pixman_region32_t surface_damage, buffer_damage; // clipped to bounds

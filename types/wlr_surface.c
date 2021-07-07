@@ -170,9 +170,18 @@ static void surface_state_viewport_src_size(struct wlr_surface_state *state,
 static void surface_state_finalize(struct wlr_surface *surface,
 		struct wlr_surface_state *state) {
 	if ((state->committed & WLR_SURFACE_STATE_BUFFER)) {
-		if (state->buffer_resource != NULL) {
-			wlr_resource_get_buffer_size(state->buffer_resource,
-				&state->buffer_width, &state->buffer_height);
+		if (state->buffer_resource) {
+			wlr_buffer_unlock(state->buffer);
+			state->buffer = wlr_buffer_from_resource(surface->renderer,
+					state->buffer_resource);
+			if (!state->buffer) {
+				wl_resource_post_error(state->buffer_resource, 0,
+						"unknown buffer type");
+				return;
+			}
+
+			state->buffer_width = state->buffer->width;
+			state->buffer_height = state->buffer->height;
 		} else {
 			state->buffer_width = state->buffer_height = 0;
 		}
@@ -303,9 +312,15 @@ static void surface_state_move(struct wlr_surface_state *state,
 	surface_state_copy(state, next);
 
 	if (next->committed & WLR_SURFACE_STATE_BUFFER) {
+		if (next->buffer) {
+			wlr_buffer_unlock(state->buffer);
+			state->buffer = wlr_buffer_lock(next->buffer);
+		}
 		surface_state_set_buffer(state, next->buffer_resource);
 		surface_state_reset_buffer(next);
 		next->dx = next->dy = 0;
+		wlr_buffer_unlock(next->buffer);
+		next->buffer = NULL;
 	}
 	if (next->committed & WLR_SURFACE_STATE_SURFACE_DAMAGE) {
 		pixman_region32_clear(&next->surface_damage);
@@ -360,6 +375,8 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 			wlr_client_buffer_apply_damage(surface->buffer, resource,
 			&surface->buffer_damage);
 		if (updated_buffer != NULL) {
+			wlr_buffer_unlock(surface->current.buffer);
+			surface->current.buffer = NULL;
 			surface->buffer = updated_buffer;
 			return;
 		}
@@ -367,11 +384,14 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 
 	struct wlr_client_buffer *buffer = wlr_client_buffer_create(
 			surface->current.buffer, surface->renderer, resource);
+
+	wlr_buffer_unlock(surface->current.buffer);
+	surface->current.buffer = NULL;
+
 	if (buffer == NULL) {
 		wlr_log(WLR_ERROR, "Failed to upload buffer");
 		return;
 	}
-	wlr_buffer_unlock(surface->current.buffer);
 
 	if (surface->buffer != NULL) {
 		wlr_buffer_unlock(&surface->buffer->base);
@@ -638,6 +658,7 @@ static void surface_state_init(struct wlr_surface_state *state) {
 
 static void surface_state_finish(struct wlr_surface_state *state) {
 	surface_state_reset_buffer(state);
+	wlr_buffer_unlock(state->buffer);
 
 	struct wl_resource *resource, *tmp;
 	wl_resource_for_each_safe(resource, tmp, &state->frame_callback_list) {
