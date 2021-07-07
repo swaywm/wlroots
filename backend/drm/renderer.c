@@ -141,7 +141,8 @@ struct wlr_buffer *drm_surface_blit(struct wlr_drm_surface *surf,
 		return NULL;
 	}
 
-	if (!drm_surface_make_current(surf, NULL)) {
+	struct wlr_buffer *dst = wlr_swapchain_acquire(surf->swapchain, NULL);
+	if (!dst) {
 		wlr_texture_destroy(tex);
 		return NULL;
 	}
@@ -150,19 +151,20 @@ struct wlr_buffer *drm_surface_blit(struct wlr_drm_surface *surf,
 	wlr_matrix_identity(mat);
 	wlr_matrix_scale(mat, surf->width, surf->height);
 
-	wlr_renderer_begin(renderer, surf->width, surf->height);
+	if (!wlr_renderer_begin_with_buffer(renderer, dst)) {
+		wlr_buffer_unlock(dst);
+		wlr_texture_destroy(tex);
+		return NULL;
+	}
+
 	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
 	wlr_render_texture_with_matrix(renderer, tex, mat, 1.0f);
+
 	wlr_renderer_end(renderer);
-
-	assert(surf->back_buffer != NULL);
-	struct wlr_buffer *out = wlr_buffer_lock(surf->back_buffer);
-
-	drm_surface_unset_current(surf);
 
 	wlr_texture_destroy(tex);
 
-	return out;
+	return dst;
 }
 
 
