@@ -157,11 +157,6 @@ struct wlr_client_buffer *wlr_client_buffer_get(struct wlr_buffer *buffer);
  */
 bool wlr_resource_is_buffer(struct wl_resource *resource);
 /**
- * Get the size of a wl_buffer resource.
- */
-bool wlr_resource_get_buffer_size(struct wl_resource *resource,
-	int *width, int *height);
-/**
  * Try to update the buffer's content. On success, returns the updated buffer
  * and destroys the provided `buffer`. On error, `buffer` is intact and NULL is
  * returned.
