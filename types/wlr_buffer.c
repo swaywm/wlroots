@@ -104,32 +104,6 @@ bool wlr_resource_is_buffer(struct wl_resource *resource) {
 	return strcmp(wl_resource_get_class(resource), wl_buffer_interface.name) == 0;
 }
 
-bool wlr_resource_get_buffer_size(struct wl_resource *resource,
-		int *width, int *height) {
-	assert(wlr_resource_is_buffer(resource));
-
-	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
-	if (shm_buf != NULL) {
-		*width = wl_shm_buffer_get_width(shm_buf);
-		*height = wl_shm_buffer_get_height(shm_buf);
-	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
-		struct wlr_dmabuf_v1_buffer *dmabuf =
-			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
-		*width = dmabuf->attributes.width;
-		*height = dmabuf->attributes.height;
-	} else if (wlr_drm_buffer_is_resource(resource)) {
-		struct wlr_drm_buffer *drm_buffer =
-			wlr_drm_buffer_from_resource(resource);
-		*width = drm_buffer->base.width;
-		*height = drm_buffer->base.height;
-	} else {
-		*width = *height = 0;
-		return false;
-	}
-
-	return true;
-}
-
 static const struct wlr_buffer_impl client_buffer_impl;
 
 struct wlr_client_buffer *wlr_client_buffer_get(struct wlr_buffer *buffer) {
