@@ -8,13 +8,50 @@
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
 
+static bool legacy_fb_props_match(struct wlr_drm_fb *fb1,
+		struct wlr_drm_fb *fb2) {
+	if (fb1->wlr_buf->width != fb2->wlr_buf->width ||
+			fb1->wlr_buf->height != fb2->wlr_buf->height ||
+			gbm_bo_get_format(fb1->bo) != gbm_bo_get_format(fb2->bo) ||
+			gbm_bo_get_modifier(fb1->bo) != gbm_bo_get_modifier(fb2->bo) ||
+			gbm_bo_get_plane_count(fb1->bo) != gbm_bo_get_plane_count(fb2->bo)) {
+		return false;
+	}
+
+	for (int i = 0; i < gbm_bo_get_plane_count(fb1->bo); i++) {
+		if (gbm_bo_get_stride_for_plane(fb1->bo, i) !=
+				gbm_bo_get_stride_for_plane(fb2->bo, i)) {
+			return false;
+		}
+		if (gbm_bo_get_offset(fb1->bo, i) != gbm_bo_get_offset(fb2->bo, i)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static bool legacy_crtc_test(struct wlr_drm_connector *conn,
 		const struct wlr_output_state *state) {
+	struct wlr_drm_crtc *crtc = conn->crtc;
+
 	if ((state->committed & WLR_OUTPUT_STATE_BUFFER) &&
-			state->buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
-		wlr_drm_conn_log(conn, WLR_DEBUG,
-			"Cannot use direct scan-out with legacy KMS API");
-		return false;
+			state->buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT &&
+			!drm_connector_state_is_modeset(state)) {
+		struct wlr_drm_fb *pending_fb = crtc->primary->pending_fb;
+
+		struct wlr_drm_fb *prev_fb = crtc->primary->queued_fb;
+		if (!prev_fb) {
+			prev_fb = crtc->primary->current_fb;
+		}
+
+		/* Legacy is only guaranteed to be able to display a FB if it's been
+		 * allocated the same way as the previous one. */
+		if (prev_fb != NULL && !legacy_fb_props_match(prev_fb, pending_fb)) {
+			wlr_drm_conn_log(conn, WLR_DEBUG,
+				"Cannot change scan-out buffer parameters with legacy KMS API");
+			return false;
+		}
 	}
 
 	return true;
