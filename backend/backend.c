@@ -130,6 +130,8 @@ static struct wlr_session *session_create_and_wait(struct wl_display *disp) {
 		struct wl_event_loop *event_loop =
 			wl_display_get_event_loop(session->display);
 
+		// Session enable might already have been registered as idle callback
+		wl_event_loop_dispatch_idle(event_loop);
 		while (!session->active) {
 			int ret = wl_event_loop_dispatch(event_loop, (int)timeout);
 			if (ret < 0) {

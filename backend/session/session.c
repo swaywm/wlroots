@@ -23,17 +23,29 @@
 
 #define WAIT_GPU_TIMEOUT 10000 // ms
 
-static void handle_enable_seat(struct libseat *seat, void *data) {
+static void handle_idle_enable_seat(void *data) {
 	struct wlr_session *session = data;
 	session->active = true;
 	wlr_signal_emit_safe(&session->events.active, NULL);
 }
 
-static void handle_disable_seat(struct libseat *seat, void *data) {
+static void handle_idle_disable_seat(void *data) {
 	struct wlr_session *session = data;
 	session->active = false;
 	wlr_signal_emit_safe(&session->events.active, NULL);
 	libseat_disable_seat(session->seat_handle);
+}
+
+static void handle_enable_seat(struct libseat *seat, void *data) {
+	struct wlr_session *session = data;
+	struct wl_event_loop *event_loop = wl_display_get_event_loop(session->display);
+	wl_event_loop_add_idle(event_loop, handle_idle_enable_seat, session);
+}
+
+static void handle_disable_seat(struct libseat *seat, void *data) {
+	struct wlr_session *session = data;
+	struct wl_event_loop *event_loop = wl_display_get_event_loop(session->display);
+	wl_event_loop_add_idle(event_loop, handle_idle_disable_seat, session);
 }
 
 static int libseat_event(int fd, uint32_t mask, void *data) {
@@ -214,6 +226,8 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 	wl_signal_init(&session->events.destroy);
 	wl_list_init(&session->devices);
 
+	session->display = disp;
+
 	if (libseat_session_init(session, disp) == -1) {
 		wlr_log(WLR_ERROR, "Failed to load session backend");
 		goto error_open;
@@ -243,8 +257,6 @@ struct wlr_session *wlr_session_create(struct wl_display *disp) {
 		wlr_log_errno(WLR_ERROR, "Failed to create udev event source");
 		goto error_mon;
 	}
-
-	session->display = disp;
 
 	session->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(disp, &session->display_destroy);
@@ -322,11 +334,11 @@ error:
 
 void wlr_session_close_file(struct wlr_session *session,
 		struct wlr_device *dev) {
+	close(dev->fd);
+	wl_list_remove(&dev->link);
 	if (libseat_close_device(session->seat_handle, dev->device_id) == -1) {
 		wlr_log_errno(WLR_ERROR, "Failed to close device %d", dev->device_id);
 	}
-	close(dev->fd);
-	wl_list_remove(&dev->link);
 	free(dev);
 }
 
