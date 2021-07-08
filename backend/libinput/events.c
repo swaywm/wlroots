@@ -220,8 +220,9 @@ static void handle_device_removed(struct wlr_libinput_backend *backend,
 		wlr_input_device_destroy(dev);
 	}
 	size_t i = 0;
-	struct wl_list *iter;
-	wl_array_for_each(iter, &backend->wlr_device_lists) {
+	struct wl_list **ptr;
+	wl_array_for_each(ptr, &backend->wlr_device_lists) {
+		struct wl_list *iter = *ptr;
 		if (iter == wlr_devices) {
 			array_remove_at(&backend->wlr_device_lists,
 				i * sizeof(struct wl_list *), sizeof(struct wl_list *));

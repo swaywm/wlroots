@@ -19,9 +19,9 @@ void wlr_tablet_destroy(struct wlr_tablet *tablet) {
 		return;
 	}
 
-	char *path;
-	wl_array_for_each(path, &tablet->paths) {
-		free(path);
+	char **path_ptr;
+	wl_array_for_each(path_ptr, &tablet->paths) {
+		free(*path_ptr);
 	}
 	wl_array_release(&tablet->paths);
 

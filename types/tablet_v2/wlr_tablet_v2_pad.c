@@ -327,9 +327,9 @@ void add_tablet_pad_client(struct wlr_tablet_seat_client_v2 *seat,
 		zwp_tablet_pad_v2_send_buttons(client->resource, pad->wlr_pad->button_count);
 	}
 
-	const char *path;
-	wl_array_for_each(path, &pad->wlr_pad->paths) {
-		zwp_tablet_pad_v2_send_path(client->resource, path);
+	const char **path_ptr;
+	wl_array_for_each(path_ptr, &pad->wlr_pad->paths) {
+		zwp_tablet_pad_v2_send_path(client->resource, *path_ptr);
 	}
 
 	size_t i = 0;
