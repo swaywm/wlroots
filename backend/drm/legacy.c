@@ -10,7 +10,11 @@
 
 static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 		struct wlr_drm_connector *conn, const struct wlr_output_state *state,
-		uint32_t flags) {
+		uint32_t flags, bool test_only) {
+	if (test_only) {
+		return true;
+	}
+
 	struct wlr_output *output = &conn->output;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *cursor = crtc->cursor;
