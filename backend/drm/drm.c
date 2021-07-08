@@ -351,7 +351,7 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn,
 
 	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
-	bool ok = drm->iface->crtc_commit(drm, conn, state, flags, test_only);
+	bool ok = drm->iface->crtc_commit(conn, state, flags, test_only);
 	if (ok && !test_only) {
 		drm_plane_set_committed(crtc->primary);
 		if (crtc->cursor != NULL) {
