@@ -20,9 +20,8 @@ static bool legacy_crtc_test(struct wlr_drm_connector *conn,
 	return true;
 }
 
-static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, const struct wlr_output_state *state,
-		uint32_t flags, bool test_only) {
+static bool legacy_crtc_commit(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state, uint32_t flags, bool test_only) {
 	if (!legacy_crtc_test(conn, state)) {
 		return false;
 	}
@@ -30,6 +29,7 @@ static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
 		return true;
 	}
 
+	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_output *output = &conn->output;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *cursor = crtc->cursor;
