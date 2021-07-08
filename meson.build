@@ -1,7 +1,7 @@
 project(
 	'wlroots',
 	'c',
-	version: '0.14.0',
+	version: '0.14.1',
 	license: 'MIT',
 	meson_version: '>=0.56.0',
 	default_options: [
