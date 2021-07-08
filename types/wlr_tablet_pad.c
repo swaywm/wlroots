@@ -21,9 +21,9 @@ void wlr_tablet_pad_destroy(struct wlr_tablet_pad *pad) {
 		return;
 	}
 
-	char *path;
-	wl_array_for_each(path, &pad->paths) {
-		free(path);
+	char **path_ptr;
+	wl_array_for_each(path_ptr, &pad->paths) {
+		free(*path_ptr);
 	}
 	wl_array_release(&pad->paths);
 
