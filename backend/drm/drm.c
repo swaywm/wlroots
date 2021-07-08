@@ -345,11 +345,14 @@ static void drm_plane_set_committed(struct wlr_drm_plane *plane) {
 }
 
 static bool drm_crtc_commit(struct wlr_drm_connector *conn,
-		const struct wlr_output_state *state, uint32_t flags) {
+		const struct wlr_output_state *state, uint32_t flags, bool test_only) {
+	// Disallow atomic-only flags
+	assert((flags & ~DRM_MODE_PAGE_FLIP_FLAGS) == 0);
+
 	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
-	bool ok = drm->iface->crtc_commit(drm, conn, state, flags);
-	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
+	bool ok = drm->iface->crtc_commit(drm, conn, state, flags, test_only);
+	if (ok && !test_only) {
 		drm_plane_set_committed(crtc->primary);
 		if (crtc->cursor != NULL) {
 			drm_plane_set_committed(crtc->cursor);
@@ -383,7 +386,7 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn,
 
 	assert(drm_connector_state_active(conn, state));
 	assert(plane_get_next_fb(crtc->primary));
-	if (!drm_crtc_commit(conn, state, DRM_MODE_PAGE_FLIP_EVENT)) {
+	if (!drm_crtc_commit(conn, state, DRM_MODE_PAGE_FLIP_EVENT, false)) {
 		return false;
 	}
 
@@ -475,7 +478,7 @@ static bool drm_connector_test(struct wlr_output *output) {
 		if (!drm_connector_set_pending_fb(conn, &output->pending)) {
 			return false;
 		}
-		if (!drm_crtc_commit(conn, &output->pending, DRM_MODE_ATOMIC_TEST_ONLY)) {
+		if (!drm_crtc_commit(conn, &output->pending, 0, true)) {
 			return false;
 		}
 	}
@@ -559,7 +562,7 @@ bool drm_connector_commit_state(struct wlr_drm_connector *conn,
 			WLR_OUTPUT_STATE_GAMMA_LUT)) {
 		assert(conn->crtc != NULL);
 		// TODO: maybe request a page-flip event here?
-		if (!drm_crtc_commit(conn, &state, 0)) {
+		if (!drm_crtc_commit(conn, &state, 0, false)) {
 			return false;
 		}
 	}
@@ -677,7 +680,7 @@ static bool drm_connector_test_renderer(struct wlr_drm_connector *conn,
 		goto out;
 	}
 
-	ok = drm_crtc_commit(conn, state, DRM_MODE_ATOMIC_TEST_ONLY);
+	ok = drm_crtc_commit(conn, state, 0, true);
 
 out:
 	drm_fb_move(&plane->pending_fb, &prev_fb);
@@ -783,7 +786,7 @@ static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 
 	if (wlr_mode == NULL) {
 		if (conn->crtc != NULL) {
-			if (!drm_crtc_commit(conn, state, 0)) {
+			if (!drm_crtc_commit(conn, state, 0, false)) {
 				return false;
 			}
 			realloc_crtcs(drm);
@@ -1128,7 +1131,7 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 		.committed = WLR_OUTPUT_STATE_ENABLED,
 		.enabled = false,
 	};
-	if (!drm_crtc_commit(conn, &state, 0)) {
+	if (!drm_crtc_commit(conn, &state, 0, false)) {
 		// On GPU unplug, disabling the CRTC can fail with EPERM
 		wlr_drm_conn_log(conn, WLR_ERROR, "Failed to disable CRTC %"PRIu32,
 			conn->crtc->id);
