@@ -419,14 +419,6 @@ static bool drm_connector_set_pending_fb(struct wlr_drm_connector *conn,
 		}
 		break;
 	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:;
-		/* Legacy never gets to have nice things. But I doubt this would ever work,
-		 * and there is no reliable way to try, without risking messing up the
-		 * modesetting state. */
-		if (drm->iface == &legacy_iface) {
-			wlr_drm_conn_log(conn, WLR_DEBUG,
-				"Cannot use direct scan-out with legacy KMS API");
-			return false;
-		}
 		if (!drm_fb_import(&plane->pending_fb, drm, state->buffer,
 				&crtc->primary->formats)) {
 			wlr_drm_conn_log(conn, WLR_DEBUG,
