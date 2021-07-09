@@ -133,20 +133,11 @@ static bool client_buffer_get_dmabuf(struct wlr_buffer *buffer,
 		struct wlr_dmabuf_attributes *attribs) {
 	struct wlr_client_buffer *client_buffer = client_buffer_from_buffer(buffer);
 
-	if (client_buffer->resource == NULL) {
+	if (client_buffer->source == NULL) {
 		return false;
 	}
 
-	struct wl_resource *buffer_resource = client_buffer->resource;
-	if (!wlr_dmabuf_v1_resource_is_buffer(buffer_resource)) {
-		return false;
-	}
-
-	struct wlr_dmabuf_v1_buffer *dmabuf_buffer =
-		wlr_dmabuf_v1_buffer_from_buffer_resource(buffer_resource);
-	memcpy(attribs, &dmabuf_buffer->attributes,
-		sizeof(struct wlr_dmabuf_attributes));
-	return true;
+	return wlr_buffer_get_dmabuf(client_buffer->source, attribs);
 }
 
 static const struct wlr_buffer_impl client_buffer_impl = {
