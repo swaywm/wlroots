@@ -21,7 +21,6 @@
 #include <wlr/util/log.h>
 
 #include "backend/x11.h"
-#include "types/wlr_buffer.h"
 #include "util/signal.h"
 #include "util/time.h"
 

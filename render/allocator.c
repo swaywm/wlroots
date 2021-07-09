@@ -8,7 +8,6 @@
 #include "render/shm_allocator.h"
 #include "render/drm_dumb_allocator.h"
 #include "render/wlr_renderer.h"
-#include "types/wlr_buffer.h"
 
 void wlr_allocator_init(struct wlr_allocator *alloc,
 		const struct wlr_allocator_interface *impl, uint32_t buffer_caps) {

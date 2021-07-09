@@ -11,6 +11,7 @@ void wlr_touch_init(struct wlr_touch *touch,
 	wl_signal_init(&touch->events.up);
 	wl_signal_init(&touch->events.motion);
 	wl_signal_init(&touch->events.cancel);
+	wl_signal_init(&touch->events.frame);
 }
 
 void wlr_touch_destroy(struct wlr_touch *touch) {

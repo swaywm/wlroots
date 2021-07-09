@@ -15,8 +15,6 @@
 #include "util/time.h"
 
 #define CALLBACK_VERSION 1
-#define SURFACE_VERSION 4
-#define SUBSURFACE_VERSION 1
 
 static int min(int fst, int snd) {
 	if (fst < snd) {
@@ -169,12 +167,12 @@ static void surface_state_viewport_src_size(struct wlr_surface_state *state,
 	}
 }
 
-static bool surface_state_finalize(struct wlr_surface *surface,
+static void surface_state_finalize(struct wlr_surface *surface,
 		struct wlr_surface_state *state) {
 	if ((state->committed & WLR_SURFACE_STATE_BUFFER)) {
 		if (state->buffer_resource != NULL) {
 			wlr_resource_get_buffer_size(state->buffer_resource,
-				surface->renderer, &state->buffer_width, &state->buffer_height);
+				&state->buffer_width, &state->buffer_height);
 		} else {
 			state->buffer_width = state->buffer_height = 0;
 		}
@@ -189,7 +187,6 @@ static bool surface_state_finalize(struct wlr_surface *surface,
 		wlr_log(WLR_DEBUG, "Client bug: submitted a buffer whose size (%dx%d) "
 			"is not divisible by scale (%d)", state->buffer_width,
 			state->buffer_height, state->scale);
-		return false;
 	}
 
 	if (state->viewport.has_dst) {
@@ -209,8 +206,6 @@ static bool surface_state_finalize(struct wlr_surface *surface,
 	pixman_region32_intersect_rect(&state->buffer_damage,
 		&state->buffer_damage, 0, 0, state->buffer_width,
 		state->buffer_height);
-
-	return true;
 }
 
 static void surface_update_damage(pixman_region32_t *buffer_damage,
@@ -360,7 +355,7 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 		return;
 	}
 
-	if (surface->buffer != NULL && surface->buffer->resource_released) {
+	if (surface->buffer != NULL) {
 		struct wlr_client_buffer *updated_buffer =
 			wlr_client_buffer_apply_damage(surface->buffer, resource,
 			&surface->buffer_damage);
@@ -420,6 +415,8 @@ static void surface_cache_pending(struct wlr_surface *surface) {
 	surface_state_move(cached, &surface->pending);
 
 	wl_list_insert(surface->cached.prev, &cached->cached_state_link);
+
+	surface->pending.seq++;
 }
 
 static void surface_commit_state(struct wlr_surface *surface,
@@ -464,6 +461,12 @@ static void surface_commit_state(struct wlr_surface *surface,
 		}
 	}
 
+	// If we're committing the pending state, bump the pending sequence number
+	// here, to allow commit listeners to lock the new pending state.
+	if (next == &surface->pending) {
+		surface->pending.seq++;
+	}
+
 	if (surface->role && surface->role->commit) {
 		surface->role->commit(surface);
 	}
@@ -472,21 +475,17 @@ static void surface_commit_state(struct wlr_surface *surface,
 }
 
 static void surface_commit_pending(struct wlr_surface *surface) {
-	if (!surface_state_finalize(surface, &surface->pending)) {
-		return;
-	}
+	surface_state_finalize(surface, &surface->pending);
 
 	if (surface->role && surface->role->precommit) {
 		surface->role->precommit(surface);
 	}
 
-	uint32_t next_seq = surface->pending.seq + 1;
 	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
 		surface_cache_pending(surface);
 	} else {
 		surface_commit_state(surface, &surface->pending);
 	}
-	surface->pending.seq = next_seq;
 }
 
 static bool subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
@@ -722,8 +721,6 @@ static void surface_handle_renderer_destroy(struct wl_listener *listener,
 
 struct wlr_surface *surface_create(struct wl_client *client,
 		uint32_t version, uint32_t id, struct wlr_renderer *renderer) {
-	assert(version <= SURFACE_VERSION);
-
 	struct wlr_surface *surface = calloc(1, sizeof(struct wlr_surface));
 	if (!surface) {
 		wl_client_post_no_memory(client);
@@ -863,7 +860,6 @@ static struct wlr_subsurface *subsurface_from_resource(
 
 static void subsurface_resource_destroy(struct wl_resource *resource) {
 	struct wlr_subsurface *subsurface = subsurface_from_resource(resource);
-	wl_list_remove(wl_resource_get_link(resource));
 	subsurface_destroy(subsurface);
 }
 
@@ -1136,11 +1132,8 @@ static void subsurface_handle_surface_destroy(struct wl_listener *listener,
 	subsurface_destroy(subsurface);
 }
 
-struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
-		struct wlr_surface *parent, uint32_t version, uint32_t id,
-		struct wl_list *resource_list) {
-	assert(version <= SUBSURFACE_VERSION);
-
+struct wlr_subsurface *subsurface_create(struct wlr_surface *surface,
+		struct wlr_surface *parent, uint32_t version, uint32_t id) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
 
 	struct wlr_subsurface *subsurface =
@@ -1159,8 +1152,7 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 		return NULL;
 	}
 	wl_resource_set_implementation(subsurface->resource,
-		&subsurface_implementation, subsurface,
-		subsurface_resource_destroy);
+		&subsurface_implementation, subsurface, subsurface_resource_destroy);
 
 	wl_signal_init(&subsurface->events.destroy);
 	wl_signal_init(&subsurface->events.map);
@@ -1178,13 +1170,6 @@ struct wlr_subsurface *wlr_subsurface_create(struct wlr_surface *surface,
 		&subsurface->parent_pending_link);
 
 	surface->role_data = subsurface;
-
-	struct wl_list *resource_link = wl_resource_get_link(subsurface->resource);
-	if (resource_list != NULL) {
-		wl_list_insert(resource_list, resource_link);
-	} else {
-		wl_list_init(resource_link);
-	}
 
 	wlr_signal_emit_safe(&parent->events.new_subsurface, subsurface);
 

@@ -9,11 +9,11 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
-#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/util/box.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include "backend/backend.h"
@@ -742,8 +742,19 @@ bool wlr_output_commit(struct wlr_output *output) {
 	};
 	wlr_signal_emit_safe(&output->events.precommit, &pre_event);
 
-	if (!output->impl->commit(output)) {
+	// output_clear_back_buffer detaches the buffer from the renderer. This is
+	// important to do before calling impl->commit(), because this marks an
+	// implicit rendering synchronization point. The backend needs it to avoid
+	// displaying a buffer when asynchronous GPU work isn't finished.
+	struct wlr_buffer *back_buffer = NULL;
+	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
+			output->back_buffer != NULL) {
+		back_buffer = wlr_buffer_lock(output->back_buffer);
 		output_clear_back_buffer(output);
+	}
+
+	if (!output->impl->commit(output)) {
+		wlr_buffer_unlock(back_buffer);
 		output_state_clear(&output->pending);
 		return false;
 	}
@@ -788,12 +799,11 @@ bool wlr_output_commit(struct wlr_output *output) {
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		output->frame_pending = true;
 		output->needs_frame = false;
+	}
 
-		if (output->back_buffer != NULL) {
-			wlr_swapchain_set_buffer_submitted(output->swapchain,
-				output->back_buffer);
-			output_clear_back_buffer(output);
-		}
+	if (back_buffer != NULL) {
+		wlr_swapchain_set_buffer_submitted(output->swapchain, back_buffer);
+		wlr_buffer_unlock(back_buffer);
 	}
 
 	uint32_t committed = output->pending.committed;

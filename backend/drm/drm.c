@@ -17,6 +17,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
+#include <wlr/util/box.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -28,7 +29,6 @@
 #include "render/drm_format_set.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
-#include "types/wlr_buffer.h"
 #include "util/signal.h"
 
 static const uint32_t SUPPORTED_OUTPUT_STATE =
@@ -345,20 +345,26 @@ static void drm_plane_set_committed(struct wlr_drm_plane *plane) {
 }
 
 static bool drm_crtc_commit(struct wlr_drm_connector *conn,
-		const struct wlr_output_state *state, uint32_t flags) {
+		const struct wlr_output_state *state, uint32_t flags, bool test_only) {
+	// Disallow atomic-only flags
+	assert((flags & ~DRM_MODE_PAGE_FLIP_FLAGS) == 0);
+
 	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_drm_crtc *crtc = conn->crtc;
-	bool ok = drm->iface->crtc_commit(drm, conn, state, flags);
-	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
+	bool ok = drm->iface->crtc_commit(conn, state, flags, test_only);
+	if (ok && !test_only) {
 		drm_plane_set_committed(crtc->primary);
 		if (crtc->cursor != NULL) {
 			drm_plane_set_committed(crtc->cursor);
 		}
 	} else {
 		drm_fb_clear(&crtc->primary->pending_fb);
-		if (crtc->cursor != NULL) {
-			drm_fb_clear(&crtc->cursor->pending_fb);
-		}
+		// The set_cursor() hook is a bit special: it's not really synchronized
+		// to commit() or test(). Once set_cursor() returns true, the new
+		// cursor is effectively committed. So don't roll it back here, or we
+		// risk ending up in a state where we don't have a cursor FB but
+		// wlr_drm_connector.cursor_enabled is true.
+		// TODO: fix our output interface to avoid this issue.
 	}
 	return ok;
 }
@@ -380,7 +386,7 @@ static bool drm_crtc_page_flip(struct wlr_drm_connector *conn,
 
 	assert(drm_connector_state_active(conn, state));
 	assert(plane_get_next_fb(crtc->primary));
-	if (!drm_crtc_commit(conn, state, DRM_MODE_PAGE_FLIP_EVENT)) {
+	if (!drm_crtc_commit(conn, state, DRM_MODE_PAGE_FLIP_EVENT, false)) {
 		return false;
 	}
 
@@ -413,14 +419,6 @@ static bool drm_connector_set_pending_fb(struct wlr_drm_connector *conn,
 		}
 		break;
 	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:;
-		/* Legacy never gets to have nice things. But I doubt this would ever work,
-		 * and there is no reliable way to try, without risking messing up the
-		 * modesetting state. */
-		if (drm->iface == &legacy_iface) {
-			wlr_drm_conn_log(conn, WLR_DEBUG,
-				"Cannot use direct scan-out with legacy KMS API");
-			return false;
-		}
 		if (!drm_fb_import(&plane->pending_fb, drm, state->buffer,
 				&crtc->primary->formats)) {
 			wlr_drm_conn_log(conn, WLR_DEBUG,
@@ -472,7 +470,7 @@ static bool drm_connector_test(struct wlr_output *output) {
 		if (!drm_connector_set_pending_fb(conn, &output->pending)) {
 			return false;
 		}
-		if (!drm_crtc_commit(conn, &output->pending, DRM_MODE_ATOMIC_TEST_ONLY)) {
+		if (!drm_crtc_commit(conn, &output->pending, 0, true)) {
 			return false;
 		}
 	}
@@ -556,7 +554,7 @@ bool drm_connector_commit_state(struct wlr_drm_connector *conn,
 			WLR_OUTPUT_STATE_GAMMA_LUT)) {
 		assert(conn->crtc != NULL);
 		// TODO: maybe request a page-flip event here?
-		if (!drm_crtc_commit(conn, &state, 0)) {
+		if (!drm_crtc_commit(conn, &state, 0, false)) {
 			return false;
 		}
 	}
@@ -674,7 +672,7 @@ static bool drm_connector_test_renderer(struct wlr_drm_connector *conn,
 		goto out;
 	}
 
-	ok = drm_crtc_commit(conn, state, DRM_MODE_ATOMIC_TEST_ONLY);
+	ok = drm_crtc_commit(conn, state, 0, true);
 
 out:
 	drm_fb_move(&plane->pending_fb, &prev_fb);
@@ -780,7 +778,7 @@ static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 
 	if (wlr_mode == NULL) {
 		if (conn->crtc != NULL) {
-			if (!drm_crtc_commit(conn, state, 0)) {
+			if (!drm_crtc_commit(conn, state, 0, false)) {
 				return false;
 			}
 			realloc_crtcs(drm);
@@ -934,7 +932,7 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 			local_buf = wlr_buffer_lock(buffer);
 		}
 
-		bool ok = drm_fb_import(&plane->current_fb, drm, local_buf,
+		bool ok = drm_fb_import(&plane->pending_fb, drm, local_buf,
 			&plane->formats);
 		wlr_buffer_unlock(local_buf);
 		if (!ok) {
@@ -1125,7 +1123,7 @@ static void dealloc_crtc(struct wlr_drm_connector *conn) {
 		.committed = WLR_OUTPUT_STATE_ENABLED,
 		.enabled = false,
 	};
-	if (!drm_crtc_commit(conn, &state, 0)) {
+	if (!drm_crtc_commit(conn, &state, 0, false)) {
 		// On GPU unplug, disabling the CRTC can fail with EPERM
 		wlr_drm_conn_log(conn, WLR_ERROR, "Failed to disable CRTC %"PRIu32,
 			conn->crtc->id);

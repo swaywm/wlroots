@@ -12,13 +12,14 @@
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_drm.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
+#include <wlr/util/box.h>
 #include <wlr/util/log.h>
 #include "render/egl.h"
 #include "render/gles2.h"
 #include "render/pixel_format.h"
-#include "types/wlr_buffer.h"
 
 static const GLfloat verts[] = {
 	1, 0, // top right
@@ -369,34 +370,6 @@ static const uint32_t *gles2_get_shm_texture_formats(
 	return get_gles2_shm_formats(len);
 }
 
-static bool gles2_resource_is_wl_drm_buffer(struct wlr_renderer *wlr_renderer,
-		struct wl_resource *resource) {
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-
-	if (!renderer->egl->exts.bind_wayland_display_wl) {
-		return false;
-	}
-
-	EGLint fmt;
-	return renderer->egl->procs.eglQueryWaylandBufferWL(renderer->egl->display,
-		resource, EGL_TEXTURE_FORMAT, &fmt);
-}
-
-static void gles2_wl_drm_buffer_get_size(struct wlr_renderer *wlr_renderer,
-		struct wl_resource *buffer, int *width, int *height) {
-	struct wlr_gles2_renderer *renderer =
-		gles2_get_renderer(wlr_renderer);
-
-	if (!renderer->egl->exts.bind_wayland_display_wl) {
-		return;
-	}
-
-	renderer->egl->procs.eglQueryWaylandBufferWL(renderer->egl->display,
-		buffer, EGL_WIDTH, width);
-	renderer->egl->procs.eglQueryWaylandBufferWL(renderer->egl->display,
-		buffer, EGL_HEIGHT, height);
-}
-
 static const struct wlr_drm_format_set *gles2_get_dmabuf_texture_formats(
 		struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
@@ -499,16 +472,12 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 
 static bool gles2_init_wl_display(struct wlr_renderer *wlr_renderer,
 		struct wl_display *wl_display) {
-	struct wlr_gles2_renderer *renderer =
-		gles2_get_renderer(wlr_renderer);
-
-	if (renderer->egl->exts.bind_wayland_display_wl) {
-		if (!wlr_egl_bind_display(renderer->egl, wl_display)) {
-			wlr_log(WLR_ERROR, "Failed to bind wl_display to EGL");
+	if (wlr_renderer_get_drm_fd(wlr_renderer) >= 0) {
+		if (wlr_drm_create(wl_display, wlr_renderer) == NULL) {
 			return false;
 		}
 	} else {
-		wlr_log(WLR_INFO, "EGL_WL_bind_wayland_display is not supported");
+		wlr_log(WLR_INFO, "Cannot get renderer DRM FD, disabling wl_drm");
 	}
 
 	if (wlr_linux_dmabuf_v1_create(wl_display, wlr_renderer) == NULL) {
@@ -586,15 +555,10 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.render_subtexture_with_matrix = gles2_render_subtexture_with_matrix,
 	.render_quad_with_matrix = gles2_render_quad_with_matrix,
 	.get_shm_texture_formats = gles2_get_shm_texture_formats,
-	.resource_is_wl_drm_buffer = gles2_resource_is_wl_drm_buffer,
-	.wl_drm_buffer_get_size = gles2_wl_drm_buffer_get_size,
 	.get_dmabuf_texture_formats = gles2_get_dmabuf_texture_formats,
 	.get_render_formats = gles2_get_render_formats,
 	.preferred_read_format = gles2_preferred_read_format,
 	.read_pixels = gles2_read_pixels,
-	.texture_from_pixels = gles2_texture_from_pixels,
-	.texture_from_wl_drm = gles2_texture_from_wl_drm,
-	.texture_from_dmabuf = gles2_texture_from_dmabuf,
 	.init_wl_display = gles2_init_wl_display,
 	.get_drm_fd = gles2_get_drm_fd,
 	.get_render_buffer_caps = gles2_get_render_buffer_caps,
@@ -733,20 +697,11 @@ extern const GLchar tex_fragment_src_rgbx[];
 extern const GLchar tex_fragment_src_external[];
 
 struct wlr_renderer *wlr_gles2_renderer_create_with_drm_fd(int drm_fd) {
-	struct gbm_device *gbm_device = gbm_create_device(drm_fd);
-	if (!gbm_device) {
-		wlr_log(WLR_ERROR, "Failed to create GBM device");
-		return NULL;
-	}
-
-	struct wlr_egl *egl = wlr_egl_create(EGL_PLATFORM_GBM_KHR, gbm_device);
+	struct wlr_egl *egl = wlr_egl_create_with_drm_fd(drm_fd);
 	if (egl == NULL) {
 		wlr_log(WLR_ERROR, "Could not initialize EGL");
-		gbm_device_destroy(gbm_device);
 		return NULL;
 	}
-
-	egl->gbm_device = gbm_device;
 
 	struct wlr_renderer *renderer = wlr_gles2_renderer_create(egl);
 	if (!renderer) {

@@ -20,17 +20,19 @@ struct wlr_pointer {
 	const struct wlr_pointer_impl *impl;
 
 	struct {
-		struct wl_signal motion;
-		struct wl_signal motion_absolute;
-		struct wl_signal button;
-		struct wl_signal axis;
+		struct wl_signal motion; // struct wlr_event_pointer_motion
+		struct wl_signal motion_absolute; // struct wlr_event_pointer_motion_absolute
+		struct wl_signal button; // struct wlr_event_pointer_button
+		struct wl_signal axis; // struct wlr_event_pointer_axis
 		struct wl_signal frame;
-		struct wl_signal swipe_begin;
-		struct wl_signal swipe_update;
-		struct wl_signal swipe_end;
-		struct wl_signal pinch_begin;
-		struct wl_signal pinch_update;
-		struct wl_signal pinch_end;
+
+		struct wl_signal swipe_begin; // struct wlr_event_pointer_swipe_begin
+		struct wl_signal swipe_update; // struct wlr_event_pointer_swipe_update
+		struct wl_signal swipe_end; // struct wlr_event_pointer_swipe_end
+
+		struct wl_signal pinch_begin; // struct wlr_event_pointer_pinch_begin
+		struct wl_signal pinch_update; // struct wlr_event_pointer_pinch_update
+		struct wl_signal pinch_end; // struct wlr_event_pointer_pinch_end
 	} events;
 
 	void *data;

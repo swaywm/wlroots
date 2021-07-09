@@ -11,7 +11,6 @@
 
 #include <pixman.h>
 #include <time.h>
-#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output.h>
 
 /**
@@ -20,6 +19,8 @@
  * required.
  */
 #define WLR_OUTPUT_DAMAGE_PREVIOUS_LEN 2
+
+struct wlr_box;
 
 /**
  * Tracks damage for an output.

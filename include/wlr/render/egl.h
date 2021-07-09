@@ -37,7 +37,6 @@ struct wlr_egl {
 
 	struct {
 		// Display extensions
-		bool bind_wayland_display_wl;
 		bool image_base_khr;
 		bool image_dmabuf_import_ext;
 		bool image_dmabuf_import_modifiers_ext;
@@ -51,16 +50,12 @@ struct wlr_egl {
 		PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
 		PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
 		PFNEGLQUERYWAYLANDBUFFERWL eglQueryWaylandBufferWL;
-		PFNEGLBINDWAYLANDDISPLAYWL eglBindWaylandDisplayWL;
-		PFNEGLUNBINDWAYLANDDISPLAYWL eglUnbindWaylandDisplayWL;
 		PFNEGLQUERYDMABUFFORMATSEXTPROC eglQueryDmaBufFormatsEXT;
 		PFNEGLQUERYDMABUFMODIFIERSEXTPROC eglQueryDmaBufModifiersEXT;
 		PFNEGLDEBUGMESSAGECONTROLKHRPROC eglDebugMessageControlKHR;
 		PFNEGLQUERYDISPLAYATTRIBEXTPROC eglQueryDisplayAttribEXT;
 		PFNEGLQUERYDEVICESTRINGEXTPROC eglQueryDeviceStringEXT;
 	} procs;
-
-	struct wl_display *wl_display;
 
 	struct wlr_drm_format_set dmabuf_texture_formats;
 	struct wlr_drm_format_set dmabuf_render_formats;

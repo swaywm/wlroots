@@ -2,9 +2,9 @@
 #include <float.h>
 #include <limits.h>
 #include <stdlib.h>
-#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/util/box.h>
 #include <wlr/util/log.h>
 #include "util/signal.h"
 

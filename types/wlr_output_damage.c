@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <time.h>
 #include <wayland-server-core.h>
-#include <wlr/types/wlr_box.h>
 #include <wlr/types/wlr_output_damage.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/util/box.h>
 #include "util/signal.h"
 
 static void output_handle_destroy(struct wl_listener *listener, void *data) {
@@ -52,7 +52,11 @@ static void output_handle_precommit(struct wl_listener *listener, void *data) {
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		// TODO: find a better way to access this info without a precommit
 		// handler
-		output_damage->pending_buffer_type = output->pending.buffer_type;
+		if (output->back_buffer != NULL) {
+			output_damage->pending_buffer_type = WLR_OUTPUT_STATE_BUFFER_RENDER;
+		} else {
+			output_damage->pending_buffer_type = output->pending.buffer_type;
+		}
 	}
 }
 

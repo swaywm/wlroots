@@ -119,13 +119,8 @@ struct wlr_gles2_renderer *gles2_get_renderer(
 struct wlr_gles2_texture *gles2_get_texture(
 	struct wlr_texture *wlr_texture);
 
-struct wlr_texture *gles2_texture_from_pixels(struct wlr_renderer *wlr_renderer,
-	uint32_t fmt, uint32_t stride, uint32_t width, uint32_t height,
-	const void *data);
 struct wlr_texture *gles2_texture_from_wl_drm(struct wlr_renderer *wlr_renderer,
 	struct wl_resource *data);
-struct wlr_texture *gles2_texture_from_dmabuf(struct wlr_renderer *wlr_renderer,
-	struct wlr_dmabuf_attributes *attribs);
 struct wlr_texture *gles2_texture_from_buffer(struct wlr_renderer *wlr_renderer,
 	struct wlr_buffer *buffer);
 void gles2_texture_destroy(struct wlr_gles2_texture *texture);

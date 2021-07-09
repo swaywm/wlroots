@@ -352,7 +352,10 @@ static void touch_handle_motion(void *data, struct wl_touch *wl_touch,
 }
 
 static void touch_handle_frame(void *data, struct wl_touch *wl_touch) {
-	// no-op
+	struct wlr_wl_input_device *device = data;
+	assert(device && device->wlr_input_device.touch);
+
+	wlr_signal_emit_safe(&device->wlr_input_device.touch->events.frame, NULL);
 }
 
 static void touch_handle_cancel(void *data, struct wl_touch *wl_touch) {

@@ -5,6 +5,7 @@
 #include <wlr/render/pixman.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
+#include <wlr/util/box.h>
 #include <wlr/util/log.h>
 
 #include <wlr/config.h>
@@ -26,7 +27,6 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->render_subtexture_with_matrix);
 	assert(impl->render_quad_with_matrix);
 	assert(impl->get_shm_texture_formats);
-	assert(impl->texture_from_pixels);
 	assert(impl->get_render_buffer_caps);
 	renderer->impl = impl;
 
@@ -158,22 +158,6 @@ void wlr_render_quad_with_matrix(struct wlr_renderer *r,
 const uint32_t *wlr_renderer_get_shm_texture_formats(struct wlr_renderer *r,
 		size_t *len) {
 	return r->impl->get_shm_texture_formats(r, len);
-}
-
-bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *r,
-		struct wl_resource *resource) {
-	if (!r->impl->resource_is_wl_drm_buffer) {
-		return false;
-	}
-	return r->impl->resource_is_wl_drm_buffer(r, resource);
-}
-
-void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *r,
-		struct wl_resource *buffer, int *width, int *height) {
-	if (!r->impl->wl_drm_buffer_get_size) {
-		return;
-	}
-	return r->impl->wl_drm_buffer_get_size(r, buffer, width, height);
 }
 
 const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_texture_formats(

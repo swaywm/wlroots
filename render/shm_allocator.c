@@ -7,7 +7,6 @@
 #include "render/pixel_format.h"
 #include "render/shm_allocator.h"
 #include "util/shm.h"
-#include "types/wlr_buffer.h"
 
 static const struct wlr_buffer_impl buffer_impl;
 

@@ -8,9 +8,28 @@
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
 
-static bool legacy_crtc_commit(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, const struct wlr_output_state *state,
-		uint32_t flags) {
+static bool legacy_crtc_test(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state) {
+	if ((state->committed & WLR_OUTPUT_STATE_BUFFER) &&
+			state->buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT) {
+		wlr_drm_conn_log(conn, WLR_DEBUG,
+			"Cannot use direct scan-out with legacy KMS API");
+		return false;
+	}
+
+	return true;
+}
+
+static bool legacy_crtc_commit(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state, uint32_t flags, bool test_only) {
+	if (!legacy_crtc_test(conn, state)) {
+		return false;
+	}
+	if (test_only) {
+		return true;
+	}
+
+	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_output *output = &conn->output;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 	struct wlr_drm_plane *cursor = crtc->cursor;

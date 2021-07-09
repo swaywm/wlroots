@@ -14,7 +14,6 @@
 #include "render/drm_format_set.h"
 #include "render/gbm_allocator.h"
 #include "render/wlr_renderer.h"
-#include "types/wlr_buffer.h"
 #include "util/signal.h"
 
 struct wlr_headless_backend *headless_backend_from_backend(

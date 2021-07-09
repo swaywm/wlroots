@@ -168,9 +168,9 @@ error:
 	atom->failed = true;
 }
 
-static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, const struct wlr_output_state *state,
-		uint32_t flags) {
+static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state, uint32_t flags, bool test_only) {
+	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_output *output = &conn->output;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
@@ -211,9 +211,12 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 		vrr_enabled = state->adaptive_sync_enabled;
 	}
 
+	if (test_only) {
+		flags |= DRM_MODE_ATOMIC_TEST_ONLY;
+	}
 	if (modeset) {
 		flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
-	} else if (!(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
+	} else if (!test_only) {
 		flags |= DRM_MODE_ATOMIC_NONBLOCK;
 	}
 
@@ -268,7 +271,7 @@ static bool atomic_crtc_commit(struct wlr_drm_backend *drm,
 	bool ok = atomic_commit(&atom, conn, flags);
 	atomic_finish(&atom);
 
-	if (ok && !(flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
+	if (ok && !test_only) {
 		commit_blob(drm, &crtc->mode_id, mode_id);
 		commit_blob(drm, &crtc->gamma_lut, gamma_lut);
 

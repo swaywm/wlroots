@@ -13,7 +13,6 @@
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/render/wlr_texture.h>
-#include <wlr/types/wlr_box.h>
 
 enum wlr_renderer_read_pixels_flags {
 	WLR_RENDERER_READ_PIXELS_Y_INVERT = 1,
@@ -22,6 +21,8 @@ enum wlr_renderer_read_pixels_flags {
 struct wlr_renderer_impl;
 struct wlr_drm_format_set;
 struct wlr_buffer;
+struct wlr_box;
+struct wlr_fbox;
 
 struct wlr_renderer {
 	const struct wlr_renderer_impl *impl;
@@ -80,16 +81,6 @@ void wlr_render_quad_with_matrix(struct wlr_renderer *r,
  */
 const uint32_t *wlr_renderer_get_shm_texture_formats(
 	struct wlr_renderer *r, size_t *len);
-/**
- * Returns true if this wl_buffer is a wl_drm buffer.
- */
-bool wlr_renderer_resource_is_wl_drm_buffer(struct wlr_renderer *renderer,
-	struct wl_resource *buffer);
-/**
- * Gets the width and height of a wl_drm buffer.
- */
-void wlr_renderer_wl_drm_buffer_get_size(struct wlr_renderer *renderer,
-	struct wl_resource *buffer, int *width, int *height);
 /**
  * Get the DMA-BUF formats supporting sampling usage. Buffers allocated with
  * a format from this list may be imported via wlr_texture_from_dmabuf.

@@ -113,10 +113,12 @@ void add_tablet_client(struct wlr_tablet_seat_client_v2 *seat,
 	}
 	zwp_tablet_v2_send_id(client->resource,
 		tablet->wlr_device->vendor, tablet->wlr_device->product);
-	for (size_t i = 0; i < tablet->wlr_tablet->paths.length; ++i) {
-		zwp_tablet_v2_send_path(client->resource,
-			tablet->wlr_tablet->paths.items[i]);
+
+	const char **path_ptr;
+	wl_array_for_each(path_ptr, &tablet->wlr_tablet->paths) {
+		zwp_tablet_v2_send_path(client->resource, *path_ptr);
 	}
+
 	zwp_tablet_v2_send_done(client->resource);
 
 	client->client = seat->wl_client;

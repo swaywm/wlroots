@@ -306,8 +306,9 @@ void add_tablet_pad_client(struct wlr_tablet_seat_client_v2 *seat,
 		return;
 	}
 
-	client->resource =
-		wl_resource_create(seat->wl_client, &zwp_tablet_pad_v2_interface, 1, 0);
+	uint32_t version = wl_resource_get_version(seat->resource);
+	client->resource = wl_resource_create(seat->wl_client,
+		&zwp_tablet_pad_v2_interface, version, 0);
 	if (!client->resource) {
 		wl_client_post_no_memory(seat->wl_client);
 		free(client->groups);
@@ -325,10 +326,12 @@ void add_tablet_pad_client(struct wlr_tablet_seat_client_v2 *seat,
 	if (pad->wlr_pad->button_count) {
 		zwp_tablet_pad_v2_send_buttons(client->resource, pad->wlr_pad->button_count);
 	}
-	for (size_t i = 0; i < pad->wlr_pad->paths.length; ++i) {
-		zwp_tablet_pad_v2_send_path(client->resource,
-			pad->wlr_pad->paths.items[i]);
+
+	const char **path_ptr;
+	wl_array_for_each(path_ptr, &pad->wlr_pad->paths) {
+		zwp_tablet_pad_v2_send_path(client->resource, *path_ptr);
 	}
+
 	size_t i = 0;
 	struct wlr_tablet_pad_group *group;
 	client->group_count = pad->group_count;

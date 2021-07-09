@@ -34,6 +34,18 @@ struct wlr_buffer_impl {
 };
 
 /**
+ * Buffer capabilities.
+ *
+ * These bits indicate the features supported by a wlr_buffer. There is one bit
+ * per function in wlr_buffer_impl.
+ */
+enum wlr_buffer_cap {
+	WLR_BUFFER_CAP_DATA_PTR = 1 << 0,
+	WLR_BUFFER_CAP_DMABUF = 1 << 1,
+	WLR_BUFFER_CAP_SHM = 1 << 2,
+};
+
+/**
  * A buffer containing pixel data.
  *
  * A buffer has a single producer (the party who created the buffer) and
@@ -111,17 +123,12 @@ struct wlr_client_buffer {
 	 */
 	struct wl_resource *resource;
 	/**
-	 * Whether a release event has been sent to the resource.
-	 */
-	bool resource_released;
-	/**
 	 * The buffer's texture, if any. A buffer will not have a texture if the
 	 * client destroys the buffer before it has been released.
 	 */
 	struct wlr_texture *texture;
 
 	struct wl_listener resource_destroy;
-	struct wl_listener release;
 };
 
 struct wlr_renderer;
@@ -139,7 +146,7 @@ bool wlr_resource_is_buffer(struct wl_resource *resource);
  * Get the size of a wl_buffer resource.
  */
 bool wlr_resource_get_buffer_size(struct wl_resource *resource,
-	struct wlr_renderer *renderer, int *width, int *height);
+	int *width, int *height);
 /**
  * Import a client buffer and lock it.
  *

@@ -11,7 +11,7 @@
 
 #include <stdbool.h>
 #include <wayland-server-core.h>
-#include <wlr/types/wlr_box.h>
+#include <wlr/util/box.h>
 
 struct wlr_screencopy_manager_v1 {
 	struct wl_global *global;

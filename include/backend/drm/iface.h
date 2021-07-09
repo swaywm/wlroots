@@ -13,10 +13,9 @@ struct wlr_drm_crtc;
 
 // Used to provide atomic or legacy DRM functions
 struct wlr_drm_interface {
-	// Commit al pending changes on a CRTC.
-	bool (*crtc_commit)(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, const struct wlr_output_state *state,
-		uint32_t flags);
+	// Commit all pending changes on a CRTC.
+	bool (*crtc_commit)(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state, uint32_t flags, bool test_only);
 };
 
 extern const struct wlr_drm_interface atomic_iface;

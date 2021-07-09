@@ -11,30 +11,17 @@ struct wlr_egl_context {
 };
 
 /**
- * Initializes an EGL context for the given platform and remote display.
- * Will attempt to load all possibly required api functions.
+ * Initializes an EGL context for the given DRM FD.
+ *
+ * Will attempt to load all possibly required API functions.
  */
-struct wlr_egl *wlr_egl_create(EGLenum platform, void *remote_display);
+struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd);
 
 /**
  * Frees all related EGL resources, makes the context not-current and
  * unbinds a bound wayland display.
  */
 void wlr_egl_destroy(struct wlr_egl *egl);
-
-/**
- * Binds the given display to the EGL instance.
- * This will allow clients to create EGL surfaces from wayland ones and render
- * to it.
- */
-bool wlr_egl_bind_display(struct wlr_egl *egl, struct wl_display *local_display);
-
-/**
- * Creates an EGL image from the given wl_drm buffer resource.
- */
-EGLImageKHR wlr_egl_create_image_from_wl_drm(struct wlr_egl *egl,
-	struct wl_resource *data, EGLint *fmt, int *width, int *height,
-	bool *inverted_y);
 
 /**
  * Creates an EGL image from the given dmabuf attributes. Check usability
