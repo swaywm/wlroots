@@ -16,7 +16,7 @@
 #include <wayland-util.h>
 #include <wlr/render/dmabuf.h>
 #include <wlr/types/wlr_buffer.h>
-#include <wlr/types/wlr_box.h>
+#include <wlr/util/box.h>
 
 struct wlr_output_mode {
 	int32_t width, height;
