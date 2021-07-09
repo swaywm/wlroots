@@ -136,10 +136,15 @@ struct wlr_client_buffer {
 	 * client destroys the buffer before it has been released.
 	 */
 	struct wlr_texture *texture;
+	/**
+	 * The buffer this client buffer was created from. NULL if destroyed.
+	 */
+	struct wlr_buffer *source;
 
 	// private state
 
 	struct wl_listener resource_destroy;
+	struct wl_listener source_destroy;
 
 	// If the client buffer has been created from a wl_shm buffer
 	uint32_t shm_source_format;
