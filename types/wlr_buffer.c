@@ -190,11 +190,10 @@ struct wlr_buffer *wlr_buffer_from_resource(struct wlr_renderer *renderer,
 }
 
 struct wlr_client_buffer *wlr_client_buffer_create(struct wlr_buffer *buffer,
-		struct wlr_renderer *renderer, struct wl_resource *resource) {
+		struct wlr_renderer *renderer) {
 	struct wlr_texture *texture = wlr_texture_from_buffer(renderer, buffer);
 	if (texture == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create texture");
-		wl_buffer_send_release(resource);
 		return NULL;
 	}
 
@@ -202,7 +201,6 @@ struct wlr_client_buffer *wlr_client_buffer_create(struct wlr_buffer *buffer,
 		calloc(1, sizeof(struct wlr_client_buffer));
 	if (client_buffer == NULL) {
 		wlr_texture_destroy(texture);
-		wl_resource_post_no_memory(resource);
 		return NULL;
 	}
 	wlr_buffer_init(&client_buffer->base, &client_buffer_impl,
