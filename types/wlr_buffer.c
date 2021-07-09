@@ -123,7 +123,6 @@ static struct wlr_client_buffer *client_buffer_from_buffer(
 
 static void client_buffer_destroy(struct wlr_buffer *buffer) {
 	struct wlr_client_buffer *client_buffer = client_buffer_from_buffer(buffer);
-	wl_list_remove(&client_buffer->resource_destroy.link);
 	wl_list_remove(&client_buffer->source_destroy.link);
 	wlr_texture_destroy(client_buffer->texture);
 	free(client_buffer);
@@ -144,22 +143,6 @@ static const struct wlr_buffer_impl client_buffer_impl = {
 	.destroy = client_buffer_destroy,
 	.get_dmabuf = client_buffer_get_dmabuf,
 };
-
-static void client_buffer_resource_handle_destroy(struct wl_listener *listener,
-		void *data) {
-	struct wlr_client_buffer *client_buffer =
-		wl_container_of(listener, client_buffer, resource_destroy);
-	wl_list_remove(&client_buffer->resource_destroy.link);
-	wl_list_init(&client_buffer->resource_destroy.link);
-	client_buffer->resource = NULL;
-
-	// At this point, if the wl_buffer comes from linux-dmabuf or wl_drm, we
-	// still haven't released it (ie. we'll read it in the future) but the
-	// client destroyed it. Reading the texture itself should be fine because
-	// we still hold a reference to the DMA-BUF via the texture. However the
-	// client could decide to re-use the same DMA-BUF for something else, in
-	// which case we'll read garbage. We decide to accept this risk.
-}
 
 static void client_buffer_handle_source_destroy(struct wl_listener *listener,
 		void *data) {
@@ -224,12 +207,8 @@ struct wlr_client_buffer *wlr_client_buffer_create(struct wlr_buffer *buffer,
 	}
 	wlr_buffer_init(&client_buffer->base, &client_buffer_impl,
 		texture->width, texture->height);
-	client_buffer->resource = resource;
 	client_buffer->source = buffer;
 	client_buffer->texture = texture;
-
-	wl_resource_add_destroy_listener(resource, &client_buffer->resource_destroy);
-	client_buffer->resource_destroy.notify = client_buffer_resource_handle_destroy;
 
 	wl_signal_add(&buffer->events.destroy, &client_buffer->source_destroy);
 	client_buffer->source_destroy.notify = client_buffer_handle_source_destroy;
@@ -300,11 +279,6 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 
 	wl_shm_buffer_end_access(shm_buf);
 
-	wl_list_remove(&client_buffer->resource_destroy.link);
-	wl_resource_add_destroy_listener(resource, &client_buffer->resource_destroy);
-	client_buffer->resource_destroy.notify = client_buffer_resource_handle_destroy;
-
-	client_buffer->resource = resource;
 	return client_buffer;
 }
 

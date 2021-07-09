@@ -128,10 +128,6 @@ struct wlr_client_buffer {
 	struct wlr_buffer base;
 
 	/**
-	 * The buffer resource, if any. Will be NULL if the client destroys it.
-	 */
-	struct wl_resource *resource;
-	/**
 	 * The buffer's texture, if any. A buffer will not have a texture if the
 	 * client destroys the buffer before it has been released.
 	 */
@@ -143,7 +139,6 @@ struct wlr_client_buffer {
 
 	// private state
 
-	struct wl_listener resource_destroy;
 	struct wl_listener source_destroy;
 
 	// If the client buffer has been created from a wl_shm buffer
