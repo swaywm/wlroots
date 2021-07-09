@@ -137,7 +137,12 @@ struct wlr_client_buffer {
 	 */
 	struct wlr_texture *texture;
 
+	// private state
+
 	struct wl_listener resource_destroy;
+
+	// If the client buffer has been created from a wl_shm buffer
+	uint32_t shm_source_format;
 };
 
 /**
