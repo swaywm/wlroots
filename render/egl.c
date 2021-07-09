@@ -289,6 +289,8 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 
 		egl->exts.EXT_device_drm =
 			check_egl_ext(device_exts_str, "EGL_EXT_device_drm");
+		egl->exts.EXT_device_drm_render_node =
+			check_egl_ext(device_exts_str, "EGL_EXT_device_drm_render_node");
 	}
 
 	if (!check_egl_ext(display_exts_str, "EGL_KHR_no_config_context") &&
@@ -712,23 +714,39 @@ static char *get_render_name(const char *name) {
 }
 
 int wlr_egl_dup_drm_fd(struct wlr_egl *egl) {
-	if (egl->device == EGL_NO_DEVICE_EXT || !egl->exts.EXT_device_drm) {
+	if (egl->device == EGL_NO_DEVICE_EXT || (!egl->exts.EXT_device_drm &&
+			!egl->exts.EXT_device_drm_render_node)) {
 		return -1;
 	}
 
-	const char *primary_name = egl->procs.eglQueryDeviceStringEXT(egl->device,
-		EGL_DRM_DEVICE_FILE_EXT);
-	if (primary_name == NULL) {
-		wlr_log(WLR_ERROR,
-			"eglQueryDeviceStringEXT(EGL_DRM_DEVICE_FILE_EXT) failed");
-		return -1;
+	char *render_name = NULL;
+#ifdef EGL_EXT_device_drm_render_node
+	if (egl->exts.device_drm_render_node_ext) {
+		const char *name = egl->procs.eglQueryDeviceStringEXT(egl->device,
+			EGL_DRM_RENDER_NODE_FILE_EXT);
+		if (name == NULL) {
+			wlr_log(WLR_DEBUG, "EGL device has no render node");
+			return -1;
+		}
+		render_name = strdup(name);
 	}
+#endif
 
-	char *render_name = get_render_name(primary_name);
 	if (render_name == NULL) {
-		wlr_log(WLR_ERROR, "Can't find render node name for device %s",
-			primary_name);
-		return -1;
+		const char *primary_name = egl->procs.eglQueryDeviceStringEXT(egl->device,
+			EGL_DRM_DEVICE_FILE_EXT);
+		if (primary_name == NULL) {
+			wlr_log(WLR_ERROR,
+				"eglQueryDeviceStringEXT(EGL_DRM_DEVICE_FILE_EXT) failed");
+			return -1;
+		}
+
+		render_name = get_render_name(primary_name);
+		if (render_name == NULL) {
+			wlr_log(WLR_ERROR, "Can't find render node name for device %s",
+				primary_name);
+			return -1;
+		}
 	}
 
 	int render_fd = open(render_name, O_RDWR | O_NONBLOCK | O_CLOEXEC);
