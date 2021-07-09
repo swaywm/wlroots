@@ -383,7 +383,7 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 	}
 
 	struct wlr_client_buffer *buffer = wlr_client_buffer_create(
-			surface->current.buffer, surface->renderer, resource);
+			surface->current.buffer, surface->renderer);
 
 	wlr_buffer_unlock(surface->current.buffer);
 	surface->current.buffer = NULL;

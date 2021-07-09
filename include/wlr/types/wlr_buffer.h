@@ -150,7 +150,7 @@ struct wlr_client_buffer {
  * from it, and copying its wl_resource.
  */
 struct wlr_client_buffer *wlr_client_buffer_create(struct wlr_buffer *buffer,
-	struct wlr_renderer *renderer, struct wl_resource *resource);
+	struct wlr_renderer *renderer);
 
 /**
  * Get a client buffer from a generic buffer. If the buffer isn't a client
