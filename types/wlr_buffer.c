@@ -120,22 +120,22 @@ static struct wlr_client_buffer *client_buffer_from_buffer(
 	return client_buffer;
 }
 
-static void client_buffer_destroy(struct wlr_buffer *_buffer) {
-	struct wlr_client_buffer *buffer = client_buffer_from_buffer(_buffer);
-	wl_list_remove(&buffer->resource_destroy.link);
-	wlr_texture_destroy(buffer->texture);
-	free(buffer);
+static void client_buffer_destroy(struct wlr_buffer *buffer) {
+	struct wlr_client_buffer *client_buffer = client_buffer_from_buffer(buffer);
+	wl_list_remove(&client_buffer->resource_destroy.link);
+	wlr_texture_destroy(client_buffer->texture);
+	free(client_buffer);
 }
 
-static bool client_buffer_get_dmabuf(struct wlr_buffer *_buffer,
+static bool client_buffer_get_dmabuf(struct wlr_buffer *buffer,
 		struct wlr_dmabuf_attributes *attribs) {
-	struct wlr_client_buffer *buffer = client_buffer_from_buffer(_buffer);
+	struct wlr_client_buffer *client_buffer = client_buffer_from_buffer(buffer);
 
-	if (buffer->resource == NULL) {
+	if (client_buffer->resource == NULL) {
 		return false;
 	}
 
-	struct wl_resource *buffer_resource = buffer->resource;
+	struct wl_resource *buffer_resource = client_buffer->resource;
 	if (!wlr_dmabuf_v1_resource_is_buffer(buffer_resource)) {
 		return false;
 	}
@@ -154,11 +154,11 @@ static const struct wlr_buffer_impl client_buffer_impl = {
 
 static void client_buffer_resource_handle_destroy(struct wl_listener *listener,
 		void *data) {
-	struct wlr_client_buffer *buffer =
-		wl_container_of(listener, buffer, resource_destroy);
-	wl_list_remove(&buffer->resource_destroy.link);
-	wl_list_init(&buffer->resource_destroy.link);
-	buffer->resource = NULL;
+	struct wlr_client_buffer *client_buffer =
+		wl_container_of(listener, client_buffer, resource_destroy);
+	wl_list_remove(&client_buffer->resource_destroy.link);
+	wl_list_init(&client_buffer->resource_destroy.link);
+	client_buffer->resource = NULL;
 
 	// At this point, if the wl_buffer comes from linux-dmabuf or wl_drm, we
 	// still haven't released it (ie. we'll read it in the future) but the
@@ -232,17 +232,17 @@ struct wlr_client_buffer *wlr_client_buffer_create(struct wlr_buffer *buffer,
 }
 
 struct wlr_client_buffer *wlr_client_buffer_apply_damage(
-		struct wlr_client_buffer *buffer, struct wl_resource *resource,
+		struct wlr_client_buffer *client_buffer, struct wl_resource *resource,
 		pixman_region32_t *damage) {
 	assert(wlr_resource_is_buffer(resource));
 
-	if (buffer->base.n_locks > 1) {
+	if (client_buffer->base.n_locks > 1) {
 		// Someone else still has a reference to the buffer
 		return NULL;
 	}
 
 	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
-	struct wl_shm_buffer *old_shm_buf = wl_shm_buffer_get(buffer->resource);
+	struct wl_shm_buffer *old_shm_buf = wl_shm_buffer_get(client_buffer->resource);
 	if (shm_buf == NULL || old_shm_buf == NULL) {
 		// Uploading only damaged regions only works for wl_shm buffers and
 		// mutable textures (created from wl_shm buffer)
@@ -260,8 +260,8 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 	int32_t width = wl_shm_buffer_get_width(shm_buf);
 	int32_t height = wl_shm_buffer_get_height(shm_buf);
 
-	if ((uint32_t)width != buffer->texture->width ||
-			(uint32_t)height != buffer->texture->height) {
+	if ((uint32_t)width != client_buffer->texture->width ||
+			(uint32_t)height != client_buffer->texture->height) {
 		return NULL;
 	}
 
@@ -272,7 +272,7 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 	pixman_box32_t *rects = pixman_region32_rectangles(damage, &n);
 	for (int i = 0; i < n; ++i) {
 		pixman_box32_t *r = &rects[i];
-		if (!wlr_texture_write_pixels(buffer->texture, stride,
+		if (!wlr_texture_write_pixels(client_buffer->texture, stride,
 				r->x2 - r->x1, r->y2 - r->y1, r->x1, r->y1,
 				r->x1, r->y1, data)) {
 			wl_shm_buffer_end_access(shm_buf);
@@ -282,12 +282,12 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 
 	wl_shm_buffer_end_access(shm_buf);
 
-	wl_list_remove(&buffer->resource_destroy.link);
-	wl_resource_add_destroy_listener(resource, &buffer->resource_destroy);
-	buffer->resource_destroy.notify = client_buffer_resource_handle_destroy;
+	wl_list_remove(&client_buffer->resource_destroy.link);
+	wl_resource_add_destroy_listener(resource, &client_buffer->resource_destroy);
+	client_buffer->resource_destroy.notify = client_buffer_resource_handle_destroy;
 
-	buffer->resource = resource;
-	return buffer;
+	client_buffer->resource = resource;
+	return client_buffer;
 }
 
 static const struct wlr_buffer_impl shm_client_buffer_impl;
