@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <drm_fourcc.h>
 #include <stdlib.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_buffer.h>
@@ -168,6 +169,10 @@ static void client_buffer_resource_handle_destroy(struct wl_listener *listener,
 	// which case we'll read garbage. We decide to accept this risk.
 }
 
+static bool buffer_is_shm_client_buffer(struct wlr_buffer *buffer);
+static struct wlr_shm_client_buffer *shm_client_buffer_from_buffer(
+	struct wlr_buffer *buffer);
+
 struct wlr_buffer *wlr_buffer_from_resource(struct wlr_renderer *renderer,
 		struct wl_resource *resource) {
 	assert(resource && wlr_resource_is_buffer(resource));
@@ -224,6 +229,14 @@ struct wlr_client_buffer *wlr_client_buffer_create(struct wlr_buffer *buffer,
 	wl_resource_add_destroy_listener(resource, &client_buffer->resource_destroy);
 	client_buffer->resource_destroy.notify = client_buffer_resource_handle_destroy;
 
+	if (buffer_is_shm_client_buffer(buffer)) {
+		struct wlr_shm_client_buffer *shm_client_buffer =
+			shm_client_buffer_from_buffer(buffer);
+		client_buffer->shm_source_format = shm_client_buffer->format;
+	} else {
+		client_buffer->shm_source_format = DRM_FORMAT_INVALID;
+	}
+
 	// Ensure the buffer will be released before being destroyed
 	wlr_buffer_lock(&client_buffer->base);
 	wlr_buffer_drop(&client_buffer->base);
@@ -242,16 +255,16 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 	}
 
 	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
-	struct wl_shm_buffer *old_shm_buf = wl_shm_buffer_get(client_buffer->resource);
-	if (shm_buf == NULL || old_shm_buf == NULL) {
+	if (shm_buf == NULL ||
+			client_buffer->shm_source_format == DRM_FORMAT_INVALID) {
 		// Uploading only damaged regions only works for wl_shm buffers and
 		// mutable textures (created from wl_shm buffer)
 		return NULL;
 	}
 
-	enum wl_shm_format new_fmt = wl_shm_buffer_get_format(shm_buf);
-	enum wl_shm_format old_fmt = wl_shm_buffer_get_format(old_shm_buf);
-	if (new_fmt != old_fmt) {
+	enum wl_shm_format new_shm_fmt = wl_shm_buffer_get_format(shm_buf);
+	if (convert_wl_shm_format_to_drm(new_shm_fmt) !=
+			client_buffer->shm_source_format) {
 		// Uploading to textures can't change the format
 		return NULL;
 	}
@@ -292,9 +305,13 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 
 static const struct wlr_buffer_impl shm_client_buffer_impl;
 
+static bool buffer_is_shm_client_buffer(struct wlr_buffer *buffer) {
+	return buffer->impl == &shm_client_buffer_impl;
+}
+
 static struct wlr_shm_client_buffer *shm_client_buffer_from_buffer(
 		struct wlr_buffer *buffer) {
-	assert(buffer->impl == &shm_client_buffer_impl);
+	assert(buffer_is_shm_client_buffer(buffer));
 	return (struct wlr_shm_client_buffer *)buffer;
 }
 
