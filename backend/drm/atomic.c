@@ -7,6 +7,11 @@
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
 
+// connection property "Broadcast RGB" = "Full"
+#ifndef DRM_MODE_COLOR_RANGE_FULL
+#define DRM_MODE_COLOR_RANGE_FULL 1
+#endif
+
 struct atomic {
 	drmModeAtomicReq *req;
 	bool failed;
@@ -220,6 +225,10 @@ static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
 
 	struct atomic atom;
 	atomic_begin(&atom);
+	if (conn->props.broadcast_rgb) {
+		atomic_add(&atom, conn->id, conn->props.broadcast_rgb,
+			DRM_MODE_COLOR_RANGE_FULL);
+	}
 	atomic_add(&atom, conn->id, conn->props.crtc_id, active ? crtc->id : 0);
 	if (modeset && active && conn->props.link_status != 0) {
 		atomic_add(&atom, conn->id, conn->props.link_status,

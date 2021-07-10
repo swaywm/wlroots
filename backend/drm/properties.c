@@ -20,6 +20,7 @@ struct prop_info {
 
 static const struct prop_info connector_info[] = {
 #define INDEX(name) (offsetof(union wlr_drm_connector_props, name) / sizeof(uint32_t))
+	{ "Broadcast RGB", INDEX(broadcast_rgb) },
 	{ "CRTC_ID", INDEX(crtc_id) },
 	{ "DPMS", INDEX(dpms) },
 	{ "EDID", INDEX(edid) },
