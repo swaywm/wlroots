@@ -37,12 +37,12 @@ struct wlr_egl {
 
 	struct {
 		// Display extensions
-		bool image_base_khr;
-		bool image_dmabuf_import_ext;
-		bool image_dmabuf_import_modifiers_ext;
+		bool KHR_image_base;
+		bool EXT_image_dma_buf_import;
+		bool EXT_image_dma_buf_import_modifiers;
 
 		// Device extensions
-		bool device_drm_ext;
+		bool EXT_device_drm;
 	} exts;
 
 	struct {
