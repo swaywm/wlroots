@@ -248,10 +248,18 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 	if (texture == NULL) {
 		return NULL;
 	}
-	texture->has_alpha = true;
 	texture->drm_format = DRM_FORMAT_INVALID; // texture can't be written anyways
 	texture->inverted_y =
 		(attribs->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) != 0;
+
+	const struct wlr_pixel_format_info *drm_fmt =
+		drm_get_pixel_format_info(attribs->format);
+	if (drm_fmt != NULL) {
+		texture->has_alpha = drm_fmt->has_alpha;
+	} else {
+		// We don't know, assume the texture has an alpha channel
+		texture->has_alpha = true;
+	}
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_save_context(&prev_ctx);
