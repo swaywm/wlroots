@@ -39,10 +39,10 @@ struct wlr_gles2_renderer {
 
 	const char *exts_str;
 	struct {
-		bool read_format_bgra_ext;
-		bool debug_khr;
-		bool egl_image_external_oes;
-		bool egl_image_oes;
+		bool EXT_read_format_bgra;
+		bool KHR_debug;
+		bool OES_egl_image_external;
+		bool OES_egl_image;
 	} exts;
 
 	struct {
