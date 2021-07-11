@@ -204,8 +204,6 @@ static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 	wlr_matrix_projection(renderer->projection, width, height,
 			WL_OUTPUT_TRANSFORM_NORMAL);
 
-	// enable transparency
-	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	// XXX: maybe we should save output projection and remove some of the need
@@ -294,6 +292,12 @@ static bool gles2_render_subtexture_with_matrix(
 
 	push_gles2_debug(renderer);
 
+	if (!texture->has_alpha && alpha == 1.0) {
+		glDisable(GL_BLEND);
+	} else {
+		glEnable(GL_BLEND);
+	}
+
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(texture->target, texture->tex);
 
@@ -348,6 +352,13 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 	wlr_matrix_transpose(gl_matrix, gl_matrix);
 
 	push_gles2_debug(renderer);
+
+	if (color[3] == 1.0) {
+		glDisable(GL_BLEND);
+	} else {
+		glEnable(GL_BLEND);
+	}
+
 	glUseProgram(renderer->shaders.quad.program);
 
 	glUniformMatrix3fv(renderer->shaders.quad.proj, 1, GL_FALSE, gl_matrix);
