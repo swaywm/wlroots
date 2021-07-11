@@ -304,6 +304,9 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 		goto error;
 	}
 
+	egl->exts.EXT_image_gl_colorspace =
+		check_egl_ext(display_exts_str, "EGL_EXT_image_gl_colorspace");
+
 	wlr_log(WLR_INFO, "Using EGL %d.%d", (int)major, (int)minor);
 	wlr_log(WLR_INFO, "Supported EGL client extensions: %s", client_exts_str);
 	wlr_log(WLR_INFO, "Supported EGL display extensions: %s", display_exts_str);
@@ -476,6 +479,11 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 	attribs[atti++] = attributes->height;
 	attribs[atti++] = EGL_LINUX_DRM_FOURCC_EXT;
 	attribs[atti++] = attributes->format;
+
+	if (egl->exts.EXT_image_gl_colorspace) {
+		attribs[atti++] = EGL_GL_COLORSPACE_KHR;
+		attribs[atti++] = EGL_GL_COLORSPACE_SRGB_KHR;
+	}
 
 	struct {
 		EGLint fd;

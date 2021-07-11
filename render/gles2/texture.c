@@ -218,11 +218,17 @@ static struct wlr_texture *gles2_texture_from_pixels(
 	glGenTextures(1, &texture->tex);
 	glBindTexture(GL_TEXTURE_2D, texture->tex);
 
+	GLenum gl_format = fmt->gl_format;
+	if (renderer->exts.EXT_sRGB) {
+		// TODO: handle GL_BGRA_EXT
+		gl_format = GL_SRGB_ALPHA_EXT;
+	}
+
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride / (drm_fmt->bpp / 8));
-	glTexImage2D(GL_TEXTURE_2D, 0, fmt->gl_format, width, height, 0,
-		fmt->gl_format, fmt->gl_type, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, gl_format, width, height, 0,
+		gl_format, fmt->gl_type, data);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
 
 	glBindTexture(GL_TEXTURE_2D, 0);

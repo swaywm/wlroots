@@ -762,6 +762,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 
 	renderer->exts.EXT_read_format_bgra =
 		check_gl_ext(exts_str, "GL_EXT_read_format_bgra");
+	renderer->exts.EXT_sRGB = check_gl_ext(exts_str, "GL_EXT_sRGB");
 
 	if (check_gl_ext(exts_str, "GL_KHR_debug")) {
 		renderer->exts.KHR_debug = true;
