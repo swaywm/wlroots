@@ -69,6 +69,12 @@ struct wlr_buffer {
 	} events;
 };
 
+struct wlr_buffer_resource_interface {
+	const char *name;
+	bool (*is_instance)(struct wl_resource *resource);
+	struct wlr_buffer *(*from_resource)(struct wl_resource *resource);
+};
+
 /**
  * Initialize a buffer. This function should be called by producers. The
  * initialized buffer is referenced: once the producer is done with the buffer
@@ -112,6 +118,14 @@ bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
  */
 bool wlr_buffer_get_shm(struct wlr_buffer *buffer,
 	struct wlr_shm_attributes *attribs);
+/**
+ * Allows the registration of a wl_resource implementation.
+ *
+ * The matching function will be called for the wl_resource when creating a
+ * wlr_buffer from a wl_resource.
+ */
+void wlr_buffer_register_resource_interface(
+		const struct wlr_buffer_resource_interface *iface);
 /**
  * Transforms a wl_resource into a wlr_buffer and locks it. Once the caller is
  * done with the buffer, they must call wlr_buffer_unlock.
