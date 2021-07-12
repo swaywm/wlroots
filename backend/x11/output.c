@@ -257,9 +257,6 @@ static struct wlr_x11_buffer *get_or_create_x11_buffer(
 static bool output_commit_buffer(struct wlr_x11_output *output) {
 	struct wlr_x11_backend *x11 = output->x11;
 
-	assert(output->wlr_output.pending.buffer_type ==
-		WLR_OUTPUT_STATE_BUFFER_SCANOUT);
-
 	struct wlr_buffer *buffer = output->wlr_output.pending.buffer;
 	struct wlr_x11_buffer *x11_buffer =
 		get_or_create_x11_buffer(output, buffer);

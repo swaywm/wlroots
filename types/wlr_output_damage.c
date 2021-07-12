@@ -52,8 +52,7 @@ static void output_handle_precommit(struct wl_listener *listener, void *data) {
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		// TODO: find a better way to access this info without a precommit
 		// handler
-		output_damage->pending_attach_render = output->back_buffer != NULL ||
-			output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_RENDER;
+		output_damage->pending_attach_render = output->back_buffer != NULL;
 	}
 }
 

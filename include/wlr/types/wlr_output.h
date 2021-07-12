@@ -63,11 +63,6 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_GAMMA_LUT = 1 << 7,
 };
 
-enum wlr_output_state_buffer_type {
-	WLR_OUTPUT_STATE_BUFFER_RENDER,
-	WLR_OUTPUT_STATE_BUFFER_SCANOUT,
-};
-
 enum wlr_output_state_mode_type {
 	WLR_OUTPUT_STATE_MODE_FIXED,
 	WLR_OUTPUT_STATE_MODE_CUSTOM,
@@ -85,8 +80,7 @@ struct wlr_output_state {
 	bool adaptive_sync_enabled;
 
 	// only valid if WLR_OUTPUT_STATE_BUFFER
-	enum wlr_output_state_buffer_type buffer_type;
-	struct wlr_buffer *buffer; // if WLR_OUTPUT_STATE_BUFFER_SCANOUT
+	struct wlr_buffer *buffer;
 
 	// only valid if WLR_OUTPUT_STATE_MODE
 	enum wlr_output_state_mode_type mode_type;
