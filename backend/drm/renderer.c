@@ -18,7 +18,6 @@
 #include "render/pixel_format.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
-#include "render/wlr_texture.h"
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer) {
