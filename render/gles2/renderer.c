@@ -274,7 +274,7 @@ static bool gles2_render_subtexture_with_matrix(
 	case GL_TEXTURE_EXTERNAL_OES:
 		shader = &renderer->shaders.tex_ext;
 
-		if (!renderer->exts.egl_image_external_oes) {
+		if (!renderer->exts.OES_egl_image_external) {
 			wlr_log(WLR_ERROR, "Failed to render texture: "
 				"GL_TEXTURE_EXTERNAL_OES not supported");
 			return false;
@@ -407,7 +407,7 @@ static uint32_t gles2_preferred_read_format(
 		return fmt->drm_format;
 	}
 
-	if (renderer->exts.read_format_bgra_ext) {
+	if (renderer->exts.EXT_read_format_bgra) {
 		return DRM_FORMAT_XRGB8888;
 	}
 	return DRM_FORMAT_XBGR8888;
@@ -427,7 +427,7 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 		return false;
 	}
 
-	if (fmt->gl_format == GL_BGRA_EXT && !renderer->exts.read_format_bgra_ext) {
+	if (fmt->gl_format == GL_BGRA_EXT && !renderer->exts.EXT_read_format_bgra) {
 		wlr_log(WLR_ERROR,
 			"Cannot read pixels: missing GL_EXT_read_format_bgra extension");
 		return false;
@@ -530,7 +530,7 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	glDeleteProgram(renderer->shaders.tex_ext.program);
 	pop_gles2_debug(renderer);
 
-	if (renderer->exts.debug_khr) {
+	if (renderer->exts.KHR_debug) {
 		glDisable(GL_DEBUG_OUTPUT_KHR);
 		renderer->procs.glDebugMessageCallbackKHR(NULL, NULL);
 	}
@@ -744,7 +744,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	wlr_log(WLR_INFO, "GL renderer: %s", glGetString(GL_RENDERER));
 	wlr_log(WLR_INFO, "Supported GLES2 extensions: %s", exts_str);
 
-	if (!renderer->egl->exts.image_dmabuf_import_ext) {
+	if (!renderer->egl->exts.EXT_image_dma_buf_import) {
 		wlr_log(WLR_ERROR, "EGL_EXT_image_dma_buf_import not supported");
 		free(renderer);
 		return NULL;
@@ -760,11 +760,12 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 		return NULL;
 	}
 
-	renderer->exts.read_format_bgra_ext =
+	renderer->exts.EXT_read_format_bgra =
 		check_gl_ext(exts_str, "GL_EXT_read_format_bgra");
+	renderer->exts.EXT_sRGB = check_gl_ext(exts_str, "GL_EXT_sRGB");
 
 	if (check_gl_ext(exts_str, "GL_KHR_debug")) {
-		renderer->exts.debug_khr = true;
+		renderer->exts.KHR_debug = true;
 		load_gl_proc(&renderer->procs.glDebugMessageCallbackKHR,
 			"glDebugMessageCallbackKHR");
 		load_gl_proc(&renderer->procs.glDebugMessageControlKHR,
@@ -772,18 +773,18 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	}
 
 	if (check_gl_ext(exts_str, "GL_OES_EGL_image_external")) {
-		renderer->exts.egl_image_external_oes = true;
+		renderer->exts.OES_egl_image_external = true;
 		load_gl_proc(&renderer->procs.glEGLImageTargetTexture2DOES,
 			"glEGLImageTargetTexture2DOES");
 	}
 
 	if (check_gl_ext(exts_str, "GL_OES_EGL_image")) {
-		renderer->exts.egl_image_oes = true;
+		renderer->exts.OES_egl_image = true;
 		load_gl_proc(&renderer->procs.glEGLImageTargetRenderbufferStorageOES,
 			"glEGLImageTargetRenderbufferStorageOES");
 	}
 
-	if (renderer->exts.debug_khr) {
+	if (renderer->exts.KHR_debug) {
 		glEnable(GL_DEBUG_OUTPUT_KHR);
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_KHR);
 		renderer->procs.glDebugMessageCallbackKHR(gles2_log, NULL);
@@ -831,7 +832,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	renderer->shaders.tex_rgbx.pos_attrib = glGetAttribLocation(prog, "pos");
 	renderer->shaders.tex_rgbx.tex_attrib = glGetAttribLocation(prog, "texcoord");
 
-	if (renderer->exts.egl_image_external_oes) {
+	if (renderer->exts.OES_egl_image_external) {
 		renderer->shaders.tex_ext.program = prog =
 			link_program(renderer, tex_vertex_src, tex_fragment_src_external);
 		if (!renderer->shaders.tex_ext.program) {
@@ -859,7 +860,7 @@ error:
 
 	pop_gles2_debug(renderer);
 
-	if (renderer->exts.debug_khr) {
+	if (renderer->exts.KHR_debug) {
 		glDisable(GL_DEBUG_OUTPUT_KHR);
 		renderer->procs.glDebugMessageCallbackKHR(NULL, NULL);
 	}

@@ -230,16 +230,16 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 	}
 
 	if (check_egl_ext(display_exts_str, "EGL_KHR_image_base")) {
-		egl->exts.image_base_khr = true;
+		egl->exts.KHR_image_base = true;
 		load_egl_proc(&egl->procs.eglCreateImageKHR, "eglCreateImageKHR");
 		load_egl_proc(&egl->procs.eglDestroyImageKHR, "eglDestroyImageKHR");
 	}
 
-	egl->exts.image_dmabuf_import_ext =
+	egl->exts.EXT_image_dma_buf_import =
 		check_egl_ext(display_exts_str, "EGL_EXT_image_dma_buf_import");
 	if (check_egl_ext(display_exts_str,
 			"EGL_EXT_image_dma_buf_import_modifiers")) {
-		egl->exts.image_dmabuf_import_modifiers_ext = true;
+		egl->exts.EXT_image_dma_buf_import_modifiers = true;
 		load_egl_proc(&egl->procs.eglQueryDmaBufFormatsEXT,
 			"eglQueryDmaBufFormatsEXT");
 		load_egl_proc(&egl->procs.eglQueryDmaBufModifiersEXT,
@@ -287,7 +287,7 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 		}
 #endif
 
-		egl->exts.device_drm_ext =
+		egl->exts.EXT_device_drm =
 			check_egl_ext(device_exts_str, "EGL_EXT_device_drm");
 	}
 
@@ -303,6 +303,9 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 			"EGL_KHR_surfaceless_context not supported");
 		goto error;
 	}
+
+	egl->exts.EXT_image_gl_colorspace =
+		check_egl_ext(display_exts_str, "EGL_EXT_image_gl_colorspace");
 
 	wlr_log(WLR_INFO, "Using EGL %d.%d", (int)major, (int)minor);
 	wlr_log(WLR_INFO, "Supported EGL client extensions: %s", client_exts_str);
@@ -390,7 +393,7 @@ void wlr_egl_destroy(struct wlr_egl *egl) {
 }
 
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
-	if (!egl->exts.image_base_khr) {
+	if (!egl->exts.KHR_image_base) {
 		return false;
 	}
 	if (!image) {
@@ -448,7 +451,7 @@ bool wlr_egl_restore_context(struct wlr_egl_context *context) {
 
 EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		struct wlr_dmabuf_attributes *attributes, bool *external_only) {
-	if (!egl->exts.image_base_khr || !egl->exts.image_dmabuf_import_ext) {
+	if (!egl->exts.KHR_image_base || !egl->exts.EXT_image_dma_buf_import) {
 		wlr_log(WLR_ERROR, "dmabuf import extension not present");
 		return NULL;
 	}
@@ -461,7 +464,7 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 	// have here
 	if (attributes->modifier != DRM_FORMAT_MOD_INVALID &&
 			attributes->modifier != DRM_FORMAT_MOD_LINEAR) {
-		if (!egl->exts.image_dmabuf_import_modifiers_ext) {
+		if (!egl->exts.EXT_image_dma_buf_import_modifiers) {
 			wlr_log(WLR_ERROR, "dmabuf modifiers extension not present");
 			return NULL;
 		}
@@ -476,6 +479,11 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 	attribs[atti++] = attributes->height;
 	attribs[atti++] = EGL_LINUX_DRM_FOURCC_EXT;
 	attribs[atti++] = attributes->format;
+
+	if (egl->exts.EXT_image_gl_colorspace) {
+		attribs[atti++] = EGL_GL_COLORSPACE_KHR;
+		attribs[atti++] = EGL_GL_COLORSPACE_SRGB_KHR;
+	}
 
 	struct {
 		EGLint fd;
@@ -541,7 +549,7 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 }
 
 static int get_egl_dmabuf_formats(struct wlr_egl *egl, int **formats) {
-	if (!egl->exts.image_dmabuf_import_ext) {
+	if (!egl->exts.EXT_image_dma_buf_import) {
 		wlr_log(WLR_DEBUG, "DMA-BUF import extension not present");
 		return -1;
 	}
@@ -551,7 +559,7 @@ static int get_egl_dmabuf_formats(struct wlr_egl *egl, int **formats) {
 	// supported; it's the intended way to just try to create buffers.
 	// Just a guess but better than not supporting dmabufs at all,
 	// given that the modifiers extension isn't supported everywhere.
-	if (!egl->exts.image_dmabuf_import_modifiers_ext) {
+	if (!egl->exts.EXT_image_dma_buf_import_modifiers) {
 		static const int fallback_formats[] = {
 			DRM_FORMAT_ARGB8888,
 			DRM_FORMAT_XRGB8888,
@@ -594,11 +602,11 @@ static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
 	*modifiers = NULL;
 	*external_only = NULL;
 
-	if (!egl->exts.image_dmabuf_import_ext) {
+	if (!egl->exts.EXT_image_dma_buf_import) {
 		wlr_log(WLR_DEBUG, "DMA-BUF extension not present");
 		return -1;
 	}
-	if (!egl->exts.image_dmabuf_import_modifiers_ext) {
+	if (!egl->exts.EXT_image_dma_buf_import_modifiers) {
 		return 0;
 	}
 
@@ -707,7 +715,7 @@ static char *get_render_name(const char *name) {
 }
 
 int wlr_egl_dup_drm_fd(struct wlr_egl *egl) {
-	if (egl->device == EGL_NO_DEVICE_EXT || !egl->exts.device_drm_ext) {
+	if (egl->device == EGL_NO_DEVICE_EXT || !egl->exts.EXT_device_drm) {
 		return -1;
 	}
 
