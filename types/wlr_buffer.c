@@ -7,7 +7,6 @@
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include "render/pixel_format.h"
-#include "render/wlr_texture.h"
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
 

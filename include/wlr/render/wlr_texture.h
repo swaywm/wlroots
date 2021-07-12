@@ -13,6 +13,7 @@
 #include <wayland-server-core.h>
 #include <wlr/render/dmabuf.h>
 
+struct wlr_buffer;
 struct wlr_renderer;
 struct wlr_texture_impl;
 
@@ -72,5 +73,14 @@ bool wlr_texture_write_pixels(struct wlr_texture *texture,
  * Destroys this wlr_texture.
  */
 void wlr_texture_destroy(struct wlr_texture *texture);
+
+/**
+ * Create a new texture from a buffer.
+ *
+ * Should not be called in a rendering block like renderer_begin()/end() or
+ * between attaching a renderer to an output and committing it.
+ */
+struct wlr_texture *wlr_texture_from_buffer(struct wlr_renderer *renderer,
+	struct wlr_buffer *buffer);
 
 #endif

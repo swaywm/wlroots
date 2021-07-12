@@ -4,7 +4,6 @@
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_texture.h>
 #include "types/wlr_buffer.h"
-#include "render/wlr_texture.h"
 
 void wlr_texture_init(struct wlr_texture *texture,
 		const struct wlr_texture_impl *impl, uint32_t width, uint32_t height) {
