@@ -72,8 +72,6 @@ bool init_drm_surface(struct wlr_drm_surface *surf,
 	surf->width = width;
 	surf->height = height;
 
-	wlr_buffer_unlock(surf->back_buffer);
-	surf->back_buffer = NULL;
 	wlr_swapchain_destroy(surf->swapchain);
 	surf->swapchain = NULL;
 
@@ -93,36 +91,9 @@ static void finish_drm_surface(struct wlr_drm_surface *surf) {
 		return;
 	}
 
-	wlr_buffer_unlock(surf->back_buffer);
 	wlr_swapchain_destroy(surf->swapchain);
 
 	memset(surf, 0, sizeof(*surf));
-}
-
-bool drm_surface_make_current(struct wlr_drm_surface *surf,
-		int *buffer_age) {
-	wlr_buffer_unlock(surf->back_buffer);
-	surf->back_buffer = wlr_swapchain_acquire(surf->swapchain, buffer_age);
-	if (surf->back_buffer == NULL) {
-		wlr_log(WLR_ERROR, "Failed to acquire swapchain buffer");
-		return false;
-	}
-
-	if (!renderer_bind_buffer(surf->renderer->wlr_rend, surf->back_buffer)) {
-		wlr_log(WLR_ERROR, "Failed to bind buffer to renderer");
-		return false;
-	}
-
-	return true;
-}
-
-void drm_surface_unset_current(struct wlr_drm_surface *surf) {
-	assert(surf->back_buffer != NULL);
-
-	renderer_bind_buffer(surf->renderer->wlr_rend, NULL);
-
-	wlr_buffer_unlock(surf->back_buffer);
-	surf->back_buffer = NULL;
 }
 
 struct wlr_buffer *drm_surface_blit(struct wlr_drm_surface *surf,

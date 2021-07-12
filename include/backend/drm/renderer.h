@@ -26,7 +26,6 @@ struct wlr_drm_surface {
 	uint32_t height;
 
 	struct wlr_swapchain *swapchain;
-	struct wlr_buffer *back_buffer;
 };
 
 struct wlr_drm_fb {
@@ -46,8 +45,6 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer);
 bool init_drm_surface(struct wlr_drm_surface *surf,
 	struct wlr_drm_renderer *renderer, uint32_t width, uint32_t height,
 	const struct wlr_drm_format *drm_format);
-bool drm_surface_make_current(struct wlr_drm_surface *surf, int *buffer_age);
-void drm_surface_unset_current(struct wlr_drm_surface *surf);
 
 bool drm_fb_import(struct wlr_drm_fb **fb, struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, const struct wlr_drm_format_set *formats);
