@@ -32,6 +32,8 @@ struct wlr_cursor_device {
 	struct wl_listener pinch_begin;
 	struct wl_listener pinch_update;
 	struct wl_listener pinch_end;
+	struct wl_listener hold_begin;
+	struct wl_listener hold_end;
 
 	struct wl_listener touch_down;
 	struct wl_listener touch_up;
@@ -100,6 +102,8 @@ struct wlr_cursor *wlr_cursor_create(void) {
 	wl_signal_init(&cur->events.pinch_begin);
 	wl_signal_init(&cur->events.pinch_update);
 	wl_signal_init(&cur->events.pinch_end);
+	wl_signal_init(&cur->events.hold_begin);
+	wl_signal_init(&cur->events.hold_end);
 
 	// touch signals
 	wl_signal_init(&cur->events.touch_up);
@@ -160,6 +164,8 @@ static void cursor_device_destroy(struct wlr_cursor_device *c_device) {
 		wl_list_remove(&c_device->pinch_begin.link);
 		wl_list_remove(&c_device->pinch_update.link);
 		wl_list_remove(&c_device->pinch_end.link);
+		wl_list_remove(&c_device->hold_begin.link);
+		wl_list_remove(&c_device->hold_end.link);
 	} else if (dev->type == WLR_INPUT_DEVICE_TOUCH) {
 		wl_list_remove(&c_device->touch_down.link);
 		wl_list_remove(&c_device->touch_up.link);
@@ -488,6 +494,18 @@ static void handle_pointer_pinch_end(struct wl_listener *listener, void *data) {
 	wlr_signal_emit_safe(&device->cursor->events.pinch_end, event);
 }
 
+static void handle_pointer_hold_begin(struct wl_listener *listener, void *data) {
+	struct wlr_event_pointer_hold_begin *event = data;
+	struct wlr_cursor_device *device = wl_container_of(listener, device, hold_begin);
+	wlr_signal_emit_safe(&device->cursor->events.hold_begin, event);
+}
+
+static void handle_pointer_hold_end(struct wl_listener *listener, void *data) {
+	struct wlr_event_pointer_hold_end *event = data;
+	struct wlr_cursor_device *device = wl_container_of(listener, device, hold_end);
+	wlr_signal_emit_safe(&device->cursor->events.hold_end, event);
+}
+
 static void handle_touch_up(struct wl_listener *listener, void *data) {
 	struct wlr_event_touch_up *event = data;
 	struct wlr_cursor_device *device;
@@ -660,6 +678,12 @@ static struct wlr_cursor_device *cursor_device_create(
 
 		wl_signal_add(&device->pointer->events.pinch_end, &c_device->pinch_end);
 		c_device->pinch_end.notify = handle_pointer_pinch_end;
+
+		wl_signal_add(&device->pointer->events.hold_begin, &c_device->hold_begin);
+		c_device->hold_begin.notify = handle_pointer_hold_begin;
+
+		wl_signal_add(&device->pointer->events.hold_end, &c_device->hold_end);
+		c_device->hold_end.notify = handle_pointer_hold_end;
 	} else if (device->type == WLR_INPUT_DEVICE_TOUCH) {
 		wl_signal_add(&device->touch->events.motion, &c_device->touch_motion);
 		c_device->touch_motion.notify = handle_touch_motion;
