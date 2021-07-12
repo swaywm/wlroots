@@ -926,10 +926,6 @@ size_t wlr_output_get_gamma_size(struct wlr_output *output) {
 
 bool wlr_output_export_dmabuf(struct wlr_output *output,
 		struct wlr_dmabuf_attributes *attribs) {
-	if (output->impl->export_dmabuf) {
-		return output->impl->export_dmabuf(output, attribs);
-	}
-
 	if (output->front_buffer == NULL) {
 		return false;
 	}
