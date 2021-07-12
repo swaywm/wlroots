@@ -62,6 +62,7 @@ struct wlr_drm_backend {
 	int fd;
 	char *name;
 	struct wlr_device *dev;
+	struct gbm_device *gbm;
 
 	size_t num_crtcs;
 	struct wlr_drm_crtc *crtcs;
@@ -79,7 +80,9 @@ struct wlr_drm_backend {
 	struct wl_list fbs; // wlr_drm_fb.link
 	struct wl_list outputs;
 
-	struct wlr_drm_renderer renderer;
+	/* Only initialized on multi-GPU setups */
+	struct wlr_drm_renderer mgpu_renderer;
+
 	struct wlr_session *session;
 
 	uint64_t cursor_width, cursor_height;

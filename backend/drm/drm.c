@@ -401,14 +401,14 @@ static bool drm_connector_set_pending_fb(struct wlr_drm_connector *conn,
 	struct wlr_buffer *local_buf;
 	if (drm->parent) {
 		struct wlr_drm_format *format =
-			drm_plane_pick_render_format(plane, &drm->renderer);
+			drm_plane_pick_render_format(plane, &drm->mgpu_renderer);
 		if (format == NULL) {
 			wlr_log(WLR_ERROR, "Failed to pick primary plane format");
 			return false;
 		}
 
 		// TODO: fallback to modifier-less buffer allocation
-		bool ok = init_drm_surface(&plane->mgpu_surf, &drm->renderer,
+		bool ok = init_drm_surface(&plane->mgpu_surf, &drm->mgpu_renderer,
 			state->buffer->width, state->buffer->height, format);
 		free(format);
 		if (!ok) {
@@ -632,14 +632,14 @@ static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
 		int height = mode.vdisplay;
 
 		struct wlr_drm_format *format =
-			drm_plane_pick_render_format(plane, &drm->renderer);
+			drm_plane_pick_render_format(plane, &drm->mgpu_renderer);
 		if (format == NULL) {
 			wlr_log(WLR_ERROR, "Failed to pick primary plane format");
 			return false;
 		}
 
 		// TODO: fallback to modifier-less buffer allocation
-		bool ok = init_drm_surface(&plane->mgpu_surf, &drm->renderer,
+		bool ok = init_drm_surface(&plane->mgpu_surf, &drm->mgpu_renderer,
 			width, height, format);
 		free(format);
 		if (!ok) {
@@ -834,13 +834,13 @@ static bool drm_connector_set_cursor(struct wlr_output *output,
 		struct wlr_buffer *local_buf;
 		if (drm->parent) {
 			struct wlr_drm_format *format =
-				drm_plane_pick_render_format(plane, &drm->renderer);
+				drm_plane_pick_render_format(plane, &drm->mgpu_renderer);
 			if (format == NULL) {
 				wlr_log(WLR_ERROR, "Failed to pick cursor plane format");
 				return false;
 			}
 
-			bool ok = init_drm_surface(&plane->mgpu_surf, &drm->renderer,
+			bool ok = init_drm_surface(&plane->mgpu_surf, &drm->mgpu_renderer,
 				buffer->width, buffer->height, format);
 			free(format);
 			if (!ok) {

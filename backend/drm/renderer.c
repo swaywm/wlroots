@@ -23,32 +23,21 @@ bool init_drm_renderer(struct wlr_drm_backend *drm,
 		struct wlr_drm_renderer *renderer) {
 	renderer->backend = drm;
 
-	renderer->gbm = gbm_create_device(drm->fd);
-	if (!renderer->gbm) {
-		wlr_log(WLR_ERROR, "Failed to create GBM device");
-		return false;
-	}
-
 	renderer->wlr_rend = renderer_autocreate_with_drm_fd(drm->fd);
 	if (!renderer->wlr_rend) {
 		wlr_log(WLR_ERROR, "Failed to create renderer");
-		goto error_gbm;
+		return false;
 	}
 
 	renderer->allocator = allocator_autocreate_with_drm_fd(&drm->backend,
 		renderer->wlr_rend, drm->fd);
 	if (renderer->allocator == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create allocator");
-		goto error_wlr_rend;
+		wlr_renderer_destroy(renderer->wlr_rend);
+		return false;
 	}
 
 	return true;
-
-error_wlr_rend:
-	wlr_renderer_destroy(renderer->wlr_rend);
-error_gbm:
-	gbm_device_destroy(renderer->gbm);
-	return false;
 }
 
 void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
@@ -58,7 +47,6 @@ void finish_drm_renderer(struct wlr_drm_renderer *renderer) {
 
 	wlr_allocator_destroy(renderer->allocator);
 	wlr_renderer_destroy(renderer->wlr_rend);
-	gbm_device_destroy(renderer->gbm);
 }
 
 bool init_drm_surface(struct wlr_drm_surface *surf,
@@ -287,7 +275,7 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 		}
 	}
 
-	fb->bo = get_bo_for_dmabuf(drm->renderer.gbm, &attribs);
+	fb->bo = get_bo_for_dmabuf(drm->gbm, &attribs);
 	if (!fb->bo) {
 		wlr_log(WLR_DEBUG, "Failed to import DMA-BUF in GBM");
 		goto error_get_dmabuf;
