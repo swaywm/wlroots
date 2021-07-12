@@ -396,7 +396,6 @@ static bool drm_connector_set_pending_fb(struct wlr_drm_connector *conn,
 	struct wlr_drm_plane *plane = crtc->primary;
 
 	assert(state->committed & WLR_OUTPUT_STATE_BUFFER);
-	assert(state->buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT);
 
 	struct wlr_buffer *local_buf;
 	if (drm->parent) {

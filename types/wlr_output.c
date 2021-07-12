@@ -721,8 +721,7 @@ static bool output_basic_test(struct wlr_output *output) {
 			return false;
 		}
 
-		if (output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT &&
-				output->back_buffer == NULL) {
+		if (output->back_buffer == NULL) {
 			if (output->attach_render_locks > 0) {
 				wlr_log(WLR_DEBUG, "Direct scan-out disabled by lock");
 				return false;
@@ -911,7 +910,6 @@ void wlr_output_attach_buffer(struct wlr_output *output,
 		struct wlr_buffer *buffer) {
 	output_state_clear_buffer(&output->pending);
 	output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
-	output->pending.buffer_type = WLR_OUTPUT_STATE_BUFFER_SCANOUT;
 	output->pending.buffer = wlr_buffer_lock(buffer);
 }
 
