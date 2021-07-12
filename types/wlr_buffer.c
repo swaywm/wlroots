@@ -157,6 +157,28 @@ static bool buffer_is_shm_client_buffer(struct wlr_buffer *buffer);
 static struct wlr_shm_client_buffer *shm_client_buffer_from_buffer(
 	struct wlr_buffer *buffer);
 
+/* struct wlr_buffer_resource_interface */
+static struct wl_array buffer_resource_interfaces = {0};
+
+void wlr_buffer_register_resource_interface(
+		const struct wlr_buffer_resource_interface *iface) {
+	assert(iface);
+	assert(iface->is_instance);
+	assert(iface->from_resource);
+
+	const struct wlr_buffer_resource_interface **iface_ptr;
+	wl_array_for_each(iface_ptr, &buffer_resource_interfaces) {
+		if (*iface_ptr == iface) {
+			wlr_log(WLR_DEBUG, "wlr_resource_buffer_interface %s has already"
+					"been registered", iface->name);
+			return;
+		}
+	}
+
+	iface_ptr = wl_array_add(&buffer_resource_interfaces, sizeof(iface));
+	*iface_ptr = iface;
+}
+
 struct wlr_buffer *wlr_buffer_from_resource(struct wl_resource *resource) {
 	assert(resource && wlr_resource_is_buffer(resource));
 
