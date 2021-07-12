@@ -118,8 +118,7 @@ bool wlr_buffer_get_shm(struct wlr_buffer *buffer,
  *
  * The provided wl_resource must be a wl_buffer.
  */
-struct wlr_buffer *wlr_buffer_from_resource(struct wlr_renderer *renderer,
-	struct wl_resource *resource);
+struct wlr_buffer *wlr_buffer_from_resource(struct wl_resource *resource);
 
 /**
  * A client buffer.
