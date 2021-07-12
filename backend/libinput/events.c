@@ -316,6 +316,14 @@ void handle_libinput_event(struct wlr_libinput_backend *backend,
 	case LIBINPUT_EVENT_GESTURE_PINCH_END:
 		handle_pointer_pinch_end(event, libinput_dev);
 		break;
+#if LIBINPUT_HAS_HOLD_GESTURES
+	case LIBINPUT_EVENT_GESTURE_HOLD_BEGIN:
+		handle_pointer_hold_begin(event, libinput_dev);
+		break;
+	case LIBINPUT_EVENT_GESTURE_HOLD_END:
+		handle_pointer_hold_end(event, libinput_dev);
+		break;
+#endif
 	default:
 		wlr_log(WLR_DEBUG, "Unknown libinput event %d", event_type);
 		break;
