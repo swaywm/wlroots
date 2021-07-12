@@ -33,6 +33,9 @@ struct wlr_pointer {
 		struct wl_signal pinch_begin; // struct wlr_event_pointer_pinch_begin
 		struct wl_signal pinch_update; // struct wlr_event_pointer_pinch_update
 		struct wl_signal pinch_end; // struct wlr_event_pointer_pinch_end
+
+		struct wl_signal hold_begin; // struct wlr_event_pointer_hold_begin
+		struct wl_signal hold_end; // struct wlr_event_pointer_hold_end
 	} events;
 
 	void *data;
@@ -121,6 +124,18 @@ struct wlr_event_pointer_pinch_update {
 };
 
 struct wlr_event_pointer_pinch_end {
+	struct wlr_input_device *device;
+	uint32_t time_msec;
+	bool cancelled;
+};
+
+struct wlr_event_pointer_hold_begin {
+	struct wlr_input_device *device;
+	uint32_t time_msec;
+	uint32_t fingers;
+};
+
+struct wlr_event_pointer_hold_end {
 	struct wlr_input_device *device;
 	uint32_t time_msec;
 	bool cancelled;
