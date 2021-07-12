@@ -344,9 +344,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl, struct wl_display *display) {
 	assert(impl->commit);
-	if (impl->attach_render || impl->rollback_render) {
-		assert(impl->attach_render && impl->rollback_render);
-	}
 	if (impl->set_cursor || impl->move_cursor) {
 		assert(impl->set_cursor && impl->move_cursor);
 	}
@@ -582,21 +579,10 @@ static void output_clear_back_buffer(struct wlr_output *output) {
 }
 
 bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age) {
-	if (output->impl->attach_render) {
-		if (!output->impl->attach_render(output, buffer_age)) {
-			return false;
-		}
-
-		output_state_clear_buffer(&output->pending);
-		output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
-		output->pending.buffer_type = WLR_OUTPUT_STATE_BUFFER_RENDER;
-	} else {
-		if (!output_attach_back_buffer(output, buffer_age)) {
-			return false;
-		}
-		wlr_output_attach_buffer(output, output->back_buffer);
+	if (!output_attach_back_buffer(output, buffer_age)) {
+		return false;
 	}
-
+	wlr_output_attach_buffer(output, output->back_buffer);
 	return true;
 }
 
@@ -606,23 +592,13 @@ uint32_t wlr_output_preferred_read_format(struct wlr_output *output) {
 		return DRM_FORMAT_INVALID;
 	}
 
-	if (output->impl->attach_render) {
-		if (!output->impl->attach_render(output, NULL)) {
-			return false;
-		}
-	} else {
-		if (!output_attach_back_buffer(output, NULL)) {
-			return false;
-		}
+	if (!output_attach_back_buffer(output, NULL)) {
+		return false;
 	}
 
 	uint32_t fmt = renderer->impl->preferred_read_format(renderer);
 
-	if (output->impl->rollback_render) {
-		output->impl->rollback_render(output);
-	} else {
-		output_clear_back_buffer(output);
-	}
+	output_clear_back_buffer(output);
 
 	return fmt;
 }
@@ -927,13 +903,7 @@ bool wlr_output_commit(struct wlr_output *output) {
 }
 
 void wlr_output_rollback(struct wlr_output *output) {
-	if (output->impl->rollback_render &&
-			(output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
-			output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_RENDER) {
-		output->impl->rollback_render(output);
-	}
 	output_clear_back_buffer(output);
-
 	output_state_clear(&output->pending);
 }
 

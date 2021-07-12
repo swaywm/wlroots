@@ -52,19 +52,6 @@ struct wlr_output_impl {
 	 */
 	void (*destroy)(struct wlr_output *output);
 	/**
-	 * Make the output's back-buffer current for the renderer.
-	 *
-	 * buffer_age must be set to the buffer age in number of frames, or -1 if
-	 * unknown.
-	 */
-	bool (*attach_render)(struct wlr_output *output, int *buffer_age);
-	/**
-	 * Unset the current renderer's buffer.
-	 *
-	 * This is the opposite of attach_render.
-	 */
-	void (*rollback_render)(struct wlr_output *output);
-	/**
 	 * Check that the pending output state is a valid configuration.
 	 *
 	 * If this function returns true, commit can only fail due to a runtime
