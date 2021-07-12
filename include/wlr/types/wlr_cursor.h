@@ -58,6 +58,8 @@ struct wlr_cursor {
 		struct wl_signal pinch_begin;
 		struct wl_signal pinch_update;
 		struct wl_signal pinch_end;
+		struct wl_signal hold_begin;
+		struct wl_signal hold_end;
 
 		struct wl_signal touch_up;
 		struct wl_signal touch_down;
