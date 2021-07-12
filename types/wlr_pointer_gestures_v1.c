@@ -11,7 +11,7 @@
 #include "util/signal.h"
 #include "pointer-gestures-unstable-v1-protocol.h"
 
-#define POINTER_GESTURES_VERSION 1
+#define POINTER_GESTURES_VERSION 2
 
 static void resource_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
@@ -270,9 +270,15 @@ static void get_pinch_gesture(struct wl_client *client,
 	wl_list_insert(&gestures->pinches, wl_resource_get_link(gesture));
 }
 
+static void pointer_gestures_release(struct wl_client *client,
+		struct wl_resource *resource) {
+	wl_resource_destroy(resource);
+}
+
 static const struct zwp_pointer_gestures_v1_interface gestures_impl = {
 	.get_swipe_gesture = get_swipe_gesture,
 	.get_pinch_gesture = get_pinch_gesture,
+	.release = pointer_gestures_release,
 };
 
 static void pointer_gestures_v1_bind(struct wl_client *wl_client, void *data,
