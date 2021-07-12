@@ -143,7 +143,8 @@ bool check_drm_features(struct wlr_drm_backend *drm);
 bool init_drm_resources(struct wlr_drm_backend *drm);
 void finish_drm_resources(struct wlr_drm_backend *drm);
 void restore_drm_outputs(struct wlr_drm_backend *drm);
-void scan_drm_connectors(struct wlr_drm_backend *state);
+void scan_drm_connectors(struct wlr_drm_backend *state,
+	struct wlr_device_hotplug_event *event);
 int handle_drm_event(int fd, uint32_t mask, void *data);
 void destroy_drm_connector(struct wlr_drm_connector *conn);
 bool drm_connector_commit_state(struct wlr_drm_connector *conn,
