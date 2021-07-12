@@ -224,7 +224,7 @@ static void registry_global(void *data, struct wl_registry *registry,
 			&zxdg_decoration_manager_v1_interface, 1);
 	} else if (strcmp(iface, zwp_pointer_gestures_v1_interface.name) == 0) {
 		wl->zwp_pointer_gestures_v1 = wl_registry_bind(registry, name,
-			&zwp_pointer_gestures_v1_interface, 1);
+			&zwp_pointer_gestures_v1_interface, version < 3 ? version : 3);
 	} else if (strcmp(iface, wp_presentation_interface.name) == 0) {
 		wl->presentation = wl_registry_bind(registry, name,
 			&wp_presentation_interface, 1);
