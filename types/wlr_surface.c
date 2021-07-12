@@ -172,8 +172,7 @@ static void surface_state_finalize(struct wlr_surface *surface,
 	if ((state->committed & WLR_SURFACE_STATE_BUFFER)) {
 		if (state->buffer_resource) {
 			wlr_buffer_unlock(state->buffer);
-			state->buffer = wlr_buffer_from_resource(surface->renderer,
-					state->buffer_resource);
+			state->buffer = wlr_buffer_from_resource(state->buffer_resource);
 			if (!state->buffer) {
 				wl_resource_post_error(state->buffer_resource, 0,
 						"unknown buffer type");

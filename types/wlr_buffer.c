@@ -157,8 +157,7 @@ static bool buffer_is_shm_client_buffer(struct wlr_buffer *buffer);
 static struct wlr_shm_client_buffer *shm_client_buffer_from_buffer(
 	struct wlr_buffer *buffer);
 
-struct wlr_buffer *wlr_buffer_from_resource(struct wlr_renderer *renderer,
-		struct wl_resource *resource) {
+struct wlr_buffer *wlr_buffer_from_resource(struct wl_resource *resource) {
 	assert(resource && wlr_resource_is_buffer(resource));
 
 	struct wlr_buffer *buffer;
