@@ -66,6 +66,10 @@ void handle_pointer_pinch_update(struct libinput_event *event,
 		struct libinput_device *device);
 void handle_pointer_pinch_end(struct libinput_event *event,
 		struct libinput_device *device);
+void handle_pointer_hold_begin(struct libinput_event *event,
+		struct libinput_device *device);
+void handle_pointer_hold_end(struct libinput_event *event,
+		struct libinput_device *device);
 
 struct wlr_switch *create_libinput_switch(
 		struct libinput_device *device);
