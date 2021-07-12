@@ -45,7 +45,9 @@ void wlr_backend_init(struct wlr_backend *backend,
 void wlr_backend_finish(struct wlr_backend *backend) {
 	wlr_signal_emit_safe(&backend->events.destroy, backend);
 	wlr_allocator_destroy(backend->allocator);
-	wlr_renderer_destroy(backend->renderer);
+	if (backend->has_own_renderer) {
+		wlr_renderer_destroy(backend->renderer);
+	}
 }
 
 bool wlr_backend_start(struct wlr_backend *backend) {
@@ -77,6 +79,7 @@ static bool backend_create_renderer(struct wlr_backend *backend) {
 		return false;
 	}
 
+	backend->has_own_renderer = true;
 	return true;
 }
 

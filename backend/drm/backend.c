@@ -11,6 +11,7 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
+#include "backend/backend.h"
 #include "backend/drm/drm.h"
 #include "util/signal.h"
 
@@ -61,17 +62,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	free(drm);
 }
 
-static struct wlr_renderer *backend_get_renderer(
-		struct wlr_backend *backend) {
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
-
-	if (drm->parent) {
-		return drm->parent->renderer.wlr_rend;
-	} else {
-		return drm->renderer.wlr_rend;
-	}
-}
-
 static clockid_t backend_get_presentation_clock(struct wlr_backend *backend) {
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
 	return drm->clock;
@@ -87,17 +77,16 @@ static int backend_get_drm_fd(struct wlr_backend *backend) {
 	}
 }
 
-static uint32_t backend_get_buffer_caps(struct wlr_backend *backend) {
+static uint32_t drm_backend_get_buffer_caps(struct wlr_backend *backend) {
 	return WLR_BUFFER_CAP_DMABUF;
 }
 
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
-	.get_renderer = backend_get_renderer,
 	.get_presentation_clock = backend_get_presentation_clock,
 	.get_drm_fd = backend_get_drm_fd,
-	.get_buffer_caps = backend_get_buffer_caps,
+	.get_buffer_caps = drm_backend_get_buffer_caps,
 };
 
 bool wlr_backend_is_drm(struct wlr_backend *b) {
@@ -236,6 +225,10 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	}
 
 	if (drm->parent) {
+		// Ensure we use the same renderer as the parent backend
+		drm->backend.renderer = wlr_backend_get_renderer(&drm->parent->backend);
+		assert(drm->backend.renderer != NULL);
+
 		// We'll perform a multi-GPU copy for all submitted buffers, we need
 		// to be able to texture from them
 		struct wlr_renderer *renderer = drm->renderer.wlr_rend;
@@ -256,6 +249,12 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 			wlr_drm_format_set_add(&drm->mgpu_formats, fmt->format,
 				DRM_FORMAT_MOD_LINEAR);
 		}
+	}
+
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(&drm->backend);
+	struct wlr_allocator *allocator = backend_get_allocator(&drm->backend);
+	if (renderer == NULL || allocator == NULL) {
+		goto error_event;
 	}
 
 	drm->session_destroy.notify = handle_session_destroy;
