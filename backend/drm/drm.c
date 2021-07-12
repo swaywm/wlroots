@@ -605,42 +605,6 @@ static size_t drm_connector_get_gamma_size(struct wlr_output *output) {
 	return drm_crtc_get_gamma_lut_size(drm, crtc);
 }
 
-static bool drm_connector_export_dmabuf(struct wlr_output *output,
-		struct wlr_dmabuf_attributes *attribs) {
-	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	struct wlr_drm_backend *drm = conn->backend;
-	struct wlr_drm_crtc *crtc = conn->crtc;
-
-	if (drm->parent) {
-		// We don't keep track of the original buffer on the parent GPU when
-		// using multi-GPU.
-		return false;
-	}
-	if (!drm->session->active) {
-		return false;
-	}
-	if (!crtc) {
-		return false;
-	}
-
-	struct wlr_drm_fb *fb = crtc->primary->queued_fb;
-	if (fb == NULL) {
-		fb = crtc->primary->current_fb;
-	}
-	if (fb == NULL) {
-		return false;
-	}
-
-	// export_dmabuf gives ownership of the DMA-BUF to the caller, so we need
-	// to dup it
-	struct wlr_dmabuf_attributes buf_attribs = {0};
-	if (!wlr_buffer_get_dmabuf(fb->wlr_buf, &buf_attribs)) {
-		return false;
-	}
-
-	return wlr_dmabuf_attributes_copy(attribs, &buf_attribs);
-}
-
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
 	if (plane->pending_fb) {
 		return plane->pending_fb;
@@ -1049,7 +1013,6 @@ static const struct wlr_output_impl output_impl = {
 	.commit = drm_connector_commit,
 	.rollback_render = drm_connector_rollback_render,
 	.get_gamma_size = drm_connector_get_gamma_size,
-	.export_dmabuf = drm_connector_export_dmabuf,
 	.get_cursor_formats = drm_connector_get_cursor_formats,
 	.get_cursor_size = drm_connector_get_cursor_size,
 };
