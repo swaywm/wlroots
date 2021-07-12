@@ -504,6 +504,9 @@ static void pointer_destroy(struct wlr_pointer *wlr_pointer) {
 	if (pointer->gesture_pinch != NULL) {
 		zwp_pointer_gesture_pinch_v1_destroy(pointer->gesture_pinch);
 	}
+	if (pointer->gesture_hold != NULL) {
+		zwp_pointer_gesture_hold_v1_destroy(pointer->gesture_hold);
+	}
 	if (pointer->relative_pointer != NULL) {
 		zwp_relative_pointer_v1_destroy(pointer->relative_pointer);
 	}
@@ -616,6 +619,38 @@ static const struct zwp_pointer_gesture_pinch_v1_listener gesture_pinch_impl = {
 	.end = gesture_pinch_end,
 };
 
+static void gesture_hold_begin(void *data,
+		struct zwp_pointer_gesture_hold_v1 *zwp_pointer_gesture_hold_v1,
+		uint32_t serial, uint32_t time,
+		struct wl_surface *surface, uint32_t fingers) {
+	struct wlr_wl_input_device *input_device = (struct wlr_wl_input_device *)data;
+	struct wlr_input_device *wlr_dev = &input_device->wlr_input_device;
+	struct wlr_event_pointer_hold_begin wlr_event = {
+		.device = wlr_dev,
+		.time_msec = time,
+		.fingers = fingers,
+	};
+	input_device->fingers = fingers;
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.hold_begin, &wlr_event);
+}
+
+static void gesture_hold_end(void *data,
+		struct zwp_pointer_gesture_hold_v1 *zwp_pointer_gesture_hold_v1,
+		uint32_t serial, uint32_t time, int32_t cancelled) {
+	struct wlr_wl_input_device *input_device = (struct wlr_wl_input_device *)data;
+	struct wlr_input_device *wlr_dev = &input_device->wlr_input_device;
+	struct wlr_event_pointer_hold_end wlr_event = {
+		.device = wlr_dev,
+		.time_msec = time,
+		.cancelled = cancelled,
+	};
+	wlr_signal_emit_safe(&wlr_dev->pointer->events.hold_end, &wlr_event);
+}
+
+static const struct zwp_pointer_gesture_hold_v1_listener gesture_hold_impl = {
+	.begin = gesture_hold_begin,
+	.end = gesture_hold_end,
+};
 
 static void relative_pointer_handle_relative_motion(void *data,
 		struct zwp_relative_pointer_v1 *relative_pointer, uint32_t utime_hi,
@@ -690,12 +725,21 @@ void create_wl_pointer(struct wlr_wl_seat *seat, struct wlr_wl_output *output) {
 	wlr_pointer_init(wlr_dev->pointer, &pointer_impl);
 
 	if (backend->zwp_pointer_gestures_v1) {
+		uint32_t version = zwp_pointer_gestures_v1_get_version(
+				backend->zwp_pointer_gestures_v1);
+
 		pointer->gesture_swipe = zwp_pointer_gestures_v1_get_swipe_gesture(
 				backend->zwp_pointer_gestures_v1, wl_pointer);
 		zwp_pointer_gesture_swipe_v1_add_listener(pointer->gesture_swipe, &gesture_swipe_impl, dev);
 		pointer->gesture_pinch = zwp_pointer_gestures_v1_get_pinch_gesture(
 				backend->zwp_pointer_gestures_v1, wl_pointer);
 		zwp_pointer_gesture_pinch_v1_add_listener(pointer->gesture_pinch, &gesture_pinch_impl, dev);
+
+		if (version >= ZWP_POINTER_GESTURES_V1_GET_HOLD_GESTURE) {
+			pointer->gesture_hold = zwp_pointer_gestures_v1_get_hold_gesture(
+					backend->zwp_pointer_gestures_v1, wl_pointer);
+			zwp_pointer_gesture_hold_v1_add_listener(pointer->gesture_hold, &gesture_hold_impl, dev);
+		}
 	}
 
 	if (backend->zwp_relative_pointer_manager_v1) {

@@ -98,6 +98,7 @@ struct wlr_wl_pointer {
 	struct wl_pointer *wl_pointer;
 	struct zwp_pointer_gesture_swipe_v1 *gesture_swipe;
 	struct zwp_pointer_gesture_pinch_v1 *gesture_pinch;
+	struct zwp_pointer_gesture_hold_v1 *gesture_hold;
 	struct zwp_relative_pointer_v1 *relative_pointer;
 	enum wlr_axis_source axis_source;
 	int32_t axis_discrete;
