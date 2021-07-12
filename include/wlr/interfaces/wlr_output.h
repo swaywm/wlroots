@@ -84,11 +84,6 @@ struct wlr_output_impl {
 	 */
 	size_t (*get_gamma_size)(struct wlr_output *output);
 	/**
-	 * Export the output's current back-buffer as a DMA-BUF.
-	 */
-	bool (*export_dmabuf)(struct wlr_output *output,
-		struct wlr_dmabuf_attributes *attribs);
-	/**
 	 * Get the list of formats suitable for the cursor, assuming a buffer with
 	 * the specified capabilities.
 	 *
