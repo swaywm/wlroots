@@ -342,7 +342,7 @@ static bool init_egl(int drm_fd, struct wlr_egl *egl) {
 	return true;
 }
 
-static bool create_egl_context(const char *display_extensions_str, struct wlr_egl *egl) {
+static bool create_egl_context(EGLContext context, const char *display_extensions_str, struct wlr_egl *egl) {
 	bool ext_context_priority =
 		check_egl_ext(display_extensions_str, "EGL_IMG_context_priority");
 
@@ -366,7 +366,7 @@ static bool create_egl_context(const char *display_extensions_str, struct wlr_eg
 	assert(atti <= sizeof(attribs)/sizeof(attribs[0]));
 
 	egl->context = eglCreateContext(egl->display, EGL_NO_CONFIG_KHR,
-		EGL_NO_CONTEXT, attribs);
+		context, attribs);
 	if (egl->context == EGL_NO_CONTEXT) {
 		wlr_log(WLR_ERROR, "Failed to create EGL context");
 		return false;
@@ -414,7 +414,7 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 
 	init_dmabuf_formats(egl);
 
-	if (!create_egl_context(display_extensions_str, egl)) {
+	if (!create_egl_context(EGL_NO_CONTEXT, display_extensions_str, egl)) {
 		goto error;
 	}
 	
@@ -456,8 +456,10 @@ struct wlr_egl *wlr_egl_from_context(EGLDisplay display, EGLContext context) {
 
 	init_dmabuf_formats(egl);
 
-	egl->context = context;
-	egl->has_external_context = true;
+	if (!create_egl_context(context, display_extensions_str, egl)) {
+		goto error;
+	}
+	egl->has_external_context = false;
 
 	return egl;
 
