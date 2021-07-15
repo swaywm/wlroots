@@ -141,6 +141,9 @@ struct wlr_output {
 	bool frame_pending;
 	float transform_matrix[9];
 
+	// true for example with VR headsets
+	bool non_desktop;
+
 	struct wlr_output_state pending;
 
 	// Commit sequence number. Incremented on each commit, may overflow.

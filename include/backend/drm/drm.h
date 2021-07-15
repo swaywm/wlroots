@@ -37,6 +37,7 @@ struct wlr_drm_plane {
 
 struct wlr_drm_crtc {
 	uint32_t id;
+	uint32_t lessee_id;
 
 	// Atomic modesetting only
 	uint32_t mode_id;
@@ -119,6 +120,7 @@ struct wlr_drm_connector {
 	enum wlr_drm_connector_status status;
 	bool desired_enabled;
 	uint32_t id;
+	uint32_t lessee_id;
 
 	struct wlr_drm_crtc *crtc;
 	uint32_t possible_crtcs;
