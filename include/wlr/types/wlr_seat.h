@@ -164,6 +164,9 @@ struct wlr_seat_pointer_state {
 	struct wlr_seat_pointer_grab *grab;
 	struct wlr_seat_pointer_grab *default_grab;
 
+	bool sent_axis_source;
+	enum wlr_axis_source cached_axis_source;
+
 	uint32_t buttons[WLR_POINTER_BUTTONS_CAP];
 	size_t button_count;
 	uint32_t grab_button;
