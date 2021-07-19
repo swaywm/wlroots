@@ -215,7 +215,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
 	drm->drm_event = wl_event_loop_add_fd(event_loop, drm->fd,
-		WL_EVENT_READABLE, handle_drm_event, NULL);
+		WL_EVENT_READABLE, handle_drm_event, drm);
 	if (!drm->drm_event) {
 		wlr_log(WLR_ERROR, "Failed to create DRM event source");
 		goto error_fd;
