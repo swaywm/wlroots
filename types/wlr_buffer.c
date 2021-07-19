@@ -153,6 +153,8 @@ static void client_buffer_handle_source_destroy(struct wl_listener *listener,
 	client_buffer->source = NULL;
 }
 
+static struct wlr_shm_client_buffer *shm_client_buffer_get_or_create(
+	struct wl_resource *resource);
 static bool buffer_is_shm_client_buffer(struct wlr_buffer *buffer);
 static struct wlr_shm_client_buffer *shm_client_buffer_from_buffer(
 	struct wlr_buffer *buffer);
@@ -164,15 +166,12 @@ struct wlr_buffer *wlr_buffer_from_resource(struct wlr_renderer *renderer,
 	struct wlr_buffer *buffer;
 	if (wl_shm_buffer_get(resource) != NULL) {
 		struct wlr_shm_client_buffer *shm_client_buffer =
-			shm_client_buffer_create(resource);
+			shm_client_buffer_get_or_create(resource);
 		if (shm_client_buffer == NULL) {
 			wlr_log(WLR_ERROR, "Failed to create shm client buffer");
 			return NULL;
 		}
-
-		// Ensure the buffer will be released before being destroyed
 		buffer = wlr_buffer_lock(&shm_client_buffer->base);
-		wlr_buffer_drop(&shm_client_buffer->base);
 	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
 		struct wlr_dmabuf_v1_buffer *dmabuf =
 			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
@@ -347,6 +346,9 @@ static void shm_client_buffer_resource_handle_destroy(
 	buffer->shm_buffer = NULL;
 	wl_list_remove(&buffer->resource_destroy.link);
 	wl_list_init(&buffer->resource_destroy.link);
+
+	// This might destroy the buffer
+	wlr_buffer_drop(&buffer->base);
 }
 
 static void shm_client_buffer_handle_release(struct wl_listener *listener,
@@ -358,10 +360,19 @@ static void shm_client_buffer_handle_release(struct wl_listener *listener,
 	}
 }
 
-struct wlr_shm_client_buffer *shm_client_buffer_create(
+static struct wlr_shm_client_buffer *shm_client_buffer_get_or_create(
 		struct wl_resource *resource) {
 	struct wl_shm_buffer *shm_buffer = wl_shm_buffer_get(resource);
 	assert(shm_buffer != NULL);
+
+	struct wl_listener *resource_destroy_listener =
+		wl_resource_get_destroy_listener(resource,
+		shm_client_buffer_resource_handle_destroy);
+	if (resource_destroy_listener != NULL) {
+		struct wlr_shm_client_buffer *buffer =
+			wl_container_of(resource_destroy_listener, buffer, resource_destroy);
+		return buffer;
+	}
 
 	int32_t width = wl_shm_buffer_get_width(shm_buffer);
 	int32_t height = wl_shm_buffer_get_height(shm_buffer);
