@@ -1306,10 +1306,6 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				"%s-%"PRIu32, conn_get_name(drm_conn->connector_type),
 				drm_conn->connector_type_id);
 
-			if (curr_enc) {
-				wlr_conn->old_crtc = drmModeGetCrtc(drm->fd, curr_enc->crtc_id);
-			}
-
 			wl_list_insert(drm->outputs.prev, &wlr_conn->link);
 			wlr_log(WLR_INFO, "Found connector '%s'", wlr_conn->name);
 		} else {
@@ -1556,46 +1552,6 @@ int handle_drm_event(int fd, uint32_t mask, void *data) {
 	return 1;
 }
 
-void restore_drm_outputs(struct wlr_drm_backend *drm) {
-	uint64_t to_close = (UINT64_C(1) << wl_list_length(&drm->outputs)) - 1;
-
-	struct wlr_drm_connector *conn;
-	wl_list_for_each(conn, &drm->outputs, link) {
-		if (conn->state == WLR_DRM_CONN_CONNECTED) {
-			conn->state = WLR_DRM_CONN_CLEANUP;
-		}
-	}
-
-	time_t timeout = time(NULL) + 5;
-
-	while (to_close && time(NULL) < timeout) {
-		handle_drm_event(drm->fd, 0, drm);
-		size_t i = 0;
-		struct wlr_drm_connector *conn;
-		wl_list_for_each(conn, &drm->outputs, link) {
-			if (conn->state != WLR_DRM_CONN_CLEANUP || !conn->pending_page_flip_crtc) {
-				to_close &= ~(UINT64_C(1) << i);
-			}
-			i++;
-		}
-	}
-
-	if (to_close) {
-		wlr_log(WLR_ERROR, "Timed out stopping output renderers");
-	}
-
-	wl_list_for_each(conn, &drm->outputs, link) {
-		drmModeCrtc *crtc = conn->old_crtc;
-		if (!crtc) {
-			continue;
-		}
-
-		drmModeSetCrtc(drm->fd, crtc->crtc_id, crtc->buffer_id, crtc->x, crtc->y,
-			&conn->id, 1, &crtc->mode);
-		drmModeSetCursor(drm->fd, crtc->crtc_id, 0, 0, 0);
-	}
-}
-
 static void disconnect_drm_connector(struct wlr_drm_connector *conn) {
 	if (conn->state == WLR_DRM_CONN_DISCONNECTED) {
 		return;
@@ -1611,7 +1567,6 @@ static void disconnect_drm_connector(struct wlr_drm_connector *conn) {
 void destroy_drm_connector(struct wlr_drm_connector *conn) {
 	disconnect_drm_connector(conn);
 
-	drmModeFreeCrtc(conn->old_crtc);
 	wl_list_remove(&conn->link);
 	free(conn);
 }
