@@ -33,8 +33,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
 
-	restore_drm_outputs(drm);
-
 	struct wlr_drm_connector *conn, *next;
 	wl_list_for_each_safe(conn, next, &drm->outputs, link) {
 		destroy_drm_connector(conn);

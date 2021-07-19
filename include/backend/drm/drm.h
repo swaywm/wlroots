@@ -123,8 +123,6 @@ struct wlr_drm_connector {
 	int cursor_width, cursor_height;
 	int cursor_hotspot_x, cursor_hotspot_y;
 
-	drmModeCrtc *old_crtc;
-
 	struct wl_list link;
 
 	/* CRTC ID if a page-flip is pending, zero otherwise.
@@ -142,7 +140,6 @@ struct wlr_drm_backend *get_drm_backend_from_backend(
 bool check_drm_features(struct wlr_drm_backend *drm);
 bool init_drm_resources(struct wlr_drm_backend *drm);
 void finish_drm_resources(struct wlr_drm_backend *drm);
-void restore_drm_outputs(struct wlr_drm_backend *drm);
 void scan_drm_connectors(struct wlr_drm_backend *state);
 int handle_drm_event(int fd, uint32_t mask, void *data);
 void destroy_drm_connector(struct wlr_drm_connector *conn);
