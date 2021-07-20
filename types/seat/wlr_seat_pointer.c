@@ -41,7 +41,7 @@ static void default_pointer_frame(struct wlr_seat_pointer_grab *grab) {
 }
 
 static void default_pointer_cancel(struct wlr_seat_pointer_grab *grab) {
-	// cannot be cancelled
+	wlr_seat_pointer_clear_focus(grab->seat);
 }
 
 const struct wlr_pointer_grab_interface default_pointer_grab_impl = {
@@ -329,22 +329,24 @@ void wlr_seat_pointer_send_frame(struct wlr_seat *wlr_seat) {
 
 void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
 		struct wlr_seat_pointer_grab *grab) {
-	assert(wlr_seat);
+	struct wlr_seat_pointer_grab *prev = wlr_seat->pointer_state.grab;
+	if (prev == grab) {
+		return;
+	}
+
+	wlr_signal_emit_safe(&wlr_seat->events.pointer_grab_end, prev);
+	if (prev->interface->cancel) {
+		prev->interface->cancel(prev);
+	}
+
 	grab->seat = wlr_seat;
 	wlr_seat->pointer_state.grab = grab;
-
 	wlr_signal_emit_safe(&wlr_seat->events.pointer_grab_begin, grab);
 }
 
 void wlr_seat_pointer_end_grab(struct wlr_seat *wlr_seat) {
-	struct wlr_seat_pointer_grab *grab = wlr_seat->pointer_state.grab;
-	if (grab != wlr_seat->pointer_state.default_grab) {
-		wlr_seat->pointer_state.grab = wlr_seat->pointer_state.default_grab;
-		wlr_signal_emit_safe(&wlr_seat->events.pointer_grab_end, grab);
-		if (grab->interface->cancel) {
-			grab->interface->cancel(grab);
-		}
-	}
+	wlr_seat_pointer_start_grab(wlr_seat,
+		wlr_seat->pointer_state.default_grab);
 }
 
 void wlr_seat_pointer_notify_enter(struct wlr_seat *wlr_seat,

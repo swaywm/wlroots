@@ -35,7 +35,7 @@ static void default_keyboard_modifiers(struct wlr_seat_keyboard_grab *grab,
 }
 
 static void default_keyboard_cancel(struct wlr_seat_keyboard_grab *grab) {
-	// cannot be cancelled
+	wlr_seat_keyboard_clear_focus(grab->seat);
 }
 
 const struct wlr_keyboard_grab_interface default_keyboard_grab_impl = {
@@ -171,22 +171,24 @@ struct wlr_keyboard *wlr_seat_get_keyboard(struct wlr_seat *seat) {
 
 void wlr_seat_keyboard_start_grab(struct wlr_seat *wlr_seat,
 		struct wlr_seat_keyboard_grab *grab) {
+	struct wlr_seat_keyboard_grab *prev = wlr_seat->keyboard_state.grab;
+	if (prev == grab) {
+		return;
+	}
+
+	wlr_signal_emit_safe(&wlr_seat->events.keyboard_grab_end, prev);
+	if (prev->interface->cancel) {
+		prev->interface->cancel(prev);
+	}
+
 	grab->seat = wlr_seat;
 	wlr_seat->keyboard_state.grab = grab;
-
 	wlr_signal_emit_safe(&wlr_seat->events.keyboard_grab_begin, grab);
 }
 
 void wlr_seat_keyboard_end_grab(struct wlr_seat *wlr_seat) {
-	struct wlr_seat_keyboard_grab *grab = wlr_seat->keyboard_state.grab;
-
-	if (grab != wlr_seat->keyboard_state.default_grab) {
-		wlr_seat->keyboard_state.grab = wlr_seat->keyboard_state.default_grab;
-		wlr_signal_emit_safe(&wlr_seat->events.keyboard_grab_end, grab);
-		if (grab->interface->cancel) {
-			grab->interface->cancel(grab);
-		}
-	}
+	wlr_seat_keyboard_start_grab(wlr_seat,
+		wlr_seat->keyboard_state.default_grab);
 }
 
 static void seat_keyboard_handle_surface_destroy(struct wl_listener *listener,

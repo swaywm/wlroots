@@ -513,7 +513,6 @@ void wlr_seat_start_pointer_drag(struct wlr_seat *seat, struct wlr_drag *drag,
 		uint32_t serial) {
 	drag->grab_type = WLR_DRAG_GRAB_KEYBOARD_POINTER;
 
-	wlr_seat_pointer_clear_focus(seat);
 	wlr_seat_pointer_start_grab(seat, &drag->pointer_grab);
 
 	wlr_seat_start_drag(seat, drag, serial);
