@@ -47,6 +47,7 @@ static const struct prop_info plane_info[] = {
 	{ "CRTC_W", INDEX(crtc_w) },
 	{ "CRTC_X", INDEX(crtc_x) },
 	{ "CRTC_Y", INDEX(crtc_y) },
+	{ "FB_DAMAGE_CLIPS", INDEX(fb_damage_clips) },
 	{ "FB_ID", INDEX(fb_id) },
 	{ "IN_FORMATS", INDEX(in_formats) },
 	{ "SRC_H", INDEX(src_h) },
