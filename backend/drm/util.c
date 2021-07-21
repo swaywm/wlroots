@@ -168,6 +168,9 @@ const char *conn_get_name(uint32_t type_id) {
 #ifdef DRM_MODE_CONNECTOR_SPI
 	case DRM_MODE_CONNECTOR_SPI:         return "SPI";
 #endif
+#ifdef DRM_MODE_CONNECTOR_USB
+	case DRM_MODE_CONNECTOR_USB:         return "USB";
+#endif
 	default:                             return "Unknown";
 	}
 }
