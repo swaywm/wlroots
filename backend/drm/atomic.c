@@ -201,6 +201,18 @@ static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
 		}
 	}
 
+	uint32_t fb_damage_clips = 0;
+	if ((state->committed & WLR_OUTPUT_STATE_DAMAGE) &&
+			crtc->primary->props.fb_damage_clips != 0) {
+		int rects_len;
+		const pixman_box32_t *rects = pixman_region32_rectangles(
+			(pixman_region32_t *)&state->damage, &rects_len);
+		if (drmModeCreatePropertyBlob(drm->fd, rects,
+				sizeof(*rects) * rects_len, &fb_damage_clips) != 0) {
+			wlr_log_errno(WLR_ERROR, "Failed to create FB_DAMAGE_CLIPS property blob");
+		}
+	}
+
 	bool prev_vrr_enabled =
 		output->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED;
 	bool vrr_enabled = prev_vrr_enabled;
@@ -235,6 +247,10 @@ static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
 			atomic_add(&atom, crtc->id, crtc->props.vrr_enabled, vrr_enabled);
 		}
 		set_plane_props(&atom, drm, crtc->primary, crtc->id, 0, 0);
+		if (crtc->primary->props.fb_damage_clips != 0) {
+			atomic_add(&atom, crtc->primary->id,
+				crtc->primary->props.fb_damage_clips, fb_damage_clips);
+		}
 		if (crtc->cursor) {
 			if (drm_connector_is_cursor_visible(conn)) {
 				set_plane_props(&atom, drm, crtc->cursor, crtc->id,
@@ -267,6 +283,11 @@ static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
 	} else {
 		rollback_blob(drm, &crtc->mode_id, mode_id);
 		rollback_blob(drm, &crtc->gamma_lut, gamma_lut);
+	}
+
+	if (fb_damage_clips != 0 &&
+			drmModeDestroyPropertyBlob(drm->fd, fb_damage_clips) != 0) {
+		wlr_log_errno(WLR_ERROR, "Failed to destroy FB_DAMAGE_CLIPS property blob");
 	}
 
 	return ok;
