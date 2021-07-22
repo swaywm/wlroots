@@ -12,9 +12,7 @@
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
-#include <wlr/types/wlr_drm.h>
 #include <wlr/types/wlr_matrix.h>
-#include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/box.h>
 #include <wlr/util/log.h>
 #include "render/egl.h"
@@ -481,23 +479,6 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 	return glGetError() == GL_NO_ERROR;
 }
 
-static bool gles2_init_wl_display(struct wlr_renderer *wlr_renderer,
-		struct wl_display *wl_display) {
-	if (wlr_renderer_get_drm_fd(wlr_renderer) >= 0) {
-		if (wlr_drm_create(wl_display, wlr_renderer) == NULL) {
-			return false;
-		}
-	} else {
-		wlr_log(WLR_INFO, "Cannot get renderer DRM FD, disabling wl_drm");
-	}
-
-	if (wlr_linux_dmabuf_v1_create(wl_display, wlr_renderer) == NULL) {
-		return false;
-	}
-
-	return true;
-}
-
 static int gles2_get_drm_fd(struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer =
 		gles2_get_renderer(wlr_renderer);
@@ -570,7 +551,6 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.get_render_formats = gles2_get_render_formats,
 	.preferred_read_format = gles2_preferred_read_format,
 	.read_pixels = gles2_read_pixels,
-	.init_wl_display = gles2_init_wl_display,
 	.get_drm_fd = gles2_get_drm_fd,
 	.get_render_buffer_caps = gles2_get_render_buffer_caps,
 	.texture_from_buffer = gles2_texture_from_buffer,
