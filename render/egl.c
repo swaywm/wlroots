@@ -525,6 +525,11 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 			attribs[atti++] = attributes->modifier >> 32;
 		}
 	}
+
+	// Our clients don't expect our usage to trash the buffer contents
+	attribs[atti++] = EGL_IMAGE_PRESERVED_KHR;
+	attribs[atti++] = EGL_TRUE;
+
 	attribs[atti++] = EGL_NONE;
 	assert(atti < sizeof(attribs)/sizeof(attribs[0]));
 
