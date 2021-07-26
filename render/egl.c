@@ -721,7 +721,7 @@ int wlr_egl_dup_drm_fd(struct wlr_egl *egl) {
 
 	char *render_name = NULL;
 #ifdef EGL_EXT_device_drm_render_node
-	if (egl->exts.device_drm_render_node_ext) {
+	if (egl->exts.EXT_device_drm_render_node) {
 		const char *name = egl->procs.eglQueryDeviceStringEXT(egl->device,
 			EGL_DRM_RENDER_NODE_FILE_EXT);
 		if (name == NULL) {
