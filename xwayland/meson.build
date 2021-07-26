@@ -74,3 +74,9 @@ wlr_files += files(
 )
 wlr_deps += xwayland_libs
 features += { 'xwayland': true }
+
+have = cc.has_function('xcb_xfixes_set_client_disconnect_mode', dependencies: xwayland_libs)
+add_project_arguments(
+	'-DHAS_XCB_XFIXES_SET_CLIENT_DISCONNECT_MODE=@0@'.format(have.to_int()),
+	language: 'c',
+)

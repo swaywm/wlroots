@@ -1739,6 +1739,7 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 
 	wlr_log(WLR_DEBUG, "xfixes version: %" PRIu32 ".%" PRIu32,
 		xfixes_reply->major_version, xfixes_reply->minor_version);
+	xwm->xfixes_major_version = xfixes_reply->major_version;
 
 	free(xfixes_reply);
 
@@ -1998,6 +1999,14 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *xwayland, int wm_fd) {
 		32,
 		sizeof(supported)/sizeof(*supported),
 		supported);
+
+#if HAS_XCB_XFIXES_SET_CLIENT_DISCONNECT_MODE
+	if (xwm->xwayland->server->options.terminate_delay > 0 &&
+			xwm->xfixes_major_version >= 6) {
+		xcb_xfixes_set_client_disconnect_mode(xwm->xcb_conn,
+			XCB_XFIXES_CLIENT_DISCONNECT_FLAGS_TERMINATE);
+	}
+#endif
 
 	xcb_flush(xwm->xcb_conn);
 

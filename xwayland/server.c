@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -24,27 +25,6 @@ static void safe_close(int fd) {
 	}
 }
 
-static int fill_arg(char ***argv, const char *fmt, ...) {
-	int len;
-	char **cur_arg = *argv;
-	va_list args;
-	va_start(args, fmt);
-	len = vsnprintf(NULL, 0, fmt, args) + 1;
-	va_end(args);
-	while (*cur_arg) {
-		cur_arg++;
-	}
-	*cur_arg = malloc(len);
-	if (!*cur_arg) {
-		return -1;
-	}
-	*argv = cur_arg;
-	va_start(args, fmt);
-	len = vsnprintf(*cur_arg, len, fmt, args);
-	va_end(args);
-	return len;
-}
-
 noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 	if (!set_cloexec(server->x_fd[0], false) ||
 			!set_cloexec(server->x_fd[1], false) ||
@@ -52,7 +32,7 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 		wlr_log(WLR_ERROR, "Failed to unset CLOEXEC on FD");
 		_exit(EXIT_FAILURE);
 	}
-	if (server->enable_wm && !set_cloexec(server->wm_fd[1], false)) {
+	if (server->options.enable_wm && !set_cloexec(server->wm_fd[1], false)) {
 		wlr_log(WLR_ERROR, "Failed to unset CLOEXEC on FD");
 		_exit(EXIT_FAILURE);
 	}
@@ -61,36 +41,50 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 	/* TODO: can we use -displayfd instead? */
 	signal(SIGUSR1, SIG_IGN);
 
-	char *argv[] = {
-		"Xwayland", NULL /* display, e.g. :1 */,
-		"-rootless", "-terminate", "-core",
-#if HAVE_XWAYLAND_LISTENFD
-		"-listenfd", NULL /* x_fd[0] */,
-		"-listenfd", NULL /* x_fd[1] */,
-#else
-		"-listen", NULL /* x_fd[0] */,
-		"-listen", NULL /* x_fd[1] */,
-#endif
-		"-wm", NULL /* wm_fd[1] */,
-		NULL,
-	};
-	char **cur_arg = argv;
+	char *argv[64] = {0};
+	size_t i = 0;
 
-	if (fill_arg(&cur_arg, ":%d", server->display) < 0 ||
-			fill_arg(&cur_arg, "%d", server->x_fd[0]) < 0 ||
-			fill_arg(&cur_arg, "%d", server->x_fd[1]) < 0) {
-		wlr_log_errno(WLR_ERROR, "alloc/print failure");
-		_exit(EXIT_FAILURE);
+	char listenfd0[16], listenfd1[16];
+	snprintf(listenfd0, sizeof(listenfd0), "%d", server->x_fd[0]);
+	snprintf(listenfd1, sizeof(listenfd1), "%d", server->x_fd[1]);
+
+	argv[i++] = "Xwayland";
+	argv[i++] = server->display_name;
+	argv[i++] = "-rootless";
+	argv[i++] = "-core";
+
+	argv[i++] = "-terminate";
+#if HAVE_XWAYLAND_TERMINATE_DELAY
+	char terminate_delay[16];
+	if (server->options.terminate_delay > 0) {
+		snprintf(terminate_delay, sizeof(terminate_delay), "%d",
+			server->options.terminate_delay);
+		argv[i++] = terminate_delay;
 	}
-	if (server->enable_wm) {
-		if (fill_arg(&cur_arg, "%d", server->wm_fd[1]) < 0) {
-			wlr_log_errno(WLR_ERROR, "alloc/print failure");
-			_exit(EXIT_FAILURE);
-		}
-	} else {
-		cur_arg++;
-		*cur_arg = NULL;
+#endif
+
+#if HAVE_XWAYLAND_LISTENFD
+	argv[i++] = "-listenfd";
+	argv[i++] = listenfd0;
+	argv[i++] = "-listenfd";
+	argv[i++] = listenfd1;
+#else
+	argv[i++] = "-listen";
+	argv[i++] = listenfd0;
+	argv[i++] = "-listen";
+	argv[i++] = listenfd1;
+#endif
+
+	char wmfd[16];
+	if (server->options.enable_wm) {
+		snprintf(wmfd, sizeof(wmfd), "%d", server->wm_fd[1]);
+		argv[i++] = "-wm";
+		argv[i++] = wmfd;
 	}
+
+	argv[i++] = NULL;
+
+	assert(i < sizeof(argv) / sizeof(argv[0]));
 
 	char wayland_socket_str[16];
 	snprintf(wayland_socket_str, sizeof(wayland_socket_str), "%d", server->wl_fd[1]);
@@ -202,7 +196,7 @@ static void handle_client_destroy(struct wl_listener *listener, void *data) {
 	server_finish_process(server);
 
 	if (time(NULL) - server->server_start > 5) {
-		if (server->lazy) {
+		if (server->options.lazy) {
 			wlr_log(WLR_INFO, "Restarting Xwayland (lazy)");
 			server_start_lazy(server);
 		} else  {
@@ -302,7 +296,7 @@ static bool server_start(struct wlr_xwayland_server *server) {
 		server_finish_process(server);
 		return false;
 	}
-	if (server->enable_wm) {
+	if (server->options.enable_wm) {
 		if (socketpair(AF_UNIX, SOCK_STREAM, 0, server->wm_fd) != 0) {
 			wlr_log_errno(WLR_ERROR, "socketpair failed");
 			server_finish_process(server);
@@ -458,8 +452,11 @@ struct wlr_xwayland_server *wlr_xwayland_server_create(
 	}
 
 	server->wl_display = wl_display;
-	server->lazy = options->lazy;
-	server->enable_wm = options->enable_wm;
+	server->options = *options;
+
+#if !HAVE_XWAYLAND_TERMINATE_DELAY
+	server->options.terminate_delay = 0;
+#endif
 
 	server->x_fd[0] = server->x_fd[1] = -1;
 	server->wl_fd[0] = server->wl_fd[1] = -1;
@@ -472,7 +469,7 @@ struct wlr_xwayland_server *wlr_xwayland_server_create(
 		goto error_alloc;
 	}
 
-	if (server->lazy) {
+	if (server->options.lazy) {
 		if (!server_start_lazy(server)) {
 			goto error_display;
 		}
