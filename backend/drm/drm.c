@@ -944,11 +944,11 @@ static const struct wlr_drm_format_set *drm_connector_get_cursor_formats(
 	}
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
 	if (!conn->crtc) {
-		return false;
+		return NULL;
 	}
 	struct wlr_drm_plane *plane = conn->crtc->cursor;
 	if (!plane) {
-		return false;
+		return NULL;
 	}
 	if (conn->backend->parent) {
 		return &conn->backend->mgpu_formats;
