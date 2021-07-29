@@ -18,12 +18,13 @@ union wlr_drm_connector_props {
 		uint32_t path;
 		uint32_t vrr_capable; // not guaranteed to exist
 		uint32_t subconnector; // not guaranteed to exist
+		uint32_t tile;
 
 		// atomic-modesetting only
 
 		uint32_t crtc_id;
 	};
-	uint32_t props[4];
+	uint32_t props[8];
 };
 
 union wlr_drm_crtc_props {

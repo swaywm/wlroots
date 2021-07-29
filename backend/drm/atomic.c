@@ -134,7 +134,7 @@ static void plane_disable(struct atomic *atom, struct wlr_drm_plane *plane) {
 	atomic_add(atom, id, props->crtc_id, 0);
 }
 
-static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
+static void set_plane_props(struct atomic *atom, struct wlr_box source_box,
 		struct wlr_drm_plane *plane, uint32_t crtc_id, int32_t x, int32_t y) {
 	uint32_t id = plane->id;
 	const union wlr_drm_plane_props *props = &plane->props;
@@ -144,12 +144,14 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
 		goto error;
 	}
 
-	uint32_t width = gbm_bo_get_width(fb->bo);
-	uint32_t height = gbm_bo_get_height(fb->bo);
+	uint32_t width = source_box.width ? (uint32_t)source_box.width :
+		gbm_bo_get_width(fb->bo);
+	uint32_t height = source_box.height ? (uint32_t)source_box.height :
+		gbm_bo_get_height(fb->bo);
 
 	// The src_* properties are in 16.16 fixed point
-	atomic_add(atom, id, props->src_x, 0);
-	atomic_add(atom, id, props->src_y, 0);
+	atomic_add(atom, id, props->src_x, (uint64_t)source_box.x << 16);
+	atomic_add(atom, id, props->src_y, (uint64_t)source_box.y << 16);
 	atomic_add(atom, id, props->src_w, (uint64_t)width << 16);
 	atomic_add(atom, id, props->src_h, (uint64_t)height << 16);
 	atomic_add(atom, id, props->crtc_w, width);
@@ -228,16 +230,32 @@ static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
 	atomic_add(&atom, crtc->id, crtc->props.mode_id, mode_id);
 	atomic_add(&atom, crtc->id, crtc->props.active, active);
 	if (active) {
+		struct wlr_box source_box;
+		if (state->committed & WLR_OUTPUT_STATE_SOURCE_BOX) {
+			/**
+			 * Grab source box from output in order to crop the
+			 * buffer.
+			 */
+			source_box = state->source_box;
+		}
+		else {
+			// Use dummy source box
+			source_box.x = source_box.y = source_box.width =
+				source_box.height = 0;
+		}
 		if (crtc->props.gamma_lut != 0) {
 			atomic_add(&atom, crtc->id, crtc->props.gamma_lut, gamma_lut);
 		}
 		if (crtc->props.vrr_enabled != 0) {
 			atomic_add(&atom, crtc->id, crtc->props.vrr_enabled, vrr_enabled);
 		}
-		set_plane_props(&atom, drm, crtc->primary, crtc->id, 0, 0);
+		set_plane_props(&atom, source_box, crtc->primary, crtc->id, 0, 0);
 		if (crtc->cursor) {
 			if (drm_connector_is_cursor_visible(conn)) {
-				set_plane_props(&atom, drm, crtc->cursor, crtc->id,
+				// Ensure source_box is unset for cursor plane
+				source_box.x = source_box.y = source_box.width =
+					source_box.height = 0;
+				set_plane_props(&atom, source_box, crtc->cursor, crtc->id,
 					conn->cursor_x, conn->cursor_y);
 			} else {
 				plane_disable(&atom, crtc->cursor);

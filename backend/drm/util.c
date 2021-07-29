@@ -144,6 +144,41 @@ void parse_edid(struct wlr_output *restrict output, size_t len, const uint8_t *d
 	}
 }
 
+void parse_tile(struct wlr_output *restrict output, size_t len, const uint8_t *data) {
+	if (len > 0) {
+		int ret;
+		ret = sscanf((char*)data, "%d:%d:%d:%d:%d:%d:%d:%d",
+			&output->tile_info.group_id,
+			&output->tile_info.tile_is_single_monitor,
+			&output->tile_info.num_h_tile,
+			&output->tile_info.num_v_tile,
+			&output->tile_info.tile_h_loc,
+			&output->tile_info.tile_v_loc,
+			&output->tile_info.tile_h_size,
+			&output->tile_info.tile_v_size);
+		if(ret != 8)
+			wlr_log(WLR_ERROR, "Unable to understand tile information for "
+				"output %s", output->name);
+		else
+			wlr_log(WLR_INFO, "Output %s TILE information: "
+				"group ID %d, single monitor %d, total %d horizontal tiles, "
+				"total %d vertical tiles, horizontal tile %d, vertical tile "
+				"%d, width %d, height %d",
+				output->name,
+				output->tile_info.group_id,
+				output->tile_info.tile_is_single_monitor,
+				output->tile_info.num_h_tile,
+				output->tile_info.num_v_tile,
+				output->tile_info.tile_h_loc,
+				output->tile_info.tile_v_loc,
+				output->tile_info.tile_h_size,
+				output->tile_info.tile_v_size);
+	}
+	else
+		wlr_log(WLR_DEBUG, "No tile information available for output %s",
+			output->name);
+}
+
 const char *conn_get_name(uint32_t type_id) {
 	switch (type_id) {
 	case DRM_MODE_CONNECTOR_Unknown:     return "Unknown";
