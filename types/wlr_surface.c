@@ -501,6 +501,8 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 		surface->role->precommit(surface);
 	}
 
+	wlr_signal_emit_safe(&surface->events.precommit, &surface->pending);
+
 	// It doesn't to make sense to cache callback lists, so we always move
 	// them to the current state.
 	if (surface->pending.committed & WLR_SURFACE_STATE_FRAME_CALLBACK_LIST) {
@@ -787,6 +789,7 @@ struct wlr_surface *surface_create(struct wl_client *client,
 	surface->pending.seq = 1;
 
 	wl_signal_init(&surface->events.commit);
+	wl_signal_init(&surface->events.precommit);
 	wl_signal_init(&surface->events.cache);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.new_subsurface);

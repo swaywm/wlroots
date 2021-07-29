@@ -146,6 +146,7 @@ struct wlr_surface {
 	struct {
 		struct wl_signal commit;
 		struct wl_signal cache;
+		struct wl_signal precommit;
 		struct wl_signal new_subsurface;
 		struct wl_signal destroy;
 	} events;
