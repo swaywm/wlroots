@@ -26,6 +26,42 @@ static const struct wlr_pixel_format_info pixel_format_info[] = {
 		.bpp = 32,
 		.has_alpha = true,
 	},
+	{
+		.drm_format = DRM_FORMAT_BGR888,
+		.opaque_substitute = DRM_FORMAT_INVALID,
+		.bpp = 24,
+		.has_alpha = false,
+	},
+	{
+		.drm_format = DRM_FORMAT_RGBX4444,
+		.opaque_substitute = DRM_FORMAT_INVALID,
+		.bpp = 16,
+		.has_alpha = false,
+	},
+	{
+		.drm_format = DRM_FORMAT_RGBA4444,
+		.opaque_substitute = DRM_FORMAT_RGBX4444,
+		.bpp = 16,
+		.has_alpha = false,
+	},
+	{
+		.drm_format = DRM_FORMAT_RGBX5551,
+		.opaque_substitute = DRM_FORMAT_INVALID,
+		.bpp = 16,
+		.has_alpha = false,
+	},
+	{
+		.drm_format = DRM_FORMAT_RGBA5551,
+		.opaque_substitute = DRM_FORMAT_RGBX5551,
+		.bpp = 16,
+		.has_alpha = false,
+	},
+	{
+		.drm_format = DRM_FORMAT_RGB565,
+		.opaque_substitute = DRM_FORMAT_INVALID,
+		.bpp = 16,
+		.has_alpha = false,
+	},
 };
 
 static const size_t pixel_format_info_size =
