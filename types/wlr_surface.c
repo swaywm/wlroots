@@ -330,6 +330,9 @@ static void surface_state_move(struct wlr_surface_state *state,
 
 	next->committed = 0;
 	next->cached_state_locks = 0;
+
+	wl_list_insert_list(&state->addons, &next->addons);
+	wl_list_init(&next->addons);
 }
 
 static void surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
@@ -432,6 +435,8 @@ static void surface_cache_pending(struct wlr_surface *surface) {
 	wl_list_insert(surface->cached.prev, &cached->cached_state_link);
 
 	surface->pending.seq++;
+
+	wlr_signal_emit_safe(&surface->events.cache, cached);
 }
 
 static void surface_commit_state(struct wlr_surface *surface,
@@ -656,6 +661,8 @@ static void surface_state_init(struct wlr_surface_state *state) {
 	pixman_region32_init(&state->opaque);
 	pixman_region32_init_rect(&state->input,
 		INT32_MIN, INT32_MIN, UINT32_MAX, UINT32_MAX);
+
+	wl_list_init(&state->addons);
 }
 
 static void surface_state_finish(struct wlr_surface_state *state) {
@@ -671,6 +678,16 @@ static void surface_state_finish(struct wlr_surface_state *state) {
 	pixman_region32_fini(&state->buffer_damage);
 	pixman_region32_fini(&state->opaque);
 	pixman_region32_fini(&state->input);
+
+	struct wlr_surface_state_addon *addon, *addon_tmp;
+	wl_list_for_each_safe(addon, addon_tmp, &state->addons, link) {
+		wl_list_remove(&addon->link);
+		if (addon->finish_state) {
+			addon->finish_state(addon->state);
+		}
+		free(addon->state);
+		free(addon);
+	}
 }
 
 static void surface_state_destroy_cached(struct wlr_surface_state *state) {
@@ -770,6 +787,7 @@ struct wlr_surface *surface_create(struct wl_client *client,
 	surface->pending.seq = 1;
 
 	wl_signal_init(&surface->events.commit);
+	wl_signal_init(&surface->events.cache);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.new_subsurface);
 	wl_list_init(&surface->subsurfaces_above);

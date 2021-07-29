@@ -29,6 +29,13 @@ enum wlr_surface_state_field {
 	WLR_SURFACE_STATE_VIEWPORT = 1 << 8,
 };
 
+struct wlr_surface_state_addon {
+	void *state;
+	void *owner;
+	struct wl_list link;
+	void (*finish_state)(void *state);
+};
+
 struct wlr_surface_state {
 	uint32_t committed; // enum wlr_surface_state_field
 	// Sequence number of the surface state. Incremented on each commit, may
@@ -67,6 +74,8 @@ struct wlr_surface_state {
 	// Number of locks that prevent this surface state from being committed.
 	size_t cached_state_locks;
 	struct wl_list cached_state_link; // wlr_surface.cached
+
+	struct wl_list addons;
 };
 
 struct wlr_surface_role {
@@ -136,6 +145,7 @@ struct wlr_surface {
 
 	struct {
 		struct wl_signal commit;
+		struct wl_signal cache;
 		struct wl_signal new_subsurface;
 		struct wl_signal destroy;
 	} events;
