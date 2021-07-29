@@ -345,6 +345,27 @@ static void xdg_surface_handle_surface_commit(struct wl_listener *listener,
 	}
 }
 
+static void xdg_surface_handle_surface_precommit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xdg_surface *surface =
+		wl_container_of(listener, surface, surface_precommit);
+	struct wlr_surface_state *pending = data;
+
+	struct wlr_surface_state_addon *addon = calloc(1, sizeof(*addon));
+	struct wlr_xdg_surface_state *state = calloc(1, sizeof(*state));
+	if (!addon || !state) {
+		free(addon);
+		free(state);
+		return;
+	}
+	memcpy(state, &surface->pending, sizeof(*state));
+	surface->pending.has_geometry = false;
+
+	addon->owner = surface;
+	addon->state = state;
+	wl_list_insert(&pending->addons, &addon->link);
+}
+
 static void surface_commit_state(struct wlr_xdg_surface *surface,
 		struct wlr_xdg_surface_state *state) {
 	surface->configure_serial = state->configure_serial;
@@ -360,7 +381,13 @@ void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 		return;
 	}
 
-	surface_commit_state(surface, &surface->pending);
+	struct wlr_surface_state_addon *addon;
+	wl_list_for_each(addon, &wlr_surface->current.addons, link) {
+		if (addon->owner == surface) {
+			surface_commit_state(surface, addon->state);
+			break;
+		}
+	}
 
 	switch (surface->role) {
 	case WLR_XDG_SURFACE_ROLE_NONE:
@@ -459,6 +486,10 @@ struct wlr_xdg_surface *create_xdg_surface(
 		&xdg_surface->surface_destroy);
 	xdg_surface->surface_destroy.notify = xdg_surface_handle_surface_destroy;
 
+	wl_signal_add(&xdg_surface->surface->events.precommit,
+		&xdg_surface->surface_precommit);
+	xdg_surface->surface_precommit.notify = xdg_surface_handle_surface_precommit;
+
 	wl_signal_add(&xdg_surface->surface->events.commit,
 		&xdg_surface->surface_commit);
 	xdg_surface->surface_commit.notify = xdg_surface_handle_surface_commit;
@@ -521,6 +552,7 @@ void destroy_xdg_surface(struct wlr_xdg_surface *surface) {
 
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy.link);
+	wl_list_remove(&surface->surface_precommit.link);
 	wl_list_remove(&surface->surface_commit.link);
 	free(surface);
 }
