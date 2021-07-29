@@ -88,11 +88,9 @@ void unmap_xdg_surface(struct wlr_xdg_surface *surface) {
 	}
 	surface->configure_next_serial = 0;
 
-	surface->has_next_geometry = false;
 	memset(&surface->geometry, 0, sizeof(struct wlr_box));
-	memset(&surface->next_geometry, 0, sizeof(struct wlr_box));
+	memset(&surface->pending, 0, sizeof(struct wlr_xdg_surface_state));
 }
-
 
 static void xdg_surface_handle_ack_configure(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial) {
@@ -144,7 +142,7 @@ static void xdg_surface_handle_ack_configure(struct wl_client *client,
 	}
 
 	surface->configured = true;
-	surface->configure_serial = serial;
+	surface->pending.configure_serial = serial;
 
 	wlr_signal_emit_safe(&surface->events.ack_configure, configure);
 	xdg_surface_configure_destroy(configure);
@@ -252,11 +250,10 @@ static void xdg_surface_handle_set_window_geometry(struct wl_client *client,
 		return;
 	}
 
-	surface->has_next_geometry = true;
-	surface->next_geometry.height = height;
-	surface->next_geometry.width = width;
-	surface->next_geometry.x = x;
-	surface->next_geometry.y = y;
+	surface->pending.geometry.x = x;
+	surface->pending.geometry.y = y;
+	surface->pending.geometry.width = width;
+	surface->pending.geometry.height = height;
 }
 
 static void xdg_surface_handle_destroy(struct wl_client *client,
@@ -313,6 +310,14 @@ static void xdg_surface_handle_surface_commit(struct wl_listener *listener,
 	}
 }
 
+static void surface_commit_state(struct wlr_xdg_surface *surface,
+		struct wlr_xdg_surface_state *state) {
+	surface->configure_serial = state->configure_serial;
+	if (!wlr_box_empty(&state->geometry)) {
+		surface->geometry = state->geometry;
+	}
+}
+
 void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 	struct wlr_xdg_surface *surface =
 		wlr_xdg_surface_from_wlr_surface(wlr_surface);
@@ -320,13 +325,7 @@ void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 		return;
 	}
 
-	if (surface->has_next_geometry) {
-		surface->has_next_geometry = false;
-		surface->geometry.x = surface->next_geometry.x;
-		surface->geometry.y = surface->next_geometry.y;
-		surface->geometry.width = surface->next_geometry.width;
-		surface->geometry.height = surface->next_geometry.height;
-	}
+	surface_commit_state(surface, &surface->pending);
 
 	switch (surface->role) {
 	case WLR_XDG_SURFACE_ROLE_NONE:
