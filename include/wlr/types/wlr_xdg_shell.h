@@ -161,6 +161,11 @@ struct wlr_xdg_surface_configure {
 	struct wlr_xdg_toplevel_configure *toplevel_configure;
 };
 
+struct wlr_xdg_surface_state {
+	uint32_t configure_serial;
+	struct wlr_box geometry;
+};
+
 /**
  * An xdg-surface is a user interface element requiring management by the
  * compositor. An xdg-surface alone isn't useful, a role should be assigned to
@@ -191,9 +196,9 @@ struct wlr_xdg_surface {
 	uint32_t configure_next_serial;
 	struct wl_list configure_list;
 
-	bool has_next_geometry;
-	struct wlr_box next_geometry;
 	struct wlr_box geometry;
+
+	struct wlr_xdg_surface_state pending;
 
 	struct wl_listener surface_destroy;
 	struct wl_listener surface_commit;
