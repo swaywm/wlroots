@@ -32,6 +32,45 @@ static const struct wlr_gles2_pixel_format formats[] = {
 		.gl_type = GL_UNSIGNED_BYTE,
 		.has_alpha = true,
 	},
+	{
+		.drm_format = DRM_FORMAT_BGR888,
+		.gl_format = GL_RGB,
+		.gl_type = GL_UNSIGNED_BYTE,
+		.has_alpha = false,
+	},
+#if WLR_LITTLE_ENDIAN
+	{
+		.drm_format = DRM_FORMAT_RGBX4444,
+		.gl_format = GL_RGBA,
+		.gl_type = GL_UNSIGNED_SHORT_4_4_4_4,
+		.has_alpha = false,
+	},
+	{
+		.drm_format = DRM_FORMAT_RGBA4444,
+		.gl_format = GL_RGBA,
+		.gl_type = GL_UNSIGNED_SHORT_4_4_4_4,
+		.has_alpha = true,
+	},
+	{
+		.drm_format = DRM_FORMAT_RGBX5551,
+		.gl_format = GL_RGBA,
+		.gl_type = GL_UNSIGNED_SHORT_5_5_5_1,
+		.has_alpha = false,
+	},
+	{
+		.drm_format = DRM_FORMAT_RGBA5551,
+		.gl_format = GL_RGBA,
+		.gl_type = GL_UNSIGNED_SHORT_5_5_5_1,
+		.has_alpha = true,
+	},
+	{
+		.drm_format = DRM_FORMAT_RGB565,
+		.gl_format = GL_RGB,
+		.gl_type = GL_UNSIGNED_SHORT_5_6_5,
+		.has_alpha = false,
+	},
+	// TODO: EXT_texture_type_2_10_10_10_REV support
+#endif
 };
 
 // TODO: more pixel formats
