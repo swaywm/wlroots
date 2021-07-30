@@ -749,6 +749,12 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	renderer->exts.EXT_read_format_bgra =
 		check_gl_ext(exts_str, "GL_EXT_read_format_bgra");
 
+	renderer->exts.EXT_texture_type_2_10_10_10_REV =
+		check_gl_ext(exts_str, "GL_EXT_texture_type_2_10_10_10_REV");
+
+	renderer->exts.OES_texture_half_float_linear =
+		check_gl_ext(exts_str, "GL_OES_texture_half_float_linear");
+
 	if (check_gl_ext(exts_str, "GL_KHR_debug")) {
 		renderer->exts.KHR_debug = true;
 		load_gl_proc(&renderer->procs.glDebugMessageCallbackKHR,
