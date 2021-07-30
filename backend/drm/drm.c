@@ -652,43 +652,6 @@ struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
 	return plane->current_fb;
 }
 
-static bool drm_connector_init_renderer(struct wlr_drm_connector *conn,
-		const struct wlr_drm_connector_state *state) {
-	struct wlr_drm_backend *drm = conn->backend;
-
-	if (conn->status != WLR_DRM_CONN_CONNECTED &&
-			conn->status != WLR_DRM_CONN_NEEDS_MODESET) {
-		return false;
-	}
-
-	assert(conn->crtc != NULL);
-
-	if (drm->parent) {
-		wlr_drm_conn_log(conn, WLR_DEBUG, "Initializing multi-GPU renderer");
-
-		struct wlr_drm_plane *plane = conn->crtc->primary;
-		int width = state->mode.hdisplay;
-		int height = state->mode.vdisplay;
-
-		struct wlr_drm_format *format =
-			drm_plane_pick_render_format(plane, &drm->mgpu_renderer);
-		if (format == NULL) {
-			wlr_log(WLR_ERROR, "Failed to pick primary plane format");
-			return false;
-		}
-
-		// TODO: fallback to modifier-less buffer allocation
-		bool ok = init_drm_surface(&plane->mgpu_surf, &drm->mgpu_renderer,
-			width, height, format);
-		free(format);
-		if (!ok) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
 static void realloc_crtcs(struct wlr_drm_backend *drm);
 
 static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
@@ -779,12 +742,6 @@ static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 	wlr_drm_conn_log(conn, WLR_INFO,
 		"Modesetting with '%" PRId32 "x%" PRId32 "@%" PRId32 "mHz'",
 		wlr_mode->width, wlr_mode->height, wlr_mode->refresh);
-
-	if (!drm_connector_init_renderer(conn, state)) {
-		wlr_drm_conn_log(conn, WLR_ERROR,
-			"Failed to initialize renderer for plane");
-		return false;
-	}
 
 	// drm_crtc_page_flip expects a FB to be available
 	struct wlr_drm_plane *plane = conn->crtc->primary;
@@ -1194,19 +1151,6 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 		if (conn->status != WLR_DRM_CONN_CONNECTED) {
 			continue;
 		}
-
-		struct wlr_output_state output_state = {
-			.committed = WLR_OUTPUT_STATE_ENABLED,
-			.enabled = true,
-		};
-		struct wlr_drm_connector_state conn_state = {0};
-		drm_connector_state_init(&conn_state, conn, &output_state);
-		if (!drm_connector_init_renderer(conn, &conn_state)) {
-			wlr_drm_conn_log(conn, WLR_ERROR, "Failed to initialize renderer");
-			wlr_output_update_enabled(&conn->output, false);
-			continue;
-		}
-
 		wlr_output_damage_whole(&conn->output);
 	}
 }
