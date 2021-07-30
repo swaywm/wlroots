@@ -457,8 +457,8 @@ struct wlr_output_mode *wlr_output_preferred_mode(struct wlr_output *output) {
 		}
 	}
 
-	// No preferred mode, choose the last one
-	return wl_container_of(output->modes.prev, mode, link);
+	// No preferred mode, choose the first one
+	return wl_container_of(output->modes.next, mode, link);
 }
 
 static void output_state_clear_buffer(struct wlr_output_state *state) {

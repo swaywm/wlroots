@@ -1385,7 +1385,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 					mode->wlr_mode.refresh,
 					mode->wlr_mode.preferred ? "(preferred)" : "");
 
-				wl_list_insert(&wlr_conn->output.modes, &mode->wlr_mode.link);
+				wl_list_insert(wlr_conn->output.modes.prev, &mode->wlr_mode.link);
 			}
 
 			wlr_conn->possible_crtcs = get_possible_crtcs(drm->fd, res, drm_conn);
