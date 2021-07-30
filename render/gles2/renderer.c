@@ -376,7 +376,8 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 
 static const uint32_t *gles2_get_shm_texture_formats(
 		struct wlr_renderer *wlr_renderer, size_t *len) {
-	return get_gles2_shm_formats(len);
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	return get_gles2_shm_formats(renderer, len);
 }
 
 static const struct wlr_drm_format_set *gles2_get_dmabuf_texture_formats(
@@ -431,14 +432,8 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 
 	const struct wlr_gles2_pixel_format *fmt =
 		get_gles2_format_from_drm(drm_format);
-	if (fmt == NULL) {
-		wlr_log(WLR_ERROR, "Cannot read pixels: unsupported pixel format");
-		return false;
-	}
-
-	if (fmt->gl_format == GL_BGRA_EXT && !renderer->exts.EXT_read_format_bgra) {
-		wlr_log(WLR_ERROR,
-			"Cannot read pixels: missing GL_EXT_read_format_bgra extension");
+	if (fmt == NULL || !is_gles2_pixel_format_supported(renderer, fmt)) {
+		wlr_log(WLR_ERROR, "Cannot read pixels: unsupported pixel format 0x%"PRIX32, drm_format);
 		return false;
 	}
 
