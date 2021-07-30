@@ -75,6 +75,15 @@ static const struct wlr_gles2_pixel_format formats[] = {
 
 // TODO: more pixel formats
 
+bool is_gles2_pixel_format_supported(const struct wlr_gles2_renderer *renderer,
+		const struct wlr_gles2_pixel_format *format) {
+	if (format->gl_format == GL_BGRA_EXT
+			&& !renderer->exts.EXT_read_format_bgra) {
+		return false;
+	}
+	return true;
+}
+
 const struct wlr_gles2_pixel_format *get_gles2_format_from_drm(uint32_t fmt) {
 	for (size_t i = 0; i < sizeof(formats) / sizeof(*formats); ++i) {
 		if (formats[i].drm_format == fmt) {
@@ -96,11 +105,16 @@ const struct wlr_gles2_pixel_format *get_gles2_format_from_gl(
 	return NULL;
 }
 
-const uint32_t *get_gles2_shm_formats(size_t *len) {
+const uint32_t *get_gles2_shm_formats(const struct wlr_gles2_renderer *renderer,
+		size_t *len) {
 	static uint32_t shm_formats[sizeof(formats) / sizeof(formats[0])];
-	*len = sizeof(formats) / sizeof(formats[0]);
+	size_t j = 0;
 	for (size_t i = 0; i < sizeof(formats) / sizeof(formats[0]); i++) {
-		shm_formats[i] = formats[i].drm_format;
+		if (!is_gles2_pixel_format_supported(renderer, &formats[i])) {
+			continue;
+		}
+		shm_formats[j++] = formats[i].drm_format;
 	}
+	*len = j;
 	return shm_formats;
 }

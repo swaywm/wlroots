@@ -109,10 +109,14 @@ struct wlr_gles2_texture {
 	struct wl_listener buffer_destroy;
 };
 
+
+bool is_gles2_pixel_format_supported(const struct wlr_gles2_renderer *renderer,
+	const struct wlr_gles2_pixel_format *format);
 const struct wlr_gles2_pixel_format *get_gles2_format_from_drm(uint32_t fmt);
 const struct wlr_gles2_pixel_format *get_gles2_format_from_gl(
 	GLint gl_format, GLint gl_type, bool alpha);
-const uint32_t *get_gles2_shm_formats(size_t *len);
+const uint32_t *get_gles2_shm_formats(const struct wlr_gles2_renderer *renderer,
+	size_t *len);
 
 struct wlr_gles2_renderer *gles2_get_renderer(
 	struct wlr_renderer *wlr_renderer);
