@@ -35,7 +35,68 @@ static const struct wlr_pixman_pixel_format formats[] = {
 #else
 		.pixman_format = PIXMAN_a8b8g8r8,
 #endif
-	}
+	},
+	{
+		.drm_format = DRM_FORMAT_RGBA8888,
+#if WLR_BIG_ENDIAN
+		.pixman_format = PIXMAN_a8b8g8r8,
+#else
+		.pixman_format = PIXMAN_r8g8b8a8,
+#endif
+	},
+	{
+		.drm_format = DRM_FORMAT_RGBX8888,
+#if WLR_BIG_ENDIAN
+		.pixman_format = PIXMAN_x8b8g8r8,
+#else
+		.pixman_format = PIXMAN_r8g8b8x8,
+#endif
+	},
+	{
+		.drm_format = DRM_FORMAT_BGRA8888,
+#if WLR_BIG_ENDIAN
+		.pixman_format = PIXMAN_a8r8g8b8,
+#else
+		.pixman_format = PIXMAN_b8g8r8a8,
+#endif
+	},
+	{
+		.drm_format = DRM_FORMAT_BGRX8888,
+#if WLR_BIG_ENDIAN
+		.pixman_format = PIXMAN_x8r8g8b8,
+#else
+		.pixman_format = PIXMAN_b8g8r8x8,
+#endif
+	},
+#if WLR_LITTLE_ENDIAN
+	// Since DRM formats are always little-endian, they don't have an
+	// equivalent on big-endian if their components are spanning across
+	// multiple bytes.
+	{
+		.drm_format = DRM_FORMAT_RGB565,
+		.pixman_format = PIXMAN_r5g6b5,
+	},
+	{
+		.drm_format = DRM_FORMAT_BGR565,
+		.pixman_format = PIXMAN_b5g6r5,
+	},
+	{
+		.drm_format = DRM_FORMAT_ARGB2101010,
+		.pixman_format = PIXMAN_a2r10g10b10,
+	},
+	{
+		.drm_format = DRM_FORMAT_XRGB2101010,
+		.pixman_format = PIXMAN_x2r10g10b10,
+	},
+	{
+		.drm_format = DRM_FORMAT_ABGR2101010,
+		.pixman_format = PIXMAN_a2b10g10r10,
+	},
+	{
+		.drm_format = DRM_FORMAT_XBGR2101010,
+		.pixman_format = PIXMAN_x2b10g10r10,
+	},
+#endif
 };
 
 pixman_format_code_t get_pixman_format_from_drm(uint32_t fmt) {
