@@ -14,8 +14,7 @@ static int destroy_global(void *_data) {
 	return 0;
 }
 
-void wlr_global_destroy_safe(struct wl_global *global,
-		struct wl_display *display) {
+void wlr_global_destroy_safe(struct wl_global *global) {
 	// Don't destroy the global immediately. If the global has been created
 	// recently, clients might try to bind to it after we've destroyed it.
 	// Instead, remove the global so that clients stop seeing it and wait an
@@ -25,6 +24,7 @@ void wlr_global_destroy_safe(struct wl_global *global,
 	wl_global_remove(global);
 	wl_global_set_user_data(global, NULL); // safety net
 
+	struct wl_display *display = wl_global_get_display(global);
 	struct wl_event_loop *event_loop = wl_display_get_event_loop(display);
 	struct destroy_global_data *data = calloc(1, sizeof(*data));
 	if (data == NULL) {
