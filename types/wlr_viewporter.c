@@ -95,6 +95,12 @@ static void viewport_destroy(struct wlr_viewport *viewport) {
 	if (viewport == NULL) {
 		return;
 	}
+
+	struct wlr_surface_state *pending = &viewport->surface->pending;
+	pending->viewport.has_src = false;
+	pending->viewport.has_dst = false;
+	pending->committed |= WLR_SURFACE_STATE_VIEWPORT;
+
 	wl_resource_set_user_data(viewport->resource, NULL);
 	wl_list_remove(&viewport->surface_destroy.link);
 	wl_list_remove(&viewport->surface_commit.link);
