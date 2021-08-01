@@ -327,11 +327,6 @@ static void surface_state_move(struct wlr_surface_state *state,
 	if (next->committed & WLR_SURFACE_STATE_BUFFER_DAMAGE) {
 		pixman_region32_clear(&next->buffer_damage);
 	}
-	if (next->committed & WLR_SURFACE_STATE_FRAME_CALLBACK_LIST) {
-		wl_list_insert_list(&state->frame_callback_list,
-			&next->frame_callback_list);
-		wl_list_init(&next->frame_callback_list);
-	}
 
 	next->committed = 0;
 	next->cached_state_locks = 0;
@@ -499,6 +494,14 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 
 	if (surface->role && surface->role->precommit) {
 		surface->role->precommit(surface);
+	}
+
+	// It doesn't to make sense to cache callback lists, so we always move
+	// them to the current state.
+	if (surface->pending.committed & WLR_SURFACE_STATE_FRAME_CALLBACK_LIST) {
+		wl_list_insert_list(&surface->current.frame_callback_list,
+			&surface->pending.frame_callback_list);
+		wl_list_init(&surface->pending.frame_callback_list);
 	}
 
 	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
