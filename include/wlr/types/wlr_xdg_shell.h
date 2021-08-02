@@ -129,6 +129,8 @@ struct wlr_xdg_toplevel {
 	char *title;
 	char *app_id;
 
+	struct wl_listener surface_precommit;
+
 	struct {
 		struct wl_signal request_maximize;
 		struct wl_signal request_fullscreen;

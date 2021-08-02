@@ -171,19 +171,16 @@ void handle_xdg_surface_toplevel_committed(struct wlr_xdg_surface *surface) {
 		return;
 	}
 
-	// apply state from the last acked configure now that the client committed
-	surface->toplevel->current = surface->toplevel->last_acked;
-
-	// update state from the client that doesn't need compositor approval
-	surface->toplevel->current.max_width =
-		surface->toplevel->client_pending.max_width;
-	surface->toplevel->current.min_width =
-		surface->toplevel->client_pending.min_width;
-	surface->toplevel->current.max_height =
-		surface->toplevel->client_pending.max_height;
-	surface->toplevel->current.min_height =
-		surface->toplevel->client_pending.min_height;
+	struct wlr_surface_state_addon *addon;
+	wl_list_for_each(addon, &surface->surface->current.addons, link) {
+		if (addon->owner == surface->toplevel) {
+			struct wlr_xdg_toplevel_state *state = addon->state;
+			surface->toplevel->current = *state;
+			break;
+		}
+	}
 }
+
 
 static const struct xdg_toplevel_interface xdg_toplevel_implementation;
 
@@ -477,10 +474,44 @@ static const struct xdg_toplevel_interface xdg_toplevel_implementation = {
 	.set_minimized = xdg_toplevel_handle_set_minimized,
 };
 
+static void xdg_toplevel_finish_state(void *data) {
+	struct wlr_xdg_toplevel_state *state = data;
+	if (state->fullscreen_output) {
+		wl_list_remove(&state->fullscreen_output_destroy.link);
+	}
+}
+
 static void xdg_toplevel_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_surface *surface =
 		wlr_xdg_surface_from_toplevel_resource(resource);
 	destroy_xdg_toplevel(surface);
+}
+
+static void xdg_toplevel_handle_surface_precommit(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xdg_toplevel *toplevel =
+		wl_container_of(listener, toplevel, surface_precommit);
+	struct wlr_surface_state *pending = data;
+
+	struct wlr_surface_state_addon *addon = calloc(1, sizeof(*addon));
+	struct wlr_xdg_toplevel_state *state = calloc(1, sizeof(*state));
+	if (!addon || !state) {
+		free(addon);
+		free(state);
+		return;
+	}
+	*state = toplevel->last_acked;
+
+	// State from the client that doesn't need compositor approval
+	state->max_width = toplevel->client_pending.max_width;
+	state->min_width = toplevel->client_pending.min_width;
+	state->max_height = toplevel->client_pending.max_height;
+	state->min_height = toplevel->client_pending.min_height;
+
+	addon->owner = toplevel;
+	addon->state = state;
+	addon->finish_state = xdg_toplevel_finish_state;
+	wl_list_insert(&pending->addons, &addon->link);
 }
 
 const struct wlr_surface_role xdg_toplevel_surface_role = {
@@ -532,6 +563,11 @@ void create_xdg_toplevel(struct wlr_xdg_surface *xdg_surface,
 	wl_resource_set_implementation(xdg_surface->toplevel->resource,
 		&xdg_toplevel_implementation, xdg_surface,
 		xdg_toplevel_handle_resource_destroy);
+
+	wl_signal_add(&xdg_surface->surface->events.precommit,
+		&xdg_surface->toplevel->surface_precommit);
+	xdg_surface->toplevel->surface_precommit.notify =
+		xdg_toplevel_handle_surface_precommit;
 
 	xdg_surface->role = WLR_XDG_SURFACE_ROLE_TOPLEVEL;
 }

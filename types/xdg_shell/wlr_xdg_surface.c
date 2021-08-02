@@ -358,7 +358,7 @@ static void xdg_surface_handle_surface_precommit(struct wl_listener *listener,
 		free(state);
 		return;
 	}
-	memcpy(state, &surface->pending, sizeof(*state));
+	*state = surface->pending;
 	surface->pending.has_geometry = false;
 
 	addon->owner = surface;
@@ -524,6 +524,9 @@ void reset_xdg_surface(struct wlr_xdg_surface *xdg_surface) {
 				&xdg_surface->toplevel->client_pending;
 			wl_list_remove(&client_pending->fullscreen_output_destroy.link);
 		}
+
+		wl_list_remove(&xdg_surface->toplevel->surface_precommit.link);
+
 		free(xdg_surface->toplevel);
 		xdg_surface->toplevel = NULL;
 		break;
