@@ -677,6 +677,12 @@ static bool output_ensure_buffer(struct wlr_output *output) {
 		return true;
 	}
 
+	// If the backend doesn't necessarily need a new buffer on modeset, don't
+	// bother allocating one.
+	if (!output->impl->test || output->impl->test(output)) {
+		return true;
+	}
+
 	wlr_log(WLR_DEBUG, "Attaching empty buffer to output for modeset");
 
 	if (!output_attach_empty_buffer(output)) {
