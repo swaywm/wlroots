@@ -40,26 +40,32 @@ language.
 
 Install dependencies:
 
-* meson
-* wayland
-* wayland-protocols
-* EGL
-* GLESv2
-* libdrm
-* GBM
-* libinput
-* xkbcommon
-* udev
-* pixman
+* [meson]
+* [Wayland], for example:
+  * Both [libwayland] and [wayland-protocols]
+* [EGL] and [GLESv2], for example:
+  * *libEGL* and *libGLESv2*, as provided by:
+    * [mesa] alone
+    * or [libglvnd] combined with a vendor driver (perhaps [mesa] again)
+* [libdrm]
+* *libgbm*, for example:
+  * [mesa]
+  * or [minigbm]
+* [libinput]
+* [libxkbcommon]
+* *udev*, for example:
+  * [systemd]
+  * or [eudev]
+* [pixman]
 * [libseat]
 
 If you choose to enable X11 support:
 
-* xwayland (build-time only, optional at runtime)
-* libxcb
-* libxcb-render-util
-* libxcb-wm
-* libxcb-errors (optional, for improved error reporting)
+* [XWayland] (build-time only, optional at runtime)
+* [libxcb]
+* [libxcb-render-util]
+* [libxcb-wm]
+* [libxcb-errors] (optional, for improved error reporting)
 
 Run these commands:
 
@@ -78,6 +84,25 @@ See [CONTRIBUTING.md].
 [wiki]: https://github.com/swaywm/wlroots/wiki/Getting-started
 [#sway-devel on Libera Chat]: https://web.libera.chat/?channels=#sway-devel
 [Sway]: https://github.com/swaywm/sway
+[meson]: https://mesonbuild.com/
+[libwayland]: https://gitlab.freedesktop.org/wayland/wayland
+[wayland-protocols]: https://gitlab.freedesktop.org/wayland/wayland-protocols
+[EGL]: https://www.khronos.org/egl
+[GLESv2]: https://www.khronos.org/opengles/
+[libglvnd]: https://gitlab.freedesktop.org/glvnd/libglvnd
+[mesa]: https://gitlab.freedesktop.org/mesa/mesa
+[minigbm]: https://github.com/intel/minigbm
+[libdrm]: https://gitlab.freedesktop.org/mesa/drm
+[libinput]: https://gitlab.freedesktop.org/libinput/libinput
+[libxkbcommon]: https://github.com/xkbcommon/libxkbcommon
+[systemd]: https://github.com/systemd/systemd
+[eudev]: https://github.com/gentoo/eudev
 [wrapper libraries]: https://github.com/search?q=topic%3Abindings+org%3Aswaywm&type=Repositories
+[pixman]: http://www.pixman.org/
 [libseat]: https://git.sr.ht/~kennylevinsen/seatd
+[XWayland]: https://gitlab.freedesktop.org/xorg/xserver
+[libxcb]: https://gitlab.freedesktop.org/xorg/lib/libxcb
+[libxcb-wm]: https://gitlab.freedesktop.org/xorg/lib/libxcb-wm
+[libxcb-render-util]: https://gitlab.freedesktop.org/xorg/lib/libxcb-render-util
+[libxcb-errors]: https://gitlab.freedesktop.org/xorg/lib/libxcb-errors
 [CONTRIBUTING.md]: https://github.com/swaywm/wlroots/blob/master/CONTRIBUTING.md
