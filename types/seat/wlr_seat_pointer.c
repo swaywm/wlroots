@@ -230,18 +230,21 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 		return;
 	}
 
-	if (wlr_seat->pointer_state.sx == sx && wlr_seat->pointer_state.sy == sy) {
-		return;
-	}
+	// Ensure we don't send duplicate motion events. Instead of comparing with an
+	// epsilon, chop off some precision by converting to a `wl_fixed_t` first,
+	// since that is what a client receives.
+	wl_fixed_t sx_fixed = wl_fixed_from_double(sx);
+	wl_fixed_t sy_fixed = wl_fixed_from_double(sy);
+	if (wl_fixed_from_double(wlr_seat->pointer_state.sx) != sx_fixed ||
+			wl_fixed_from_double(wlr_seat->pointer_state.sy) != sy_fixed) {
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &client->pointers) {
+			if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
+				continue;
+			}
 
-	struct wl_resource *resource;
-	wl_resource_for_each(resource, &client->pointers) {
-		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
-			continue;
+			wl_pointer_send_motion(resource, time, sx_fixed, sy_fixed);
 		}
-
-		wl_pointer_send_motion(resource, time, wl_fixed_from_double(sx),
-			wl_fixed_from_double(sy));
 	}
 
 	wlr_seat_pointer_warp(wlr_seat, sx, sy);
