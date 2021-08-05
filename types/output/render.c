@@ -23,12 +23,6 @@ static bool output_create_swapchain(struct wlr_output *output,
 	int width, height;
 	output_pending_resolution(output, &width, &height);
 
-	if (output->swapchain != NULL && output->swapchain->width == width &&
-			output->swapchain->height == height &&
-			(allow_modifiers || output->swapchain->format->len == 0)) {
-		return true;
-	}
-
 	struct wlr_allocator *allocator = backend_get_allocator(output->backend);
 	if (allocator == NULL) {
 		wlr_log(WLR_ERROR, "Failed to get backend allocator");
@@ -45,12 +39,23 @@ static bool output_create_swapchain(struct wlr_output *output,
 		}
 	}
 
-	struct wlr_drm_format *format = output_pick_format(output, display_formats);
+	struct wlr_drm_format *format = output_pick_format(output, display_formats,
+		output->render_format_preference_order);
 	if (format == NULL) {
 		wlr_log(WLR_ERROR, "Failed to pick primary buffer format for output '%s'",
 			output->name);
 		return false;
 	}
+
+	if (output->swapchain != NULL && output->swapchain->width == width &&
+			output->swapchain->height == height &&
+			output->swapchain->format->format == format->format &&
+			(allow_modifiers || output->swapchain->format->len == 0)) {
+		// no change, keep existing swapchain
+		free(format);
+		return true;
+	}
+
 	wlr_log(WLR_DEBUG, "Choosing primary buffer format 0x%"PRIX32" for output '%s'",
 		format->format, output->name);
 
@@ -149,6 +154,9 @@ bool output_ensure_buffer(struct wlr_output *output) {
 	if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
 		needs_new_buffer = true;
 	}
+	if (output->pending.committed & WLR_OUTPUT_STATE_PREFERRED_FORMAT) {
+		needs_new_buffer = true;
+	}
 	if (!needs_new_buffer ||
 			(output->pending.committed & WLR_OUTPUT_STATE_BUFFER)) {
 		return true;
@@ -210,7 +218,8 @@ void wlr_output_lock_attach_render(struct wlr_output *output, bool lock) {
 }
 
 struct wlr_drm_format *output_pick_format(struct wlr_output *output,
-		const struct wlr_drm_format_set *display_formats) {
+		const struct wlr_drm_format_set *display_formats,
+		const uint32_t *candidates) {
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	struct wlr_allocator *allocator = backend_get_allocator(output->backend);
 	assert(renderer != NULL && allocator != NULL);
@@ -223,8 +232,7 @@ struct wlr_drm_format *output_pick_format(struct wlr_output *output,
 	}
 
 	struct wlr_drm_format *format = NULL;
-	const uint32_t candidates[] = { DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB8888 };
-	for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
+	for (size_t i = 0; i < candidates[i]; i++) {
 		uint32_t fmt = candidates[i];
 
 		const struct wlr_drm_format *render_format =

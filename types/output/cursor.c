@@ -208,7 +208,10 @@ static struct wlr_drm_format *output_pick_cursor_format(struct wlr_output *outpu
 		}
 	}
 
-	return output_pick_format(output, display_formats);
+	const uint32_t candidates[] = {
+		DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB8888, 0
+	};
+	return output_pick_format(output, display_formats, candidates);
 }
 
 static struct wlr_buffer *render_cursor_buffer(struct wlr_output_cursor *cursor) {
