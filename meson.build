@@ -137,7 +137,7 @@ foreach name, have : internal_features
 	)
 endforeach
 
-wlr_inc = include_directories('.', 'include')
+wlr_inc = include_directories('include')
 proto_inc = include_directories('protocol')
 
 symbols_file = 'wlroots.syms'
