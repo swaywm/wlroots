@@ -370,6 +370,13 @@ static void seat_client_send_keymap(struct wlr_seat_client *client,
 			continue;
 		}
 
+		if (keyboard->keymap == NULL) {
+			wl_keyboard_send_keymap(resource,
+				WL_KEYBOARD_KEYMAP_FORMAT_NO_KEYMAP, keymap_fd, 0);
+			close(keymap_fd);
+			continue;
+		}
+
 		void *ptr = mmap(NULL, keyboard->keymap_size, PROT_READ | PROT_WRITE,
 				MAP_SHARED, keymap_fd, 0);
 		if (ptr == MAP_FAILED) {
