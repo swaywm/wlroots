@@ -53,6 +53,7 @@ struct wlr_keyboard {
 
 	char *keymap_string;
 	size_t keymap_size;
+	int keymap_fd;
 	struct xkb_keymap *keymap;
 	struct xkb_state *xkb_state;
 	xkb_led_index_t led_indexes[WLR_LED_COUNT];
