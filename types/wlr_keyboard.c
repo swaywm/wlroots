@@ -1,12 +1,15 @@
-#include "util/array.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #include <wayland-server-core.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/util/log.h>
 #include "types/wlr_keyboard.h"
+#include "util/array.h"
+#include "util/shm.h"
 #include "util/signal.h"
 
 void keyboard_led_update(struct wlr_keyboard *keyboard) {
@@ -119,6 +122,8 @@ void wlr_keyboard_init(struct wlr_keyboard *kb,
 	wl_signal_init(&kb->events.repeat_info);
 	wl_signal_init(&kb->events.destroy);
 
+	kb->keymap_fd = -1;
+
 	// Sane defaults
 	kb->repeat_info.rate = 25;
 	kb->repeat_info.delay = 600;
@@ -132,6 +137,9 @@ void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 	xkb_state_unref(kb->xkb_state);
 	xkb_keymap_unref(kb->keymap);
 	free(kb->keymap_string);
+	if (kb->keymap_fd >= 0) {
+		close(kb->keymap_fd);
+	}
 	if (kb->impl && kb->impl->destroy) {
 		kb->impl->destroy(kb);
 	} else {
@@ -191,6 +199,30 @@ bool wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 	free(kb->keymap_string);
 	kb->keymap_string = tmp_keymap_string;
 	kb->keymap_size = strlen(kb->keymap_string) + 1;
+
+	int rw_fd = -1, ro_fd = -1;
+	if (!allocate_shm_file_pair(kb->keymap_size, &rw_fd, &ro_fd)) {
+		wlr_log(WLR_ERROR, "Failed to allocate shm file for keymap");
+		goto err;
+	}
+
+	void *dst = mmap(NULL, kb->keymap_size, PROT_READ | PROT_WRITE,
+		MAP_SHARED, rw_fd, 0);
+	if (dst == MAP_FAILED) {
+		wlr_log_errno(WLR_ERROR, "mmap failed");
+		close(rw_fd);
+		close(ro_fd);
+		goto err;
+	}
+
+	memcpy(dst, kb->keymap_string, kb->keymap_size);
+	munmap(dst, kb->keymap_size);
+	close(rw_fd);
+
+	if (kb->keymap_fd >= 0) {
+		close(kb->keymap_fd);
+	}
+	kb->keymap_fd = ro_fd;
 
 	for (size_t i = 0; i < kb->num_keycodes; ++i) {
 		xkb_keycode_t keycode = kb->keycodes[i] + 8;
