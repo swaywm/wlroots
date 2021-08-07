@@ -1,17 +1,13 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
 #include <time.h>
-#include <unistd.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
 #include "types/wlr_data_device.h"
 #include "types/wlr_seat.h"
-#include "util/shm.h"
 #include "util/signal.h"
 
 static void default_keyboard_enter(struct wlr_seat_keyboard_grab *grab,
@@ -364,35 +360,8 @@ static void seat_client_send_keymap(struct wlr_seat_client *client,
 			continue;
 		}
 
-		int keymap_fd = allocate_shm_file(keyboard->keymap_size);
-		if (keymap_fd < 0) {
-			wlr_log(WLR_ERROR, "creating a keymap file for %zu bytes failed", keyboard->keymap_size);
-			continue;
-		}
-
-		if (keyboard->keymap == NULL) {
-			wl_keyboard_send_keymap(resource,
-				WL_KEYBOARD_KEYMAP_FORMAT_NO_KEYMAP, keymap_fd, 0);
-			close(keymap_fd);
-			continue;
-		}
-
-		void *ptr = mmap(NULL, keyboard->keymap_size, PROT_READ | PROT_WRITE,
-				MAP_SHARED, keymap_fd, 0);
-		if (ptr == MAP_FAILED) {
-			wlr_log(WLR_ERROR, "failed to mmap() %zu bytes", keyboard->keymap_size);
-			close(keymap_fd);
-			continue;
-		}
-
-		strcpy(ptr, keyboard->keymap_string);
-		munmap(ptr, keyboard->keymap_size);
-
-		wl_keyboard_send_keymap(resource,
-			WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1, keymap_fd,
-			keyboard->keymap_size);
-
-		close(keymap_fd);
+		wl_keyboard_send_keymap(resource, WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
+			keyboard->keymap_fd, keyboard->keymap_size);
 	}
 }
 
