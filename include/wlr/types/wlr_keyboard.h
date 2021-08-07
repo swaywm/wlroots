@@ -51,7 +51,8 @@ struct wlr_keyboard {
 	const struct wlr_keyboard_impl *impl;
 	struct wlr_keyboard_group *group;
 
-	char *keymap_string;
+	enum xkb_keymap_format keymap_format;
+	char *keymap_data;
 	size_t keymap_size;
 	int keymap_fd;
 	struct xkb_keymap *keymap;
