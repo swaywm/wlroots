@@ -31,7 +31,6 @@ static void scene_node_state_finish(struct wlr_scene_node_state *state) {
 static void scene_node_init(struct wlr_scene_node *node,
 		enum wlr_scene_node_type type, struct wlr_scene_node *parent) {
 	assert(type == WLR_SCENE_NODE_ROOT || parent != NULL);
-	assert(parent == NULL || parent->type == WLR_SCENE_NODE_ROOT);
 
 	node->type = type;
 	node->parent = parent;
