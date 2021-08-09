@@ -376,6 +376,8 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		output->software_cursor_locks = 1;
 	}
 
+	wlr_addon_set_init(&output->addons);
+
 	output->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &output->display_destroy);
 }
@@ -395,6 +397,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 	output_clear_back_buffer(output);
 
 	wlr_signal_emit_safe(&output->events.destroy, output);
+	wlr_addon_set_finish(&output->addons);
 
 	// The backend is responsible for free-ing the list of modes
 

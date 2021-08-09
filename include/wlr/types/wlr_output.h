@@ -16,6 +16,7 @@
 #include <wayland-util.h>
 #include <wlr/render/dmabuf.h>
 #include <wlr/types/wlr_buffer.h>
+#include <wlr/util/addon.h>
 
 struct wlr_output_mode {
 	int32_t width, height;
@@ -183,6 +184,8 @@ struct wlr_output {
 	struct wlr_buffer *back_buffer, *front_buffer;
 
 	struct wl_listener display_destroy;
+
+	struct wlr_addon_set addons;
 
 	void *data;
 };
