@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <wayland-util.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/util/addon.h>
 
 struct wlr_box;
 struct wlr_output_layout_state;
@@ -45,6 +46,7 @@ struct wlr_output_layout_output {
 	struct wl_list link;
 	struct wlr_output_layout_output_state *state;
 
+	struct wlr_addon addon;
 	struct {
 		struct wl_signal destroy;
 	} events;

@@ -21,8 +21,9 @@ struct wlr_output_layout_output_state {
 
 	struct wl_listener mode;
 	struct wl_listener commit;
-	struct wl_listener output_destroy;
 };
+
+static const struct wlr_addon_interface addon_impl;
 
 struct wlr_output_layout *wlr_output_layout_create(void) {
 	struct wlr_output_layout *layout =
@@ -50,8 +51,8 @@ static void output_layout_output_destroy(
 	wlr_output_destroy_global(l_output->output);
 	wl_list_remove(&l_output->state->mode.link);
 	wl_list_remove(&l_output->state->commit.link);
-	wl_list_remove(&l_output->state->output_destroy.link);
 	wl_list_remove(&l_output->link);
+	wlr_addon_finish(&l_output->addon);
 	free(l_output->state);
 	free(l_output);
 }
@@ -154,13 +155,19 @@ static void handle_output_commit(struct wl_listener *listener, void *data) {
 	}
 }
 
-static void handle_output_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_output_layout_output_state *state =
-		wl_container_of(listener, state, output_destroy);
-	struct wlr_output_layout *layout = state->layout;
-	output_layout_output_destroy(state->l_output);
+static void addon_destroy(struct wlr_addon *addon) {
+	assert(addon->impl == &addon_impl);
+	struct wlr_output_layout_output *l_output =
+		wl_container_of(addon, l_output, addon);
+	struct wlr_output_layout *layout = l_output->state->layout;
+	output_layout_output_destroy(l_output);
 	output_layout_reconfigure(layout);
 }
+
+static const struct wlr_addon_interface addon_impl = {
+	.name = "wlr_output_layout_output",
+	.destroy = addon_destroy,
+};
 
 static struct wlr_output_layout_output *output_layout_output_create(
 		struct wlr_output_layout *layout, struct wlr_output *output) {
@@ -184,8 +191,8 @@ static struct wlr_output_layout_output *output_layout_output_create(
 	l_output->state->mode.notify = handle_output_mode;
 	wl_signal_add(&output->events.commit, &l_output->state->commit);
 	l_output->state->commit.notify = handle_output_commit;
-	wl_signal_add(&output->events.destroy, &l_output->state->output_destroy);
-	l_output->state->output_destroy.notify = handle_output_destroy;
+
+	wlr_addon_init(&l_output->addon, &output->addons, layout, &addon_impl);
 
 	return l_output;
 }
@@ -216,13 +223,13 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 
 struct wlr_output_layout_output *wlr_output_layout_get(
 		struct wlr_output_layout *layout, struct wlr_output *reference) {
-	struct wlr_output_layout_output *l_output;
-	wl_list_for_each(l_output, &layout->outputs, link) {
-		if (l_output->output == reference) {
-			return l_output;
-		}
+	struct wlr_output_layout_output *l_output = NULL;
+	struct wlr_addon *addon =
+		wlr_addon_find_by_owner(&reference->addons, layout);
+	if (addon) {
+		l_output = wl_container_of(addon, l_output, addon);
 	}
-	return NULL;
+	return l_output;
 }
 
 bool wlr_output_layout_contains_point(struct wlr_output_layout *layout,
