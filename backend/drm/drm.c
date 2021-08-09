@@ -424,6 +424,11 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn,
 		if (crtc->cursor != NULL) {
 			drm_fb_move(&crtc->cursor->queued_fb, &crtc->cursor->pending_fb);
 		}
+
+		struct wlr_drm_layer *layer;
+		wl_list_for_each(layer, &state->base->layers, base.pending.link) {
+			drm_fb_move(&layer->queued_fb, &layer->pending_fb);
+		}
 	} else {
 		drm_fb_clear(&crtc->primary->pending_fb);
 		// The set_cursor() hook is a bit special: it's not really synchronized
@@ -432,6 +437,11 @@ static bool drm_crtc_commit(struct wlr_drm_connector *conn,
 		// risk ending up in a state where we don't have a cursor FB but
 		// wlr_drm_connector.cursor_enabled is true.
 		// TODO: fix our output interface to avoid this issue.
+
+		struct wlr_drm_layer *layer;
+		wl_list_for_each(layer, &state->base->layers, base.pending.link) {
+			drm_fb_clear(&layer->pending_fb);
+		}
 	}
 	return ok;
 }
@@ -543,6 +553,23 @@ static bool drm_connector_set_pending_fb(struct wlr_drm_connector *conn,
 	return true;
 }
 
+static void drm_connector_set_pending_layer_fbs(struct wlr_drm_connector *conn,
+		const struct wlr_output_state *state) {
+	struct wlr_drm_backend *drm = conn->backend;
+
+	struct wlr_drm_layer *layer;
+	wl_list_for_each(layer, &state->layers, base.pending.link) {
+		if (!(layer->base.pending.committed & WLR_OUTPUT_LAYER_STATE_BUFFER)) {
+			continue;
+		}
+		struct wlr_buffer *buffer = layer->base.pending.buffer;
+		drm_fb_clear(&layer->pending_fb);
+		if (!drm_fb_import(&layer->pending_fb, drm, buffer, NULL)) {
+			wlr_drm_conn_log(conn, WLR_DEBUG, "Failed to import layer buffer");
+		}
+	}
+}
+
 static bool drm_connector_alloc_crtc(struct wlr_drm_connector *conn);
 
 static bool drm_connector_test(struct wlr_output *output) {
@@ -600,6 +627,8 @@ static bool drm_connector_test(struct wlr_output *output) {
 		return true;
 	}
 
+	drm_connector_set_pending_layer_fbs(conn, pending.base);
+
 	if (pending.base->committed & WLR_OUTPUT_STATE_BUFFER) {
 		if (!drm_connector_set_pending_fb(conn, pending.base)) {
 			return false;
@@ -656,6 +685,8 @@ bool drm_connector_commit_state(struct wlr_drm_connector *conn,
 			return false;
 		}
 	}
+
+	drm_connector_set_pending_layer_fbs(conn, pending.base);
 
 	if (pending.base->committed & WLR_OUTPUT_STATE_BUFFER) {
 		if (!drm_connector_set_pending_fb(conn, pending.base)) {
@@ -1105,6 +1136,25 @@ static const struct wlr_drm_format_set *drm_connector_get_primary_formats(
 	return &conn->crtc->primary->formats;
 }
 
+static struct wlr_output_layer *drm_connector_create_layer(
+		struct wlr_output *wlr_output) {
+	struct wlr_drm_layer *layer = calloc(1, sizeof(*layer));
+	if (layer == NULL) {
+		return NULL;
+	}
+	wlr_output_layer_init(&layer->base, wlr_output);
+	return &layer->base;
+}
+
+static void drm_connector_destroy_layer(struct wlr_output_layer *wlr_layer) {
+	struct wlr_drm_layer *layer = (struct wlr_drm_layer *)wlr_layer;
+	drm_fb_clear(&layer->pending_fb);
+	drm_fb_clear(&layer->queued_fb);
+	drm_fb_clear(&layer->current_fb);
+	liftoff_layer_destroy(layer->liftoff);
+	free(layer);
+}
+
 static const struct wlr_output_impl output_impl = {
 	.set_cursor = drm_connector_set_cursor,
 	.move_cursor = drm_connector_move_cursor,
@@ -1115,6 +1165,8 @@ static const struct wlr_output_impl output_impl = {
 	.get_cursor_formats = drm_connector_get_cursor_formats,
 	.get_cursor_size = drm_connector_get_cursor_size,
 	.get_primary_formats = drm_connector_get_primary_formats,
+	.create_layer = drm_connector_create_layer,
+	.destroy_layer = drm_connector_destroy_layer,
 };
 
 bool wlr_output_is_drm(struct wlr_output *output) {
@@ -1570,6 +1622,11 @@ static void handle_page_flip(int fd, unsigned seq,
 	if (conn->crtc->cursor && conn->crtc->cursor->queued_fb) {
 		drm_fb_move(&conn->crtc->cursor->current_fb,
 			&conn->crtc->cursor->queued_fb);
+	}
+
+	struct wlr_drm_layer *layer;
+	wl_list_for_each(layer, &conn->output.layers, base.current.link) {
+		drm_fb_move(&layer->current_fb, &layer->queued_fb);
 	}
 
 	uint32_t present_flags = WLR_OUTPUT_PRESENT_VSYNC |

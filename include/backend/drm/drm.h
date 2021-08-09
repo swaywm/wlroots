@@ -11,6 +11,7 @@
 #include <wlr/backend/drm.h>
 #include <wlr/backend/session.h>
 #include <wlr/render/drm_format_set.h>
+#include <wlr/types/wlr_output_layer.h>
 #include <xf86drmMode.h>
 #include "backend/drm/iface.h"
 #include "backend/drm/properties.h"
@@ -36,6 +37,18 @@ struct wlr_drm_plane {
 
 	// TODO: shouldn't be part of wlr_drm_plane
 	struct liftoff_layer *liftoff_layer;
+};
+
+struct wlr_drm_layer {
+	struct wlr_output_layer base;
+	struct liftoff_layer *liftoff;
+
+	/* Buffer to be submitted to the kernel on the next page-flip */
+	struct wlr_drm_fb *pending_fb;
+	/* Buffer submitted to the kernel, will be presented on next vblank */
+	struct wlr_drm_fb *queued_fb;
+	/* Buffer currently displayed on screen */
+	struct wlr_drm_fb *current_fb;
 };
 
 struct wlr_drm_crtc {
