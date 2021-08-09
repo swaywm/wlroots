@@ -33,6 +33,9 @@ struct wlr_drm_plane {
 	struct wlr_drm_format_set formats;
 
 	union wlr_drm_plane_props props;
+
+	// TODO: shouldn't be part of wlr_drm_plane
+	struct liftoff_layer *liftoff_layer;
 };
 
 struct wlr_drm_crtc {
@@ -49,6 +52,8 @@ struct wlr_drm_crtc {
 	struct wlr_drm_plane *cursor;
 
 	union wlr_drm_crtc_props props;
+
+	struct liftoff_output *liftoff;
 };
 
 struct wlr_drm_backend {
@@ -84,6 +89,7 @@ struct wlr_drm_backend {
 	struct wlr_drm_renderer mgpu_renderer;
 
 	struct wlr_session *session;
+	struct liftoff_device *liftoff;
 
 	uint64_t cursor_width, cursor_height;
 

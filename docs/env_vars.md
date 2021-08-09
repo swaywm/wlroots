@@ -21,6 +21,8 @@ wlroots reads these environment variables
   mode setting
 * *WLR_DRM_NO_MODIFIERS*: set to 1 to always allocate planes without modifiers,
   this can fix certain modeset failures because of bandwidth restrictions.
+* *WLR_DRM_FORCE_LIBLIFTOFF*: set to 1 to force libliftoff (by default,
+  libliftoff is never used)
 
 ## Headless backend
 

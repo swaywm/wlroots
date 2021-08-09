@@ -3,14 +3,17 @@
 #include <drm_fourcc.h>
 #include <drm_mode.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <gbm.h>
 #include <inttypes.h>
+#include <libliftoff.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <time.h>
+#include <unistd.h>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 #include <wlr/backend/interface.h>
@@ -72,8 +75,17 @@ bool check_drm_features(struct wlr_drm_backend *drm) {
 		return false;
 	}
 
+	const char *force_libliftoff = getenv("WLR_DRM_FORCE_LIBLIFTOFF");
 	const char *no_atomic = getenv("WLR_DRM_NO_ATOMIC");
-	if (no_atomic && strcmp(no_atomic, "1") == 0) {
+	if (force_libliftoff && strcmp(force_libliftoff, "1") == 0) {
+		wlr_log(WLR_DEBUG,
+			"WLR_FORCE_LIBLIFTOFF set, forcing libliftoff interface");
+		if (drmSetClientCap(drm->fd, DRM_CLIENT_CAP_ATOMIC, 1) != 0) {
+			wlr_log_errno(WLR_ERROR, "drmSetClientCap(ATOMIC) failed");
+			return false;
+		}
+		drm->iface = &libliftoff_iface;
+	} else if (no_atomic && strcmp(no_atomic, "1") == 0) {
 		wlr_log(WLR_DEBUG,
 			"WLR_DRM_NO_ATOMIC set, forcing legacy DRM interface");
 		drm->iface = &legacy_iface;
@@ -250,6 +262,57 @@ error:
 	return false;
 }
 
+static bool init_libliftoff(struct wlr_drm_backend *drm) {
+	// TODO: lower log level
+	liftoff_log_set_priority(LIFTOFF_DEBUG);
+
+	int drm_fd = fcntl(drm->fd, F_DUPFD_CLOEXEC, 0);
+	if (drm_fd < 0) {
+		wlr_log_errno(WLR_ERROR, "fcntl(F_DUPFD_CLOEXEC) failed");
+		return false;
+	}
+
+	drm->liftoff = liftoff_device_create(drm_fd);
+	if (!drm->liftoff) {
+		wlr_log(WLR_ERROR, "Failed to create liftoff device");
+		close(drm_fd);
+		return false;
+	}
+
+	if (liftoff_device_register_all_planes(drm->liftoff) != 0) {
+		wlr_log(WLR_ERROR, "Failed to register liftoff planes");
+		return false;
+	}
+
+	for (size_t i = 0; i < drm->num_crtcs; i++) {
+		struct wlr_drm_crtc *crtc = &drm->crtcs[i];
+
+		crtc->liftoff = liftoff_output_create(drm->liftoff, crtc->id);
+		if (!crtc->liftoff) {
+			wlr_log(WLR_ERROR, "Failed to create liftoff output");
+			return false;
+		}
+
+		if (crtc->primary) {
+			crtc->primary->liftoff_layer = liftoff_layer_create(crtc->liftoff);
+			if (!crtc->primary->liftoff_layer) {
+				wlr_log(WLR_ERROR, "Failed to create liftoff layer for primary plane");
+				return false;
+			}
+		}
+
+		if (crtc->cursor) {
+			crtc->cursor->liftoff_layer = liftoff_layer_create(crtc->liftoff);
+			if (!crtc->cursor->liftoff_layer) {
+				wlr_log(WLR_ERROR, "Failed to create liftoff layer for cursor plane");
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 bool init_drm_resources(struct wlr_drm_backend *drm) {
 	drmModeRes *res = drmModeGetResources(drm->fd);
 	if (!res) {
@@ -284,6 +347,10 @@ bool init_drm_resources(struct wlr_drm_backend *drm) {
 
 	drmModeFreeResources(res);
 
+	if (drm->iface == &libliftoff_iface && !init_libliftoff(drm)) {
+		goto error_crtcs;
+	}
+
 	return true;
 
 error_crtcs:
@@ -311,15 +378,20 @@ void finish_drm_resources(struct wlr_drm_backend *drm) {
 		}
 
 		if (crtc->primary) {
+			liftoff_layer_destroy(crtc->primary->liftoff_layer);
 			wlr_drm_format_set_finish(&crtc->primary->formats);
 			free(crtc->primary);
 		}
 		if (crtc->cursor) {
+			liftoff_layer_destroy(crtc->cursor->liftoff_layer);
 			wlr_drm_format_set_finish(&crtc->cursor->formats);
 			free(crtc->cursor);
 		}
+
+		liftoff_output_destroy(crtc->liftoff);
 	}
 
+	liftoff_device_destroy(drm->liftoff);
 	free(drm->crtcs);
 }
 
