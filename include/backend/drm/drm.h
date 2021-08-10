@@ -90,7 +90,7 @@ struct wlr_drm_backend {
 	struct wlr_drm_format_set mgpu_formats;
 };
 
-enum wlr_drm_connector_state {
+enum wlr_drm_connector_status {
 	// Connector is available but no output is plugged in
 	WLR_DRM_CONN_DISCONNECTED,
 	// An output just has been plugged in and is waiting for a modeset
@@ -105,11 +105,11 @@ struct wlr_drm_mode {
 };
 
 struct wlr_drm_connector {
-	struct wlr_output output; // only valid if state != DISCONNECTED
+	struct wlr_output output; // only valid if status != DISCONNECTED
 
 	struct wlr_drm_backend *backend;
 	char name[24];
-	enum wlr_drm_connector_state state;
+	enum wlr_drm_connector_status status;
 	struct wlr_output_mode *desired_mode;
 	bool desired_enabled;
 	uint32_t id;
