@@ -159,6 +159,41 @@ void wlr_scene_node_for_each_surface(struct wlr_scene_node *node,
 	scene_node_for_each_surface(node, 0, 0, user_iterator, user_data);
 }
 
+struct wlr_surface *wlr_scene_node_surface_at(struct wlr_scene_node *node,
+		double lx, double ly, double *sx, double *sy) {
+	if (!node->state.enabled) {
+		return NULL;
+	}
+
+	// TODO: optimize by storing a bounding box in each node?
+	lx -= node->state.x;
+	ly -= node->state.y;
+
+	struct wlr_scene_node *child;
+	wl_list_for_each_reverse(child, &node->state.children, state.link) {
+		struct wlr_surface *surface =
+			wlr_scene_node_surface_at(child, lx, ly, sx, sy);
+		if (surface != NULL) {
+			return surface;
+		}
+	}
+
+	if (node->type == WLR_SCENE_NODE_SURFACE) {
+		struct wlr_scene_surface *scene_surface = scene_surface_from_node(node);
+		if (wlr_surface_point_accepts_input(scene_surface->surface, lx, ly)) {
+			if (sx != NULL) {
+				*sx = lx;
+			}
+			if (sy != NULL) {
+				*sy = ly;
+			}
+			return scene_surface->surface;
+		}
+	}
+
+	return NULL;
+}
+
 static int scale_length(int length, int offset, float scale) {
 	return round((offset + length) * scale) - round(offset * scale);
 }

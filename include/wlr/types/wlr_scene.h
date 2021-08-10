@@ -97,6 +97,13 @@ void wlr_scene_node_place_below(struct wlr_scene_node *node,
  */
 void wlr_scene_node_for_each_surface(struct wlr_scene_node *node,
 	wlr_surface_iterator_func_t iterator, void *user_data);
+/**
+ * Find a surface in this scene-graph that accepts input events at the given
+ * layout-local coordinates. Returns the surface and coordinates relative to
+ * the returned surface, or NULL if no surface is found at that location.
+ */
+struct wlr_surface *wlr_scene_node_surface_at(struct wlr_scene_node *node,
+	double lx, double ly, double *sx, double *sy);
 
 /**
  * Create a new scene-graph.
