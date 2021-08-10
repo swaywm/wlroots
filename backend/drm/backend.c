@@ -227,7 +227,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	drm->gbm = gbm_create_device(drm->fd);
 	if (!drm->gbm) {
 		wlr_log(WLR_ERROR, "Failed to create GBM device");
-		goto error_event;
+		goto error_resources;
 	}
 
 	if (drm->parent) {
@@ -237,7 +237,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 		if (!init_drm_renderer(drm, &drm->mgpu_renderer)) {
 			wlr_log(WLR_ERROR, "Failed to initialize renderer");
-			goto error_event;
+			goto error_resources;
 		}
 
 		// We'll perform a multi-GPU copy for all submitted buffers, we need
@@ -247,7 +247,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 			wlr_renderer_get_dmabuf_texture_formats(renderer);
 		if (texture_formats == NULL) {
 			wlr_log(WLR_ERROR, "Failed to query renderer texture formats");
-			goto error_event;
+			goto error_mgpu_renderer;
 		}
 
 		// Force a linear layout. In case explicit modifiers aren't supported,
@@ -265,7 +265,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(&drm->backend);
 	struct wlr_allocator *allocator = backend_get_allocator(&drm->backend);
 	if (renderer == NULL || allocator == NULL) {
-		goto error_event;
+		goto error_mgpu_renderer;
 	}
 
 	drm->session_destroy.notify = handle_session_destroy;
@@ -276,10 +276,17 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 	return &drm->backend;
 
+error_mgpu_renderer:
+	finish_drm_renderer(&drm->mgpu_renderer);
+error_resources:
+	finish_drm_resources(drm);
 error_event:
 	wl_list_remove(&drm->session_active.link);
 	wl_event_source_remove(drm->drm_event);
 error_fd:
+	wl_list_remove(&drm->dev_remove.link);
+	wl_list_remove(&drm->dev_change.link);
+	wl_list_remove(&drm->parent_destroy.link);
 	wlr_session_close_file(drm->session, dev);
 	free(drm);
 	return NULL;
