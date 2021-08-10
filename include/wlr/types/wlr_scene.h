@@ -48,6 +48,8 @@ struct wlr_scene_node {
 	struct {
 		struct wl_signal destroy;
 	} events;
+
+	void *data;
 };
 
 /** The root scene-graph node. */
