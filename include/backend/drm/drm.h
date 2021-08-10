@@ -54,6 +54,7 @@ struct wlr_drm_crtc {
 	union wlr_drm_crtc_props props;
 
 	struct liftoff_output *liftoff;
+	struct liftoff_layer *liftoff_composition_layer;
 };
 
 struct wlr_drm_backend {

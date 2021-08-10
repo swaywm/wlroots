@@ -49,8 +49,8 @@ static void rollback_blob(struct wlr_drm_backend *drm,
 	}
 }
 
-static bool set_plane_props(struct wlr_drm_plane *plane, int32_t x, int32_t y,
-		uint64_t zpos) {
+static bool set_plane_props(struct wlr_drm_plane *plane,
+		struct liftoff_layer *layer, int32_t x, int32_t y, uint64_t zpos) {
 	struct wlr_drm_fb *fb = plane_get_next_fb(plane);
 	if (fb == NULL) {
 		wlr_log(WLR_ERROR, "Failed to acquire FB");
@@ -60,7 +60,6 @@ static bool set_plane_props(struct wlr_drm_plane *plane, int32_t x, int32_t y,
 	uint32_t width = gbm_bo_get_width(fb->bo);
 	uint32_t height = gbm_bo_get_height(fb->bo);
 
-	struct liftoff_layer *layer = plane->liftoff_layer;
 	return liftoff_layer_set_property(layer, "zpos", zpos) == 0 &&
 		liftoff_layer_set_property(layer, "SRC_X", 0) == 0 &&
 		liftoff_layer_set_property(layer, "SRC_Y", 0) == 0 &&
@@ -111,10 +110,13 @@ static bool liftoff_crtc_commit(struct wlr_drm_connector *conn,
 		add_prop(req, crtc->id, crtc->props.active, state->active);
 
 	if (state->active) {
-		ok = ok && set_plane_props(crtc->primary, 0, 0, 0);
+		ok = ok &&
+			set_plane_props(crtc->primary, crtc->primary->liftoff_layer, 0, 0, 0) &&
+			set_plane_props(crtc->primary, crtc->liftoff_composition_layer, 0, 0, 0);
 		if (crtc->cursor) {
 			if (drm_connector_is_cursor_visible(conn)) {
 				ok = ok && set_plane_props(crtc->cursor,
+					crtc->cursor->liftoff_layer,
 					conn->cursor_x, conn->cursor_y, 1);
 			} else {
 				ok = ok && disable_plane(crtc->cursor);
@@ -139,11 +141,6 @@ static bool liftoff_crtc_commit(struct wlr_drm_connector *conn,
 		goto out;
 	}
 
-	if (liftoff_layer_needs_composition(crtc->primary->liftoff_layer)) {
-		wlr_drm_conn_log(conn, WLR_DEBUG, "Failed to scan-out primary plane");
-		ok = false;
-		goto out;
-	}
 	if (crtc->cursor &&
 			liftoff_layer_needs_composition(crtc->cursor->liftoff_layer)) {
 		wlr_drm_conn_log(conn, WLR_DEBUG, "Failed to scan-out cursor plane");

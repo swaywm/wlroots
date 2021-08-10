@@ -293,6 +293,14 @@ static bool init_libliftoff(struct wlr_drm_backend *drm) {
 			return false;
 		}
 
+		crtc->liftoff_composition_layer = liftoff_layer_create(crtc->liftoff);
+		if (!crtc->liftoff_composition_layer) {
+			wlr_log(WLR_ERROR, "Failed to create liftoff composition layer");
+			return false;
+		}
+		liftoff_output_set_composition_layer(crtc->liftoff,
+			crtc->liftoff_composition_layer);
+
 		if (crtc->primary) {
 			crtc->primary->liftoff_layer = liftoff_layer_create(crtc->liftoff);
 			if (!crtc->primary->liftoff_layer) {
@@ -388,6 +396,7 @@ void finish_drm_resources(struct wlr_drm_backend *drm) {
 			free(crtc->cursor);
 		}
 
+		liftoff_layer_destroy(crtc->liftoff_composition_layer);
 		liftoff_output_destroy(crtc->liftoff);
 	}
 
