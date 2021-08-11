@@ -259,7 +259,10 @@ static void surface_update_damage(pixman_region32_t *buffer_damage,
 	}
 }
 
-static void surface_state_copy(struct wlr_surface_state *state,
+/**
+ * Append pending state to current state and clear pending state.
+ */
+static void surface_state_move(struct wlr_surface_state *state,
 		struct wlr_surface_state *next) {
 	state->width = next->width;
 	state->height = next->height;
@@ -275,16 +278,29 @@ static void surface_state_copy(struct wlr_surface_state *state,
 	if (next->committed & WLR_SURFACE_STATE_BUFFER) {
 		state->dx = next->dx;
 		state->dy = next->dy;
+		next->dx = next->dy = 0;
+
+		surface_state_set_buffer(state, next->buffer_resource);
+		surface_state_reset_buffer(next);
+
+		if (next->buffer) {
+			wlr_buffer_unlock(state->buffer);
+			state->buffer = wlr_buffer_lock(next->buffer);
+		}
+		wlr_buffer_unlock(next->buffer);
+		next->buffer = NULL;
 	} else {
 		state->dx = state->dy = 0;
 	}
 	if (next->committed & WLR_SURFACE_STATE_SURFACE_DAMAGE) {
 		pixman_region32_copy(&state->surface_damage, &next->surface_damage);
+		pixman_region32_clear(&next->surface_damage);
 	} else {
 		pixman_region32_clear(&state->surface_damage);
 	}
 	if (next->committed & WLR_SURFACE_STATE_BUFFER_DAMAGE) {
 		pixman_region32_copy(&state->buffer_damage, &next->buffer_damage);
+		pixman_region32_clear(&next->buffer_damage);
 	} else {
 		pixman_region32_clear(&state->buffer_damage);
 	}
@@ -299,36 +315,11 @@ static void surface_state_copy(struct wlr_surface_state *state,
 	}
 
 	state->committed |= next->committed;
-	state->seq = next->seq;
-	state->cached_state_locks = next->cached_state_locks;
-}
-
-/**
- * Append pending state to current state and clear pending state.
- */
-static void surface_state_move(struct wlr_surface_state *state,
-		struct wlr_surface_state *next) {
-	surface_state_copy(state, next);
-
-	if (next->committed & WLR_SURFACE_STATE_BUFFER) {
-		if (next->buffer) {
-			wlr_buffer_unlock(state->buffer);
-			state->buffer = wlr_buffer_lock(next->buffer);
-		}
-		surface_state_set_buffer(state, next->buffer_resource);
-		surface_state_reset_buffer(next);
-		next->dx = next->dy = 0;
-		wlr_buffer_unlock(next->buffer);
-		next->buffer = NULL;
-	}
-	if (next->committed & WLR_SURFACE_STATE_SURFACE_DAMAGE) {
-		pixman_region32_clear(&next->surface_damage);
-	}
-	if (next->committed & WLR_SURFACE_STATE_BUFFER_DAMAGE) {
-		pixman_region32_clear(&next->buffer_damage);
-	}
-
 	next->committed = 0;
+
+	state->seq = next->seq;
+
+	state->cached_state_locks = next->cached_state_locks;
 	next->cached_state_locks = 0;
 }
 
