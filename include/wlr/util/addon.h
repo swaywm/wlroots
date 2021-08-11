@@ -37,7 +37,7 @@ void wlr_addon_init(struct wlr_addon *addon, struct wlr_addon_set *set,
 		const void *owner, const struct wlr_addon_interface *impl);
 void wlr_addon_finish(struct wlr_addon *addon);
 
-struct wlr_addon *wlr_addon_find_by_owner(struct wlr_addon_set *set,
-		const void *owner);
+struct wlr_addon *wlr_addon_find(struct wlr_addon_set *set, const void *owner,
+		const struct wlr_addon_interface *impl);
 
 #endif

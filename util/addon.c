@@ -18,11 +18,11 @@ void wlr_addon_set_finish(struct wlr_addon_set *set) {
 
 void wlr_addon_init(struct wlr_addon *addon, struct wlr_addon_set *set,
 		const void *owner, const struct wlr_addon_interface *impl) {
-	assert(owner);
+	assert(owner && impl);
 	struct wlr_addon *iter;
 	wl_list_for_each(iter, &set->addons, link) {
-		if (iter->owner == addon->owner) {
-			assert(0 && "Can't have two addons with the same owner");
+		if (iter->owner == addon->owner && iter->impl == addon->impl) {
+			assert(0 && "Can't have two addons of the same type with the same owner");
 		}
 	}
 	wl_list_insert(&set->addons, &addon->link);
@@ -31,17 +31,15 @@ void wlr_addon_init(struct wlr_addon *addon, struct wlr_addon_set *set,
 }
 
 void wlr_addon_finish(struct wlr_addon *addon) {
-	if (addon->owner) {
-		addon->owner = NULL;
-		wl_list_remove(&addon->link);
-	}
+	wl_list_remove(&addon->link);
+	wl_list_init(&addon->link);
 }
 
-struct wlr_addon *wlr_addon_find_by_owner(struct wlr_addon_set *set,
-		const void *owner) {
+struct wlr_addon *wlr_addon_find(struct wlr_addon_set *set, const void *owner,
+		const struct wlr_addon_interface *impl) {
 	struct wlr_addon *addon;
 	wl_list_for_each(addon, &set->addons, link) {
-		if (addon->owner == owner) {
+		if (addon->owner == owner && addon->impl == impl) {
 			return addon;
 		}
 	}
