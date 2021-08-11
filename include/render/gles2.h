@@ -108,8 +108,7 @@ struct wlr_gles2_texture {
 	uint32_t drm_format; // used to interpret upload data
 	// If imported from a wlr_buffer
 	struct wlr_buffer *buffer;
-
-	struct wl_listener buffer_destroy;
+	struct wlr_addon buffer_addon;
 };
 
 
