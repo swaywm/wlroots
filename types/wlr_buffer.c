@@ -272,41 +272,36 @@ struct wlr_client_buffer *wlr_client_buffer_create(struct wlr_buffer *buffer,
 }
 
 struct wlr_client_buffer *wlr_client_buffer_apply_damage(
-		struct wlr_client_buffer *client_buffer, struct wl_resource *resource,
+		struct wlr_client_buffer *client_buffer, struct wlr_buffer *next,
 		pixman_region32_t *damage) {
-	assert(wlr_resource_is_buffer(resource));
-
 	if (client_buffer->base.n_locks > 1) {
 		// Someone else still has a reference to the buffer
 		return NULL;
 	}
 
-	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
-	if (shm_buf == NULL ||
-			client_buffer->shm_source_format == DRM_FORMAT_INVALID) {
+	if ((uint32_t)next->width != client_buffer->texture->width ||
+			(uint32_t)next->height != client_buffer->texture->height) {
+		return NULL;
+	}
+
+	if (client_buffer->shm_source_format == DRM_FORMAT_INVALID) {
 		// Uploading only damaged regions only works for wl_shm buffers and
 		// mutable textures (created from wl_shm buffer)
 		return NULL;
 	}
 
-	enum wl_shm_format new_shm_fmt = wl_shm_buffer_get_format(shm_buf);
-	if (convert_wl_shm_format_to_drm(new_shm_fmt) !=
-			client_buffer->shm_source_format) {
+	void *data;
+	uint32_t format;
+	size_t stride;
+	if (!buffer_begin_data_ptr_access(next, &data, &format, &stride)) {
+		return NULL;
+	}
+
+	if (format != client_buffer->shm_source_format) {
 		// Uploading to textures can't change the format
+		buffer_end_data_ptr_access(next);
 		return NULL;
 	}
-
-	int32_t stride = wl_shm_buffer_get_stride(shm_buf);
-	int32_t width = wl_shm_buffer_get_width(shm_buf);
-	int32_t height = wl_shm_buffer_get_height(shm_buf);
-
-	if ((uint32_t)width != client_buffer->texture->width ||
-			(uint32_t)height != client_buffer->texture->height) {
-		return NULL;
-	}
-
-	wl_shm_buffer_begin_access(shm_buf);
-	void *data = wl_shm_buffer_get_data(shm_buf);
 
 	int n;
 	pixman_box32_t *rects = pixman_region32_rectangles(damage, &n);
@@ -315,12 +310,12 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 		if (!wlr_texture_write_pixels(client_buffer->texture, stride,
 				r->x2 - r->x1, r->y2 - r->y1, r->x1, r->y1,
 				r->x1, r->y1, data)) {
-			wl_shm_buffer_end_access(shm_buf);
+			buffer_end_data_ptr_access(next);
 			return NULL;
 		}
 	}
 
-	wl_shm_buffer_end_access(shm_buf);
+	buffer_end_data_ptr_access(next);
 
 	return client_buffer;
 }
