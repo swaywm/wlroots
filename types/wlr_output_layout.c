@@ -225,7 +225,7 @@ struct wlr_output_layout_output *wlr_output_layout_get(
 		struct wlr_output_layout *layout, struct wlr_output *reference) {
 	struct wlr_output_layout_output *l_output = NULL;
 	struct wlr_addon *addon =
-		wlr_addon_find_by_owner(&reference->addons, layout);
+		wlr_addon_find(&reference->addons, layout, &addon_impl);
 	if (addon) {
 		l_output = wl_container_of(addon, l_output, addon);
 	}
