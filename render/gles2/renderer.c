@@ -48,7 +48,7 @@ static struct wlr_gles2_renderer *gles2_get_renderer_in_context(
 
 static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
 	wl_list_remove(&buffer->link);
-	wl_list_remove(&buffer->buffer_destroy.link);
+	wlr_addon_finish(&buffer->addon);
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_save_context(&prev_ctx);
@@ -68,21 +68,26 @@ static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
 	free(buffer);
 }
 
-static struct wlr_gles2_buffer *get_buffer(struct wlr_gles2_renderer *renderer,
-		struct wlr_buffer *wlr_buffer) {
-	struct wlr_gles2_buffer *buffer;
-	wl_list_for_each(buffer, &renderer->buffers, link) {
-		if (buffer->buffer == wlr_buffer) {
-			return buffer;
-		}
-	}
-	return NULL;
+static void handle_buffer_destroy(struct wlr_addon *addon) {
+	struct wlr_gles2_buffer *buffer =
+		wl_container_of(addon, buffer, addon);
+	destroy_buffer(buffer);
 }
 
-static void handle_buffer_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_gles2_buffer *buffer =
-		wl_container_of(listener, buffer, buffer_destroy);
-	destroy_buffer(buffer);
+static const struct wlr_addon_interface buffer_addon_impl = {
+	.name = "wlr_gles2_buffer",
+	.destroy = handle_buffer_destroy,
+};
+
+static struct wlr_gles2_buffer *get_buffer(struct wlr_gles2_renderer *renderer,
+		struct wlr_buffer *wlr_buffer) {
+	struct wlr_addon *addon =
+		wlr_addon_find(&wlr_buffer->addons, renderer, &buffer_addon_impl);
+	if (addon == NULL) {
+		return NULL;
+	}
+	struct wlr_gles2_buffer *buffer = wl_container_of(addon, buffer, addon);
+	return buffer;
 }
 
 static struct wlr_gles2_buffer *create_buffer(struct wlr_gles2_renderer *renderer,
@@ -129,8 +134,8 @@ static struct wlr_gles2_buffer *create_buffer(struct wlr_gles2_renderer *rendere
 		goto error_image;
 	}
 
-	buffer->buffer_destroy.notify = handle_buffer_destroy;
-	wl_signal_add(&wlr_buffer->events.destroy, &buffer->buffer_destroy);
+	wlr_addon_init(&buffer->addon, &wlr_buffer->addons, renderer,
+		&buffer_addon_impl);
 
 	wl_list_insert(&renderer->buffers, &buffer->link);
 

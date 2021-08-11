@@ -12,6 +12,7 @@
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/wlr_texture.h>
+#include <wlr/util/addon.h>
 #include <wlr/util/log.h>
 
 struct wlr_gles2_pixel_format {
@@ -84,7 +85,7 @@ struct wlr_gles2_buffer {
 	GLuint rbo;
 	GLuint fbo;
 
-	struct wl_listener buffer_destroy;
+	struct wlr_addon addon;
 };
 
 struct wlr_gles2_texture {
