@@ -444,7 +444,13 @@ static void surface_commit_state(struct wlr_surface *surface,
 	surface->sy += next->dy;
 	surface_update_damage(&surface->buffer_damage, &surface->current, next);
 
-	surface_state_copy(&surface->previous, &surface->current);
+	surface->previous.scale = surface->current.scale;
+	surface->previous.transform = surface->current.transform;
+	surface->previous.width = surface->current.width;
+	surface->previous.height = surface->current.height;
+	surface->previous.buffer_width = surface->current.buffer_width;
+	surface->previous.buffer_height = surface->current.buffer_height;
+
 	surface_state_move(&surface->current, next);
 
 	if (invalid_buffer) {
@@ -726,7 +732,6 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(&surface->renderer_destroy.link);
 	surface_state_finish(&surface->pending);
 	surface_state_finish(&surface->current);
-	surface_state_finish(&surface->previous);
 	pixman_region32_fini(&surface->buffer_damage);
 	pixman_region32_fini(&surface->opaque_region);
 	pixman_region32_fini(&surface->input_region);
@@ -766,7 +771,6 @@ struct wlr_surface *surface_create(struct wl_client *client,
 
 	surface_state_init(&surface->current);
 	surface_state_init(&surface->pending);
-	surface_state_init(&surface->previous);
 	surface->pending.seq = 1;
 
 	wl_signal_init(&surface->events.commit);
