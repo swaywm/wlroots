@@ -12,6 +12,7 @@
 #include <pixman.h>
 #include <wayland-server-core.h>
 #include <wlr/render/dmabuf.h>
+#include <wlr/util/addon.h>
 
 struct wlr_buffer;
 struct wlr_renderer;
@@ -67,6 +68,8 @@ struct wlr_buffer {
 		struct wl_signal destroy;
 		struct wl_signal release;
 	} events;
+
+	struct wlr_addon_set addons;
 };
 
 struct wlr_buffer_resource_interface {

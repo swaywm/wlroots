@@ -21,6 +21,7 @@ void wlr_buffer_init(struct wlr_buffer *buffer,
 	buffer->height = height;
 	wl_signal_init(&buffer->events.destroy);
 	wl_signal_init(&buffer->events.release);
+	wlr_addon_set_init(&buffer->addons);
 }
 
 static void buffer_consider_destroy(struct wlr_buffer *buffer) {
@@ -31,6 +32,7 @@ static void buffer_consider_destroy(struct wlr_buffer *buffer) {
 	assert(!buffer->accessing_data_ptr);
 
 	wlr_signal_emit_safe(&buffer->events.destroy, NULL);
+	wlr_addon_set_finish(&buffer->addons);
 
 	buffer->impl->destroy(buffer);
 }
