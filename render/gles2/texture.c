@@ -129,7 +129,9 @@ static bool gles2_texture_invalidate(struct wlr_gles2_texture *texture) {
 
 void gles2_texture_destroy(struct wlr_gles2_texture *texture) {
 	wl_list_remove(&texture->link);
-	wl_list_remove(&texture->buffer_destroy.link);
+	if (texture->buffer != NULL) {
+		wlr_addon_finish(&texture->buffer_addon);
+	}
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_save_context(&prev_ctx);
@@ -175,7 +177,6 @@ static struct wlr_gles2_texture *gles2_texture_create(
 	wlr_texture_init(&texture->wlr_texture, &texture_impl, width, height);
 	texture->renderer = renderer;
 	wl_list_insert(&renderer->textures, &texture->link);
-	wl_list_init(&texture->buffer_destroy.link);
 	return texture;
 }
 
@@ -294,26 +295,31 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 	return &texture->wlr_texture;
 }
 
-static void texture_handle_buffer_destroy(struct wl_listener *listener,
-		void *data) {
+static void texture_handle_buffer_destroy(struct wlr_addon *addon) {
 	struct wlr_gles2_texture *texture =
-		wl_container_of(listener, texture, buffer_destroy);
+		wl_container_of(addon, texture, buffer_addon);
 	gles2_texture_destroy(texture);
 }
+
+static const struct wlr_addon_interface texture_addon_impl = {
+	.name = "wlr_gles2_texture",
+	.destroy = texture_handle_buffer_destroy,
+};
 
 static struct wlr_texture *gles2_texture_from_dmabuf_buffer(
 		struct wlr_gles2_renderer *renderer, struct wlr_buffer *buffer,
 		struct wlr_dmabuf_attributes *dmabuf) {
-	struct wlr_gles2_texture *texture;
-	wl_list_for_each(texture, &renderer->textures, link) {
-		if (texture->buffer == buffer) {
-			if (!gles2_texture_invalidate(texture)) {
-				wlr_log(WLR_ERROR, "Failed to invalidate texture");
-				return false;
-			}
-			wlr_buffer_lock(texture->buffer);
-			return &texture->wlr_texture;
+	struct wlr_addon *addon =
+		wlr_addon_find(&buffer->addons, renderer, &texture_addon_impl);
+	if (addon != NULL) {
+		struct wlr_gles2_texture *texture =
+			wl_container_of(addon, texture, buffer_addon);
+		if (!gles2_texture_invalidate(texture)) {
+			wlr_log(WLR_ERROR, "Failed to invalidate texture");
+			return false;
 		}
+		wlr_buffer_lock(texture->buffer);
+		return &texture->wlr_texture;
 	}
 
 	struct wlr_texture *wlr_texture =
@@ -322,11 +328,10 @@ static struct wlr_texture *gles2_texture_from_dmabuf_buffer(
 		return false;
 	}
 
-	texture = gles2_get_texture(wlr_texture);
+	struct wlr_gles2_texture *texture = gles2_get_texture(wlr_texture);
 	texture->buffer = wlr_buffer_lock(buffer);
-
-	texture->buffer_destroy.notify = texture_handle_buffer_destroy;
-	wl_signal_add(&buffer->events.destroy, &texture->buffer_destroy);
+	wlr_addon_init(&texture->buffer_addon, &buffer->addons,
+		renderer, &texture_addon_impl);
 
 	return &texture->wlr_texture;
 }
