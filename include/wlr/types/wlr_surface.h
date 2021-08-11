@@ -124,10 +124,9 @@ struct wlr_surface {
 	/**
 	 * `current` contains the current, committed surface state. `pending`
 	 * accumulates state changes from the client between commits and shouldn't
-	 * be accessed by the compositor directly. `previous` contains the state of
-	 * the previous commit.
+	 * be accessed by the compositor directly.
 	 */
-	struct wlr_surface_state current, pending, previous;
+	struct wlr_surface_state current, pending;
 
 	struct wl_list cached; // wlr_surface_state.cached_link
 
@@ -150,9 +149,18 @@ struct wlr_surface {
 
 	struct wl_list current_outputs; // wlr_surface_output::link
 
+	void *data;
+
+	// private state
+
 	struct wl_listener renderer_destroy;
 
-	void *data;
+	struct {
+		int32_t scale;
+		enum wl_output_transform transform;
+		int width, height;
+		int buffer_width, buffer_height;
+	} previous;
 };
 
 struct wlr_subsurface_state {
