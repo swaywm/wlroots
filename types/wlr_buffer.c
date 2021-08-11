@@ -269,36 +269,35 @@ struct wlr_client_buffer *wlr_client_buffer_create(struct wlr_buffer *buffer,
 	return client_buffer;
 }
 
-struct wlr_client_buffer *wlr_client_buffer_apply_damage(
-		struct wlr_client_buffer *client_buffer, struct wlr_buffer *next,
-		pixman_region32_t *damage) {
+bool wlr_client_buffer_apply_damage(struct wlr_client_buffer *client_buffer,
+		struct wlr_buffer *next, pixman_region32_t *damage) {
 	if (client_buffer->base.n_locks > 1) {
 		// Someone else still has a reference to the buffer
-		return NULL;
+		return false;
 	}
 
 	if ((uint32_t)next->width != client_buffer->texture->width ||
 			(uint32_t)next->height != client_buffer->texture->height) {
-		return NULL;
+		return false;
 	}
 
 	if (client_buffer->shm_source_format == DRM_FORMAT_INVALID) {
 		// Uploading only damaged regions only works for wl_shm buffers and
 		// mutable textures (created from wl_shm buffer)
-		return NULL;
+		return false;
 	}
 
 	void *data;
 	uint32_t format;
 	size_t stride;
 	if (!buffer_begin_data_ptr_access(next, &data, &format, &stride)) {
-		return NULL;
+		return false;
 	}
 
 	if (format != client_buffer->shm_source_format) {
 		// Uploading to textures can't change the format
 		buffer_end_data_ptr_access(next);
-		return NULL;
+		return false;
 	}
 
 	int n;
@@ -309,13 +308,13 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 				r->x2 - r->x1, r->y2 - r->y1, r->x1, r->y1,
 				r->x1, r->y1, data)) {
 			buffer_end_data_ptr_access(next);
-			return NULL;
+			return false;
 		}
 	}
 
 	buffer_end_data_ptr_access(next);
 
-	return client_buffer;
+	return true;
 }
 
 static const struct wlr_buffer_impl shm_client_buffer_impl;
