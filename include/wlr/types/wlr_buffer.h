@@ -178,15 +178,12 @@ struct wlr_client_buffer *wlr_client_buffer_get(struct wlr_buffer *buffer);
  */
 bool wlr_resource_is_buffer(struct wl_resource *resource);
 /**
- * Try to update the buffer's content. On success, returns the updated buffer
- * and destroys the provided `buffer`. On error, `buffer` is intact and NULL is
- * returned.
+ * Try to update the buffer's content.
  *
  * Fails if there's more than one reference to the buffer or if the texture
  * isn't mutable.
  */
-struct wlr_client_buffer *wlr_client_buffer_apply_damage(
-	struct wlr_client_buffer *buffer, struct wlr_buffer *next,
-	pixman_region32_t *damage);
+bool wlr_client_buffer_apply_damage(struct wlr_client_buffer *client_buffer,
+	struct wlr_buffer *next, pixman_region32_t *damage);
 
 #endif
