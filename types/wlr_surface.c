@@ -32,32 +32,6 @@ static int max(int fst, int snd) {
 	}
 }
 
-static void surface_state_reset_buffer(struct wlr_surface_state *state) {
-	if (state->buffer_resource) {
-		wl_list_remove(&state->buffer_destroy.link);
-		state->buffer_resource = NULL;
-	}
-}
-
-static void surface_handle_buffer_destroy(struct wl_listener *listener,
-		void *data) {
-	struct wlr_surface_state *state =
-		wl_container_of(listener, state, buffer_destroy);
-	surface_state_reset_buffer(state);
-}
-
-static void surface_state_set_buffer(struct wlr_surface_state *state,
-		struct wl_resource *buffer_resource) {
-	surface_state_reset_buffer(state);
-
-	state->buffer_resource = buffer_resource;
-	if (buffer_resource != NULL) {
-		wl_resource_add_destroy_listener(buffer_resource,
-			&state->buffer_destroy);
-		state->buffer_destroy.notify = surface_handle_buffer_destroy;
-	}
-}
-
 static void surface_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -65,13 +39,21 @@ static void surface_handle_destroy(struct wl_client *client,
 
 static void surface_handle_attach(struct wl_client *client,
 		struct wl_resource *resource,
-		struct wl_resource *buffer, int32_t dx, int32_t dy) {
+		struct wl_resource *buffer_resource, int32_t dx, int32_t dy) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
+
+	struct wlr_buffer *buffer = wlr_buffer_from_resource(buffer_resource);
+	if (buffer == NULL) {
+		wl_resource_post_error(buffer_resource, 0, "unknown buffer type");
+		return;
+	}
 
 	surface->pending.committed |= WLR_SURFACE_STATE_BUFFER;
 	surface->pending.dx = dx;
 	surface->pending.dy = dy;
-	surface_state_set_buffer(&surface->pending, buffer);
+
+	wlr_buffer_unlock(surface->pending.buffer);
+	surface->pending.buffer = buffer;
 }
 
 static void surface_handle_damage(struct wl_client *client,
@@ -171,15 +153,7 @@ static void surface_finalize_pending(struct wlr_surface *surface) {
 	struct wlr_surface_state *pending = &surface->pending;
 
 	if ((pending->committed & WLR_SURFACE_STATE_BUFFER)) {
-		if (pending->buffer_resource) {
-			wlr_buffer_unlock(pending->buffer);
-			pending->buffer = wlr_buffer_from_resource(pending->buffer_resource);
-			if (!pending->buffer) {
-				wl_resource_post_error(pending->buffer_resource, 0,
-						"unknown buffer type");
-				return;
-			}
-
+		if (pending->buffer != NULL) {
 			pending->buffer_width = pending->buffer->width;
 			pending->buffer_height = pending->buffer->height;
 		} else {
@@ -281,9 +255,6 @@ static void surface_state_move(struct wlr_surface_state *state,
 		state->dy = next->dy;
 		next->dx = next->dy = 0;
 
-		surface_state_set_buffer(state, next->buffer_resource);
-		surface_state_reset_buffer(next);
-
 		wlr_buffer_unlock(state->buffer);
 		state->buffer = NULL;
 		if (next->buffer) {
@@ -354,8 +325,7 @@ static void surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
 }
 
 static void surface_apply_damage(struct wlr_surface *surface) {
-	struct wl_resource *resource = surface->current.buffer_resource;
-	if (resource == NULL) {
+	if (surface->current.buffer == NULL) {
 		// NULL commit
 		if (surface->buffer != NULL) {
 			wlr_buffer_unlock(&surface->buffer->base);
@@ -657,7 +627,6 @@ static void surface_state_init(struct wlr_surface_state *state) {
 }
 
 static void surface_state_finish(struct wlr_surface_state *state) {
-	surface_state_reset_buffer(state);
 	wlr_buffer_unlock(state->buffer);
 
 	struct wl_resource *resource, *tmp;
@@ -1127,7 +1096,7 @@ static void subsurface_role_precommit(struct wlr_surface *surface) {
 	}
 
 	if (surface->pending.committed & WLR_SURFACE_STATE_BUFFER &&
-			surface->pending.buffer_resource == NULL) {
+			surface->pending.buffer == NULL) {
 		// This is a NULL commit
 		subsurface_unmap(subsurface);
 	}

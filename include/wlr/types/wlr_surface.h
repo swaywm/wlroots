@@ -36,7 +36,6 @@ struct wlr_surface_state {
 	uint32_t seq;
 
 	struct wlr_buffer *buffer;
-	struct wl_resource *buffer_resource;
 	int32_t dx, dy; // relative to previous position
 	pixman_region32_t surface_damage, buffer_damage; // clipped to bounds
 	pixman_region32_t opaque, input;
@@ -64,8 +63,6 @@ struct wlr_surface_state {
 		struct wlr_fbox src;
 		int dst_width, dst_height; // in surface-local coordinates
 	} viewport;
-
-	struct wl_listener buffer_destroy;
 
 	// Number of locks that prevent this surface state from being committed.
 	size_t cached_state_locks;

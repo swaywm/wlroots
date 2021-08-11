@@ -850,7 +850,7 @@ static void xwayland_surface_role_precommit(struct wlr_surface *wlr_surface) {
 	}
 
 	if (wlr_surface->pending.committed & WLR_SURFACE_STATE_BUFFER &&
-			wlr_surface->pending.buffer_resource == NULL) {
+			wlr_surface->pending.buffer == NULL) {
 		// This is a NULL commit
 		if (surface->mapped) {
 			wlr_signal_emit_safe(&surface->events.unmap, surface);
