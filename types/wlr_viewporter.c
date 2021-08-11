@@ -135,7 +135,7 @@ static void viewport_handle_surface_commit(struct wl_listener *listener,
 		return;
 	}
 
-	if (current->viewport.has_src && current->buffer_resource != NULL &&
+	if (current->viewport.has_src && current->buffer != NULL &&
 			(current->viewport.src.x + current->viewport.src.width >
 				current->buffer_width ||
 			current->viewport.src.y + current->viewport.src.height >
