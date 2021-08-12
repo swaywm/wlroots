@@ -70,7 +70,7 @@ struct wlr_layer_surface_v1 {
 
 	char *namespace;
 
-	bool added, configured, mapped, closed;
+	bool added, configured, mapped;
 	uint32_t configure_serial;
 	uint32_t configure_next_serial;
 	struct wl_list configure_list;
@@ -125,9 +125,10 @@ void wlr_layer_surface_v1_configure(struct wlr_layer_surface_v1 *surface,
 		uint32_t width, uint32_t height);
 
 /**
- * Unmaps this layer surface and notifies the client that it has been closed.
+ * Notify the client that the surface has been closed and destroy the
+ * wlr_layer_surface_v1, rendering the resource inert.
  */
-void wlr_layer_surface_v1_close(struct wlr_layer_surface_v1 *surface);
+void wlr_layer_surface_v1_destroy(struct wlr_layer_surface_v1 *surface);
 
 bool wlr_surface_is_layer_surface(struct wlr_surface *surface);
 
