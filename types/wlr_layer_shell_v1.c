@@ -60,7 +60,7 @@ static void layer_surface_handle_ack_configure(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial) {
 	struct wlr_layer_surface_v1 *surface = layer_surface_from_resource(resource);
 
-	if (!surface || surface->closed) {
+	if (!surface) {
 		return;
 	}
 
@@ -302,15 +302,9 @@ void wlr_layer_surface_v1_configure(struct wlr_layer_surface_v1 *surface,
 	}
 }
 
-void wlr_layer_surface_v1_close(struct wlr_layer_surface_v1 *surface) {
-	if (surface->closed) {
-		return;
-	}
-	surface->closed = true;
-	if (surface->mapped) {
-		layer_surface_unmap(surface);
-	}
+void wlr_layer_surface_v1_destroy(struct wlr_layer_surface_v1 *surface) {
 	zwlr_layer_surface_v1_send_closed(surface->resource);
+	layer_surface_destroy(surface);
 }
 
 static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
@@ -337,11 +331,6 @@ static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
 		wl_resource_post_error(surface->resource,
 			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_SIZE,
 			"height 0 requested without setting top and bottom anchors");
-		return;
-	}
-
-	if (surface->closed) {
-		// Ignore commits after the compositor has closed it
 		return;
 	}
 
@@ -374,12 +363,14 @@ static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
 
 	if (!surface->added) {
 		surface->added = true;
-		wlr_signal_emit_safe(&surface->shell->events.new_surface,
-				surface);
-		// either the compositor found a suitable output or it must
-		// have closed the surface
-		assert(surface->output || surface->closed);
+		assert(!surface->configured);
+		assert(!surface->mapped);
+		wlr_signal_emit_safe(&surface->shell->events.new_surface, surface);
+		// Return early here as the compositor may have closed this layer surface
+		// in response to the new_surface event.
+		return;
 	}
+
 	if (surface->configured && wlr_surface_has_buffer(surface->surface) &&
 			!surface->mapped) {
 		surface->mapped = true;
