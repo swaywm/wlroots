@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wlr/backend.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
@@ -16,6 +17,12 @@ static struct wlr_scene_surface *scene_surface_from_node(
 		struct wlr_scene_node *node) {
 	assert(node->type == WLR_SCENE_NODE_SURFACE);
 	return (struct wlr_scene_surface *)node;
+}
+
+static struct wlr_scene_rect *scene_rect_from_node(
+		struct wlr_scene_node *node) {
+	assert(node->type == WLR_SCENE_NODE_RECT);
+	return (struct wlr_scene_rect *)node;
 }
 
 static void scene_node_state_init(struct wlr_scene_node_state *state) {
@@ -71,6 +78,10 @@ void wlr_scene_node_destroy(struct wlr_scene_node *node) {
 		wl_list_remove(&scene_surface->surface_destroy.link);
 		free(scene_surface);
 		break;
+	case WLR_SCENE_NODE_RECT:;
+		struct wlr_scene_rect *scene_rect = scene_rect_from_node(node);
+		free(scene_rect);
+		break;
 	}
 }
 
@@ -106,6 +117,31 @@ struct wlr_scene_surface *wlr_scene_surface_create(struct wlr_scene_node *parent
 	wl_signal_add(&surface->events.destroy, &scene_surface->surface_destroy);
 
 	return scene_surface;
+}
+
+struct wlr_scene_rect *wlr_scene_rect_create(struct wlr_scene_node *parent,
+		int width, int height, const float color[static 4]) {
+	struct wlr_scene_rect *scene_rect =
+		calloc(1, sizeof(struct wlr_scene_rect));
+	if (scene_rect == NULL) {
+		return NULL;
+	}
+	scene_node_init(&scene_rect->node, WLR_SCENE_NODE_RECT, parent);
+
+	scene_rect->width = width;
+	scene_rect->height = height;
+	memcpy(scene_rect->color, color, sizeof(scene_rect->color));
+
+	return scene_rect;
+}
+
+void wlr_scene_rect_set_size(struct wlr_scene_rect *rect, int width, int height) {
+	rect->width = width;
+	rect->height = height;
+}
+
+void wlr_scene_rect_set_color(struct wlr_scene_rect *rect, const float color[static 4]) {
+	memcpy(rect->color, color, sizeof(rect->color));
 }
 
 void wlr_scene_node_set_enabled(struct wlr_scene_node *node, bool enabled) {
@@ -244,6 +280,27 @@ static void scissor_output(struct wlr_output *output, pixman_box32_t *rect) {
 	wlr_renderer_scissor(renderer, &box);
 }
 
+static void render_rect(struct wlr_output *output,
+		pixman_region32_t *output_damage, const float color[static 4],
+		const struct wlr_box *box, const float matrix[static 9]) {
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	assert(renderer);
+
+	pixman_region32_t damage;
+	pixman_region32_init(&damage);
+	pixman_region32_init_rect(&damage, box->x, box->y, box->width, box->height);
+	pixman_region32_intersect(&damage, &damage, output_damage);
+
+	int nrects;
+	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
+	for (int i = 0; i < nrects; ++i) {
+		scissor_output(output, &rects[i]);
+		wlr_render_rect(renderer, box, color, matrix);
+	}
+
+	pixman_region32_fini(&damage);
+}
+
 static void render_texture(struct wlr_output *output,
 		pixman_region32_t *output_damage, struct wlr_texture *texture,
 		const struct wlr_box *box, const float matrix[static 9]) {
@@ -275,6 +332,10 @@ static void render_node_iterator(struct wlr_scene_node *node,
 	struct render_data *data = _data;
 	struct wlr_output *output = data->output;
 	pixman_region32_t *output_damage = data->damage;
+	struct wlr_box box = {
+		.x = x,
+		.y = y,
+	};
 
 	switch (node->type) {
 	case WLR_SCENE_NODE_ROOT:;
@@ -289,12 +350,8 @@ static void render_node_iterator(struct wlr_scene_node *node,
 			return;
 		}
 
-		struct wlr_box box = {
-			.x = x,
-			.y = y,
-			.width = surface->current.width,
-			.height = surface->current.height,
-		};
+		box.width = surface->current.width;
+		box.height = surface->current.height;
 		scale_box(&box, output->scale);
 
 		float matrix[9];
@@ -304,6 +361,16 @@ static void render_node_iterator(struct wlr_scene_node *node,
 			output->transform_matrix);
 
 		render_texture(output, output_damage, texture, &box, matrix);
+		break;
+	case WLR_SCENE_NODE_RECT:;
+		struct wlr_scene_rect *scene_rect = scene_rect_from_node(node);
+
+		box.width = scene_rect->width;
+		box.height = scene_rect->height;
+		scale_box(&box, data->output->scale);
+
+		render_rect(output, output_damage, scene_rect->color, &box,
+				output->transform_matrix);
 		break;
 	}
 }
