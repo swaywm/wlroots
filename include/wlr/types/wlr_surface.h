@@ -135,6 +135,12 @@ struct wlr_surface {
 
 	struct {
 		struct wl_signal commit;
+		/**
+		 * Emitted when the pending state is cached.
+		 *
+		 * Can be used by surface extensions to tie their own state to commits.
+		 */
+		struct wl_signal cache; // struct wlr_surface_state *
 		struct wl_signal new_subsurface;
 		struct wl_signal destroy;
 	} events;
