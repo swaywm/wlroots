@@ -28,6 +28,7 @@ struct wlr_output;
 enum wlr_scene_node_type {
 	WLR_SCENE_NODE_ROOT,
 	WLR_SCENE_NODE_SURFACE,
+	WLR_SCENE_NODE_RECT,
 };
 
 struct wlr_scene_node_state {
@@ -65,6 +66,13 @@ struct wlr_scene_surface {
 	// private state
 
 	struct wl_listener surface_destroy;
+};
+
+/** A scene-graph node displaying a solid-colored rectangle */
+struct wlr_scene_rect {
+	struct wlr_scene_node node;
+	int width, height;
+	float color[4];
 };
 
 typedef void (*wlr_scene_node_iterator_func_t)(struct wlr_scene_node *node,
@@ -133,5 +141,21 @@ void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
  */
 struct wlr_scene_surface *wlr_scene_surface_create(struct wlr_scene_node *parent,
 	struct wlr_surface *surface);
+
+/**
+ * Add a node displaying a solid-colored rectangle to the scene-graph.
+ */
+struct wlr_scene_rect *wlr_scene_rect_create(struct wlr_scene_node *parent,
+		int width, int height, const float color[static 4]);
+
+/**
+ * Change the width and height of an existing rectangle node.
+ */
+void wlr_scene_rect_set_size(struct wlr_scene_rect *rect, int width, int height);
+
+/**
+ * Change the color of an existing rectangle node.
+ */
+void wlr_scene_rect_set_color(struct wlr_scene_rect *rect, const float color[static 4]);
 
 #endif
