@@ -67,6 +67,9 @@ struct wlr_scene_surface {
 	struct wl_listener surface_destroy;
 };
 
+typedef void (*wlr_scene_node_iterator_func_t)(struct wlr_scene_node *node,
+	int sx, int sy, void *data);
+
 /**
  * Immediately destroy the scene-graph node.
  */
