@@ -20,6 +20,8 @@
  *
  * New surfaces are stacked on top of the existing ones as they appear. */
 
+static const int border_width = 3;
+
 struct server {
 	struct wl_display *display;
 	struct wlr_backend *backend;
@@ -35,8 +37,10 @@ struct server {
 struct surface {
 	struct wlr_surface *wlr;
 	struct wlr_scene_surface *scene_surface;
+	struct wlr_scene_rect *border;
 	struct wl_list link;
 
+	struct wl_listener commit;
 	struct wl_listener destroy;
 };
 
@@ -102,9 +106,17 @@ static void server_handle_new_output(struct wl_listener *listener, void *data) {
 	wlr_output_create_global(wlr_output);
 }
 
+static void surface_handle_commit(struct wl_listener *listener, void *data) {
+	struct surface *surface = wl_container_of(listener, surface, commit);
+	wlr_scene_rect_set_size(surface->border,
+			surface->wlr->current.width + 2 * border_width,
+			surface->wlr->current.height + 2 * border_width);
+}
+
 static void surface_handle_destroy(struct wl_listener *listener, void *data) {
 	struct surface *surface = wl_container_of(listener, surface, destroy);
 	wlr_scene_node_destroy(&surface->scene_surface->node);
+	wlr_scene_node_destroy(&surface->border->node);
 	wl_list_remove(&surface->destroy.link);
 	wl_list_remove(&surface->link);
 	free(surface);
@@ -119,13 +131,22 @@ static void server_handle_new_surface(struct wl_listener *listener,
 
 	struct surface *surface = calloc(1, sizeof(struct surface));
 	surface->wlr = wlr_surface;
+	surface->commit.notify = surface_handle_commit;
+	wl_signal_add(&wlr_surface->events.commit, &surface->commit);
 	surface->destroy.notify = surface_handle_destroy;
 	wl_signal_add(&wlr_surface->events.destroy, &surface->destroy);
+
+	/* Border dimensions will be set in surface.commit handler */
+	surface->border = wlr_scene_rect_create(&server->scene->node,
+			0, 0, (float[4]){ 0.5f, 0.5f, 0.5f, 1 });
+	wlr_scene_node_set_position(&surface->border->node, pos, pos);
+
 	surface->scene_surface =
 		wlr_scene_surface_create(&server->scene->node, wlr_surface);
 	wl_list_insert(server->surfaces.prev, &surface->link);
 
-	wlr_scene_node_set_position(&surface->scene_surface->node, pos, pos);
+	wlr_scene_node_set_position(&surface->scene_surface->node,
+			pos + border_width, pos + border_width);
 }
 
 int main(int argc, char *argv[]) {
