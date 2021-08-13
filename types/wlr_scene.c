@@ -270,32 +270,60 @@ struct render_data {
 	pixman_region32_t *damage;
 };
 
-static void render_surface_iterator(struct wlr_surface *surface,
+static void render_node_iterator(struct wlr_scene_node *node,
 		int x, int y, void *_data) {
 	struct render_data *data = _data;
 	struct wlr_output *output = data->output;
 	pixman_region32_t *output_damage = data->damage;
 
-	struct wlr_texture *texture = wlr_surface_get_texture(surface);
-	if (texture == NULL) {
+	switch (node->type) {
+	case WLR_SCENE_NODE_ROOT:;
+		/* Root node has nothing to render itself */
+		break;
+	case WLR_SCENE_NODE_SURFACE:;
+		struct wlr_scene_surface *scene_surface = scene_surface_from_node(node);
+		struct wlr_surface *surface = scene_surface->surface;
+
+		struct wlr_texture *texture = wlr_surface_get_texture(surface);
+		if (texture == NULL) {
+			return;
+		}
+
+		struct wlr_box box = {
+			.x = x,
+			.y = y,
+			.width = surface->current.width,
+			.height = surface->current.height,
+		};
+		scale_box(&box, output->scale);
+
+		float matrix[9];
+		enum wl_output_transform transform =
+			wlr_output_transform_invert(surface->current.transform);
+		wlr_matrix_project_box(matrix, &box, transform, 0.0,
+			output->transform_matrix);
+
+		render_texture(output, output_damage, texture, &box, matrix);
+		break;
+	}
+}
+
+static void scene_node_for_each_node(struct wlr_scene_node *node,
+		int lx, int ly, wlr_scene_node_iterator_func_t user_iterator,
+		void *user_data) {
+	if (!node->state.enabled) {
 		return;
 	}
 
-	struct wlr_box box = {
-		.x = x,
-		.y = y,
-		.width = surface->current.width,
-		.height = surface->current.height,
-	};
-	scale_box(&box, output->scale);
+	lx += node->state.x;
+	ly += node->state.y;
 
-	float matrix[9];
-	enum wl_output_transform transform =
-		wlr_output_transform_invert(surface->current.transform);
-	wlr_matrix_project_box(matrix, &box, transform, 0.0,
-		output->transform_matrix);
+	user_iterator(node, lx, ly, user_data);
 
-	render_texture(output, output_damage, texture, &box, matrix);
+	struct wlr_scene_node *child;
+	wl_list_for_each(child, &node->state.children, state.link) {
+		scene_node_for_each_node(child, lx, ly, user_iterator, user_data);
+	}
 }
 
 void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
@@ -315,8 +343,8 @@ void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
 			.output = output,
 			.damage = damage,
 		};
-		scene_node_for_each_surface(&scene->node, lx, ly,
-			render_surface_iterator, &data);
+		scene_node_for_each_node(&scene->node, lx, ly,
+			render_node_iterator, &data);
 		wlr_renderer_scissor(renderer, NULL);
 	}
 
