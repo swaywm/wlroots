@@ -265,10 +265,11 @@ static void frame_handle_output_precommit(struct wl_listener *listener,
 
 static bool blit_dmabuf(struct wlr_renderer *renderer,
 		struct wlr_dmabuf_v1_buffer *dst_dmabuf,
-		struct wlr_dmabuf_attributes *src_attrs) {
+		struct wlr_buffer *src_buffer) {
 	struct wlr_buffer *dst_buffer = wlr_buffer_lock(&dst_dmabuf->base);
 
-	struct wlr_texture *src_tex = wlr_texture_from_dmabuf(renderer, src_attrs);
+	struct wlr_texture *src_tex =
+		wlr_texture_from_buffer(renderer, src_buffer);
 	if (src_tex == NULL) {
 		goto error_src_tex;
 	}
@@ -335,12 +336,10 @@ static void frame_handle_output_commit(struct wl_listener *listener,
 		return;
 	}
 
-	struct wlr_dmabuf_attributes attr = { 0 };
-	bool ok = wlr_output_export_dmabuf(output, &attr);
-	ok = ok && blit_dmabuf(renderer, dma_buffer, &attr);
+	bool ok = output->front_buffer && blit_dmabuf(renderer, dma_buffer,
+			output->front_buffer);
 	uint32_t flags = dma_buffer->attributes.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT ?
 		ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT : 0;
-	wlr_dmabuf_attributes_finish(&attr);
 
 	if (!ok) {
 		zwlr_screencopy_frame_v1_send_failed(frame->resource);
