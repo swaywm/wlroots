@@ -286,9 +286,9 @@ void handle_tablet_tool_proximity(struct libinput_event *event,
 			wl_container_of(wlr_dev->tablet, tablet, wlr_tablet);
 
 		size_t i = 0;
-		struct wlr_libinput_tablet_tool *iter;
-		wl_array_for_each(iter, &tablet->tools) {
-			if (iter == tool) {
+		struct wlr_libinput_tablet_tool **tool_ptr;
+		wl_array_for_each(tool_ptr, &tablet->tools) {
+			if (*tool_ptr == tool) {
 				array_remove_at(&tablet->tools, i * sizeof(tool), sizeof(tool));
 				break;
 			}
