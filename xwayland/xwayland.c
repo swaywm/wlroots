@@ -50,8 +50,6 @@ static void handle_server_ready(struct wl_listener *listener, void *data) {
 		struct wlr_xwayland_cursor *cur = xwayland->cursor;
 		xwm_set_cursor(xwayland->xwm, cur->pixels, cur->stride, cur->width,
 			cur->height, cur->hotspot_x, cur->hotspot_y);
-		free(cur);
-		xwayland->cursor = NULL;
 	}
 
 	wlr_signal_emit_safe(&xwayland->events.ready, NULL);
