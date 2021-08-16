@@ -479,6 +479,12 @@ static bool drm_connector_test(struct wlr_output *output) {
 		return true;
 	}
 
+	if (!conn->crtc) {
+		// If the output is disabled, we don't have a crtc even after
+		// reallocation
+		return true;
+	}
+
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		if (!drm_connector_set_pending_fb(conn, &output->pending)) {
 			return false;
