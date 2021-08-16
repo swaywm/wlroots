@@ -28,7 +28,7 @@ void wlr_renderer_init(struct wlr_renderer *renderer,
 	assert(impl->scissor);
 	assert(impl->render_subtexture_with_matrix);
 	assert(impl->render_quad_with_matrix);
-	assert(impl->get_shm_texture_formats);
+	assert(impl->get_texture_formats);
 	assert(impl->get_render_buffer_caps);
 	renderer->impl = impl;
 
@@ -157,17 +157,9 @@ void wlr_render_quad_with_matrix(struct wlr_renderer *r,
 	r->impl->render_quad_with_matrix(r, color, matrix);
 }
 
-const uint32_t *wlr_renderer_get_shm_texture_formats(struct wlr_renderer *r,
-		size_t *len) {
-	return r->impl->get_shm_texture_formats(r, len);
-}
-
-const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_texture_formats(
-		struct wlr_renderer *r) {
-	if (!r->impl->get_dmabuf_texture_formats) {
-		return NULL;
-	}
-	return r->impl->get_dmabuf_texture_formats(r);
+const struct wlr_drm_format_set *wlr_renderer_get_texture_formats(
+		struct wlr_renderer *r, uint32_t buffer_caps) {
+	return r->impl->get_texture_formats(r, buffer_caps);
 }
 
 const struct wlr_drm_format_set *wlr_renderer_get_render_formats(
@@ -200,18 +192,19 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 		return false;
 	}
 
-	size_t len;
-	const uint32_t *formats = wlr_renderer_get_shm_texture_formats(r, &len);
-	if (formats == NULL) {
+	const struct wlr_drm_format_set *shm_formats =
+		wlr_renderer_get_texture_formats(r, WLR_BUFFER_CAP_DATA_PTR);
+	if (shm_formats == NULL) {
 		wlr_log(WLR_ERROR, "Failed to initialize shm: cannot get formats");
 		return false;
 	}
 
 	bool argb8888 = false, xrgb8888 = false;
-	for (size_t i = 0; i < len; ++i) {
+	for (size_t i = 0; i < shm_formats->len; ++i) {
 		// ARGB8888 and XRGB8888 must be supported and are implicitly
 		// advertised by wl_display_init_shm
-		enum wl_shm_format fmt = convert_drm_format_to_wl_shm(formats[i]);
+		enum wl_shm_format fmt =
+			convert_drm_format_to_wl_shm(shm_formats->formats[i]->format);
 		switch (fmt) {
 		case WL_SHM_FORMAT_ARGB8888:
 			argb8888 = true;
@@ -225,7 +218,7 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	}
 	assert(argb8888 && xrgb8888);
 
-	if (wlr_renderer_get_dmabuf_texture_formats(r) != NULL) {
+	if (wlr_renderer_get_texture_formats(r, WLR_BUFFER_CAP_DMABUF) != NULL) {
 		if (wlr_renderer_get_drm_fd(r) >= 0) {
 			if (wlr_drm_create(wl_display, r) == NULL) {
 				return false;

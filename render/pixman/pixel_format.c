@@ -121,11 +121,9 @@ uint32_t get_drm_format_from_pixman(pixman_format_code_t fmt) {
 	return DRM_FORMAT_INVALID;
 }
 
-const uint32_t *get_pixman_drm_formats(size_t *len) {
-	static uint32_t drm_formats[sizeof(formats) / sizeof(formats[0])];
-	*len = sizeof(formats) / sizeof(formats[0]);
+void init_pixman_formats(struct wlr_pixman_renderer *renderer) {
 	for (size_t i = 0; i < sizeof(formats) / sizeof(formats[0]); i++) {
-		drm_formats[i] = formats[i].drm_format;
+		wlr_drm_format_set_add(&renderer->drm_formats, formats[i].drm_format,
+			DRM_FORMAT_MOD_LINEAR);
 	}
-	return drm_formats;
 }

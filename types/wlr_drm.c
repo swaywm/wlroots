@@ -160,7 +160,7 @@ static void drm_bind(struct wl_client *client, void *data,
 	wl_drm_send_capabilities(resource, WL_DRM_CAPABILITY_PRIME);
 
 	const struct wlr_drm_format_set *formats =
-		wlr_renderer_get_dmabuf_texture_formats(drm->renderer);
+		wlr_renderer_get_texture_formats(drm->renderer, WLR_BUFFER_CAP_DMABUF);
 	if (formats == NULL) {
 		return;
 	}

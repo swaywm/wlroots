@@ -76,17 +76,11 @@ void wlr_render_rect(struct wlr_renderer *r, const struct wlr_box *box,
 void wlr_render_quad_with_matrix(struct wlr_renderer *r,
 	const float color[static 4], const float matrix[static 9]);
 /**
- * Get the shared-memory formats supporting import usage. Buffers allocated
- * with a format from this list may be imported via wlr_texture_from_pixels.
- */
-const uint32_t *wlr_renderer_get_shm_texture_formats(
-	struct wlr_renderer *r, size_t *len);
-/**
  * Get the DMA-BUF formats supporting sampling usage. Buffers allocated with
- * a format from this list may be imported via wlr_texture_from_dmabuf.
+ * a format from this list may be imported via wlr_texture_from_buffer.
  */
-const struct wlr_drm_format_set *wlr_renderer_get_dmabuf_texture_formats(
-	struct wlr_renderer *renderer);
+const struct wlr_drm_format_set *wlr_renderer_get_texture_formats(
+	struct wlr_renderer *renderer, uint32_t buffer_caps);
 /**
  * Reads out of pixels of the currently bound surface into data. `stride` is in
  * bytes.

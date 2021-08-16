@@ -136,16 +136,12 @@ const struct wlr_gles2_pixel_format *get_gles2_format_from_gl(
 	return NULL;
 }
 
-const uint32_t *get_gles2_shm_formats(const struct wlr_gles2_renderer *renderer,
-		size_t *len) {
-	static uint32_t shm_formats[sizeof(formats) / sizeof(formats[0])];
-	size_t j = 0;
+void init_gles2_data_ptr_formats(struct wlr_gles2_renderer *renderer) {
 	for (size_t i = 0; i < sizeof(formats) / sizeof(formats[0]); i++) {
 		if (!is_gles2_pixel_format_supported(renderer, &formats[i])) {
 			continue;
 		}
-		shm_formats[j++] = formats[i].drm_format;
+		wlr_drm_format_set_add(&renderer->data_ptr_texture_formats,
+			formats[i].drm_format, DRM_FORMAT_MOD_LINEAR);
 	}
-	*len = j;
-	return shm_formats;
 }

@@ -379,16 +379,16 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 	pop_gles2_debug(renderer);
 }
 
-static const uint32_t *gles2_get_shm_texture_formats(
-		struct wlr_renderer *wlr_renderer, size_t *len) {
+static const struct wlr_drm_format_set *gles2_get_texture_formats(
+		struct wlr_renderer *wlr_renderer, uint32_t buffer_caps) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	return get_gles2_shm_formats(renderer, len);
-}
-
-static const struct wlr_drm_format_set *gles2_get_dmabuf_texture_formats(
-		struct wlr_renderer *wlr_renderer) {
-	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	return wlr_egl_get_dmabuf_texture_formats(renderer->egl);
+	if (buffer_caps & WLR_BUFFER_CAP_DMABUF) {
+		return wlr_egl_get_dmabuf_texture_formats(renderer->egl);
+	} else if (buffer_caps & WLR_BUFFER_CAP_DATA_PTR) {
+		return &renderer->data_ptr_texture_formats;
+	} else {
+		return NULL;
+	}
 }
 
 static const struct wlr_drm_format_set *gles2_get_render_formats(
@@ -530,6 +530,8 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	wlr_egl_unset_current(renderer->egl);
 	wlr_egl_destroy(renderer->egl);
 
+	wlr_drm_format_set_finish(&renderer->data_ptr_texture_formats);
+
 	if (renderer->drm_fd >= 0) {
 		close(renderer->drm_fd);
 	}
@@ -546,8 +548,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.scissor = gles2_scissor,
 	.render_subtexture_with_matrix = gles2_render_subtexture_with_matrix,
 	.render_quad_with_matrix = gles2_render_quad_with_matrix,
-	.get_shm_texture_formats = gles2_get_shm_texture_formats,
-	.get_dmabuf_texture_formats = gles2_get_dmabuf_texture_formats,
+	.get_texture_formats = gles2_get_texture_formats,
 	.get_render_formats = gles2_get_render_formats,
 	.preferred_read_format = gles2_preferred_read_format,
 	.read_pixels = gles2_read_pixels,
@@ -791,6 +792,8 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 		renderer->procs.glDebugMessageControlKHR(GL_DONT_CARE,
 			GL_DEBUG_TYPE_PUSH_GROUP_KHR, GL_DONT_CARE, 0, NULL, GL_FALSE);
 	}
+
+	init_gles2_data_ptr_formats(renderer);
 
 	push_gles2_debug(renderer);
 

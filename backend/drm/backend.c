@@ -244,7 +244,7 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		// to be able to texture from them
 		struct wlr_renderer *renderer = drm->mgpu_renderer.wlr_rend;
 		const struct wlr_drm_format_set *texture_formats =
-			wlr_renderer_get_dmabuf_texture_formats(renderer);
+			wlr_renderer_get_texture_formats(renderer, WLR_BUFFER_CAP_DMABUF);
 		if (texture_formats == NULL) {
 			wlr_log(WLR_ERROR, "Failed to query renderer texture formats");
 			goto error_mgpu_renderer;
