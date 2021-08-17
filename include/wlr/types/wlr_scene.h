@@ -189,5 +189,9 @@ void wlr_scene_output_destroy(struct wlr_scene_output *scene_output);
  */
 void wlr_scene_output_set_position(struct wlr_scene_output *scene_output,
 	int lx, int ly);
+/**
+ * Render and commit an output.
+ */
+bool wlr_scene_output_commit(struct wlr_scene_output *scene_output);
 
 #endif
