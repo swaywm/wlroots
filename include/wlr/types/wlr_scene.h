@@ -56,6 +56,8 @@ struct wlr_scene_node {
 /** The root scene-graph node. */
 struct wlr_scene {
 	struct wlr_scene_node node;
+
+	struct wl_list outputs; // wlr_scene_output.link
 };
 
 /** A scene-graph node displaying a single surface. */
@@ -73,6 +75,16 @@ struct wlr_scene_rect {
 	struct wlr_scene_node node;
 	int width, height;
 	float color[4];
+};
+
+/** A viewport for an output in the scene-graph */
+struct wlr_scene_output {
+	struct wlr_output *output;
+	struct wl_list link; // wlr_scene.outputs
+	struct wlr_scene *scene;
+	struct wlr_addon addon;
+
+	int x, y;
 };
 
 typedef void (*wlr_scene_node_iterator_func_t)(struct wlr_scene_node *node,
@@ -160,5 +172,22 @@ void wlr_scene_rect_set_size(struct wlr_scene_rect *rect, int width, int height)
  * Change the color of an existing rectangle node.
  */
 void wlr_scene_rect_set_color(struct wlr_scene_rect *rect, const float color[static 4]);
+
+/**
+ * Add a viewport for the specified output to the scene-graph.
+ *
+ * An output can only be added once to the scene-graph.
+ */
+struct wlr_scene_output *wlr_scene_output_create(struct wlr_scene *scene,
+	struct wlr_output *output);
+/**
+ * Destroy a scene-graph output.
+ */
+void wlr_scene_output_destroy(struct wlr_scene_output *scene_output);
+/**
+ * Set the output's position in the scene-graph.
+ */
+void wlr_scene_output_set_position(struct wlr_scene_output *scene_output,
+	int lx, int ly);
 
 #endif

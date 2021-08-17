@@ -71,6 +71,12 @@ void wlr_scene_node_destroy(struct wlr_scene_node *node) {
 	switch (node->type) {
 	case WLR_SCENE_NODE_ROOT:;
 		struct wlr_scene *scene = scene_root_from_node(node);
+
+		struct wlr_scene_output *scene_output, *scene_output_tmp;
+		wl_list_for_each_safe(scene_output, scene_output_tmp, &scene->outputs, link) {
+			wlr_scene_output_destroy(scene_output);
+		}
+
 		free(scene);
 		break;
 	case WLR_SCENE_NODE_SURFACE:;
@@ -91,7 +97,7 @@ struct wlr_scene *wlr_scene_create(void) {
 		return NULL;
 	}
 	scene_node_init(&scene->node, WLR_SCENE_NODE_ROOT, NULL);
-
+	wl_list_init(&scene->outputs);
 	return scene;
 }
 
@@ -432,4 +438,42 @@ void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
 	}
 
 	pixman_region32_fini(&full_region);
+}
+
+static void scene_output_handle_destroy(struct wlr_addon *addon) {
+	struct wlr_scene_output *scene_output =
+		wl_container_of(addon, scene_output, addon);
+	wlr_scene_output_destroy(scene_output);
+}
+
+static const struct wlr_addon_interface output_addon_impl = {
+	.name = "wlr_scene_output",
+	.destroy = scene_output_handle_destroy,
+};
+
+struct wlr_scene_output *wlr_scene_output_create(struct wlr_scene *scene,
+		struct wlr_output *output) {
+	struct wlr_scene_output *scene_output = calloc(1, sizeof(*output));
+	if (scene_output == NULL) {
+		return NULL;
+	}
+
+	scene_output->output = output;
+	scene_output->scene = scene;
+	wlr_addon_init(&scene_output->addon, &output->addons, scene, &output_addon_impl);
+	wl_list_insert(&scene->outputs, &scene_output->link);
+
+	return scene_output;
+}
+
+void wlr_scene_output_destroy(struct wlr_scene_output *scene_output) {
+	wlr_addon_finish(&scene_output->addon);
+	wl_list_remove(&scene_output->link);
+	free(scene_output);
+}
+
+void wlr_scene_output_set_position(struct wlr_scene_output *scene_output,
+		int lx, int ly) {
+	scene_output->x = lx;
+	scene_output->y = ly;
 }
