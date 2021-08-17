@@ -232,11 +232,15 @@ static struct gbm_bo *get_bo_for_dmabuf(struct gbm_device *gbm,
 	}
 }
 
-static void drm_fb_handle_wlr_buf_destroy(struct wl_listener *listener,
-		void *data) {
-	struct wlr_drm_fb *fb = wl_container_of(listener, fb, wlr_buf_destroy);
+static void drm_fb_handle_destroy(struct wlr_addon *addon) {
+	struct wlr_drm_fb *fb = wl_container_of(addon, fb, addon);
 	drm_fb_destroy(fb);
 }
+
+static const struct wlr_addon_interface fb_addon_impl = {
+	.name = "wlr_drm_fb",
+	.destroy = drm_fb_handle_destroy,
+};
 
 static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, const struct wlr_drm_format_set *formats) {
@@ -289,9 +293,7 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 
 	fb->wlr_buf = buf;
 
-	fb->wlr_buf_destroy.notify = drm_fb_handle_wlr_buf_destroy;
-	wl_signal_add(&buf->events.destroy, &fb->wlr_buf_destroy);
-
+	wlr_addon_init(&fb->addon, &buf->addons, drm, &fb_addon_impl);
 	wl_list_insert(&drm->fbs, &fb->link);
 
 	return fb;
@@ -305,7 +307,7 @@ error_get_dmabuf:
 
 void drm_fb_destroy(struct wlr_drm_fb *fb) {
 	wl_list_remove(&fb->link);
-	wl_list_remove(&fb->wlr_buf_destroy.link);
+	wlr_addon_finish(&fb->addon);
 
 	struct gbm_device *gbm = gbm_bo_get_device(fb->bo);
 	if (drmModeRmFB(gbm_device_get_fd(gbm), fb->id) != 0) {
@@ -316,21 +318,13 @@ void drm_fb_destroy(struct wlr_drm_fb *fb) {
 	free(fb);
 }
 
-static struct wlr_drm_fb *drm_fb_get(struct wlr_drm_backend *drm,
-		struct wlr_buffer *local_buf) {
-	struct wlr_drm_fb *fb;
-	wl_list_for_each(fb, &drm->fbs, link) {
-		if (fb->wlr_buf == local_buf) {
-			return fb;
-		}
-	}
-	return NULL;
-}
-
 bool drm_fb_import(struct wlr_drm_fb **fb_ptr, struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, const struct wlr_drm_format_set *formats) {
-	struct wlr_drm_fb *fb = drm_fb_get(drm, buf);
-	if (!fb) {
+	struct wlr_drm_fb *fb;
+	struct wlr_addon *addon = wlr_addon_find(&buf->addons, drm, &fb_addon_impl);
+	if (addon != NULL) {
+		fb = wl_container_of(addon, fb, addon);
+	} else {
 		fb = drm_fb_create(drm, buf, formats);
 		if (!fb) {
 			return false;

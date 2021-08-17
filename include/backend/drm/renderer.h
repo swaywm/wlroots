@@ -29,12 +29,11 @@ struct wlr_drm_surface {
 
 struct wlr_drm_fb {
 	struct wlr_buffer *wlr_buf;
+	struct wlr_addon addon;
 	struct wl_list link; // wlr_drm_backend.fbs
 
 	struct gbm_bo *bo;
 	uint32_t id;
-
-	struct wl_listener wlr_buf_destroy;
 };
 
 bool init_drm_renderer(struct wlr_drm_backend *drm,
