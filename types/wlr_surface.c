@@ -961,7 +961,7 @@ static void subsurface_handle_place_below(struct wl_client *client,
 
 	struct wl_list *node;
 	if (sibling_surface == subsurface->parent) {
-		node = subsurface->parent->subsurfaces_pending_below.prev;
+		node = &subsurface->parent->subsurfaces_pending_below;
 	} else {
 		struct wlr_subsurface *sibling =
 			subsurface_find_sibling(subsurface, sibling_surface);
@@ -972,11 +972,11 @@ static void subsurface_handle_place_below(struct wl_client *client,
 				"place_below", wl_resource_get_id(sibling_resource));
 			return;
 		}
-		node = sibling->parent_pending_link.prev;
+		node = &sibling->parent_pending_link;
 	}
 
 	wl_list_remove(&subsurface->parent_pending_link);
-	wl_list_insert(node, &subsurface->parent_pending_link);
+	wl_list_insert(node->prev, &subsurface->parent_pending_link);
 
 	subsurface->reordered = true;
 }
