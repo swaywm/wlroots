@@ -1521,8 +1521,12 @@ static void handle_page_flip(int fd, unsigned seq,
 	};
 	wlr_output_send_present(&conn->output, &present_event);
 
-	if (drm->session->active && conn->output.enabled) {
-		wlr_output_send_frame(&conn->output);
+	if (drm->session->active) {
+		if (conn->output.enabled) {
+			wlr_output_send_frame(&conn->output);
+		} else {
+			conn->output.frame_pending = false;
+		}
 	}
 }
 
