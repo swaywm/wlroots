@@ -477,3 +477,27 @@ void wlr_scene_output_set_position(struct wlr_scene_output *scene_output,
 	scene_output->x = lx;
 	scene_output->y = ly;
 }
+
+bool wlr_scene_output_commit(struct wlr_scene_output *scene_output) {
+	struct wlr_output *output = scene_output->output;
+
+	if (!wlr_output_attach_render(output, NULL)) {
+		return false;
+	}
+
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	assert(renderer != NULL);
+
+	int width, height;
+	wlr_output_effective_resolution(output, &width, &height);
+	wlr_renderer_begin(renderer, width, height);
+	wlr_renderer_clear(renderer, (float[4]){ 0.0, 0.0, 0.0, 0.0 });
+
+	wlr_scene_render_output(scene_output->scene, output,
+		scene_output->x, scene_output->y, NULL);
+	wlr_output_render_software_cursors(output, NULL);
+
+	wlr_renderer_end(renderer);
+
+	return wlr_output_commit(output);
+}
