@@ -119,6 +119,12 @@ void wlr_scene_node_place_below(struct wlr_scene_node *node,
 void wlr_scene_node_reparent(struct wlr_scene_node *node,
 	struct wlr_scene_node *new_parent);
 /**
+ * Get the node's layout-local coordinates.
+ *
+ * True is returned if the node and all of its ancestors are enabled.
+ */
+bool wlr_scene_node_coords(struct wlr_scene_node *node, int *lx, int *ly);
+/**
  * Call `iterator` on each surface in the scene-graph, with the surface's
  * position in layout coordinates. The function is called from root to leaves
  * (in rendering order).

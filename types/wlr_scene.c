@@ -193,6 +193,22 @@ void wlr_scene_node_reparent(struct wlr_scene_node *node,
 	wl_list_insert(new_parent->state.children.prev, &node->state.link);
 }
 
+bool wlr_scene_node_coords(struct wlr_scene_node *node,
+		int *lx_ptr, int *ly_ptr) {
+	int lx = 0, ly = 0;
+	bool enabled = true;
+	while (node != NULL) {
+		lx += node->state.x;
+		ly += node->state.y;
+		enabled = enabled && node->state.enabled;
+		node = node->parent;
+	}
+
+	*lx_ptr = lx;
+	*ly_ptr = ly;
+	return enabled;
+}
+
 static void scene_node_for_each_surface(struct wlr_scene_node *node,
 		int lx, int ly, wlr_surface_iterator_func_t user_iterator,
 		void *user_data) {
