@@ -68,6 +68,7 @@ struct wlr_scene_surface {
 	// private state
 
 	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit;
 };
 
 /** A scene-graph node displaying a solid-colored rectangle */
@@ -83,6 +84,8 @@ struct wlr_scene_output {
 	struct wl_list link; // wlr_scene.outputs
 	struct wlr_scene *scene;
 	struct wlr_addon addon;
+
+	struct wlr_output_damage *damage;
 
 	int x, y;
 };
