@@ -1521,7 +1521,7 @@ static void handle_page_flip(int fd, unsigned seq,
 	};
 	wlr_output_send_present(&conn->output, &present_event);
 
-	if (drm->session->active && conn->output.enabled) {
+	if (drm->session->active) {
 		wlr_output_send_frame(&conn->output);
 	}
 }
