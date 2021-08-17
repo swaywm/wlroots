@@ -48,6 +48,7 @@ struct output {
 	struct wl_list link;
 	struct server *server;
 	struct wlr_output *wlr;
+	struct wlr_scene_output *scene_output;
 
 	struct wl_listener frame;
 };
@@ -55,24 +56,7 @@ struct output {
 static void output_handle_frame(struct wl_listener *listener, void *data) {
 	struct output *output = wl_container_of(listener, output, frame);
 
-	if (!wlr_output_attach_render(output->wlr, NULL)) {
-		return;
-	}
-
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->wlr->backend);
-	assert(renderer != NULL);
-
-	int width, height;
-	wlr_output_effective_resolution(output->wlr, &width, &height);
-	wlr_renderer_begin(renderer, width, height);
-	wlr_renderer_clear(renderer, (float[4]){ 0.3, 0.3, 0.3, 1.0 });
-
-	wlr_scene_render_output(output->server->scene, output->wlr, 0, 0, NULL);
-	wlr_output_render_software_cursors(output->wlr, NULL);
-
-	wlr_renderer_end(renderer);
-
-	if (!wlr_output_commit(output->wlr)) {
+	if (!wlr_scene_output_commit(output->scene_output)) {
 		return;
 	}
 
@@ -96,6 +80,8 @@ static void server_handle_new_output(struct wl_listener *listener, void *data) {
 	output->frame.notify = output_handle_frame;
 	wl_signal_add(&wlr_output->events.frame, &output->frame);
 	wl_list_insert(&server->outputs, &output->link);
+
+	output->scene_output = wlr_scene_output_create(server->scene, wlr_output);
 
 	if (!wl_list_empty(&wlr_output->modes)) {
 		struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
