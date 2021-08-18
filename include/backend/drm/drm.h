@@ -11,6 +11,7 @@
 #include <wlr/backend/drm.h>
 #include <wlr/backend/session.h>
 #include <wlr/render/drm_format_set.h>
+#include <wlr/types/wlr_output_layer.h>
 #include <xf86drmMode.h>
 #include "backend/drm/iface.h"
 #include "backend/drm/properties.h"
@@ -33,6 +34,21 @@ struct wlr_drm_plane {
 	struct wlr_drm_format_set formats;
 
 	union wlr_drm_plane_props props;
+
+	// TODO: shouldn't be part of wlr_drm_plane
+	struct liftoff_layer *liftoff_layer;
+};
+
+struct wlr_drm_layer {
+	struct wlr_output_layer base;
+	struct liftoff_layer *liftoff;
+
+	/* Buffer to be submitted to the kernel on the next page-flip */
+	struct wlr_drm_fb *pending_fb;
+	/* Buffer submitted to the kernel, will be presented on next vblank */
+	struct wlr_drm_fb *queued_fb;
+	/* Buffer currently displayed on screen */
+	struct wlr_drm_fb *current_fb;
 };
 
 struct wlr_drm_crtc {
@@ -49,6 +65,9 @@ struct wlr_drm_crtc {
 	struct wlr_drm_plane *cursor;
 
 	union wlr_drm_crtc_props props;
+
+	struct liftoff_output *liftoff;
+	struct liftoff_layer *liftoff_composition_layer;
 };
 
 struct wlr_drm_backend {
@@ -84,13 +103,14 @@ struct wlr_drm_backend {
 	struct wlr_drm_renderer mgpu_renderer;
 
 	struct wlr_session *session;
+	struct liftoff_device *liftoff;
 
 	uint64_t cursor_width, cursor_height;
 
 	struct wlr_drm_format_set mgpu_formats;
 };
 
-enum wlr_drm_connector_state {
+enum wlr_drm_connector_status {
 	// Connector is available but no output is plugged in
 	WLR_DRM_CONN_DISCONNECTED,
 	// An output just has been plugged in and is waiting for a modeset
@@ -104,12 +124,19 @@ struct wlr_drm_mode {
 	drmModeModeInfo drm_mode;
 };
 
+struct wlr_drm_connector_state {
+	const struct wlr_output_state *base;
+	bool modeset;
+	bool active;
+	drmModeModeInfo mode;
+};
+
 struct wlr_drm_connector {
-	struct wlr_output output; // only valid if state != DISCONNECTED
+	struct wlr_output output; // only valid if status != DISCONNECTED
 
 	struct wlr_drm_backend *backend;
 	char name[24];
-	enum wlr_drm_connector_state state;
+	enum wlr_drm_connector_status status;
 	struct wlr_output_mode *desired_mode;
 	bool desired_enabled;
 	uint32_t id;
@@ -152,12 +179,6 @@ size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc);
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane);
-
-bool drm_connector_state_is_modeset(const struct wlr_output_state *state);
-bool drm_connector_state_active(struct wlr_drm_connector *conn,
-	const struct wlr_output_state *state);
-void drm_connector_state_mode(struct wlr_drm_connector *conn,
-	const struct wlr_output_state *state, drmModeModeInfo *mode);
 
 #define wlr_drm_conn_log(conn, verb, fmt, ...) \
 	wlr_log(verb, "connector %s: " fmt, conn->name, ##__VA_ARGS__)
