@@ -341,10 +341,12 @@ static void surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
 	subsurface->reordered = false;
 
 	struct wlr_subsurface *child;
-	wl_list_for_each(child, &subsurface->surface->subsurfaces_below, parent_link) {
+	wl_list_for_each(child, &subsurface->surface->subsurfaces_below,
+			current.link) {
 		surface_damage_subsurfaces(child);
 	}
-	wl_list_for_each(child, &subsurface->surface->subsurfaces_above, parent_link) {
+	wl_list_for_each(child, &subsurface->surface->subsurfaces_above,
+			current.link) {
 		surface_damage_subsurfaces(child);
 	}
 }
@@ -458,9 +460,10 @@ static void surface_commit_state(struct wlr_surface *surface,
 	// commit subsurface order
 	struct wlr_subsurface *subsurface;
 	wl_list_for_each_reverse(subsurface, &surface->subsurfaces_pending_above,
-			parent_pending_link) {
-		wl_list_remove(&subsurface->parent_link);
-		wl_list_insert(&surface->subsurfaces_above, &subsurface->parent_link);
+			pending.link) {
+		wl_list_remove(&subsurface->current.link);
+		wl_list_insert(&surface->subsurfaces_above,
+			&subsurface->current.link);
 
 		if (subsurface->reordered) {
 			// TODO: damage all the subsurfaces
@@ -468,9 +471,10 @@ static void surface_commit_state(struct wlr_surface *surface,
 		}
 	}
 	wl_list_for_each_reverse(subsurface, &surface->subsurfaces_pending_below,
-			parent_pending_link) {
-		wl_list_remove(&subsurface->parent_link);
-		wl_list_insert(&surface->subsurfaces_below, &subsurface->parent_link);
+			pending.link) {
+		wl_list_remove(&subsurface->current.link);
+		wl_list_insert(&surface->subsurfaces_below,
+			&subsurface->current.link);
 
 		if (subsurface->reordered) {
 			// TODO: damage all the subsurfaces
@@ -538,10 +542,12 @@ static void subsurface_parent_commit(struct wlr_subsurface *subsurface,
 		}
 
 		struct wlr_subsurface *subsurface;
-		wl_list_for_each(subsurface, &surface->subsurfaces_below, parent_link) {
+		wl_list_for_each(subsurface, &surface->subsurfaces_below,
+				current.link) {
 			subsurface_parent_commit(subsurface, true);
 		}
-		wl_list_for_each(subsurface, &surface->subsurfaces_above, parent_link) {
+		wl_list_for_each(subsurface, &surface->subsurfaces_above,
+				current.link) {
 			subsurface_parent_commit(subsurface, true);
 		}
 	}
@@ -573,10 +579,10 @@ static void surface_commit(struct wl_client *client,
 
 	surface_commit_pending(surface);
 
-	wl_list_for_each(subsurface, &surface->subsurfaces_below, parent_link) {
+	wl_list_for_each(subsurface, &surface->subsurfaces_below, current.link) {
 		subsurface_parent_commit(subsurface, false);
 	}
-	wl_list_for_each(subsurface, &surface->subsurfaces_above, parent_link) {
+	wl_list_for_each(subsurface, &surface->subsurfaces_above, current.link) {
 		subsurface_parent_commit(subsurface, false);
 	}
 }
@@ -692,8 +698,8 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 	wl_list_remove(&subsurface->surface_destroy.link);
 
 	if (subsurface->parent) {
-		wl_list_remove(&subsurface->parent_link);
-		wl_list_remove(&subsurface->parent_pending_link);
+		wl_list_remove(&subsurface->current.link);
+		wl_list_remove(&subsurface->pending.link);
 		wl_list_remove(&subsurface->parent_destroy.link);
 	}
 
@@ -905,12 +911,12 @@ static struct wlr_subsurface *subsurface_find_sibling(
 	struct wlr_surface *parent = subsurface->parent;
 
 	struct wlr_subsurface *sibling;
-	wl_list_for_each(sibling, &parent->subsurfaces_below, parent_link) {
+	wl_list_for_each(sibling, &parent->subsurfaces_below, current.link) {
 		if (sibling->surface == surface && sibling != subsurface) {
 			return sibling;
 		}
 	}
-	wl_list_for_each(sibling, &parent->subsurfaces_above, parent_link) {
+	wl_list_for_each(sibling, &parent->subsurfaces_above, current.link) {
 		if (sibling->surface == surface && sibling != subsurface) {
 			return sibling;
 		}
@@ -942,11 +948,11 @@ static void subsurface_handle_place_above(struct wl_client *client,
 				"place_above", wl_resource_get_id(sibling_resource));
 			return;
 		}
-		node = &sibling->parent_pending_link;
+		node = &sibling->pending.link;
 	}
 
-	wl_list_remove(&subsurface->parent_pending_link);
-	wl_list_insert(node, &subsurface->parent_pending_link);
+	wl_list_remove(&subsurface->pending.link);
+	wl_list_insert(node, &subsurface->pending.link);
 
 	subsurface->reordered = true;
 }
@@ -974,11 +980,11 @@ static void subsurface_handle_place_below(struct wl_client *client,
 				"place_below", wl_resource_get_id(sibling_resource));
 			return;
 		}
-		node = &sibling->parent_pending_link;
+		node = &sibling->pending.link;
 	}
 
-	wl_list_remove(&subsurface->parent_pending_link);
-	wl_list_insert(node->prev, &subsurface->parent_pending_link);
+	wl_list_remove(&subsurface->pending.link);
+	wl_list_insert(node->prev, &subsurface->pending.link);
 
 	subsurface->reordered = true;
 }
@@ -1055,10 +1061,12 @@ static void subsurface_consider_map(struct wlr_subsurface *subsurface,
 
 	// Try mapping all children too
 	struct wlr_subsurface *child;
-	wl_list_for_each(child, &subsurface->surface->subsurfaces_below, parent_link) {
+	wl_list_for_each(child, &subsurface->surface->subsurfaces_below,
+			current.link) {
 		subsurface_consider_map(child, false);
 	}
-	wl_list_for_each(child, &subsurface->surface->subsurfaces_above, parent_link) {
+	wl_list_for_each(child, &subsurface->surface->subsurfaces_above,
+			current.link) {
 		subsurface_consider_map(child, false);
 	}
 }
@@ -1073,10 +1081,12 @@ static void subsurface_unmap(struct wlr_subsurface *subsurface) {
 
 	// Unmap all children
 	struct wlr_subsurface *child;
-	wl_list_for_each(child, &subsurface->surface->subsurfaces_below, parent_link) {
+	wl_list_for_each(child, &subsurface->surface->subsurfaces_below,
+			current.link) {
 		subsurface_unmap(child);
 	}
-	wl_list_for_each(child, &subsurface->surface->subsurfaces_above, parent_link) {
+	wl_list_for_each(child, &subsurface->surface->subsurfaces_above,
+			current.link) {
 		subsurface_unmap(child);
 	}
 }
@@ -1140,8 +1150,8 @@ static void subsurface_handle_parent_destroy(struct wl_listener *listener,
 	struct wlr_subsurface *subsurface =
 		wl_container_of(listener, subsurface, parent_destroy);
 	subsurface_unmap(subsurface);
-	wl_list_remove(&subsurface->parent_link);
-	wl_list_remove(&subsurface->parent_pending_link);
+	wl_list_remove(&subsurface->current.link);
+	wl_list_remove(&subsurface->pending.link);
 	wl_list_remove(&subsurface->parent_destroy.link);
 	subsurface->parent = NULL;
 }
@@ -1186,9 +1196,9 @@ struct wlr_subsurface *subsurface_create(struct wlr_surface *surface,
 	subsurface->parent = parent;
 	wl_signal_add(&parent->events.destroy, &subsurface->parent_destroy);
 	subsurface->parent_destroy.notify = subsurface_handle_parent_destroy;
-	wl_list_insert(parent->subsurfaces_above.prev, &subsurface->parent_link);
+	wl_list_insert(parent->subsurfaces_above.prev, &subsurface->current.link);
 	wl_list_insert(parent->subsurfaces_pending_above.prev,
-		&subsurface->parent_pending_link);
+		&subsurface->pending.link);
 
 	surface->role_data = subsurface;
 
@@ -1223,7 +1233,8 @@ bool wlr_surface_point_accepts_input(struct wlr_surface *surface,
 struct wlr_surface *wlr_surface_surface_at(struct wlr_surface *surface,
 		double sx, double sy, double *sub_x, double *sub_y) {
 	struct wlr_subsurface *subsurface;
-	wl_list_for_each_reverse(subsurface, &surface->subsurfaces_above, parent_link) {
+	wl_list_for_each_reverse(subsurface, &surface->subsurfaces_above,
+			current.link) {
 		double _sub_x = subsurface->current.x;
 		double _sub_y = subsurface->current.y;
 		struct wlr_surface *sub = wlr_surface_surface_at(subsurface->surface,
@@ -1243,7 +1254,8 @@ struct wlr_surface *wlr_surface_surface_at(struct wlr_surface *surface,
 		return surface;
 	}
 
-	wl_list_for_each_reverse(subsurface, &surface->subsurfaces_below, parent_link) {
+	wl_list_for_each_reverse(subsurface, &surface->subsurfaces_below,
+			current.link) {
 		double _sub_x = subsurface->current.x;
 		double _sub_y = subsurface->current.y;
 		struct wlr_surface *sub = wlr_surface_surface_at(subsurface->surface,
@@ -1349,7 +1361,7 @@ void wlr_surface_send_frame_done(struct wlr_surface *surface,
 static void surface_for_each_surface(struct wlr_surface *surface, int x, int y,
 		wlr_surface_iterator_func_t iterator, void *user_data) {
 	struct wlr_subsurface *subsurface;
-	wl_list_for_each(subsurface, &surface->subsurfaces_below, parent_link) {
+	wl_list_for_each(subsurface, &surface->subsurfaces_below, current.link) {
 		struct wlr_subsurface_parent_state *state = &subsurface->current;
 		int sx = state->x;
 		int sy = state->y;
@@ -1360,7 +1372,7 @@ static void surface_for_each_surface(struct wlr_surface *surface, int x, int y,
 
 	iterator(surface, x, y, user_data);
 
-	wl_list_for_each(subsurface, &surface->subsurfaces_above, parent_link) {
+	wl_list_for_each(subsurface, &surface->subsurfaces_above, current.link) {
 		struct wlr_subsurface_parent_state *state = &subsurface->current;
 		int sx = state->x;
 		int sy = state->y;
