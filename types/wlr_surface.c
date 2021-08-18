@@ -104,10 +104,8 @@ static void surface_frame(struct wl_client *client,
 	wl_resource_set_implementation(callback_resource, NULL, NULL,
 		callback_handle_resource_destroy);
 
-	wl_list_insert(surface->pending.frame_callback_list.prev,
+	wl_list_insert(surface->pending_frame_callback_list.prev,
 		wl_resource_get_link(callback_resource));
-
-	surface->pending.committed |= WLR_SURFACE_STATE_FRAME_CALLBACK_LIST;
 }
 
 static void surface_set_opaque_region(struct wl_client *client,
@@ -493,13 +491,9 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 		surface->role->precommit(surface);
 	}
 
-	// It doesn't to make sense to cache callback lists, so we always move
-	// them to the current state.
-	if (surface->pending.committed & WLR_SURFACE_STATE_FRAME_CALLBACK_LIST) {
-		wl_list_insert_list(&surface->current.frame_callback_list,
-			&surface->pending.frame_callback_list);
-		wl_list_init(&surface->pending.frame_callback_list);
-	}
+	wl_list_insert_list(&surface->frame_callback_list,
+		&surface->pending_frame_callback_list);
+	wl_list_init(&surface->pending_frame_callback_list);
 
 	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
 		surface_cache_pending(surface);
@@ -646,8 +640,6 @@ static void surface_state_init(struct wlr_surface_state *state) {
 	state->scale = 1;
 	state->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 
-	wl_list_init(&state->frame_callback_list);
-
 	pixman_region32_init(&state->surface_damage);
 	pixman_region32_init(&state->buffer_damage);
 	pixman_region32_init(&state->opaque);
@@ -658,11 +650,6 @@ static void surface_state_init(struct wlr_surface_state *state) {
 static void surface_state_finish(struct wlr_surface_state *state) {
 	surface_state_reset_buffer(state);
 	wlr_buffer_unlock(state->buffer);
-
-	struct wl_resource *resource, *tmp;
-	wl_resource_for_each_safe(resource, tmp, &state->frame_callback_list) {
-		wl_resource_destroy(resource);
-	}
 
 	pixman_region32_fini(&state->surface_damage);
 	pixman_region32_fini(&state->buffer_damage);
@@ -720,6 +707,16 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 		surface_state_destroy_cached(cached);
 	}
 
+	struct wl_resource *callback_resource, *tmp;
+	wl_resource_for_each_safe(callback_resource, tmp,
+			&surface->frame_callback_list) {
+		wl_resource_destroy(resource);
+	}
+	wl_resource_for_each_safe(callback_resource, tmp,
+			&surface->pending_frame_callback_list) {
+		wl_resource_destroy(resource);
+	}
+
 	wl_list_remove(&surface->renderer_destroy.link);
 	surface_state_finish(&surface->pending);
 	surface_state_finish(&surface->current);
@@ -763,6 +760,9 @@ struct wlr_surface *surface_create(struct wl_client *client,
 	surface_state_init(&surface->current);
 	surface_state_init(&surface->pending);
 	surface->pending.seq = 1;
+
+	wl_list_init(&surface->frame_callback_list);
+	wl_list_init(&surface->pending_frame_callback_list);
 
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
@@ -1337,8 +1337,7 @@ void wlr_surface_send_leave(struct wlr_surface *surface,
 void wlr_surface_send_frame_done(struct wlr_surface *surface,
 		const struct timespec *when) {
 	struct wl_resource *resource, *tmp;
-	wl_resource_for_each_safe(resource, tmp,
-			&surface->current.frame_callback_list) {
+	wl_resource_for_each_safe(resource, tmp, &surface->frame_callback_list) {
 		wl_callback_send_done(resource, timespec_to_msec(when));
 		wl_resource_destroy(resource);
 	}
