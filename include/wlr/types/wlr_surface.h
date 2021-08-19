@@ -15,6 +15,7 @@
 #include <time.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/util/addon.h>
 #include <wlr/util/box.h>
 
 enum wlr_surface_state_field {
@@ -61,6 +62,8 @@ struct wlr_surface_state {
 		struct wlr_fbox src;
 		int dst_width, dst_height; // in surface-local coordinates
 	} viewport;
+
+	struct wlr_addon_set addons;
 
 	struct wl_listener buffer_destroy;
 

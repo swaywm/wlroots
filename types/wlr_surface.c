@@ -648,6 +648,8 @@ static void surface_state_init(struct wlr_surface_state *state) {
 
 	wl_list_init(&state->frame_callback_list);
 
+	wlr_addon_set_init(&state->addons);
+
 	pixman_region32_init(&state->surface_damage);
 	pixman_region32_init(&state->buffer_damage);
 	pixman_region32_init(&state->opaque);
@@ -663,6 +665,8 @@ static void surface_state_finish(struct wlr_surface_state *state) {
 	wl_resource_for_each_safe(resource, tmp, &state->frame_callback_list) {
 		wl_resource_destroy(resource);
 	}
+
+	wlr_addon_set_finish(&state->addons);
 
 	pixman_region32_fini(&state->surface_damage);
 	pixman_region32_fini(&state->buffer_damage);
