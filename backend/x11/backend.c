@@ -165,6 +165,8 @@ static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
 	x11->started = true;
 
+	wlr_log(WLR_INFO, "Starting X11 backend");
+
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &x11->keyboard_dev);
 
 	for (size_t i = 0; i < x11->requested_outputs; ++i) {

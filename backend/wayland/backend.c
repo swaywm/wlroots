@@ -267,7 +267,7 @@ static const struct wl_registry_listener registry_listener = {
  */
 static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
-	wlr_log(WLR_INFO, "Initializating wayland backend");
+	wlr_log(WLR_INFO, "Starting Wayland backend");
 
 	wl->started = true;
 
