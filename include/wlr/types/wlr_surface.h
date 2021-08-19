@@ -140,6 +140,9 @@ struct wlr_surface {
 		struct wl_signal commit;
 		struct wl_signal new_subsurface;
 		struct wl_signal destroy;
+
+		// For surface extensions
+		struct wl_signal prepare_addons; // struct wlr_surface_state *
 	} events;
 
 	// wlr_subsurface.parent_link
