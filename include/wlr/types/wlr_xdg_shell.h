@@ -11,6 +11,7 @@
 
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
+#include <wlr/util/addon.h>
 #include <wlr/util/box.h>
 #include "xdg-shell-protocol.h"
 
@@ -151,6 +152,8 @@ struct wlr_xdg_surface_configure {
 };
 
 struct wlr_xdg_surface_state {
+	struct wlr_addon addon;
+
 	uint32_t configure_serial;
 	bool has_geometry;
 	struct wlr_box geometry;

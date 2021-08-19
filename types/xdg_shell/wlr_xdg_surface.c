@@ -6,6 +6,17 @@
 #include "types/wlr_xdg_shell.h"
 #include "util/signal.h"
 
+static void addon_destroy(struct wlr_addon *addon) {
+	struct wlr_xdg_surface_state *state =
+		wl_container_of(addon, state, addon);
+	free(state);
+}
+
+static const struct wlr_addon_interface state_addon_impl = {
+	.name = "wlr_xdg_surface_state",
+	.destroy = addon_destroy,
+};
+
 bool wlr_surface_is_xdg_surface(struct wlr_surface *surface) {
 	return surface->role == &xdg_toplevel_surface_role ||
 		surface->role == &xdg_popup_surface_role;
