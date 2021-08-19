@@ -356,6 +356,53 @@ static void xdg_surface_handle_surface_commit(struct wl_listener *listener,
 	}
 }
 
+static void xdg_surface_handle_surface_prepare_addons(
+		struct wl_listener *listener, void *data) {
+	struct wlr_xdg_surface *surface =
+		wl_container_of(listener, surface, surface_prepare_addons);
+	struct wlr_surface_state *next = data;
+
+	if (surface->configure_serial == surface->pending.configure_serial &&
+			!surface->pending.has_geometry) {
+		return;
+	}
+
+	struct wlr_xdg_surface_state *state = calloc(1, sizeof(*state));
+	if (!state) {
+		wl_resource_post_no_memory(surface->resource);
+		return;
+	}
+	state->has_geometry = surface->pending.has_geometry;
+	state->geometry = surface->pending.geometry;
+	state->configure_serial = surface->pending.configure_serial;
+
+	wlr_addon_init(&state->addon, &next->addons,
+		surface, &state_addon_impl);
+}
+
+static void xdg_surface_handle_surface_commit_addons(
+		struct wl_listener *listener, void *data) {
+	struct wlr_xdg_surface *surface =
+		wl_container_of(listener, surface, surface_commit_addons);
+	struct wlr_surface_state *next = data;
+
+	struct wlr_addon *addon =
+		wlr_addon_find(&next->addons, surface, &state_addon_impl);
+	if (addon == NULL) {
+		return;
+	}
+
+	struct wlr_xdg_surface_state *state =
+		wl_container_of(addon, state, addon);
+	surface->configure_serial = state->configure_serial;
+	if (state->has_geometry) {
+		surface->geometry = state->geometry;
+	}
+
+	wlr_addon_finish(addon);
+	free(state);
+}
+
 static void surface_commit_state(struct wlr_xdg_surface *surface,
 		struct wlr_xdg_surface_state *state) {
 	surface->configure_serial = state->configure_serial;
@@ -474,6 +521,16 @@ struct wlr_xdg_surface *create_xdg_surface(
 		&xdg_surface->surface_commit);
 	xdg_surface->surface_commit.notify = xdg_surface_handle_surface_commit;
 
+	wl_signal_add(&xdg_surface->surface->events.prepare_addons,
+		&xdg_surface->surface_prepare_addons);
+	xdg_surface->surface_prepare_addons.notify =
+		xdg_surface_handle_surface_prepare_addons;
+
+	wl_signal_add(&xdg_surface->surface->events.commit_addons,
+		&xdg_surface->surface_commit_addons);
+	xdg_surface->surface_commit_addons.notify =
+		xdg_surface_handle_surface_commit_addons;
+
 	wlr_log(WLR_DEBUG, "new xdg_surface %p (res %p)", xdg_surface,
 		xdg_surface->resource);
 	wl_resource_set_implementation(xdg_surface->resource,
@@ -533,6 +590,8 @@ void destroy_xdg_surface(struct wlr_xdg_surface *surface) {
 	wl_list_remove(&surface->link);
 	wl_list_remove(&surface->surface_destroy.link);
 	wl_list_remove(&surface->surface_commit.link);
+	wl_list_remove(&surface->surface_prepare_addons.link);
+	wl_list_remove(&surface->surface_commit_addons.link);
 	free(surface);
 }
 

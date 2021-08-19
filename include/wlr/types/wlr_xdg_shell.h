@@ -196,6 +196,9 @@ struct wlr_xdg_surface {
 	struct wl_listener surface_destroy;
 	struct wl_listener surface_commit;
 
+	struct wl_listener surface_prepare_addons;
+	struct wl_listener surface_commit_addons;
+
 	struct {
 		struct wl_signal destroy;
 		struct wl_signal ping_timeout;
