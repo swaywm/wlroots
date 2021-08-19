@@ -474,6 +474,11 @@ static void surface_commit_state(struct wlr_surface *surface,
 		}
 	}
 
+	wlr_signal_emit_safe(&surface->events.commit_addons, next);
+	// Reset the addon set
+	wlr_addon_set_finish(&next->addons);
+	wlr_addon_set_init(&next->addons);
+
 	// If we're committing the pending state, bump the pending sequence number
 	// here, to allow commit listeners to lock the new pending state.
 	if (next == &surface->pending) {
@@ -775,6 +780,7 @@ struct wlr_surface *surface_create(struct wl_client *client,
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.new_subsurface);
 	wl_signal_init(&surface->events.prepare_addons);
+	wl_signal_init(&surface->events.commit_addons);
 	wl_list_init(&surface->subsurfaces_above);
 	wl_list_init(&surface->subsurfaces_below);
 	wl_list_init(&surface->subsurfaces_pending_above);
