@@ -959,7 +959,7 @@ static const struct wlr_drm_format_set *drm_connector_get_cursor_formats(
 		return NULL;
 	}
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	if (!conn->crtc) {
+	if (!conn->crtc && !drm_connector_alloc_crtc(conn)) {
 		return NULL;
 	}
 	struct wlr_drm_plane *plane = conn->crtc->cursor;
@@ -985,7 +985,7 @@ static const struct wlr_drm_format_set *drm_connector_get_primary_formats(
 		return NULL;
 	}
 	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
-	if (!conn->crtc) {
+	if (!conn->crtc && !drm_connector_alloc_crtc(conn)) {
 		return NULL;
 	}
 	if (conn->backend->parent) {
