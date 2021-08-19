@@ -419,6 +419,7 @@ static void surface_cache_pending(struct wlr_surface *surface) {
 
 	surface_state_init(cached);
 	surface_state_move(cached, &surface->pending);
+	wlr_signal_emit_safe(&surface->events.prepare_addons, cached);
 
 	wl_list_insert(surface->cached.prev, &cached->cached_state_link);
 
@@ -504,6 +505,8 @@ static void surface_commit_pending(struct wlr_surface *surface) {
 	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
 		surface_cache_pending(surface);
 	} else {
+		wlr_signal_emit_safe(&surface->events.prepare_addons,
+			&surface->pending);
 		surface_commit_state(surface, &surface->pending);
 	}
 }
@@ -771,6 +774,7 @@ struct wlr_surface *surface_create(struct wl_client *client,
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.new_subsurface);
+	wl_signal_init(&surface->events.prepare_addons);
 	wl_list_init(&surface->subsurfaces_above);
 	wl_list_init(&surface->subsurfaces_below);
 	wl_list_init(&surface->subsurfaces_pending_above);
