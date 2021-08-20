@@ -469,6 +469,31 @@ subsurface_oom:
 	surface_state_destroy_cached(cached);
 }
 
+/**
+ * Recursive function to commit the effectively synchronized children.
+ */
+static void subsurface_parent_commit(struct wlr_subsurface *subsurface,
+		bool synchronized) {
+	struct wlr_surface *surface = subsurface->surface;
+	if (synchronized || subsurface->synchronized) {
+		if (subsurface->has_cache) {
+			wlr_surface_unlock_cached(surface, subsurface->cached_seq);
+			subsurface->has_cache = false;
+			subsurface->cached_seq = 0;
+		}
+
+		struct wlr_subsurface *subsurface;
+		wl_list_for_each(subsurface, &surface->current.subsurfaces_below,
+				place.link) {
+			subsurface_parent_commit(subsurface, true);
+		}
+		wl_list_for_each(subsurface, &surface->current.subsurfaces_above,
+				place.link) {
+			subsurface_parent_commit(subsurface, true);
+		}
+	}
+}
+
 static void surface_commit_state(struct wlr_surface *surface,
 		struct wlr_surface_state *next) {
 	assert(next->cached_state_locks == 0);
@@ -564,6 +589,14 @@ static void surface_commit_state(struct wlr_surface *surface,
 
 	next->committed = 0;
 
+	struct wlr_subsurface *subsurface;
+	wl_list_for_each(subsurface, &surface->current.subsurfaces_below, place.link) {
+		subsurface_parent_commit(subsurface, false);
+	}
+	wl_list_for_each(subsurface, &surface->current.subsurfaces_above, place.link) {
+		subsurface_parent_commit(subsurface, false);
+	}
+
 	surface->current.seq = next->seq;
 
 	surface_update_damage(surface);
@@ -634,31 +667,6 @@ static bool subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
 	return false;
 }
 
-/**
- * Recursive function to commit the effectively synchronized children.
- */
-static void subsurface_parent_commit(struct wlr_subsurface *subsurface,
-		bool synchronized) {
-	struct wlr_surface *surface = subsurface->surface;
-	if (synchronized || subsurface->synchronized) {
-		if (subsurface->has_cache) {
-			wlr_surface_unlock_cached(surface, subsurface->cached_seq);
-			subsurface->has_cache = false;
-			subsurface->cached_seq = 0;
-		}
-
-		struct wlr_subsurface *subsurface;
-		wl_list_for_each(subsurface, &surface->current.subsurfaces_below,
-				place.link) {
-			subsurface_parent_commit(subsurface, true);
-		}
-		wl_list_for_each(subsurface, &surface->current.subsurfaces_above,
-				place.link) {
-			subsurface_parent_commit(subsurface, true);
-		}
-	}
-}
-
 static void subsurface_commit(struct wlr_subsurface *subsurface) {
 	struct wlr_surface *surface = subsurface->surface;
 
@@ -684,13 +692,6 @@ static void surface_commit(struct wl_client *client,
 	}
 
 	surface_commit_pending(surface);
-
-	wl_list_for_each(subsurface, &surface->current.subsurfaces_below, place.link) {
-		subsurface_parent_commit(subsurface, false);
-	}
-	wl_list_for_each(subsurface, &surface->current.subsurfaces_above, place.link) {
-		subsurface_parent_commit(subsurface, false);
-	}
 }
 
 static void surface_set_buffer_transform(struct wl_client *client,
