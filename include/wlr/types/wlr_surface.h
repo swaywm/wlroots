@@ -173,7 +173,10 @@ struct wlr_subsurface_place {
 	struct wl_list link;
 };
 
-struct wlr_subsurface_state {
+// Note: as per Wayland protocol, subsurface-specific state is applied on
+// the parent surface commit and therefore is a part of the parent
+// surface state, hence the name.
+struct wlr_subsurface_parent_state {
 	int32_t x, y;
 };
 
@@ -182,7 +185,7 @@ struct wlr_subsurface {
 	struct wlr_surface *surface;
 	struct wlr_surface *parent;
 
-	struct wlr_subsurface_state current, pending;
+	struct wlr_subsurface_parent_state current, pending;
 
 	struct wlr_subsurface_place place, pending_place;
 
