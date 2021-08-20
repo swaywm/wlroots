@@ -285,10 +285,9 @@ static void surface_state_move(struct wlr_surface_state *state,
 
 		if (next->buffer) {
 			wlr_buffer_unlock(state->buffer);
-			state->buffer = wlr_buffer_lock(next->buffer);
+			state->buffer = next->buffer;
+			next->buffer = NULL;
 		}
-		wlr_buffer_unlock(next->buffer);
-		next->buffer = NULL;
 	} else {
 		state->dx = state->dy = 0;
 	}
