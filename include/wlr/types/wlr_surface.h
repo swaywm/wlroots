@@ -177,6 +177,8 @@ struct wlr_subsurface_place {
 // the parent surface commit and therefore is a part of the parent
 // surface state, hence the name.
 struct wlr_subsurface_parent_state {
+	struct wlr_addon addon;
+	bool has_position;
 	int32_t x, y;
 };
 
@@ -198,6 +200,8 @@ struct wlr_subsurface {
 
 	struct wl_listener surface_destroy;
 	struct wl_listener parent_destroy;
+	struct wl_listener parent_prepare_addons;
+	struct wl_listener parent_commit_addons;
 
 	struct {
 		struct wl_signal destroy;

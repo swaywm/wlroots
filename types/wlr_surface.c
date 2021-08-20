@@ -803,6 +803,8 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 		wl_list_remove(&subsurface->place.link);
 		wl_list_remove(&subsurface->pending_place.link);
 		wl_list_remove(&subsurface->parent_destroy.link);
+		wl_list_remove(&subsurface->parent_prepare_addons.link);
+		wl_list_remove(&subsurface->parent_commit_addons.link);
 	}
 
 	wl_resource_set_user_data(subsurface->resource, NULL);
@@ -1002,6 +1004,7 @@ static void subsurface_handle_set_position(struct wl_client *client,
 		return;
 	}
 
+	subsurface->pending.has_position = true;
 	subsurface->pending.x = x;
 	subsurface->pending.y = y;
 }
@@ -1205,25 +1208,6 @@ static void subsurface_role_commit(struct wlr_surface *surface) {
 	if (subsurface->current.x != subsurface->pending.x ||
 			subsurface->current.y != subsurface->pending.y) {
 		// Subsurface has moved
-		int dx = subsurface->current.x - subsurface->pending.x;
-		int dy = subsurface->current.y - subsurface->pending.y;
-
-		subsurface->current.x = subsurface->pending.x;
-		subsurface->current.y = subsurface->pending.y;
-
-		if ((surface->current.transform & WL_OUTPUT_TRANSFORM_90) != 0) {
-			int tmp = dx;
-			dx = dy;
-			dy = tmp;
-		}
-
-		pixman_region32_union_rect(&surface->buffer_damage,
-			&surface->buffer_damage,
-			dx * surface->previous.scale, dy * surface->previous.scale,
-			surface->previous.buffer_width, surface->previous.buffer_height);
-		pixman_region32_union_rect(&surface->buffer_damage,
-			&surface->buffer_damage, 0, 0,
-			surface->current.buffer_width, surface->current.buffer_height);
 	}
 
 	subsurface_consider_map(subsurface, true);
@@ -1249,6 +1233,17 @@ const struct wlr_surface_role subsurface_role = {
 	.precommit = subsurface_role_precommit,
 };
 
+static void subsurface_parent_state_addon_destroy(struct wlr_addon *addon) {
+	struct wlr_subsurface_parent_state *state =
+		wl_container_of(addon, state, addon);
+	free(state);
+}
+
+static const struct wlr_addon_interface subsurface_parent_state_addon_impl = {
+	.name = "wlr_subsurface_parent_state",
+	.destroy = subsurface_parent_state_addon_destroy,
+};
+
 static void subsurface_handle_parent_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_subsurface *subsurface =
@@ -1257,7 +1252,72 @@ static void subsurface_handle_parent_destroy(struct wl_listener *listener,
 	wl_list_remove(&subsurface->place.link);
 	wl_list_remove(&subsurface->pending_place.link);
 	wl_list_remove(&subsurface->parent_destroy.link);
+	wl_list_remove(&subsurface->parent_prepare_addons.link);
+	wl_list_remove(&subsurface->parent_commit_addons.link);
 	subsurface->parent = NULL;
+}
+
+static void subsurface_handle_parent_prepare_addons(
+		struct wl_listener *listener, void *data) {
+	struct wlr_subsurface *subsurface =
+		wl_container_of(listener, subsurface, parent_prepare_addons);
+	struct wlr_surface_state *next = data;
+	if (!subsurface->pending.has_position) {
+		return;
+	}
+
+	struct wlr_subsurface_parent_state *state = calloc(1, sizeof(*state));
+	if (!state) {
+		wl_resource_post_no_memory(subsurface->resource);
+		return;
+	}
+	state->has_position = subsurface->pending.has_position;
+	state->x = subsurface->pending.x;
+	state->y = subsurface->pending.y;
+
+	wlr_addon_init(&state->addon, &next->addons,
+		subsurface, &subsurface_parent_state_addon_impl);
+}
+
+static void subsurface_handle_parent_commit_addons(
+		struct wl_listener *listener, void *data) {
+	struct wlr_subsurface *subsurface =
+		wl_container_of(listener, subsurface, parent_commit_addons);
+	struct wlr_surface_state *next = data;
+	struct wlr_addon *addon = wlr_addon_find(&next->addons,
+		subsurface, &subsurface_parent_state_addon_impl);
+	if (!addon) {
+		return;
+	}
+
+	struct wlr_subsurface_parent_state *state =
+		wl_container_of(addon, state, addon);
+	if (state->has_position) {
+		int dx = subsurface->current.x - state->x;
+		int dy = subsurface->current.y - state->y;
+
+		subsurface->current.x = state->x;
+		subsurface->current.y = state->y;
+
+		struct wlr_surface *surface = subsurface->surface;
+
+		if ((surface->current.transform & WL_OUTPUT_TRANSFORM_90) != 0) {
+			int tmp = dx;
+			dx = dy;
+			dy = tmp;
+		}
+
+		pixman_region32_union_rect(&surface->buffer_damage,
+			&surface->buffer_damage,
+			dx * surface->previous.scale, dy * surface->previous.scale,
+			surface->previous.buffer_width, surface->previous.buffer_height);
+		pixman_region32_union_rect(&surface->buffer_damage,
+			&surface->buffer_damage, 0, 0,
+			surface->current.buffer_width, surface->current.buffer_height);
+	}
+
+	wlr_addon_finish(addon);
+	free(state);
 }
 
 static void subsurface_handle_surface_destroy(struct wl_listener *listener,
@@ -1300,6 +1360,12 @@ struct wlr_subsurface *subsurface_create(struct wlr_surface *surface,
 	subsurface->parent = parent;
 	wl_signal_add(&parent->events.destroy, &subsurface->parent_destroy);
 	subsurface->parent_destroy.notify = subsurface_handle_parent_destroy;
+	wl_signal_add(&parent->events.prepare_addons, &subsurface->parent_prepare_addons);
+	subsurface->parent_prepare_addons.notify =
+		subsurface_handle_parent_prepare_addons;
+	wl_signal_add(&parent->events.commit_addons, &subsurface->parent_commit_addons);
+	subsurface->parent_commit_addons.notify =
+		subsurface_handle_parent_commit_addons;
 
 	subsurface->place.subsurface = subsurface;
 	wl_list_init(&subsurface->place.link);
