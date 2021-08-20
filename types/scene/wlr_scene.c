@@ -15,6 +15,11 @@ static struct wlr_scene *scene_root_from_node(struct wlr_scene_node *node) {
 	return (struct wlr_scene *)node;
 }
 
+static struct wlr_scene_tree *scene_tree_from_node(struct wlr_scene_node *node) {
+	assert(node->type == WLR_SCENE_NODE_TREE);
+	return (struct wlr_scene_tree *)node;
+}
+
 struct wlr_scene_surface *wlr_scene_surface_from_node(
 		struct wlr_scene_node *node) {
 	assert(node->type == WLR_SCENE_NODE_SURFACE);
@@ -84,6 +89,10 @@ void wlr_scene_node_destroy(struct wlr_scene_node *node) {
 
 		free(scene);
 		break;
+	case WLR_SCENE_NODE_TREE:;
+		struct wlr_scene_tree *tree = scene_tree_from_node(node);
+		free(tree);
+		break;
 	case WLR_SCENE_NODE_SURFACE:;
 		struct wlr_scene_surface *scene_surface = wlr_scene_surface_from_node(node);
 		wl_list_remove(&scene_surface->surface_destroy.link);
@@ -104,6 +113,16 @@ struct wlr_scene *wlr_scene_create(void) {
 	scene_node_init(&scene->node, WLR_SCENE_NODE_ROOT, NULL);
 	wl_list_init(&scene->outputs);
 	return scene;
+}
+
+struct wlr_scene_tree *wlr_scene_tree_create(struct wlr_scene_node *parent) {
+	struct wlr_scene_tree *tree = calloc(1, sizeof(struct wlr_scene_tree));
+	if (tree == NULL) {
+		return NULL;
+	}
+	scene_node_init(&tree->node, WLR_SCENE_NODE_TREE, parent);
+
+	return tree;
 }
 
 static void scene_surface_handle_surface_destroy(struct wl_listener *listener,
@@ -246,6 +265,7 @@ static void _scene_node_damage_whole(struct wlr_scene_node *node,
 	int width = 0, height = 0;
 	switch (node->type) {
 	case WLR_SCENE_NODE_ROOT:
+	case WLR_SCENE_NODE_TREE:
 		return;
 	case WLR_SCENE_NODE_SURFACE:;
 		struct wlr_scene_surface *scene_surface =
@@ -536,8 +556,9 @@ static void render_node_iterator(struct wlr_scene_node *node,
 	};
 
 	switch (node->type) {
-	case WLR_SCENE_NODE_ROOT:;
-		/* Root node has nothing to render itself */
+	case WLR_SCENE_NODE_ROOT:
+	case WLR_SCENE_NODE_TREE:
+		/* Root or tree node has nothing to render itself */
 		break;
 	case WLR_SCENE_NODE_SURFACE:;
 		struct wlr_scene_surface *scene_surface = wlr_scene_surface_from_node(node);

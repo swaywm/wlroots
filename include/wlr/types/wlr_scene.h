@@ -28,6 +28,7 @@ struct wlr_output_layout;
 
 enum wlr_scene_node_type {
 	WLR_SCENE_NODE_ROOT,
+	WLR_SCENE_NODE_TREE,
 	WLR_SCENE_NODE_SURFACE,
 	WLR_SCENE_NODE_RECT,
 };
@@ -59,6 +60,11 @@ struct wlr_scene {
 	struct wlr_scene_node node;
 
 	struct wl_list outputs; // wlr_scene_output.link
+};
+
+/** A sub-tree in the scene-graph. */
+struct wlr_scene_tree {
+	struct wlr_scene_node node;
 };
 
 /** A scene-graph node displaying a single surface. */
@@ -156,6 +162,11 @@ struct wlr_scene *wlr_scene_create(void);
  */
 void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
 	int lx, int ly, pixman_region32_t *damage);
+
+/**
+ * Add a node displaying nothing but its children.
+ */
+struct wlr_scene_tree *wlr_scene_tree_create(struct wlr_scene_node *parent);
 
 /**
  * Add a node displaying a single surface to the scene-graph.
