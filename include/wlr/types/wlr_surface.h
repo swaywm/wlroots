@@ -146,11 +146,11 @@ struct wlr_surface {
 		struct wl_signal commit_addons; // struct wlr_surface_state *
 	} events;
 
-	// wlr_subsurface.parent_link
+	// wlr_subsurface.place.link
 	struct wl_list subsurfaces_below;
 	struct wl_list subsurfaces_above;
 
-	// wlr_subsurface.parent_pending_link
+	// wlr_subsurface.pending_place.link
 	struct wl_list subsurfaces_pending_below;
 	struct wl_list subsurfaces_pending_above;
 
@@ -170,6 +170,12 @@ struct wlr_surface {
 	} previous;
 };
 
+struct wlr_subsurface_place {
+	struct wlr_subsurface *subsurface;
+	struct wl_listener subsurface_destroy;
+	struct wl_list link;
+};
+
 struct wlr_subsurface_state {
 	int32_t x, y;
 };
@@ -181,15 +187,14 @@ struct wlr_subsurface {
 
 	struct wlr_subsurface_state current, pending;
 
+	struct wlr_subsurface_place place, pending_place;
+
 	uint32_t cached_seq;
 	bool has_cache;
 
 	bool synchronized;
 	bool reordered;
 	bool mapped;
-
-	struct wl_list parent_link;
-	struct wl_list parent_pending_link;
 
 	struct wl_listener surface_destroy;
 	struct wl_listener parent_destroy;
