@@ -63,6 +63,10 @@ struct wlr_surface_state {
 		int dst_width, dst_height; // in surface-local coordinates
 	} viewport;
 
+	// wlr_subsurface_place.link
+	struct wl_list subsurfaces_below;
+	struct wl_list subsurfaces_above;
+
 	struct wlr_addon_set addons;
 
 	struct wl_listener buffer_destroy;
@@ -145,14 +149,6 @@ struct wlr_surface {
 		struct wl_signal prepare_addons; // struct wlr_surface_state *
 		struct wl_signal commit_addons; // struct wlr_surface_state *
 	} events;
-
-	// wlr_subsurface.place.link
-	struct wl_list subsurfaces_below;
-	struct wl_list subsurfaces_above;
-
-	// wlr_subsurface.pending_place.link
-	struct wl_list subsurfaces_pending_below;
-	struct wl_list subsurfaces_pending_above;
 
 	struct wl_list current_outputs; // wlr_surface_output::link
 
