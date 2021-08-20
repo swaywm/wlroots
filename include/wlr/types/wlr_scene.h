@@ -224,4 +224,11 @@ bool wlr_scene_output_commit(struct wlr_scene_output *scene_output);
 bool wlr_scene_attach_output_layout(struct wlr_scene *scene,
 	struct wlr_output_layout *output_layout);
 
+/**
+ * Add a node displaying a surface and all of its sub-surfaces to the
+ * scene-graph.
+ */
+struct wlr_scene_node *wlr_scene_subsurface_tree_create(
+	struct wlr_scene_node *parent, struct wlr_surface *surface);
+
 #endif

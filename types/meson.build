@@ -3,6 +3,7 @@ wlr_files += files(
 	'data_device/wlr_data_offer.c',
 	'data_device/wlr_data_source.c',
 	'data_device/wlr_drag.c',
+	'scene/subsurface_tree.c',
 	'scene/wlr_scene.c',
 	'scene/output_layout.c',
 	'seat/wlr_seat_keyboard.c',
