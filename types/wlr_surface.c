@@ -349,6 +349,47 @@ static void surface_update_input_region(struct wlr_surface *surface) {
 }
 
 static void surface_state_init(struct wlr_surface_state *state);
+static void surface_state_finish(struct wlr_surface_state *state);
+
+static void subsurface_place_destroy(struct wlr_subsurface_place *place) {
+	wl_list_remove(&place->link);
+	wl_list_remove(&place->subsurface_destroy.link);
+	free(place);
+}
+
+static void subsurface_place_handle_subsurface_destroy(
+		struct wl_listener *listener, void *data) {
+	struct wlr_subsurface_place *place =
+		wl_container_of(listener, place, subsurface_destroy);
+	subsurface_place_destroy(place);
+}
+
+static struct wlr_subsurface_place *subsurface_place_create_cached(
+		struct wlr_subsurface *subsurface) {
+	struct wlr_subsurface_place *place = calloc(1, sizeof(*place));
+	if (!place) {
+		return NULL;
+	}
+	place->subsurface = subsurface;
+	place->subsurface_destroy.notify =
+		subsurface_place_handle_subsurface_destroy;
+	wl_signal_add(&subsurface->events.destroy, &place->subsurface_destroy);
+	return place;
+}
+
+static void surface_state_destroy_cached(struct wlr_surface_state *state) {
+	struct wlr_subsurface_place *place, *tmp;
+	wl_list_for_each_safe(place, tmp, &state->subsurfaces_above, link) {
+		subsurface_place_destroy(place);
+	}
+	wl_list_for_each_safe(place, tmp, &state->subsurfaces_below, link) {
+		subsurface_place_destroy(place);
+	}
+
+	surface_state_finish(state);
+	wl_list_remove(&state->cached_state_link);
+	free(state);
+}
 
 static void surface_cache_pending(struct wlr_surface *surface) {
 	struct wlr_surface_state *cached = calloc(1, sizeof(*cached));
@@ -358,6 +399,28 @@ static void surface_cache_pending(struct wlr_surface *surface) {
 	}
 
 	surface_state_init(cached);
+
+	if (surface->pending.committed & WLR_SURFACE_STATE_SUBSURFACE_ORDER) {
+		struct wlr_subsurface *subsurface;
+		wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_above,
+				pending_place.link) {
+			struct wlr_subsurface_place *place =
+				subsurface_place_create_cached(subsurface);
+			if (!place) {
+				goto subsurface_oom;
+			}
+			wl_list_insert(&cached->subsurfaces_above, &place->link);
+		}
+		wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_below,
+				pending_place.link) {
+			struct wlr_subsurface_place *place =
+				subsurface_place_create_cached(subsurface);
+			if (!place) {
+				goto subsurface_oom;
+			}
+			wl_list_insert(&cached->subsurfaces_below, &place->link);
+		}
+	}
 
 	cached->width = surface->pending.width;
 	cached->height = surface->pending.height;
@@ -399,6 +462,11 @@ static void surface_cache_pending(struct wlr_surface *surface) {
 	wlr_signal_emit_safe(&surface->events.prepare_addons, cached);
 
 	wl_list_insert(surface->cached.prev, &cached->cached_state_link);
+	return;
+
+subsurface_oom:
+	wl_resource_post_no_memory(surface->resource);
+	surface_state_destroy_cached(cached);
 }
 
 static void surface_commit_state(struct wlr_surface *surface,
@@ -468,6 +536,31 @@ static void surface_commit_state(struct wlr_surface *surface,
 		memcpy(&surface->current.viewport, &next->viewport,
 			sizeof(surface->current.viewport));
 	}
+	if (next->committed & WLR_SURFACE_STATE_SUBSURFACE_ORDER) {
+		struct wlr_subsurface_place *place;
+		wl_list_for_each_reverse(place, &next->subsurfaces_above, link) {
+			struct wlr_subsurface *subsurface = place->subsurface;
+			wl_list_remove(&subsurface->place.link);
+			wl_list_insert(&surface->current.subsurfaces_above,
+				&subsurface->place.link);
+
+			if (subsurface->reordered) {
+				// TODO: damage all the subsurfaces
+				surface_damage_subsurfaces(subsurface);
+			}
+		}
+		wl_list_for_each_reverse(place, &next->subsurfaces_below, link) {
+			struct wlr_subsurface *subsurface = place->subsurface;
+			wl_list_remove(&subsurface->place.link);
+			wl_list_insert(&surface->current.subsurfaces_below,
+				&subsurface->place.link);
+
+			if (subsurface->reordered) {
+				// TODO: damage all the subsurfaces
+				surface_damage_subsurfaces(subsurface);
+			}
+		}
+	}
 
 	next->committed = 0;
 
@@ -479,31 +572,6 @@ static void surface_commit_state(struct wlr_surface *surface,
 	}
 	surface_update_opaque_region(surface);
 	surface_update_input_region(surface);
-
-	// commit subsurface order
-	struct wlr_subsurface *subsurface;
-	wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_above,
-			pending_place.link) {
-		wl_list_remove(&subsurface->place.link);
-		wl_list_insert(&surface->current.subsurfaces_above,
-			&subsurface->place.link);
-
-		if (subsurface->reordered) {
-			// TODO: damage all the subsurfaces
-			surface_damage_subsurfaces(subsurface);
-		}
-	}
-	wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_below,
-			pending_place.link) {
-		wl_list_remove(&subsurface->place.link);
-		wl_list_insert(&surface->current.subsurfaces_below,
-			&subsurface->place.link);
-
-		if (subsurface->reordered) {
-			// TODO: damage all the subsurfaces
-			surface_damage_subsurfaces(subsurface);
-		}
-	}
 
 	wlr_signal_emit_safe(&surface->events.commit_addons, next);
 	// Reset the addon set
@@ -716,12 +784,6 @@ static void surface_state_finish(struct wlr_surface_state *state) {
 	pixman_region32_fini(&state->buffer_damage);
 	pixman_region32_fini(&state->opaque);
 	pixman_region32_fini(&state->input);
-}
-
-static void surface_state_destroy_cached(struct wlr_surface_state *state) {
-	surface_state_finish(state);
-	wl_list_remove(&state->cached_state_link);
-	free(state);
 }
 
 static void subsurface_unmap(struct wlr_subsurface *subsurface);
@@ -993,6 +1055,7 @@ static void subsurface_handle_place_above(struct wl_client *client,
 
 	wl_list_remove(&subsurface->pending_place.link);
 	wl_list_insert(node, &subsurface->pending_place.link);
+	subsurface->parent->pending.committed |= WLR_SURFACE_STATE_SUBSURFACE_ORDER;
 
 	subsurface->reordered = true;
 }
@@ -1025,6 +1088,7 @@ static void subsurface_handle_place_below(struct wl_client *client,
 
 	wl_list_remove(&subsurface->pending_place.link);
 	wl_list_insert(node->prev, &subsurface->pending_place.link);
+	subsurface->parent->pending.committed |= WLR_SURFACE_STATE_SUBSURFACE_ORDER;
 
 	subsurface->reordered = true;
 }
@@ -1243,6 +1307,7 @@ struct wlr_subsurface *subsurface_create(struct wlr_surface *surface,
 	subsurface->pending_place.subsurface = subsurface;
 	wl_list_insert(parent->pending.subsurfaces_above.prev,
 		&subsurface->pending_place.link);
+	parent->pending.committed |= WLR_SURFACE_STATE_SUBSURFACE_ORDER;
 
 	surface->role_data = subsurface;
 
