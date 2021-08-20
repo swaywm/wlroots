@@ -216,110 +216,49 @@ static void surface_state_finalize(struct wlr_surface *surface,
 		state->buffer_height);
 }
 
-static void surface_update_damage(pixman_region32_t *buffer_damage,
-		struct wlr_surface_state *current, struct wlr_surface_state *pending) {
-	pixman_region32_clear(buffer_damage);
+static void surface_update_damage(struct wlr_surface *surface) {
+	pixman_region32_clear(&surface->buffer_damage);
 
-	if (pending->width != current->width ||
-			pending->height != current->height) {
+	struct wlr_surface_state *current = &surface->current;
+
+	if (current->width != surface->previous.width ||
+			current->height != surface->previous.height) {
 		// Damage the whole buffer on resize
-		pixman_region32_union_rect(buffer_damage, buffer_damage, 0, 0,
-			pending->buffer_width, pending->buffer_height);
+		pixman_region32_union_rect(&surface->buffer_damage,
+			&surface->buffer_damage, 0, 0,
+			current->buffer_width, current->buffer_height);
 	} else {
 		// Copy over surface damage + buffer damage
 		pixman_region32_t surface_damage;
 		pixman_region32_init(&surface_damage);
 
-		pixman_region32_copy(&surface_damage, &pending->surface_damage);
+		pixman_region32_copy(&surface_damage, &current->surface_damage);
 
-		if (pending->viewport.has_dst) {
+		if (current->viewport.has_dst) {
 			int src_width, src_height;
-			surface_state_viewport_src_size(pending, &src_width, &src_height);
-			float scale_x = (float)pending->viewport.dst_width / src_width;
-			float scale_y = (float)pending->viewport.dst_height / src_height;
+			surface_state_viewport_src_size(current, &src_width, &src_height);
+			float scale_x = (float)current->viewport.dst_width / src_width;
+			float scale_y = (float)current->viewport.dst_height / src_height;
 			wlr_region_scale_xy(&surface_damage, &surface_damage,
 				1.0 / scale_x, 1.0 / scale_y);
 		}
-		if (pending->viewport.has_src) {
+		if (current->viewport.has_src) {
 			// This is lossy: do a best-effort conversion
 			pixman_region32_translate(&surface_damage,
-				floor(pending->viewport.src.x),
-				floor(pending->viewport.src.y));
+				floor(current->viewport.src.x),
+				floor(current->viewport.src.y));
 		}
 
 		wlr_region_transform(&surface_damage, &surface_damage,
-			wlr_output_transform_invert(pending->transform),
-			pending->width, pending->height);
-		wlr_region_scale(&surface_damage, &surface_damage, pending->scale);
+			wlr_output_transform_invert(current->transform),
+			current->width, current->height);
+		wlr_region_scale(&surface_damage, &surface_damage, current->scale);
 
-		pixman_region32_union(buffer_damage,
-			&pending->buffer_damage, &surface_damage);
+		pixman_region32_union(&surface->buffer_damage,
+			&current->buffer_damage, &surface_damage);
 
 		pixman_region32_fini(&surface_damage);
 	}
-}
-
-/**
- * Append pending state to current state and clear pending state.
- */
-static void surface_state_move(struct wlr_surface_state *state,
-		struct wlr_surface_state *next) {
-	state->width = next->width;
-	state->height = next->height;
-	state->buffer_width = next->buffer_width;
-	state->buffer_height = next->buffer_height;
-
-	if (next->committed & WLR_SURFACE_STATE_SCALE) {
-		state->scale = next->scale;
-	}
-	if (next->committed & WLR_SURFACE_STATE_TRANSFORM) {
-		state->transform = next->transform;
-	}
-	if (next->committed & WLR_SURFACE_STATE_BUFFER) {
-		state->dx = next->dx;
-		state->dy = next->dy;
-		next->dx = next->dy = 0;
-
-		surface_state_set_buffer(state, next->buffer_resource);
-		surface_state_reset_buffer(next);
-
-		if (next->buffer) {
-			wlr_buffer_unlock(state->buffer);
-			state->buffer = next->buffer;
-			next->buffer = NULL;
-		}
-	} else {
-		state->dx = state->dy = 0;
-	}
-	if (next->committed & WLR_SURFACE_STATE_SURFACE_DAMAGE) {
-		pixman_region32_copy(&state->surface_damage, &next->surface_damage);
-		pixman_region32_clear(&next->surface_damage);
-	} else {
-		pixman_region32_clear(&state->surface_damage);
-	}
-	if (next->committed & WLR_SURFACE_STATE_BUFFER_DAMAGE) {
-		pixman_region32_copy(&state->buffer_damage, &next->buffer_damage);
-		pixman_region32_clear(&next->buffer_damage);
-	} else {
-		pixman_region32_clear(&state->buffer_damage);
-	}
-	if (next->committed & WLR_SURFACE_STATE_OPAQUE_REGION) {
-		pixman_region32_copy(&state->opaque, &next->opaque);
-	}
-	if (next->committed & WLR_SURFACE_STATE_INPUT_REGION) {
-		pixman_region32_copy(&state->input, &next->input);
-	}
-	if (next->committed & WLR_SURFACE_STATE_VIEWPORT) {
-		memcpy(&state->viewport, &next->viewport, sizeof(state->viewport));
-	}
-
-	state->committed |= next->committed;
-	next->committed = 0;
-
-	state->seq = next->seq;
-
-	state->cached_state_locks = next->cached_state_locks;
-	next->cached_state_locks = 0;
 }
 
 static void surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
@@ -417,12 +356,47 @@ static void surface_cache_pending(struct wlr_surface *surface) {
 	}
 
 	surface_state_init(cached);
-	surface_state_move(cached, &surface->pending);
+
+	cached->width = surface->pending.width;
+	cached->height = surface->pending.height;
+	cached->buffer_width = surface->pending.buffer_width;
+	cached->buffer_height = surface->pending.buffer_height;
+	cached->scale = surface->pending.scale;
+	cached->transform = surface->pending.transform;
+	cached->dx = surface->pending.dx;
+	cached->dy = surface->pending.dy;
+
+	surface_state_set_buffer(cached, surface->pending.buffer_resource);
+	surface_state_reset_buffer(&surface->pending);
+	cached->buffer = surface->pending.buffer;
+	surface->pending.buffer = NULL;
+
+	pixman_region32_copy(&cached->surface_damage,
+		&surface->pending.surface_damage);
+	pixman_region32_clear(&surface->pending.surface_damage);
+
+	pixman_region32_copy(&cached->buffer_damage,
+		&surface->pending.buffer_damage);
+	pixman_region32_clear(&surface->pending.buffer_damage);
+
+	pixman_region32_copy(&cached->opaque, &surface->pending.opaque);
+	pixman_region32_copy(&cached->input, &surface->pending.input);
+
+	memcpy(&cached->viewport, &surface->pending.viewport,
+		sizeof(cached->viewport));
+
+	cached->committed = surface->pending.committed;
+	surface->pending.committed = 0;
+
+	cached->seq = surface->pending.seq;
+	++surface->pending.seq;
+
+	cached->cached_state_locks = surface->pending.cached_state_locks;
+	surface->pending.cached_state_locks = 0;
+
 	wlr_signal_emit_safe(&surface->events.prepare_addons, cached);
 
 	wl_list_insert(surface->cached.prev, &cached->cached_state_link);
-
-	surface->pending.seq++;
 }
 
 static void surface_commit_state(struct wlr_surface *surface,
@@ -431,10 +405,6 @@ static void surface_commit_state(struct wlr_surface *surface,
 
 	bool invalid_buffer = next->committed & WLR_SURFACE_STATE_BUFFER;
 
-	surface->sx += next->dx;
-	surface->sy += next->dy;
-	surface_update_damage(&surface->buffer_damage, &surface->current, next);
-
 	surface->previous.scale = surface->current.scale;
 	surface->previous.transform = surface->current.transform;
 	surface->previous.width = surface->current.width;
@@ -442,8 +412,66 @@ static void surface_commit_state(struct wlr_surface *surface,
 	surface->previous.buffer_width = surface->current.buffer_width;
 	surface->previous.buffer_height = surface->current.buffer_height;
 
-	surface_state_move(&surface->current, next);
+	if (next->committed & WLR_SURFACE_STATE_SCALE) {
+		surface->current.scale = next->scale;
+	}
+	if (next->committed & WLR_SURFACE_STATE_TRANSFORM) {
+		surface->current.transform = next->transform;
+	}
+	if (next->committed & WLR_SURFACE_STATE_BUFFER) {
+		surface->current.dx = next->dx;
+		surface->current.dy = next->dy;
 
+		surface->current.width = next->width;
+		surface->current.height = next->height;
+		surface->current.buffer_width = next->buffer_width;
+		surface->current.buffer_height = next->buffer_height;
+
+		surface->sx += next->dx;
+		surface->sy += next->dy;
+
+		surface_state_set_buffer(&surface->current,
+			next->buffer_resource);
+		surface_state_reset_buffer(next);
+
+		if (next->buffer) {
+			wlr_buffer_unlock(surface->current.buffer);
+			surface->current.buffer = next->buffer;
+			next->buffer = NULL;
+		}
+	} else {
+		surface->current.dx = surface->current.dy = 0;
+	}
+	if (next->committed & WLR_SURFACE_STATE_SURFACE_DAMAGE) {
+		pixman_region32_copy(&surface->current.surface_damage,
+			&next->surface_damage);
+		pixman_region32_clear(&next->surface_damage);
+	} else {
+		pixman_region32_clear(&surface->current.surface_damage);
+	}
+	if (next->committed & WLR_SURFACE_STATE_BUFFER_DAMAGE) {
+		pixman_region32_copy(&surface->current.buffer_damage,
+			&next->buffer_damage);
+		pixman_region32_clear(&next->buffer_damage);
+	} else {
+		pixman_region32_clear(&surface->current.buffer_damage);
+	}
+	if (next->committed & WLR_SURFACE_STATE_OPAQUE_REGION) {
+		pixman_region32_copy(&surface->current.opaque, &next->opaque);
+	}
+	if (next->committed & WLR_SURFACE_STATE_INPUT_REGION) {
+		pixman_region32_copy(&surface->current.input, &next->input);
+	}
+	if (next->committed & WLR_SURFACE_STATE_VIEWPORT) {
+		memcpy(&surface->current.viewport, &next->viewport,
+			sizeof(surface->current.viewport));
+	}
+
+	next->committed = 0;
+
+	surface->current.seq = next->seq;
+
+	surface_update_damage(surface);
 	if (invalid_buffer) {
 		surface_apply_damage(surface);
 	}
