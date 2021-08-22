@@ -1042,7 +1042,7 @@ void drm_connector_state_mode(struct wlr_drm_connector *conn,
 			drmModeModeInfo mode = {0};
 			generate_cvt_mode(&mode, state->custom_mode.width,
 				state->custom_mode.height,
-				(float)state->custom_mode.refresh / 1000, false, false);
+				(float)state->custom_mode.refresh / 1000, true, false);
 			mode.type = DRM_MODE_TYPE_USERDEF;
 			memcpy(out, &mode, sizeof(drmModeModeInfo));
 			return;
