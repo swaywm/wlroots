@@ -91,6 +91,11 @@ void wlr_scene_node_place_above(struct wlr_scene_node *node,
 void wlr_scene_node_place_below(struct wlr_scene_node *node,
 	struct wlr_scene_node *sibling);
 /**
+ * Move the node to another location in the tree.
+ */
+void wlr_scene_node_reparent(struct wlr_scene_node *node,
+	struct wlr_scene_node *new_parent);
+/**
  * Call `iterator` on each surface in the scene-graph, with the surface's
  * position in layout coordinates. The function is called from root to leaves
  * (in rendering order).
