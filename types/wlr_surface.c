@@ -1473,14 +1473,7 @@ void wlr_surface_get_buffer_source_box(struct wlr_surface *surface,
 		box->y = surface->current.viewport.src.y * surface->current.scale;
 		box->width = surface->current.viewport.src.width * surface->current.scale;
 		box->height = surface->current.viewport.src.height * surface->current.scale;
-		if ((surface->current.transform & WL_OUTPUT_TRANSFORM_90) != 0) {
-			double tmp = box->x;
-			box->x = box->y;
-			box->y = tmp;
-
-			tmp = box->width;
-			box->width = box->height;
-			box->height = tmp;
-		}
+		wlr_fbox_transform(box, box, surface->current.transform,
+			surface->current.buffer_width, surface->current.buffer_height);
 	}
 }
