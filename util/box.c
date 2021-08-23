@@ -119,3 +119,51 @@ void wlr_box_transform(struct wlr_box *dest, const struct wlr_box *box,
 		break;
 	}
 }
+
+void wlr_fbox_transform(struct wlr_fbox *dest, const struct wlr_fbox *box,
+		enum wl_output_transform transform, double width, double height) {
+	struct wlr_fbox src = *box;
+
+	if (transform % 2 == 0) {
+		dest->width = src.width;
+		dest->height = src.height;
+	} else {
+		dest->width = src.height;
+		dest->height = src.width;
+	}
+
+	switch (transform) {
+	case WL_OUTPUT_TRANSFORM_NORMAL:
+		dest->x = src.x;
+		dest->y = src.y;
+		break;
+	case WL_OUTPUT_TRANSFORM_90:
+		dest->x = height - src.y - src.height;
+		dest->y = src.x;
+		break;
+	case WL_OUTPUT_TRANSFORM_180:
+		dest->x = width - src.x - src.width;
+		dest->y = height - src.y - src.height;
+		break;
+	case WL_OUTPUT_TRANSFORM_270:
+		dest->x = src.y;
+		dest->y = width - src.x - src.width;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED:
+		dest->x = width - src.x - src.width;
+		dest->y = src.y;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+		dest->x = src.y;
+		dest->y = src.x;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+		dest->x = src.x;
+		dest->y = height - src.y - src.height;
+		break;
+	case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+		dest->x = height - src.y - src.height;
+		dest->y = width - src.x - src.width;
+		break;
+	}
+}
