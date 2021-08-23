@@ -53,7 +53,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&drm->dev_change.link);
 	wl_list_remove(&drm->dev_remove.link);
 
-	gbm_device_destroy(drm->gbm);
+	drm_bo_handle_table_finish(&drm->bo_handles);
 
 	if (drm->parent) {
 		finish_drm_renderer(&drm->mgpu_renderer);
@@ -222,12 +222,6 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 	if (!init_drm_resources(drm)) {
 		goto error_event;
-	}
-
-	drm->gbm = gbm_create_device(drm->fd);
-	if (!drm->gbm) {
-		wlr_log(WLR_ERROR, "Failed to create GBM device");
-		goto error_resources;
 	}
 
 	if (drm->parent) {

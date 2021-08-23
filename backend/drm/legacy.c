@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <gbm.h>
 #include <stdlib.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
@@ -10,20 +9,23 @@
 
 static bool legacy_fb_props_match(struct wlr_drm_fb *fb1,
 		struct wlr_drm_fb *fb2) {
-	if (fb1->wlr_buf->width != fb2->wlr_buf->width ||
-			fb1->wlr_buf->height != fb2->wlr_buf->height ||
-			gbm_bo_get_format(fb1->bo) != gbm_bo_get_format(fb2->bo) ||
-			gbm_bo_get_modifier(fb1->bo) != gbm_bo_get_modifier(fb2->bo) ||
-			gbm_bo_get_plane_count(fb1->bo) != gbm_bo_get_plane_count(fb2->bo)) {
+	struct wlr_dmabuf_attributes dmabuf1 = {0}, dmabuf2 = {0};
+	if (!wlr_buffer_get_dmabuf(fb1->wlr_buf, &dmabuf1) ||
+			!wlr_buffer_get_dmabuf(fb2->wlr_buf, &dmabuf2)) {
 		return false;
 	}
 
-	for (int i = 0; i < gbm_bo_get_plane_count(fb1->bo); i++) {
-		if (gbm_bo_get_stride_for_plane(fb1->bo, i) !=
-				gbm_bo_get_stride_for_plane(fb2->bo, i)) {
-			return false;
-		}
-		if (gbm_bo_get_offset(fb1->bo, i) != gbm_bo_get_offset(fb2->bo, i)) {
+	if (dmabuf1.width != dmabuf2.width ||
+			dmabuf1.height != dmabuf2.height ||
+			dmabuf1.format != dmabuf2.format ||
+			dmabuf1.modifier != dmabuf2.modifier ||
+			dmabuf1.n_planes != dmabuf2.n_planes) {
+		return false;
+	}
+
+	for (int i = 0; i < dmabuf1.n_planes; i++) {
+		if (dmabuf1.stride[i] != dmabuf2.stride[i] ||
+				dmabuf1.offset[i] != dmabuf2.offset[i]) {
 			return false;
 		}
 	}
@@ -140,9 +142,9 @@ static bool legacy_crtc_commit(struct wlr_drm_connector *conn,
 			return false;
 		}
 
-		uint32_t cursor_handle = gbm_bo_get_handle(cursor_fb->bo).u32;
-		uint32_t cursor_width = gbm_bo_get_width(cursor_fb->bo);
-		uint32_t cursor_height = gbm_bo_get_height(cursor_fb->bo);
+		uint32_t cursor_handle = cursor_fb->handles[0];
+		uint32_t cursor_width = cursor_fb->wlr_buf->width;
+		uint32_t cursor_height = cursor_fb->wlr_buf->height;
 		if (drmModeSetCursor(drm->fd, crtc->id, cursor_handle,
 				cursor_width, cursor_height)) {
 			wlr_drm_conn_log_errno(conn, WLR_DEBUG, "drmModeSetCursor failed");

@@ -1,4 +1,3 @@
-#include <gbm.h>
 #include <stdlib.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
@@ -144,8 +143,8 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
 		goto error;
 	}
 
-	uint32_t width = gbm_bo_get_width(fb->bo);
-	uint32_t height = gbm_bo_get_height(fb->bo);
+	uint32_t width = fb->wlr_buf->width;
+	uint32_t height = fb->wlr_buf->height;
 
 	// The src_* properties are in 16.16 fixed point
 	atomic_add(atom, id, props->src_x, 0);

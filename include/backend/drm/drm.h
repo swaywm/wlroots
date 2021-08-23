@@ -1,7 +1,6 @@
 #ifndef BACKEND_DRM_DRM_H
 #define BACKEND_DRM_DRM_H
 
-#include <gbm.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -12,6 +11,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/render/drm_format_set.h>
 #include <xf86drmMode.h>
+#include "backend/drm/bo_handle_table.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/properties.h"
 #include "backend/drm/renderer.h"
@@ -62,7 +62,7 @@ struct wlr_drm_backend {
 	int fd;
 	char *name;
 	struct wlr_device *dev;
-	struct gbm_device *gbm;
+	struct wlr_drm_bo_handle_table bo_handles;
 
 	size_t num_crtcs;
 	struct wlr_drm_crtc *crtcs;

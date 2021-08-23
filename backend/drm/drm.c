@@ -3,7 +3,6 @@
 #include <drm_fourcc.h>
 #include <drm_mode.h>
 #include <errno.h>
-#include <gbm.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
