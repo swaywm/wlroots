@@ -2,7 +2,6 @@
 #include <assert.h>
 #include <drm_fourcc.h>
 #include <fcntl.h>
-#include <gbm.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -195,43 +194,6 @@ void drm_fb_clear(struct wlr_drm_fb **fb_ptr) {
 	*fb_ptr = NULL;
 }
 
-static struct gbm_bo *get_bo_for_dmabuf(struct gbm_device *gbm,
-		struct wlr_dmabuf_attributes *attribs) {
-	if (attribs->modifier != DRM_FORMAT_MOD_INVALID ||
-			attribs->n_planes > 1 || attribs->offset[0] != 0) {
-		struct gbm_import_fd_modifier_data data = {
-			.width = attribs->width,
-			.height = attribs->height,
-			.format = attribs->format,
-			.num_fds = attribs->n_planes,
-			.modifier = attribs->modifier,
-		};
-
-		if ((size_t)attribs->n_planes > sizeof(data.fds) / sizeof(data.fds[0])) {
-			return false;
-		}
-
-		for (size_t i = 0; i < (size_t)attribs->n_planes; ++i) {
-			data.fds[i] = attribs->fd[i];
-			data.strides[i] = attribs->stride[i];
-			data.offsets[i] = attribs->offset[i];
-		}
-
-		return gbm_bo_import(gbm, GBM_BO_IMPORT_FD_MODIFIER,
-			&data, GBM_BO_USE_SCANOUT);
-	} else {
-		struct gbm_import_fd_data data = {
-			.fd = attribs->fd[0],
-			.width = attribs->width,
-			.height = attribs->height,
-			.stride = attribs->stride[0],
-			.format = attribs->format,
-		};
-
-		return gbm_bo_import(gbm, GBM_BO_IMPORT_FD, &data, GBM_BO_USE_SCANOUT);
-	}
-}
-
 static void drm_fb_handle_destroy(struct wlr_addon *addon) {
 	struct wlr_drm_fb *fb = wl_container_of(addon, fb, addon);
 	drm_fb_destroy(fb);
@@ -241,6 +203,83 @@ static const struct wlr_addon_interface fb_addon_impl = {
 	.name = "wlr_drm_fb",
 	.destroy = drm_fb_handle_destroy,
 };
+
+static uint32_t get_bo_handle_for_fd(struct wlr_drm_backend *drm,
+		int dmabuf_fd) {
+	uint32_t handle = 0;
+	int ret = drmPrimeFDToHandle(drm->fd, dmabuf_fd, &handle);
+	if (ret != 0) {
+		wlr_log_errno(WLR_DEBUG, "drmPrimeFDToHandle failed");
+		return 0;
+	}
+
+	if (!drm_bo_handle_table_ref(&drm->bo_handles, handle)) {
+		// If that failed, the handle wasn't ref'ed in the table previously,
+		// so safe to delete
+		struct drm_gem_close args = { .handle = handle };
+		drmIoctl(drm->fd, DRM_IOCTL_GEM_CLOSE, &args);
+		return 0;
+	}
+
+	return handle;
+}
+
+static void close_bo_handle(struct wlr_drm_backend *drm, uint32_t handle) {
+	if (handle == 0) {
+		return;
+	}
+
+	size_t nrefs = drm_bo_handle_table_unref(&drm->bo_handles, handle);
+	if (nrefs > 0) {
+		return;
+	}
+
+	struct drm_gem_close args = { .handle = handle };
+	if (drmIoctl(drm->fd, DRM_IOCTL_GEM_CLOSE, &args) != 0) {
+		wlr_log_errno(WLR_ERROR, "drmIoctl(GEM_CLOSE) failed");
+	}
+}
+
+static uint32_t get_fb_for_bo(struct wlr_drm_backend *drm,
+		struct wlr_dmabuf_attributes *dmabuf, uint32_t handles[static 4]) {
+	uint64_t modifiers[4] = {0};
+	for (int i = 0; i < dmabuf->n_planes; i++) {
+		// KMS requires all BO planes to have the same modifier
+		modifiers[i] = dmabuf->modifier;
+	}
+
+	uint32_t id = 0;
+	if (drm->addfb2_modifiers && dmabuf->modifier != DRM_FORMAT_MOD_INVALID) {
+		if (drmModeAddFB2WithModifiers(drm->fd, dmabuf->width, dmabuf->height,
+				dmabuf->format, handles, dmabuf->stride, dmabuf->offset,
+				modifiers, &id, DRM_MODE_FB_MODIFIERS) != 0) {
+			wlr_log_errno(WLR_DEBUG, "drmModeAddFB2WithModifiers failed");
+		}
+	} else {
+		int ret = drmModeAddFB2(drm->fd, dmabuf->width, dmabuf->height,
+			dmabuf->format, handles, dmabuf->stride, dmabuf->offset, &id, 0);
+		if (ret != 0 && dmabuf->format == DRM_FORMAT_ARGB8888 &&
+				dmabuf->n_planes == 1 && dmabuf->offset[0] == 0) {
+			// Some big-endian machines don't support drmModeAddFB2. Try a
+			// last-resort fallback for ARGB8888 buffers, like Xorg's
+			// modesetting driver does.
+			wlr_log(WLR_DEBUG, "drmModeAddFB2 failed (%s), falling back to "
+				"legacy drmModeAddFB", strerror(-ret));
+
+			uint32_t depth = 32;
+			uint32_t bpp = 32;
+			ret = drmModeAddFB(drm->fd, dmabuf->width, dmabuf->height, depth,
+				bpp, dmabuf->stride[0], handles[0], &id);
+			if (ret != 0) {
+				wlr_log_errno(WLR_DEBUG, "drmModeAddFB failed");
+			}
+		} else if (ret != 0) {
+			wlr_log_errno(WLR_DEBUG, "drmModeAddFB2 failed");
+		}
+	}
+
+	return id;
+}
 
 static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, const struct wlr_drm_format_set *formats) {
@@ -279,18 +318,20 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 		}
 	}
 
-	fb->bo = get_bo_for_dmabuf(drm->gbm, &attribs);
-	if (!fb->bo) {
-		wlr_log(WLR_DEBUG, "Failed to import DMA-BUF in GBM");
-		goto error_get_dmabuf;
+	for (int i = 0; i < attribs.n_planes; ++i) {
+		fb->handles[i] = get_bo_handle_for_fd(drm, attribs.fd[i]);
+		if (fb->handles[i] == 0) {
+			goto error_bo_handle;
+		}
 	}
 
-	fb->id = get_fb_for_bo(fb->bo, drm->addfb2_modifiers);
+	fb->id = get_fb_for_bo(drm, &attribs, fb->handles);
 	if (!fb->id) {
-		wlr_log(WLR_DEBUG, "Failed to import GBM BO in KMS");
-		goto error_get_fb_for_bo;
+		wlr_log(WLR_DEBUG, "Failed to import BO in KMS");
+		goto error_bo_handle;
 	}
 
+	fb->backend = drm;
 	fb->wlr_buf = buf;
 
 	wlr_addon_init(&fb->addon, &buf->addons, drm, &fb_addon_impl);
@@ -298,23 +339,29 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 
 	return fb;
 
-error_get_fb_for_bo:
-	gbm_bo_destroy(fb->bo);
+error_bo_handle:
+	for (int i = 0; i < attribs.n_planes; ++i) {
+		close_bo_handle(drm, fb->handles[i]);
+	}
 error_get_dmabuf:
 	free(fb);
 	return NULL;
 }
 
 void drm_fb_destroy(struct wlr_drm_fb *fb) {
+	struct wlr_drm_backend *drm = fb->backend;
+
 	wl_list_remove(&fb->link);
 	wlr_addon_finish(&fb->addon);
 
-	struct gbm_device *gbm = gbm_bo_get_device(fb->bo);
-	if (drmModeRmFB(gbm_device_get_fd(gbm), fb->id) != 0) {
+	if (drmModeRmFB(drm->fd, fb->id) != 0) {
 		wlr_log(WLR_ERROR, "drmModeRmFB failed");
 	}
 
-	gbm_bo_destroy(fb->bo);
+	for (size_t i = 0; i < sizeof(fb->handles) / sizeof(fb->handles[0]); ++i) {
+		close_bo_handle(drm, fb->handles[i]);
+	}
+
 	free(fb);
 }
 
