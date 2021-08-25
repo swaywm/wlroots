@@ -14,7 +14,7 @@
 #include "backend/drm/drm.h"
 #include "backend/drm/util.h"
 #include "render/drm_format_set.h"
-#include "render/allocator.h"
+#include "render/allocator/allocator.h"
 #include "render/pixel_format.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"

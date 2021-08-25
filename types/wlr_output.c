@@ -17,7 +17,7 @@
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include "backend/backend.h"
-#include "render/allocator.h"
+#include "render/allocator/allocator.h"
 #include "render/drm_format_set.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"

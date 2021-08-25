@@ -12,7 +12,6 @@
 #include "backend/backend.h"
 #include "backend/headless.h"
 #include "render/drm_format_set.h"
-#include "render/gbm_allocator.h"
 #include "render/wlr_renderer.h"
 #include "util/signal.h"
 

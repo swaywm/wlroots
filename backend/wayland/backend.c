@@ -17,7 +17,6 @@
 
 #include "backend/backend.h"
 #include "backend/wayland.h"
-#include "render/allocator.h"
 #include "render/drm_format_set.h"
 #include "render/pixel_format.h"
 #include "render/wlr_renderer.h"

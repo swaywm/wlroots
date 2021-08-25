@@ -13,7 +13,7 @@
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
 
-#include "render/drm_dumb_allocator.h"
+#include "render/allocator/drm_dumb.h"
 #include "render/pixel_format.h"
 
 static const struct wlr_buffer_impl buffer_impl;

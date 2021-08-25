@@ -31,7 +31,6 @@
 
 #include "backend/backend.h"
 #include "backend/x11.h"
-#include "render/allocator.h"
 #include "render/drm_format_set.h"
 #include "util/signal.h"
 

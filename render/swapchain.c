@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_buffer.h>
-#include "render/allocator.h"
+#include "render/allocator/allocator.h"
 #include "render/drm_format_set.h"
 #include "render/swapchain.h"
 
