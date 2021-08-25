@@ -683,6 +683,11 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 		return;
 	}
 
+	if (subsurface->has_cache) {
+		wlr_surface_unlock_cached(subsurface->surface,
+			subsurface->cached_seq);
+	}
+
 	subsurface_unmap(subsurface);
 
 	wlr_signal_emit_safe(&subsurface->events.destroy, subsurface);
