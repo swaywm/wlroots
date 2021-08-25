@@ -55,6 +55,8 @@ struct wlr_xdg_activation_v1_request_activate_event {
 	struct wlr_xdg_activation_token_v1 *token;
 	// The surface requesting for activation.
 	struct wlr_surface *surface;
+	// The startup-id
+	const char* id;
 };
 
 struct wlr_xdg_activation_v1 *wlr_xdg_activation_v1_create(

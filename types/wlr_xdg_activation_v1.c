@@ -275,18 +275,21 @@ static void activation_handle_activate(struct wl_client *client,
 		}
 	}
 	if (!found) {
-		wlr_log(WLR_DEBUG, "Rejecting activate request: unknown token");
-		return;
+		wlr_log(WLR_DEBUG, "Token '%s' wasn't set via xdg_activation_v1",
+			token_str);
 	}
 
 	struct wlr_xdg_activation_v1_request_activate_event event = {
 		.activation = activation,
 		.token = token,
+		.id = token_str,
 		.surface = surface,
 	};
 	wlr_signal_emit_safe(&activation->events.request_activate, &event);
 
-	token_destroy(token);
+	if (found) {
+		token_destroy(token);
+	}
 }
 
 static const struct xdg_activation_v1_interface activation_impl = {
