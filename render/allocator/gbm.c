@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
-#include "render/gbm_allocator.h"
+#include "render/allocator/gbm.h"
 
 static const struct wlr_buffer_impl buffer_impl;
 

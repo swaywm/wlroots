@@ -18,7 +18,7 @@
 #include <wlr/util/log.h>
 #include "backend/backend.h"
 #include "backend/multi.h"
-#include "render/allocator.h"
+#include "render/allocator/allocator.h"
 #include "util/signal.h"
 
 #if WLR_HAS_DRM_BACKEND

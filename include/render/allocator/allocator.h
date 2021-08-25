@@ -1,9 +1,8 @@
-#ifndef RENDER_ALLOCATOR
-#define RENDER_ALLOCATOR
+#ifndef RENDER_ALLOCATOR_ALLOCATOR_H
+#define RENDER_ALLOCATOR_ALLOCATOR_H
 
 #include <stdbool.h>
 #include <wayland-server-core.h>
-#include <wlr/render/dmabuf.h>
 #include <wlr/render/drm_format_set.h>
 
 struct wlr_allocator;

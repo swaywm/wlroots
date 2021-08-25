@@ -1,9 +1,9 @@
-#ifndef RENDER_DRM_DUMB_ALLOCATOR_H
-#define RENDER_DRM_DUMB_ALLOCATOR_H
+#ifndef RENDER_ALLOCATOR_DRM_DUMB_H
+#define RENDER_ALLOCATOR_DRM_DUMB_H
 
-#include "render/allocator.h"
-
+#include <wlr/render/dmabuf.h>
 #include <wlr/types/wlr_buffer.h>
+#include "render/allocator/allocator.h"
 
 struct wlr_drm_dumb_buffer {
 	struct wlr_buffer base;

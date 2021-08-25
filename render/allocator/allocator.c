@@ -3,10 +3,10 @@
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include "backend/backend.h"
-#include "render/allocator.h"
-#include "render/gbm_allocator.h"
-#include "render/shm_allocator.h"
-#include "render/drm_dumb_allocator.h"
+#include "render/allocator/allocator.h"
+#include "render/allocator/drm_dumb.h"
+#include "render/allocator/gbm.h"
+#include "render/allocator/shm.h"
 #include "render/wlr_renderer.h"
 
 void wlr_allocator_init(struct wlr_allocator *alloc,
