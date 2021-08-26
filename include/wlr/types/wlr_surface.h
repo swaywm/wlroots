@@ -66,7 +66,7 @@ struct wlr_surface_state {
 	} viewport;
 
 	// Number of locks that prevent this surface state from being committed.
-	size_t cached_state_locks;
+	size_t nlocks;
 	struct wl_list cached_state_link; // wlr_surface.cached
 };
 
