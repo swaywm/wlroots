@@ -167,53 +167,54 @@ static void surface_state_viewport_src_size(struct wlr_surface_state *state,
 	}
 }
 
-static void surface_state_finalize(struct wlr_surface *surface,
-		struct wlr_surface_state *state) {
-	if ((state->committed & WLR_SURFACE_STATE_BUFFER)) {
-		if (state->buffer_resource) {
-			wlr_buffer_unlock(state->buffer);
-			state->buffer = wlr_buffer_from_resource(state->buffer_resource);
-			if (!state->buffer) {
-				wl_resource_post_error(state->buffer_resource, 0,
+static void surface_finalize_pending(struct wlr_surface *surface) {
+	struct wlr_surface_state *pending = &surface->pending;
+
+	if ((pending->committed & WLR_SURFACE_STATE_BUFFER)) {
+		if (pending->buffer_resource) {
+			wlr_buffer_unlock(pending->buffer);
+			pending->buffer = wlr_buffer_from_resource(pending->buffer_resource);
+			if (!pending->buffer) {
+				wl_resource_post_error(pending->buffer_resource, 0,
 						"unknown buffer type");
 				return;
 			}
 
-			state->buffer_width = state->buffer->width;
-			state->buffer_height = state->buffer->height;
+			pending->buffer_width = pending->buffer->width;
+			pending->buffer_height = pending->buffer->height;
 		} else {
-			state->buffer_width = state->buffer_height = 0;
+			pending->buffer_width = pending->buffer_height = 0;
 		}
 	}
 
-	if (!state->viewport.has_src &&
-			(state->buffer_width % state->scale != 0 ||
-			state->buffer_height % state->scale != 0)) {
+	if (!pending->viewport.has_src &&
+			(pending->buffer_width % pending->scale != 0 ||
+			pending->buffer_height % pending->scale != 0)) {
 		// TODO: send WL_SURFACE_ERROR_INVALID_SIZE error once this issue is
 		// resolved:
 		// https://gitlab.freedesktop.org/wayland/wayland/-/issues/194
 		wlr_log(WLR_DEBUG, "Client bug: submitted a buffer whose size (%dx%d) "
-			"is not divisible by scale (%d)", state->buffer_width,
-			state->buffer_height, state->scale);
+			"is not divisible by scale (%d)", pending->buffer_width,
+			pending->buffer_height, pending->scale);
 	}
 
-	if (state->viewport.has_dst) {
-		if (state->buffer_width == 0 && state->buffer_height == 0) {
-			state->width = state->height = 0;
+	if (pending->viewport.has_dst) {
+		if (pending->buffer_width == 0 && pending->buffer_height == 0) {
+			pending->width = pending->height = 0;
 		} else {
-			state->width = state->viewport.dst_width;
-			state->height = state->viewport.dst_height;
+			pending->width = pending->viewport.dst_width;
+			pending->height = pending->viewport.dst_height;
 		}
 	} else {
-		surface_state_viewport_src_size(state, &state->width, &state->height);
+		surface_state_viewport_src_size(pending, &pending->width, &pending->height);
 	}
 
-	pixman_region32_intersect_rect(&state->surface_damage,
-		&state->surface_damage, 0, 0, state->width, state->height);
+	pixman_region32_intersect_rect(&pending->surface_damage,
+		&pending->surface_damage, 0, 0, pending->width, pending->height);
 
-	pixman_region32_intersect_rect(&state->buffer_damage,
-		&state->buffer_damage, 0, 0, state->buffer_width,
-		state->buffer_height);
+	pixman_region32_intersect_rect(&pending->buffer_damage,
+		&pending->buffer_damage, 0, 0, pending->buffer_width,
+		pending->buffer_height);
 }
 
 static void surface_update_damage(pixman_region32_t *buffer_damage,
@@ -496,7 +497,7 @@ static void surface_commit_state(struct wlr_surface *surface,
 }
 
 static void surface_commit_pending(struct wlr_surface *surface) {
-	surface_state_finalize(surface, &surface->pending);
+	surface_finalize_pending(surface);
 
 	if (surface->role && surface->role->precommit) {
 		surface->role->precommit(surface);
