@@ -399,7 +399,7 @@ static void surface_cache_pending(struct wlr_surface *surface) {
 	surface_state_init(cached);
 	surface_state_move(cached, &surface->pending);
 
-	wl_list_insert(surface->cached.prev, &cached->cached_state_link);
+	wl_list_insert(surface->pending.link.prev, &cached->link);
 
 	surface->pending.seq++;
 }
@@ -525,7 +525,8 @@ static void surface_handle_commit(struct wl_client *client,
 
 	surface_finalize_pending(surface);
 
-	if (surface->pending.nlocks > 0 || !wl_list_empty(&surface->cached)) {
+	if (surface->pending.nlocks > 0 ||
+			surface->pending.link.prev != &surface->current.link) {
 		surface_cache_pending(surface);
 	} else {
 		surface_commit_state(surface, &surface->pending);
@@ -630,7 +631,7 @@ static void surface_state_finish(struct wlr_surface_state *state) {
 
 static void surface_state_destroy_cached(struct wlr_surface_state *state) {
 	surface_state_finish(state);
-	wl_list_remove(&state->cached_state_link);
+	wl_list_remove(&state->link);
 	free(state);
 }
 
@@ -680,8 +681,11 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 
 	wlr_addon_set_finish(&surface->addons);
 
+	wl_list_remove(&surface->current.link);
+	wl_list_remove(&surface->pending.link);
+
 	struct wlr_surface_state *cached, *cached_tmp;
-	wl_list_for_each_safe(cached, cached_tmp, &surface->cached, cached_state_link) {
+	wl_list_for_each_safe(cached, cached_tmp, &surface->states, link) {
 		surface_state_destroy_cached(cached);
 	}
 
@@ -729,11 +733,14 @@ struct wlr_surface *surface_create(struct wl_client *client,
 	surface_state_init(&surface->pending);
 	surface->pending.seq = 1;
 
+	wl_list_init(&surface->states);
+	wl_list_insert(&surface->states, &surface->current.link);
+	wl_list_insert(surface->states.prev, &surface->pending.link);
+
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.new_subsurface);
 	wl_list_init(&surface->current_outputs);
-	wl_list_init(&surface->cached);
 	pixman_region32_init(&surface->buffer_damage);
 	pixman_region32_init(&surface->opaque_region);
 	pixman_region32_init(&surface->input_region);
@@ -797,7 +804,9 @@ void wlr_surface_unlock_cached(struct wlr_surface *surface, uint32_t seq) {
 
 	bool found = false;
 	struct wlr_surface_state *cached;
-	wl_list_for_each(cached, &surface->cached, cached_state_link) {
+	for (struct wl_list *link = surface->current.link.next;
+			link != &surface->pending.link; link = link->next) {
+		cached = wl_container_of(link, cached, link);
 		if (cached->seq == seq) {
 			found = true;
 			break;
@@ -812,7 +821,7 @@ void wlr_surface_unlock_cached(struct wlr_surface *surface, uint32_t seq) {
 		return;
 	}
 
-	if (cached->cached_state_link.prev != &surface->cached) {
+	if (cached->link.prev != &surface->current.link) {
 		// This isn't the first cached state. This means we're blocked on a
 		// previous cached state.
 		return;
@@ -820,8 +829,8 @@ void wlr_surface_unlock_cached(struct wlr_surface *surface, uint32_t seq) {
 
 	// TODO: consider merging all committed states together
 	struct wlr_surface_state *next, *tmp;
-	wl_list_for_each_safe(next, tmp, &surface->cached, cached_state_link) {
-		if (next->nlocks > 0) {
+	wl_list_for_each_safe(next, tmp, &surface->current.link, link) {
+		if (next == &surface->pending || next->nlocks > 0) {
 			break;
 		}
 
