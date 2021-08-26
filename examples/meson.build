@@ -51,6 +51,10 @@ compositors = {
 	'quads': {
 		'src': 'quads.c',
 	},
+	'output-layers': {
+		'src': 'output-layers.c',
+		'proto': ['xdg-shell'],
+	},
 }
 
 clients = {
