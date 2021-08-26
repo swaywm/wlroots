@@ -300,8 +300,8 @@ static void surface_state_move(struct wlr_surface_state *state,
 
 	state->seq = next->seq;
 
-	state->cached_state_locks = next->cached_state_locks;
-	next->cached_state_locks = 0;
+	state->n_locks = next->n_locks;
+	next->n_locks = 0;
 }
 
 static void surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
@@ -406,7 +406,7 @@ static void surface_cache_pending(struct wlr_surface *surface) {
 
 static void surface_commit_state(struct wlr_surface *surface,
 		struct wlr_surface_state *next) {
-	assert(next->cached_state_locks == 0);
+	assert(next->n_locks == 0);
 
 	bool invalid_buffer = next->committed & WLR_SURFACE_STATE_BUFFER;
 
@@ -541,7 +541,7 @@ static void surface_handle_commit(struct wl_client *client,
 		surface->role->precommit(surface);
 	}
 
-	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
+	if (surface->pending.n_locks > 0 || !wl_list_empty(&surface->cached)) {
 		surface_cache_pending(surface);
 	} else {
 		surface_commit_state(surface, &surface->pending);
@@ -799,14 +799,14 @@ bool wlr_surface_set_role(struct wlr_surface *surface,
 }
 
 uint32_t wlr_surface_lock_pending(struct wlr_surface *surface) {
-	surface->pending.cached_state_locks++;
+	surface->pending.n_locks++;
 	return surface->pending.seq;
 }
 
 void wlr_surface_unlock_cached(struct wlr_surface *surface, uint32_t seq) {
 	if (surface->pending.seq == seq) {
-		assert(surface->pending.cached_state_locks > 0);
-		surface->pending.cached_state_locks--;
+		assert(surface->pending.n_locks > 0);
+		surface->pending.n_locks--;
 		return;
 	}
 
@@ -820,10 +820,10 @@ void wlr_surface_unlock_cached(struct wlr_surface *surface, uint32_t seq) {
 	}
 	assert(found);
 
-	assert(cached->cached_state_locks > 0);
-	cached->cached_state_locks--;
+	assert(cached->n_locks > 0);
+	cached->n_locks--;
 
-	if (cached->cached_state_locks != 0) {
+	if (cached->n_locks != 0) {
 		return;
 	}
 
@@ -836,7 +836,7 @@ void wlr_surface_unlock_cached(struct wlr_surface *surface, uint32_t seq) {
 	// TODO: consider merging all committed states together
 	struct wlr_surface_state *next, *tmp;
 	wl_list_for_each_safe(next, tmp, &surface->cached, cached_state_link) {
-		if (next->cached_state_locks > 0) {
+		if (next->n_locks > 0) {
 			break;
 		}
 
