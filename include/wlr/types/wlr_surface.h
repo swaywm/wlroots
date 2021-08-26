@@ -47,6 +47,9 @@ struct wlr_surface_state {
 	int width, height; // in surface-local coordinates
 	int buffer_width, buffer_height;
 
+	struct wl_list subsurfaces_below;
+	struct wl_list subsurfaces_above;
+
 	/**
 	 * The viewport is applied after the surface transform and scale.
 	 *
@@ -138,14 +141,6 @@ struct wlr_surface {
 		struct wl_signal new_subsurface;
 		struct wl_signal destroy;
 	} events;
-
-	// wlr_subsurface.parent_link
-	struct wl_list subsurfaces_below;
-	struct wl_list subsurfaces_above;
-
-	// wlr_subsurface.parent_pending_link
-	struct wl_list subsurfaces_pending_below;
-	struct wl_list subsurfaces_pending_above;
 
 	struct wl_list current_outputs; // wlr_surface_output::link
 
