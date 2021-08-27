@@ -58,12 +58,12 @@ static void surface_state_set_buffer(struct wlr_surface_state *state,
 	}
 }
 
-static void surface_destroy(struct wl_client *client,
+static void surface_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
 }
 
-static void surface_attach(struct wl_client *client,
+static void surface_handle_attach(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *buffer, int32_t dx, int32_t dy) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
@@ -74,7 +74,7 @@ static void surface_attach(struct wl_client *client,
 	surface_state_set_buffer(&surface->pending, buffer);
 }
 
-static void surface_damage(struct wl_client *client,
+static void surface_handle_damage(struct wl_client *client,
 		struct wl_resource *resource,
 		int32_t x, int32_t y, int32_t width, int32_t height) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
@@ -91,7 +91,7 @@ static void callback_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
-static void surface_frame(struct wl_client *client,
+static void surface_handle_frame(struct wl_client *client,
 		struct wl_resource *resource, uint32_t callback) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 
@@ -110,7 +110,7 @@ static void surface_frame(struct wl_client *client,
 	surface->pending.committed |= WLR_SURFACE_STATE_FRAME_CALLBACK_LIST;
 }
 
-static void surface_set_opaque_region(struct wl_client *client,
+static void surface_handle_set_opaque_region(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *region_resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
@@ -123,7 +123,7 @@ static void surface_set_opaque_region(struct wl_client *client,
 	}
 }
 
-static void surface_set_input_region(struct wl_client *client,
+static void surface_handle_set_input_region(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *region_resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
@@ -567,7 +567,7 @@ static void subsurface_commit(struct wlr_subsurface *subsurface) {
 	}
 }
 
-static void surface_commit(struct wl_client *client,
+static void surface_handle_commit(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 
@@ -587,7 +587,7 @@ static void surface_commit(struct wl_client *client,
 	}
 }
 
-static void surface_set_buffer_transform(struct wl_client *client,
+static void surface_handle_set_buffer_transform(struct wl_client *client,
 		struct wl_resource *resource, int32_t transform) {
 	if (transform < WL_OUTPUT_TRANSFORM_NORMAL ||
 			transform > WL_OUTPUT_TRANSFORM_FLIPPED_270) {
@@ -600,7 +600,7 @@ static void surface_set_buffer_transform(struct wl_client *client,
 	surface->pending.transform = transform;
 }
 
-static void surface_set_buffer_scale(struct wl_client *client,
+static void surface_handle_set_buffer_scale(struct wl_client *client,
 		struct wl_resource *resource, int32_t scale) {
 	if (scale <= 0) {
 		wl_resource_post_error(resource, WL_SURFACE_ERROR_INVALID_SCALE,
@@ -612,7 +612,7 @@ static void surface_set_buffer_scale(struct wl_client *client,
 	surface->pending.scale = scale;
 }
 
-static void surface_damage_buffer(struct wl_client *client,
+static void surface_handle_damage_buffer(struct wl_client *client,
 		struct wl_resource *resource,
 		int32_t x, int32_t y, int32_t width,
 		int32_t height) {
@@ -626,22 +626,22 @@ static void surface_damage_buffer(struct wl_client *client,
 		x, y, width, height);
 }
 
-static const struct wl_surface_interface surface_interface = {
-	.destroy = surface_destroy,
-	.attach = surface_attach,
-	.damage = surface_damage,
-	.frame = surface_frame,
-	.set_opaque_region = surface_set_opaque_region,
-	.set_input_region = surface_set_input_region,
-	.commit = surface_commit,
-	.set_buffer_transform = surface_set_buffer_transform,
-	.set_buffer_scale = surface_set_buffer_scale,
-	.damage_buffer = surface_damage_buffer
+static const struct wl_surface_interface surface_implementation = {
+	.destroy = surface_handle_destroy,
+	.attach = surface_handle_attach,
+	.damage = surface_handle_damage,
+	.frame = surface_handle_frame,
+	.set_opaque_region = surface_handle_set_opaque_region,
+	.set_input_region = surface_handle_set_input_region,
+	.commit = surface_handle_commit,
+	.set_buffer_transform = surface_handle_set_buffer_transform,
+	.set_buffer_scale = surface_handle_set_buffer_scale,
+	.damage_buffer = surface_handle_damage_buffer
 };
 
 struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_surface_interface,
-		&surface_interface));
+		&surface_implementation));
 	return wl_resource_get_user_data(resource);
 }
 
@@ -764,7 +764,7 @@ struct wlr_surface *surface_create(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return NULL;
 	}
-	wl_resource_set_implementation(surface->resource, &surface_interface,
+	wl_resource_set_implementation(surface->resource, &surface_implementation,
 		surface, surface_handle_resource_destroy);
 
 	wlr_log(WLR_DEBUG, "New wlr_surface %p (res %p)", surface, surface->resource);
