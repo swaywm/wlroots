@@ -958,12 +958,12 @@ static struct wlr_subsurface *subsurface_find_sibling(
 	struct wlr_surface *parent = subsurface->parent;
 
 	struct wlr_subsurface *sibling;
-	wl_list_for_each(sibling, &parent->current.subsurfaces_below, current.link) {
+	wl_list_for_each(sibling, &parent->pending.subsurfaces_below, pending.link) {
 		if (sibling->surface == surface && sibling != subsurface) {
 			return sibling;
 		}
 	}
-	wl_list_for_each(sibling, &parent->current.subsurfaces_above, current.link) {
+	wl_list_for_each(sibling, &parent->pending.subsurfaces_above, pending.link) {
 		if (sibling->surface == surface && sibling != subsurface) {
 			return sibling;
 		}
@@ -1262,7 +1262,8 @@ struct wlr_subsurface *subsurface_create(struct wlr_surface *surface,
 	subsurface->parent = parent;
 	wl_signal_add(&parent->events.destroy, &subsurface->parent_destroy);
 	subsurface->parent_destroy.notify = subsurface_handle_parent_destroy;
-	wl_list_insert(parent->current.subsurfaces_above.prev, &subsurface->current.link);
+
+	wl_list_init(&subsurface->current.link);
 	wl_list_insert(parent->pending.subsurfaces_above.prev,
 		&subsurface->pending.link);
 
