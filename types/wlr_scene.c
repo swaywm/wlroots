@@ -13,7 +13,7 @@ static struct wlr_scene *scene_root_from_node(struct wlr_scene_node *node) {
 	return (struct wlr_scene *)node;
 }
 
-static struct wlr_scene_surface *scene_surface_from_node(
+struct wlr_scene_surface *wlr_scene_surface_from_node(
 		struct wlr_scene_node *node) {
 	assert(node->type == WLR_SCENE_NODE_SURFACE);
 	return (struct wlr_scene_surface *)node;
@@ -74,7 +74,7 @@ void wlr_scene_node_destroy(struct wlr_scene_node *node) {
 		free(scene);
 		break;
 	case WLR_SCENE_NODE_SURFACE:;
-		struct wlr_scene_surface *scene_surface = scene_surface_from_node(node);
+		struct wlr_scene_surface *scene_surface = wlr_scene_surface_from_node(node);
 		wl_list_remove(&scene_surface->surface_destroy.link);
 		free(scene_surface);
 		break;
@@ -198,7 +198,7 @@ static void scene_node_for_each_surface(struct wlr_scene_node *node,
 	ly += node->state.y;
 
 	if (node->type == WLR_SCENE_NODE_SURFACE) {
-		struct wlr_scene_surface *scene_surface = scene_surface_from_node(node);
+		struct wlr_scene_surface *scene_surface = wlr_scene_surface_from_node(node);
 		user_iterator(scene_surface->surface, lx, ly, user_data);
 	}
 
@@ -213,8 +213,8 @@ void wlr_scene_node_for_each_surface(struct wlr_scene_node *node,
 	scene_node_for_each_surface(node, 0, 0, user_iterator, user_data);
 }
 
-struct wlr_surface *wlr_scene_node_surface_at(struct wlr_scene_node *node,
-		double lx, double ly, double *sx, double *sy) {
+struct wlr_scene_node *wlr_scene_node_at(struct wlr_scene_node *node,
+		double lx, double ly, double *nx, double *ny) {
 	if (!node->state.enabled) {
 		return NULL;
 	}
@@ -225,24 +225,40 @@ struct wlr_surface *wlr_scene_node_surface_at(struct wlr_scene_node *node,
 
 	struct wlr_scene_node *child;
 	wl_list_for_each_reverse(child, &node->state.children, state.link) {
-		struct wlr_surface *surface =
-			wlr_scene_node_surface_at(child, lx, ly, sx, sy);
-		if (surface != NULL) {
-			return surface;
+		struct wlr_scene_node *node =
+			wlr_scene_node_at(child, lx, ly, nx, ny);
+		if (node != NULL) {
+			return node;
 		}
 	}
 
-	if (node->type == WLR_SCENE_NODE_SURFACE) {
-		struct wlr_scene_surface *scene_surface = scene_surface_from_node(node);
+	switch (node->type) {
+	case WLR_SCENE_NODE_SURFACE:;
+		struct wlr_scene_surface *scene_surface = wlr_scene_surface_from_node(node);
 		if (wlr_surface_point_accepts_input(scene_surface->surface, lx, ly)) {
-			if (sx != NULL) {
-				*sx = lx;
+			if (nx != NULL) {
+				*nx = lx;
 			}
-			if (sy != NULL) {
-				*sy = ly;
+			if (ny != NULL) {
+				*ny = ly;
 			}
-			return scene_surface->surface;
+			return &scene_surface->node;
 		}
+		break;
+	case WLR_SCENE_NODE_RECT:;
+		struct wlr_scene_rect *rect = scene_rect_from_node(node);
+		if (lx >= 0 && lx < rect->width && ly >= 0 && ly < rect->height) {
+			if (nx != NULL) {
+				*nx = lx;
+			}
+			if (ny != NULL) {
+				*ny = ly;
+			}
+			return &rect->node;
+		}
+		break;
+	default:
+		break;
 	}
 
 	return NULL;
@@ -342,7 +358,7 @@ static void render_node_iterator(struct wlr_scene_node *node,
 		/* Root node has nothing to render itself */
 		break;
 	case WLR_SCENE_NODE_SURFACE:;
-		struct wlr_scene_surface *scene_surface = scene_surface_from_node(node);
+		struct wlr_scene_surface *scene_surface = wlr_scene_surface_from_node(node);
 		struct wlr_surface *surface = scene_surface->surface;
 
 		struct wlr_texture *texture = wlr_surface_get_texture(surface);
