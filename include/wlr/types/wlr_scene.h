@@ -114,12 +114,13 @@ void wlr_scene_node_reparent(struct wlr_scene_node *node,
 void wlr_scene_node_for_each_surface(struct wlr_scene_node *node,
 	wlr_surface_iterator_func_t iterator, void *user_data);
 /**
- * Find a surface in this scene-graph that accepts input events at the given
- * layout-local coordinates. Returns the surface and coordinates relative to
- * the returned surface, or NULL if no surface is found at that location.
+ * Find the topmost node in this scene-graph that contains the point at the
+ * given layout-local coordinates. (For surface nodes, this means accepting
+ * input events at that point.) Returns the node and coordinates relative to the
+ * returned node, or NULL if no node is found at that location.
  */
-struct wlr_surface *wlr_scene_node_surface_at(struct wlr_scene_node *node,
-	double lx, double ly, double *sx, double *sy);
+struct wlr_scene_node *wlr_scene_node_at(struct wlr_scene_node *node,
+	double lx, double ly, double *nx, double *ny);
 
 /**
  * Create a new scene-graph.
@@ -141,6 +142,8 @@ void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
  */
 struct wlr_scene_surface *wlr_scene_surface_create(struct wlr_scene_node *parent,
 	struct wlr_surface *surface);
+
+struct wlr_scene_surface *wlr_scene_surface_from_node(struct wlr_scene_node *node);
 
 /**
  * Add a node displaying a solid-colored rectangle to the scene-graph.
