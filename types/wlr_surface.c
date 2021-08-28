@@ -693,6 +693,8 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 
 	wlr_signal_emit_safe(&surface->events.destroy, surface);
 
+	wlr_addon_set_finish(&surface->addons);
+
 	struct wlr_surface_state *cached, *cached_tmp;
 	wl_list_for_each_safe(cached, cached_tmp, &surface->cached, cached_state_link) {
 		surface_state_destroy_cached(cached);
@@ -750,6 +752,7 @@ struct wlr_surface *surface_create(struct wl_client *client,
 	pixman_region32_init(&surface->buffer_damage);
 	pixman_region32_init(&surface->opaque_region);
 	pixman_region32_init(&surface->input_region);
+	wlr_addon_set_init(&surface->addons);
 
 	wl_signal_add(&renderer->events.destroy, &surface->renderer_destroy);
 	surface->renderer_destroy.notify = surface_handle_renderer_destroy;
