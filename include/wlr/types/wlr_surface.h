@@ -15,6 +15,7 @@
 #include <time.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/util/addon.h>
 #include <wlr/util/box.h>
 
 enum wlr_surface_state_field {
@@ -141,6 +142,7 @@ struct wlr_surface {
 
 	struct wl_list current_outputs; // wlr_surface_output::link
 
+	struct wlr_addon_set addons;
 	void *data;
 
 	// private state
