@@ -135,6 +135,8 @@ void wlr_scene_node_place_below(struct wlr_scene_node *node,
 
 void wlr_scene_node_reparent(struct wlr_scene_node *node,
 		struct wlr_scene_node *new_parent) {
+	assert(node->type != WLR_SCENE_NODE_ROOT && new_parent != NULL);
+
 	if (node->parent == new_parent) {
 		return;
 	}
@@ -145,11 +147,8 @@ void wlr_scene_node_reparent(struct wlr_scene_node *node,
 	}
 
 	wl_list_remove(&node->state.link);
-
 	node->parent = new_parent;
-	if (new_parent != NULL) {
-		wl_list_insert(new_parent->state.children.prev, &node->state.link);
-	}
+	wl_list_insert(new_parent->state.children.prev, &node->state.link);
 }
 
 static void scene_node_for_each_surface(struct wlr_scene_node *node,
