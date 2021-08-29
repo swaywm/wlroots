@@ -141,9 +141,7 @@ void wlr_scene_node_reparent(struct wlr_scene_node *node,
 	/* Ensure that a node cannot become its own ancestor */
 	for (struct wlr_scene_node *ancestor = new_parent; ancestor != NULL;
 			ancestor = ancestor->parent) {
-		if (ancestor == node) {
-			return;
-		}
+		assert(ancestor != node);
 	}
 
 	wl_list_remove(&node->state.link);
