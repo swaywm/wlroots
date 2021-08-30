@@ -38,9 +38,9 @@ submitting.
 ## Commit Log
 
 Unlike many projects using GitHub and GitLab, wlroots has a [linear, "recipe"
-style](https://www.bitsnbites.eu/git-history-work-log-vs-recipe/) history. This
-means that every commit should be small, digestible, stand-alone, and
-functional. Rather than a purely chronological commit history like this:
+style] history. This means that every commit should be small, digestible,
+stand-alone, and functional. Rather than a purely chronological commit history
+like this:
 
 ```
 doc: final docs for view transforms
@@ -68,7 +68,7 @@ without the changes and missteps taken along the development process. A linear
 history eases reviewing, cherry-picking and reverting changes.
 
 If you aren't comfortable with manipulating the Git history, have a look at
-[git-rebase.io](https://git-rebase.io/).
+[git-rebase.io].
 
 ## Commit Messages
 
@@ -395,6 +395,8 @@ static void subsurface_handle_surface_destroy(struct wl_listener *listener,
 ```
 
 [#sway-devel on Libera Chat]: https://web.libera.chat/?channels=#sway-devel
+[linear, "recipe" style]: https://www.bitsnbites.eu/git-history-work-log-vs-recipe/
+[git-rebase.io]: https://git-rebase.io/
 [reference Github issues]: https://help.github.com/articles/closing-issues-via-commit-messages/
 [How to Write a Git Commit Message]: https://chris.beams.io/posts/git-commit/
 [kernel style]: https://www.kernel.org/doc/Documentation/process/coding-style.rst
