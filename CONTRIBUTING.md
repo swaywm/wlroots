@@ -1,9 +1,8 @@
 # Contributing to wlroots
 
 Contributing just involves sending a pull request. You will probably be more
-successful with your contribution if you visit
-[#sway-devel on Libera Chat](https://web.libera.chat/?channels=#sway-devel) upfront and
-discuss your plans.
+successful with your contribution if you visit [#sway-devel on Libera Chat]
+upfront and discuss your plans.
 
 Note: rules are made to be broken. Adjust or ignore any/all of these as you see
 fit, but be prepared to justify it to your peers.
@@ -82,20 +81,18 @@ or similar.
 
 The subsequent lines should be separated from the subject line by a single
 blank line, and include optional details. In this you can give justification
-for the change, [reference Github
-issues](https://help.github.com/articles/closing-issues-via-commit-messages/),
-or explain some of the subtler details of your patch. This is important because
-when someone finds a line of code they don't understand later, they can use the
-`git blame` command to find out what the author was thinking when they wrote
-it. It's also easier to review your pull requests if they're separated into
-logical commits that have good commit messages and justify themselves in the
-extended commit description.
+for the change, [reference Github issues], or explain some of the subtler
+details of your patch. This is important because when someone finds a line of
+code they don't understand later, they can use the `git blame` command to find
+out what the author was thinking when they wrote it. It's also easier to review
+your pull requests if they're separated into logical commits that have good
+commit messages and justify themselves in the extended commit description.
 
 As a good rule of thumb, anything you might put into the pull request
 description on Github is probably fair game for going into the extended commit
 message as well.
 
-See [here](https://chris.beams.io/posts/git-commit/) for more details.
+See [How to Write a Git Commit Message] for more details.
 
 ## Code Review
 
@@ -119,9 +116,8 @@ process is:
 
 ## Style Reference
 
-wlroots is written in C with a style similar to the [kernel
-style](https://www.kernel.org/doc/Documentation/process/coding-style.rst), but
-with a few notable differences.
+wlroots is written in C with a style similar to the [kernel style], but with a
+few notable differences.
 
 Try to keep your code conforming to C11 and POSIX as much as possible, and do
 not use GNU extensions.
@@ -397,3 +393,8 @@ static void subsurface_handle_surface_destroy(struct wl_listener *listener,
 	subsurface_destroy(subsurface);
 }
 ```
+
+[#sway-devel on Libera Chat]: https://web.libera.chat/?channels=#sway-devel
+[reference Github issues]: https://help.github.com/articles/closing-issues-via-commit-messages/
+[How to Write a Git Commit Message]: https://chris.beams.io/posts/git-commit/
+[kernel style]: https://www.kernel.org/doc/Documentation/process/coding-style.rst
