@@ -327,14 +327,14 @@ static void render_texture(struct wlr_output *output,
 	pixman_region32_init(&damage);
 	pixman_region32_init_rect(&damage, box->x, box->y, box->width, box->height);
 	pixman_region32_intersect(&damage, &damage, output_damage);
-	if (pixman_region32_not_empty(&damage)) {
-		int nrects;
-		pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
-		for (int i = 0; i < nrects; ++i) {
-			scissor_output(output, &rects[i]);
-			wlr_render_texture_with_matrix(renderer, texture, matrix, 1.0);
-		}
+
+	int nrects;
+	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
+	for (int i = 0; i < nrects; ++i) {
+		scissor_output(output, &rects[i]);
+		wlr_render_texture_with_matrix(renderer, texture, matrix, 1.0);
 	}
+
 	pixman_region32_fini(&damage);
 }
 
