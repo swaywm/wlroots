@@ -36,6 +36,41 @@ your new features work correctly). Document all of the edge cases you're aware
 of so we can adequately test them - then verify the test plan yourself before
 submitting.
 
+## Commit Log
+
+Unlike many projects using GitHub and GitLab, wlroots has a [linear, "recipe"
+style](https://www.bitsnbites.eu/git-history-work-log-vs-recipe/) history. This
+means that every commit should be small, digestible, stand-alone, and
+functional. Rather than a purely chronological commit history like this:
+
+```
+doc: final docs for view transforms
+fix tests when disabled, redo broken doc formatting
+better transformed-view iteration (thanks Hannah!)
+try to catch more cases in tests
+tests: add new spline test
+fix compilation on splines
+doc: notes on reticulating splines
+compositor: add spline reticulation for view transforms
+```
+
+We aim to have a clean history which only reflects the final state, broken up
+into functional groupings:
+
+```
+compositor: add spline reticulation for view transforms
+compositor: new iterator for view transforms
+tests: add view-transform correctness tests
+doc: fix formatting for view transforms
+```
+
+This ensures that the final patch series only contains the final state,
+without the changes and missteps taken along the development process. A linear
+history eases reviewing, cherry-picking and reverting changes.
+
+If you aren't comfortable with manipulating the Git history, have a look at
+[git-rebase.io](https://git-rebase.io/).
+
 ## Commit Messages
 
 Please strive to write good commit messages. Here's some guidelines to follow:
