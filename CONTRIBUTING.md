@@ -394,7 +394,7 @@ static void subsurface_handle_surface_destroy(struct wl_listener *listener,
 }
 ```
 
-[#sway-devel on Libera Chat]: https://web.libera.chat/?channels=#sway-devel
+[#sway-devel on Libera Chat]: https://web.libera.chat/gamja/?channels=#sway-devel
 [linear, "recipe" style]: https://www.bitsnbites.eu/git-history-work-log-vs-recipe/
 [git-rebase.io]: https://git-rebase.io/
 [reference Github issues]: https://help.github.com/articles/closing-issues-via-commit-messages/
