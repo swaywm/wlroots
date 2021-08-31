@@ -114,7 +114,6 @@ static void focus_view(struct tinywl_view *view, struct wlr_surface *surface) {
 					seat->keyboard_state.focused_surface);
 		wlr_xdg_toplevel_set_activated(previous, false);
 	}
-	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
 	/* Move the view to the front */
 	wl_list_remove(&view->link);
 	wl_list_insert(&server->views, &view->link);
@@ -125,8 +124,13 @@ static void focus_view(struct tinywl_view *view, struct wlr_surface *surface) {
 	 * track of this and automatically send key events to the appropriate
 	 * clients without additional work on your part.
 	 */
-	wlr_seat_keyboard_notify_enter(seat, view->xdg_surface->surface,
-		keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
+	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
+	if (keyboard != NULL) {
+		wlr_seat_keyboard_notify_enter(seat, view->xdg_surface->surface,
+			keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
+	} else {
+		wlr_seat_keyboard_notify_enter(seat, surface, NULL, 0, NULL);
+	}
 }
 
 static void keyboard_handle_modifiers(
