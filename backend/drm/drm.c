@@ -414,6 +414,9 @@ static bool drm_connector_set_pending_fb(struct wlr_drm_connector *conn,
 		}
 
 		local_buf = drm_surface_blit(&plane->mgpu_surf, state->buffer);
+		if (local_buf == NULL) {
+			return false;
+		}
 	} else {
 		local_buf = wlr_buffer_lock(state->buffer);
 	}
