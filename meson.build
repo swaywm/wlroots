@@ -96,7 +96,7 @@ internal_features = {
 	'xcb-errors': false,
 }
 
-wayland_server = dependency('wayland-server', version: '>=1.19')
+wayland_server = dependency('wayland-server', version: '>=1.19.90')
 wayland_client = dependency('wayland-client')
 drm = dependency('libdrm', version: '>=2.4.105')
 gbm = dependency('gbm', version: '>=17.1.0')

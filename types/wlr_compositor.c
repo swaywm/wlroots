@@ -8,7 +8,7 @@
 #include "types/wlr_surface.h"
 #include "util/signal.h"
 
-#define COMPOSITOR_VERSION 4
+#define COMPOSITOR_VERSION 5
 #define SUBCOMPOSITOR_VERSION 1
 
 extern const struct wlr_surface_role subsurface_role;

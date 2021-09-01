@@ -69,9 +69,21 @@ static void surface_attach(struct wl_client *client,
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 
 	surface->pending.committed |= WLR_SURFACE_STATE_BUFFER;
-	surface->pending.dx = dx;
-	surface->pending.dy = dy;
 	surface_state_set_buffer(&surface->pending, buffer);
+
+	if (wl_resource_get_version(resource) >= WL_SURFACE_OFFSET_SINCE_VERSION &&
+			(dx != 0 || dy != 0)) {
+		wl_resource_post_error(resource, WL_SURFACE_ERROR_INVALID_OFFSET,
+			"Non-zero dx/dy cannot be provided on wl_surface.attach "
+			"version >= %"PRIu32, WL_SURFACE_OFFSET_SINCE_VERSION);
+		return;
+	}
+
+	if (wl_resource_get_version(resource) < WL_SURFACE_OFFSET_SINCE_VERSION) {
+		surface->pending.committed |= WLR_SURFACE_STATE_OFFSET;
+		surface->pending.dx = dx;
+		surface->pending.dy = dy;
+	}
 }
 
 static void surface_damage(struct wl_client *client,
@@ -275,11 +287,14 @@ static void surface_state_move(struct wlr_surface_state *state,
 	if (next->committed & WLR_SURFACE_STATE_TRANSFORM) {
 		state->transform = next->transform;
 	}
-	if (next->committed & WLR_SURFACE_STATE_BUFFER) {
+	if (next->committed & WLR_SURFACE_STATE_OFFSET) {
 		state->dx = next->dx;
 		state->dy = next->dy;
 		next->dx = next->dy = 0;
-
+	} else {
+		state->dx = state->dy = 0;
+	}
+	if (next->committed & WLR_SURFACE_STATE_BUFFER) {
 		surface_state_set_buffer(state, next->buffer_resource);
 		surface_state_reset_buffer(next);
 
@@ -289,8 +304,6 @@ static void surface_state_move(struct wlr_surface_state *state,
 		}
 		wlr_buffer_unlock(next->buffer);
 		next->buffer = NULL;
-	} else {
-		state->dx = state->dy = 0;
 	}
 	if (next->committed & WLR_SURFACE_STATE_SURFACE_DAMAGE) {
 		pixman_region32_copy(&state->surface_damage, &next->surface_damage);
@@ -623,6 +636,15 @@ static void surface_damage_buffer(struct wl_client *client,
 		x, y, width, height);
 }
 
+static void surface_offset(struct wl_client *client,
+		struct wl_resource *resource, int32_t x, int32_t y) {
+	struct wlr_surface *surface = wlr_surface_from_resource(resource);
+
+	surface->pending.committed |= WLR_SURFACE_STATE_OFFSET;
+	surface->pending.dx = x;
+	surface->pending.dy = y;
+}
+
 static const struct wl_surface_interface surface_interface = {
 	.destroy = surface_destroy,
 	.attach = surface_attach,
@@ -633,7 +655,8 @@ static const struct wl_surface_interface surface_interface = {
 	.commit = surface_commit,
 	.set_buffer_transform = surface_set_buffer_transform,
 	.set_buffer_scale = surface_set_buffer_scale,
-	.damage_buffer = surface_damage_buffer
+	.damage_buffer = surface_damage_buffer,
+	.offset = surface_offset,
 };
 
 struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource) {
