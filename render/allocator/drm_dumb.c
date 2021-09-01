@@ -199,41 +199,25 @@ static const struct wlr_allocator_interface allocator_impl = {
 	.destroy = allocator_destroy,
 };
 
-struct wlr_allocator *wlr_drm_dumb_allocator_create(int fd) {
-	if (!drmIsMaster(fd)) {
-		wlr_log(WLR_ERROR, "Cannot use DRM dumb buffers with non-master DRM FD");
-		return NULL;
-	}
-
-	/* Re-open the DRM node to avoid GEM handle ref'counting issues. See:
-	 * https://gitlab.freedesktop.org/mesa/drm/-/merge_requests/110
-	 * TODO: don't assume we have the permission to just open the DRM node,
-	 * find another way to re-open it.
-	 */
-	char *path = drmGetDeviceNameFromFd2(fd);
-	int drm_fd = open(path, O_RDWR | O_CLOEXEC);
-	if (drm_fd < 0) {
-		wlr_log_errno(WLR_ERROR, "Failed to open DRM node %s", path);
-		free(path);
+struct wlr_allocator *wlr_drm_dumb_allocator_create(int drm_fd) {
+	if (drmGetNodeTypeFromFd(drm_fd) != DRM_NODE_PRIMARY) {
+		wlr_log(WLR_ERROR, "Cannot use DRM dumb buffers with non-primary DRM FD");
 		return NULL;
 	}
 
 	uint64_t has_dumb = 0;
 	if (drmGetCap(drm_fd, DRM_CAP_DUMB_BUFFER, &has_dumb) < 0) {
 		wlr_log(WLR_ERROR, "Failed to get DRM capabilities");
-		free(path);
 		return NULL;
 	}
 
 	if (has_dumb == 0) {
 		wlr_log(WLR_ERROR, "DRM dumb buffers not supported");
-		free(path);
 		return NULL;
 	}
 
 	struct wlr_drm_dumb_allocator *alloc = calloc(1, sizeof(*alloc));
 	if (alloc == NULL) {
-		free(path);
 		return NULL;
 	}
 	wlr_allocator_init(&alloc->base, &allocator_impl,
@@ -242,7 +226,6 @@ struct wlr_allocator *wlr_drm_dumb_allocator_create(int fd) {
 	alloc->drm_fd = drm_fd;
 	wl_list_init(&alloc->buffers);
 
-	wlr_log(WLR_DEBUG, "Created DRM dumb allocator with node %s", path);
-	free(path);
+	wlr_log(WLR_DEBUG, "Created DRM dumb allocator");
 	return &alloc->base;
 }
