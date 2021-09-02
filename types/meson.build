@@ -4,6 +4,7 @@ wlr_files += files(
 	'data_device/wlr_data_source.c',
 	'data_device/wlr_drag.c',
 	'scene/wlr_scene.c',
+	'scene/output_layout.c',
 	'seat/wlr_seat_keyboard.c',
 	'seat/wlr_seat_pointer.c',
 	'seat/wlr_seat_touch.c',

@@ -24,6 +24,7 @@
 #include <wlr/types/wlr_surface.h>
 
 struct wlr_output;
+struct wlr_output_layout;
 
 enum wlr_scene_node_type {
 	WLR_SCENE_NODE_ROOT,
@@ -202,5 +203,14 @@ void wlr_scene_output_set_position(struct wlr_scene_output *scene_output,
  * Render and commit an output.
  */
 bool wlr_scene_output_commit(struct wlr_scene_output *scene_output);
+
+/**
+ * Attach an output layout to a scene.
+ *
+ * Outputs in the output layout are automatically added to the scene. Any
+ * change to the output layout is mirrored to the scene-graph outputs.
+ */
+bool wlr_scene_attach_output_layout(struct wlr_scene *scene,
+	struct wlr_output_layout *output_layout);
 
 #endif
