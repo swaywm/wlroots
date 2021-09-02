@@ -76,8 +76,7 @@ Please strive to write good commit messages. Here's some guidelines to follow:
 
 The first line should be limited to 50 characters and should be a sentence that
 completes the thought [When applied, this commit will...] *"Implement
-cmd_move"* or *"Fix #742"* or *"Improve performance of arrange_windows on ARM"*
-or similar.
+cmd_move"* or *"Improve performance of arrange_windows on ARM"* or similar.
 
 The subsequent lines should be separated from the subject line by a single
 blank line, and include optional details. In this you can give justification
