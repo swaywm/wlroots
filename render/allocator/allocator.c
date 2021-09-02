@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
+#include <xf86drmMode.h>
 #include "backend/backend.h"
 #include "render/allocator/allocator.h"
 #include "render/allocator/drm_dumb.h"
@@ -22,10 +23,22 @@ void wlr_allocator_init(struct wlr_allocator *alloc,
 
 /* Re-open the DRM node to avoid GEM handle ref'counting issues. See:
  * https://gitlab.freedesktop.org/mesa/drm/-/merge_requests/110
- * TODO: don't assume we have the permission to just open the DRM node,
- * find another way to re-open it.
  */
 static int reopen_drm_node(int drm_fd, bool allow_render_node) {
+	if (drmIsMaster(drm_fd)) {
+		// Only recent kernels support empty leases
+		uint32_t lessee_id;
+		int lease_fd = drmModeCreateLease(drm_fd, NULL, 0, 0, &lessee_id);
+		if (lease_fd >= 0) {
+			return lease_fd;
+		} else if (lease_fd != -EINVAL && lease_fd != -EOPNOTSUPP) {
+			wlr_log_errno(WLR_ERROR, "drmModeCreateLease failed");
+			return -1;
+		}
+		wlr_log(WLR_DEBUG, "drmModeCreateLease failed, "
+			"falling back to plain open");
+	}
+
 	char *name = NULL;
 	if (allow_render_node) {
 		name = drmGetRenderDeviceNameFromFd(drm_fd);
