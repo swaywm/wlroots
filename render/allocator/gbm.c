@@ -36,8 +36,13 @@ static bool export_gbm_bo(struct gbm_bo *bo,
 	int32_t handle = -1;
 	for (i = 0; i < attribs.n_planes; ++i) {
 #if HAS_GBM_BO_GET_FD_FOR_PLANE
-		attribs.fd[i] = gbm_bo_get_fd_for_plane(bo, i);
 		(void)handle;
+
+		attribs.fd[i] = gbm_bo_get_fd_for_plane(bo, i);
+		if (attribs.fd[i] < 0) {
+			wlr_log(WLR_ERROR, "gbm_bo_get_fd_for_plane failed");
+			goto error_fd;
+		}
 #else
 		// GBM is lacking a function to get a FD for a given plane. Instead,
 		// check all planes have the same handle. We can't use
@@ -57,12 +62,11 @@ static bool export_gbm_bo(struct gbm_bo *bo,
 		}
 
 		attribs.fd[i] = gbm_bo_get_fd(bo);
-#endif
-
 		if (attribs.fd[i] < 0) {
 			wlr_log(WLR_ERROR, "gbm_bo_get_fd failed");
 			goto error_fd;
 		}
+#endif
 
 		attribs.offset[i] = gbm_bo_get_offset(bo, i);
 		attribs.stride[i] = gbm_bo_get_stride_for_plane(bo, i);
