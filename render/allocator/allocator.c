@@ -35,8 +35,31 @@ static int reopen_drm_node(int drm_fd) {
 	int new_fd = open(name, O_RDWR | O_CLOEXEC);
 	if (new_fd < 0) {
 		wlr_log_errno(WLR_ERROR, "Failed to open DRM node '%s'", name);
+		free(name);
+		return -1;
 	}
+
 	free(name);
+
+	// If we're using a DRM primary node (e.g. because we're running under the
+	// DRM backend, or because we're on split render/display machine), we need
+	// to use the legacy DRM authentication mechanism to have the permission to
+	// manipulate buffers.
+	if (drmGetNodeTypeFromFd(new_fd) == DRM_NODE_PRIMARY) {
+		drm_magic_t magic;
+		if (drmGetMagic(new_fd, &magic) < 0) {
+			wlr_log_errno(WLR_ERROR, "drmGetMagic failed");
+			close(new_fd);
+			return -1;
+		}
+
+		if (drmAuthMagic(drm_fd, magic) < 0) {
+			wlr_log_errno(WLR_ERROR, "drmAuthMagic failed");
+			close(new_fd);
+			return -1;
+		}
+	}
+
 	return new_fd;
 }
 
