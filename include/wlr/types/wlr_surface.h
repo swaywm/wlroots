@@ -35,6 +35,7 @@ enum wlr_surface_state_field {
 	WLR_SURFACE_STATE_SCALE = 1 << 6,
 	WLR_SURFACE_STATE_FRAME_CALLBACK_LIST = 1 << 7,
 	WLR_SURFACE_STATE_VIEWPORT = 1 << 8,
+	WLR_SURFACE_STATE_SUBSURFACES = 1 << 9,
 };
 
 struct wlr_surface_state {
@@ -207,6 +208,8 @@ struct wlr_surface {
 struct wlr_subsurface_parent_state {
 	int32_t x, y;
 	struct wl_list link;
+
+	struct wlr_surface_extension_state ext_state;
 };
 
 struct wlr_subsurface {
@@ -220,11 +223,7 @@ struct wlr_subsurface {
 	bool has_cache;
 
 	bool synchronized;
-	bool reordered;
 	bool mapped;
-
-	struct wl_listener surface_destroy;
-	struct wl_listener parent_destroy;
 
 	struct {
 		struct wl_signal destroy;
@@ -233,6 +232,19 @@ struct wlr_subsurface {
 	} events;
 
 	void *data;
+
+	// private state
+
+	struct wlr_surface_extension parent_extension;
+
+	bool reordered;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener parent_destroy;
+
+	struct {
+		int x, y;
+	} previous;
 };
 
 typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,

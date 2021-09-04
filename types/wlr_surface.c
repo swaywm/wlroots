@@ -430,35 +430,11 @@ static void surface_commit(struct wlr_surface *surface) {
 	surface_update_opaque_region(surface);
 	surface_update_input_region(surface);
 
-	// commit subsurface order
-	struct wlr_subsurface *subsurface;
-	wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_above,
-			pending.link) {
-		wl_list_remove(&subsurface->current.link);
-		wl_list_insert(&surface->current.subsurfaces_above,
-			&subsurface->current.link);
-
-		if (subsurface->reordered) {
-			// TODO: damage all the subsurfaces
-			surface_damage_subsurfaces(subsurface);
-		}
-	}
-	wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_below,
-			pending.link) {
-		wl_list_remove(&subsurface->current.link);
-		wl_list_insert(&surface->current.subsurfaces_below,
-			&subsurface->current.link);
-
-		if (subsurface->reordered) {
-			// TODO: damage all the subsurfaces
-			surface_damage_subsurfaces(subsurface);
-		}
-	}
-
 	if (surface->role && surface->role->commit) {
 		surface->role->commit(surface);
 	}
 
+	struct wlr_subsurface *subsurface;
 	wl_list_for_each(subsurface,
 			&surface->current.subsurfaces_below, current.link) {
 		subsurface_parent_commit(subsurface, false);
@@ -534,6 +510,27 @@ static void surface_squash_state(struct wlr_surface *surface,
 		wl_list_insert_list(&prev->frame_callback_list,
 			&state->frame_callback_list);
 		wl_list_init(&state->frame_callback_list);
+	}
+	if (state->committed & WLR_SURFACE_STATE_SUBSURFACES) {
+		struct wlr_subsurface_parent_state *sub_state, *prev_sub_state;
+		wl_list_for_each_reverse(sub_state,
+				&state->subsurfaces_above, link) {
+			prev_sub_state = wl_container_of(
+				sub_state->ext_state.state_link.prev,
+				prev_sub_state, ext_state.state_link);
+			wl_list_remove(&prev_sub_state->link);
+			wl_list_insert(&prev->subsurfaces_above,
+				&prev_sub_state->link);
+		}
+		wl_list_for_each_reverse(sub_state,
+				&state->subsurfaces_below, link) {
+			prev_sub_state = wl_container_of(
+				sub_state->ext_state.state_link.prev,
+				prev_sub_state, ext_state.state_link);
+			wl_list_remove(&prev_sub_state->link);
+			wl_list_insert(&prev->subsurfaces_below,
+				&prev_sub_state->link);
+		}
 	}
 
 	prev->committed |= state->committed;
@@ -740,6 +737,8 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 		wl_list_remove(&subsurface->current.link);
 		wl_list_remove(&subsurface->pending.link);
 		wl_list_remove(&subsurface->parent_destroy.link);
+
+		wlr_surface_extension_finish(&subsurface->parent_extension);
 	}
 
 	wl_resource_set_user_data(subsurface->resource, NULL);
@@ -988,6 +987,7 @@ static void subsurface_handle_place_above(struct wl_client *client,
 
 	wl_list_remove(&subsurface->pending.link);
 	wl_list_insert(node, &subsurface->pending.link);
+	subsurface->parent->pending.committed |= WLR_SURFACE_STATE_SUBSURFACES;
 
 	subsurface->reordered = true;
 }
@@ -1020,6 +1020,7 @@ static void subsurface_handle_place_below(struct wl_client *client,
 
 	wl_list_remove(&subsurface->pending.link);
 	wl_list_insert(node->prev, &subsurface->pending.link);
+	subsurface->parent->pending.committed |= WLR_SURFACE_STATE_SUBSURFACES;
 
 	subsurface->reordered = true;
 }
@@ -1151,14 +1152,11 @@ static void subsurface_role_commit(struct wlr_surface *surface) {
 		return;
 	}
 
-	if (subsurface->current.x != subsurface->pending.x ||
-			subsurface->current.y != subsurface->pending.y) {
+	if (subsurface->current.x != subsurface->previous.x ||
+			subsurface->current.y != subsurface->previous.y) {
 		// Subsurface has moved
-		int dx = subsurface->current.x - subsurface->pending.x;
-		int dy = subsurface->current.y - subsurface->pending.y;
-
-		subsurface->current.x = subsurface->pending.x;
-		subsurface->current.y = subsurface->pending.y;
+		int dx = subsurface->previous.x - subsurface->current.x;
+		int dy = subsurface->previous.y - subsurface->current.y;
 
 		if ((surface->current.transform & WL_OUTPUT_TRANSFORM_90) != 0) {
 			int tmp = dx;
@@ -1175,6 +1173,10 @@ static void subsurface_role_commit(struct wlr_surface *surface) {
 			surface->current.buffer_width, surface->current.buffer_height);
 	}
 
+	if (subsurface->reordered) {
+		surface_damage_subsurfaces(subsurface);
+	}
+
 	subsurface_consider_map(subsurface, true);
 }
 
@@ -1186,11 +1188,56 @@ static void subsurface_role_precommit(struct wlr_surface *surface,
 		return;
 	}
 
+	subsurface->previous.x = subsurface->current.x;
+	subsurface->previous.y = subsurface->current.y;
+
 	if (next->committed & WLR_SURFACE_STATE_BUFFER && next->buffer == NULL) {
 		// This is a NULL commit
 		subsurface_unmap(subsurface);
 	}
 }
+
+static void subsurface_parent_extension_squash_state(
+		struct wlr_surface_extension_state *ext_state,
+		struct wlr_surface_extension_state *ext_prev) {
+	struct wlr_subsurface_parent_state *state =
+		wl_container_of(ext_state, state, ext_state);
+	struct wlr_subsurface_parent_state *prev =
+		wl_container_of(ext_prev, prev, ext_state);
+
+	prev->x = state->x;
+	prev->y = state->y;
+
+	// For the sake of simplicity, copying the position in list is done
+	// by the parent itself
+}
+
+static void subsurface_parent_extension_destroy_state(
+		struct wlr_surface_extension_state *ext_state) {
+	struct wlr_subsurface_parent_state *state =
+		wl_container_of(ext_state, state, ext_state);
+	wl_list_remove(&state->link);
+	free(state);
+}
+
+static struct wlr_surface_extension_state *
+subsurface_parent_extension_create_state(void) {
+	struct wlr_subsurface_parent_state *state =
+		calloc(1, sizeof(struct wlr_subsurface_parent_state));
+	if (!state) {
+		return NULL;
+	}
+	wl_list_init(&state->link);
+	return &state->ext_state;
+}
+
+static const struct wlr_surface_extension_interface
+subsurface_parent_extension_impl = {
+	.name = "wlr_subsurface parent",
+	.create_state = subsurface_parent_extension_create_state,
+	.squash_state = subsurface_parent_extension_squash_state,
+	.destroy_state = subsurface_parent_extension_destroy_state,
+};
 
 const struct wlr_surface_role subsurface_role = {
 	.name = "wl_subsurface",
@@ -1227,11 +1274,20 @@ struct wlr_subsurface *subsurface_create(struct wlr_surface *surface,
 		wl_client_post_no_memory(client);
 		return NULL;
 	}
+	if (!wlr_surface_extension_init(&subsurface->parent_extension,
+			&subsurface_parent_extension_impl, parent,
+			&subsurface->current.ext_state,
+			&subsurface->pending.ext_state)) {
+		free(subsurface);
+		wl_client_post_no_memory(client);
+		return NULL;
+	}
 	subsurface->synchronized = true;
 	subsurface->surface = surface;
 	subsurface->resource =
 		wl_resource_create(client, &wl_subsurface_interface, version, id);
 	if (subsurface->resource == NULL) {
+		wlr_surface_extension_finish(&subsurface->parent_extension);
 		free(subsurface);
 		wl_client_post_no_memory(client);
 		return NULL;
@@ -1254,6 +1310,7 @@ struct wlr_subsurface *subsurface_create(struct wlr_surface *surface,
 	wl_list_init(&subsurface->current.link);
 	wl_list_insert(parent->pending.subsurfaces_above.prev,
 		&subsurface->pending.link);
+	parent->pending.committed |= WLR_SURFACE_STATE_SUBSURFACES;
 
 	surface->role_data = subsurface;
 
