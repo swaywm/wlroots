@@ -18,6 +18,13 @@
 #include <wlr/util/addon.h>
 #include <wlr/util/box.h>
 
+struct wlr_surface_extension_state {
+	struct wlr_surface_extension *extension;
+
+	struct wl_list extension_link; // wlr_surface_state::extentions
+	struct wl_list state_link; // wlr_surface_extension::states
+};
+
 enum wlr_surface_state_field {
 	WLR_SURFACE_STATE_BUFFER = 1 << 0,
 	WLR_SURFACE_STATE_SURFACE_DAMAGE = 1 << 1,
@@ -65,6 +72,8 @@ struct wlr_surface_state {
 		int dst_width, dst_height; // in surface-local coordinates
 	} viewport;
 
+	struct wl_list extensions; // wlr_surface_extension_state::extension_link
+
 	// Number of locks that prevent this surface state from being committed.
 	size_t nlocks;
 	struct wl_list link; // wlr_surface.states
@@ -88,6 +97,26 @@ struct wlr_surface_output {
 	struct wl_list link; // wlr_surface::current_outputs
 	struct wl_listener bind;
 	struct wl_listener destroy;
+};
+
+struct wlr_surface_extension;
+
+struct wlr_surface_extension_interface {
+	const char *name;
+	void (*destroy)(struct wlr_surface_extension *ext);
+	struct wlr_surface_extension_state *(*create_state)(void);
+	void (*squash_state)(struct wlr_surface_extension_state *state,
+		struct wlr_surface_extension_state *prev);
+	void (*destroy_state)(struct wlr_surface_extension_state *state);
+};
+
+struct wlr_surface_extension {
+	const struct wlr_surface_extension_interface *impl;
+	struct wl_list link; // wlr_surface::extensions
+
+	// See wlr_surface
+	struct wlr_surface_extension_state *current, *pending;
+	struct wl_list states; // wlr_surface_extension_state::state_link
 };
 
 struct wlr_surface {
@@ -152,6 +181,8 @@ struct wlr_surface {
 
 	// private state
 
+	struct wl_list extensions; // wlr_surface_extension::link
+
 	/**
 	 * The queue of all states the surface has. The current state is always
 	 * the first and the pending state is always the last.
@@ -206,6 +237,14 @@ struct wlr_subsurface {
 
 typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 	int sx, int sy, void *data);
+
+bool wlr_surface_extension_init(struct wlr_surface_extension *ext,
+		const struct wlr_surface_extension_interface *impl,
+		struct wlr_surface *surface,
+		struct wlr_surface_extension_state *current,
+		struct wlr_surface_extension_state *pending);
+
+void wlr_surface_extension_finish(struct wlr_surface_extension *ext);
 
 /**
  * Set the lifetime role for this surface. Returns 0 on success or -1 if the

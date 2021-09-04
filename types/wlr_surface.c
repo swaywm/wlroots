@@ -32,6 +32,65 @@ static int max(int fst, int snd) {
 	}
 }
 
+static void surface_extension_state_init(
+		struct wlr_surface_extension_state *ext_state,
+		struct wlr_surface_state *state,
+		struct wlr_surface_extension *ext) {
+	ext_state->extension = ext;
+	wl_list_insert(&state->extensions, &ext_state->extension_link);
+}
+
+bool wlr_surface_extension_init(struct wlr_surface_extension *ext,
+		const struct wlr_surface_extension_interface *impl,
+		struct wlr_surface *surface,
+		struct wlr_surface_extension_state *current,
+		struct wlr_surface_extension_state *pending) {
+	wl_list_insert(&surface->extensions, &ext->link);
+	ext->impl = impl;
+
+	ext->current = current;
+	surface_extension_state_init(current, &surface->current, ext);
+	ext->pending = pending;
+	surface_extension_state_init(pending, &surface->pending, ext);
+
+	wl_list_init(&ext->states);
+	wl_list_insert(&ext->states, &current->state_link);
+	wl_list_insert(ext->states.prev, &pending->state_link);
+
+	for (struct wl_list *link = surface->current.link.next;
+			link != &surface->pending.link;
+			link = link->next) {
+		struct wlr_surface_state *cached =
+			wl_container_of(link, cached, link);
+		struct wlr_surface_extension_state *ext_cached =
+			ext->impl->create_state();
+		if (!ext_cached) {
+			wlr_surface_extension_finish(ext);
+			return false;
+		}
+		surface_extension_state_init(ext_cached, cached, ext);
+		wl_list_insert(pending->state_link.prev, &ext_cached->state_link);
+	}
+
+	return true;
+}
+
+void wlr_surface_extension_finish(struct wlr_surface_extension *ext) {
+	wl_list_remove(&ext->link);
+
+	wl_list_remove(&ext->current->extension_link);
+	wl_list_remove(&ext->current->state_link);
+	wl_list_remove(&ext->pending->extension_link);
+	wl_list_remove(&ext->pending->state_link);
+
+	struct wlr_surface_extension_state *ext_cached, *tmp;
+	wl_list_for_each_safe(ext_cached, tmp, &ext->states, state_link) {
+		wl_list_remove(&ext_cached->extension_link);
+		wl_list_remove(&ext_cached->state_link);
+		ext->impl->destroy_state(ext_cached);
+	}
+}
+
 static void surface_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
@@ -459,6 +518,14 @@ static void surface_squash_state(struct wlr_surface *surface,
 	prev->committed |= state->committed;
 	state->committed = 0;
 
+	struct wlr_surface_extension_state *ext_state;
+	wl_list_for_each(ext_state, &state->extensions, extension_link) {
+		struct wlr_surface_extension_state *ext_prev =
+			wl_container_of(ext_state->state_link.prev,
+				ext_prev, state_link);
+		ext_state->extension->impl->squash_state(ext_state, ext_prev);
+	}
+
 	if (state != &surface->pending) {
 		surface_state_destroy_cached(state);
 	}
@@ -528,6 +595,20 @@ static void surface_handle_commit(struct wl_client *client,
 			return;
 		}
 		surface_state_init(cached);
+		struct wlr_surface_extension *ext;
+		wl_list_for_each(ext, &surface->extensions, link) {
+			struct wlr_surface_extension_state *ext_cached =
+				ext->impl->create_state();
+			if (!ext_cached) {
+				surface_state_finish(cached);
+				free(cached);
+				wl_resource_post_no_memory(surface->resource);
+				return;
+			}
+			surface_extension_state_init(ext_cached, cached, ext);
+			wl_list_insert(ext->pending->state_link.prev,
+				&ext_cached->state_link);
+		}
 		wl_list_insert(surface->pending.link.prev, &cached->link);
 		cached->seq = surface->pending.seq;
 		cached->nlocks = surface->pending.nlocks;
@@ -616,6 +697,8 @@ static void surface_state_init(struct wlr_surface_state *state) {
 	pixman_region32_init(&state->opaque);
 	pixman_region32_init_rect(&state->input,
 		INT32_MIN, INT32_MIN, UINT32_MAX, UINT32_MAX);
+
+	wl_list_init(&state->extensions);
 }
 
 static void surface_state_finish(struct wlr_surface_state *state) {
@@ -634,6 +717,15 @@ static void surface_state_finish(struct wlr_surface_state *state) {
 
 static void surface_state_destroy_cached(struct wlr_surface_state *state) {
 	surface_state_finish(state);
+
+	struct wlr_surface_extension_state *ext_state, *ext_state_tmp;
+	wl_list_for_each_safe(ext_state, ext_state_tmp,
+			&state->extensions, extension_link) {
+		wl_list_remove(&ext_state->extension_link);
+		wl_list_remove(&ext_state->state_link);
+		ext_state->extension->impl->destroy_state(ext_state);
+	}
+
 	wl_list_remove(&state->link);
 	free(state);
 }
@@ -683,6 +775,14 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 	wlr_signal_emit_safe(&surface->events.destroy, surface);
 
 	wlr_addon_set_finish(&surface->addons);
+
+	struct wlr_surface_extension *ext, *ext_tmp;
+	wl_list_for_each_safe(ext, ext_tmp, &surface->extensions, link) {
+		wlr_surface_extension_finish(ext);
+		if (ext->impl->destroy) {
+			ext->impl->destroy(ext);
+		}
+	}
 
 	wl_list_remove(&surface->current.link);
 	wl_list_remove(&surface->pending.link);
@@ -739,6 +839,8 @@ struct wlr_surface *surface_create(struct wl_client *client,
 	wl_list_init(&surface->states);
 	wl_list_insert(&surface->states, &surface->current.link);
 	wl_list_insert(surface->states.prev, &surface->pending.link);
+
+	wl_list_init(&surface->extensions);
 
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
