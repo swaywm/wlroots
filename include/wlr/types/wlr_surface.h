@@ -18,6 +18,13 @@
 #include <wlr/util/addon.h>
 #include <wlr/util/box.h>
 
+struct wlr_surface_synced_state {
+	struct wlr_surface_synced *synced;
+
+	struct wl_list synced_link; // wlr_surface_state::synced
+	struct wl_list state_link; // wlr_surface_synced::states
+};
+
 enum wlr_surface_state_field {
 	WLR_SURFACE_STATE_BUFFER = 1 << 0,
 	WLR_SURFACE_STATE_SURFACE_DAMAGE = 1 << 1,
@@ -65,6 +72,8 @@ struct wlr_surface_state {
 		int dst_width, dst_height; // in surface-local coordinates
 	} viewport;
 
+	struct wl_list synced; // wlr_surface_synced_state::synced_link
+
 	// Number of locks that prevent this surface state from being committed.
 	size_t n_locks;
 	struct wl_list link; // wlr_surface::states
@@ -83,6 +92,32 @@ struct wlr_surface_output {
 	struct wl_list link; // wlr_surface::current_outputs
 	struct wl_listener bind;
 	struct wl_listener destroy;
+};
+
+struct wlr_surface_synced;
+
+struct wlr_surface_synced_interface {
+	const char *name;
+	void (*destroy)(struct wlr_surface_synced *synced);
+	void (*squash_state)(struct wlr_surface_synced_state *state,
+		struct wlr_surface_synced_state *prev);
+	struct wlr_surface_synced_state *(*create_state)(void);
+	void (*destroy_state)(struct wlr_surface_synced_state *state);
+	void (*precommit)(struct wlr_surface_synced *synced,
+		struct wlr_surface_synced_state *state);
+};
+
+/**
+ * A surface-synced object is an object which has its double-buffered state flow
+ * synchronized with the surface state flow.
+ */
+struct wlr_surface_synced {
+	const struct wlr_surface_synced_interface *impl;
+	struct wl_list link; // wlr_surface::synced
+
+	// See wlr_surface
+	struct wlr_surface_synced_state *current, *pending;
+	struct wl_list states; // wlr_surface_synced_state::state_link
 };
 
 struct wlr_surface {
@@ -145,6 +180,8 @@ struct wlr_surface {
 
 	// private state
 
+	struct wl_list synced; // wlr_surface_synced::link
+
 	/**
 	 * The queue of all states the surface has. The current state is always
 	 * the first and the pending state is always the last.
@@ -199,6 +236,14 @@ struct wlr_subsurface {
 
 typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 	int sx, int sy, void *data);
+
+bool wlr_surface_synced_init(struct wlr_surface_synced *synced,
+		const struct wlr_surface_synced_interface *impl,
+		struct wlr_surface *surface,
+		struct wlr_surface_synced_state *current,
+		struct wlr_surface_synced_state *pending);
+
+void wlr_surface_synced_finish(struct wlr_surface_synced *synced);
 
 /**
  * Set the lifetime role for this surface. Returns 0 on success or -1 if the
