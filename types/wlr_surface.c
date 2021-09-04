@@ -253,6 +253,18 @@ static void surface_finalize_pending(struct wlr_surface *surface) {
 		pending->buffer_height);
 }
 
+static void subsurface_parent_commit(struct wlr_subsurface *subsurface,
+		bool synchronized) {
+	struct wlr_surface *surface = subsurface->surface;
+	if (synchronized || subsurface->synchronized) {
+		if (subsurface->has_cache) {
+			wlr_surface_unlock_cached(surface, subsurface->cached_seq);
+			subsurface->has_cache = false;
+			subsurface->cached_seq = 0;
+		}
+	}
+}
+
 static void surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
 	// XXX: This is probably the wrong way to do it, because this damage should
 	// come from the client, but weston doesn't do it correctly either and it
@@ -447,6 +459,15 @@ static void surface_commit(struct wlr_surface *surface) {
 		surface->role->commit(surface);
 	}
 
+	wl_list_for_each(subsurface,
+			&surface->current.subsurfaces_below, current.link) {
+		subsurface_parent_commit(subsurface, false);
+	}
+	wl_list_for_each(subsurface,
+			&surface->current.subsurfaces_above, current.link) {
+		subsurface_parent_commit(subsurface, false);
+	}
+
 	wlr_signal_emit_safe(&surface->events.commit, surface);
 }
 
@@ -553,31 +574,6 @@ static bool subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
 	return false;
 }
 
-/**
- * Recursive function to commit the effectively synchronized children.
- */
-static void subsurface_parent_commit(struct wlr_subsurface *subsurface,
-		bool synchronized) {
-	struct wlr_surface *surface = subsurface->surface;
-	if (synchronized || subsurface->synchronized) {
-		if (subsurface->has_cache) {
-			wlr_surface_unlock_cached(surface, subsurface->cached_seq);
-			subsurface->has_cache = false;
-			subsurface->cached_seq = 0;
-		}
-
-		struct wlr_subsurface *subsurface;
-		wl_list_for_each(subsurface, &surface->current.subsurfaces_below,
-				current.link) {
-			subsurface_parent_commit(subsurface, true);
-		}
-		wl_list_for_each(subsurface, &surface->current.subsurfaces_above,
-				current.link) {
-			subsurface_parent_commit(subsurface, true);
-		}
-	}
-}
-
 static void surface_handle_commit(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
@@ -615,14 +611,6 @@ static void surface_handle_commit(struct wl_client *client,
 		surface->pending.nlocks = 0;
 	}
 	surface_squash_state(surface, &surface->pending);
-
-	struct wlr_subsurface *subsurface;
-	wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
-		subsurface_parent_commit(subsurface, false);
-	}
-	wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
-		subsurface_parent_commit(subsurface, false);
-	}
 }
 
 static void surface_handle_set_buffer_transform(struct wl_client *client,
