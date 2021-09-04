@@ -52,6 +52,7 @@ wlr_files += files(
 	'wlr_region.c',
 	'wlr_relative_pointer_v1.c',
 	'wlr_screencopy_v1.c',
+	'wlr_screenlocker.c',
 	'wlr_server_decoration.c',
 	'wlr_surface.c',
 	'wlr_switch.c',
