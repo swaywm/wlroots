@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <wayland-server-core.h>
 #include <wlr/util/box.h>
+#include <pixman.h>
 
 struct wlr_screencopy_manager_v1 {
 	struct wl_global *global;
@@ -45,6 +46,8 @@ struct wlr_screencopy_frame_v1 {
 	bool overlay_cursor, cursor_locked;
 
 	bool with_damage;
+
+	struct pixman_region32 clip_region;
 
 	struct wl_shm_buffer *shm_buffer;
 	struct wlr_dmabuf_v1_buffer *dma_buffer;

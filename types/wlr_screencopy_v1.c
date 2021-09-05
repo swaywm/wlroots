@@ -13,7 +13,7 @@
 #include "render/pixel_format.h"
 #include "util/signal.h"
 
-#define SCREENCOPY_MANAGER_VERSION 3
+#define SCREENCOPY_MANAGER_VERSION 4
 
 struct screencopy_damage {
 	struct wl_list link;
@@ -142,6 +142,7 @@ static void frame_destroy(struct wlr_screencopy_frame_v1 *frame) {
 			wlr_output_lock_software_cursors(frame->output, false);
 		}
 	}
+	pixman_region32_fini(&frame->clip_region);
 	wl_list_remove(&frame->link);
 	wl_list_remove(&frame->output_commit.link);
 	wl_list_remove(&frame->output_destroy.link);
@@ -204,13 +205,35 @@ static bool frame_shm_copy(struct wlr_screencopy_frame_v1 *frame,
 	int32_t height = wl_shm_buffer_get_height(shm_buffer);
 	int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
 
+	uint32_t y_offset = 0;
+
+	/* TODO: Query the renderer before to see if the output buffer will be
+	 * y-inverted and to check if it makes sense to clip on the x-axis as
+	 * well.
+	 *
+	 * For some renderers, it might even make sense to make multiple calls
+	 * to wlr_renderer_read_pixels for more fine grained clip regions.
+	 *
+	 * Alternatively, the clip region handling could be moved into
+	 * wlr_renderer_read_pixels.
+	 */
+	if (x == 0 && y == 0 && width == output->width &&
+			height == output->height) {
+		pixman_box32_t* clip_box =
+			pixman_region32_extents(&frame->clip_region);
+
+		y_offset = clip_box->y1;
+		height = clip_box->y2 - clip_box->y1;
+	}
+
 	wl_shm_buffer_begin_access(shm_buffer);
 	void *data = wl_shm_buffer_get_data(shm_buffer);
 	uint32_t renderer_flags = 0;
 	bool ok;
 	ok = wlr_renderer_begin_with_buffer(renderer, output->front_buffer);
 	ok = ok && wlr_renderer_read_pixels(renderer, drm_format,
-		&renderer_flags, stride, width, height, x, y, 0, 0, data);
+		&renderer_flags, stride, width, height, x, y + y_offset, 0, 0,
+		(uint8_t*)data + stride * y_offset);
 	wlr_renderer_end(renderer);
 	*flags = renderer_flags & WLR_RENDERER_READ_PIXELS_Y_INVERT ?
 		ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT : 0;
@@ -221,7 +244,7 @@ static bool frame_shm_copy(struct wlr_screencopy_frame_v1 *frame,
 
 static bool blit_dmabuf(struct wlr_renderer *renderer,
 		struct wlr_dmabuf_v1_buffer *dst_dmabuf,
-		struct wlr_buffer *src_buffer) {
+		struct wlr_buffer *src_buffer, struct wlr_box *clip_box) {
 	struct wlr_buffer *dst_buffer = wlr_buffer_lock(&dst_dmabuf->base);
 
 	struct wlr_texture *src_tex =
@@ -238,8 +261,9 @@ static bool blit_dmabuf(struct wlr_renderer *renderer,
 		goto error_renderer_begin;
 	}
 
-	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
+	wlr_renderer_scissor(renderer, clip_box);
 	wlr_render_texture_with_matrix(renderer, src_tex, mat, 1.0f);
+	wlr_renderer_scissor(renderer, NULL);
 
 	wlr_renderer_end(renderer);
 
@@ -268,7 +292,17 @@ static bool frame_dma_copy(struct wlr_screencopy_frame_v1 *frame,
 		return false;
 	}
 
-	bool ok = blit_dmabuf(renderer, dma_buffer, output->front_buffer);
+	pixman_box32_t *clip_extents =
+		pixman_region32_extents(&frame->clip_region);
+	struct wlr_box clip_box = {
+		.x = clip_extents->x1,
+		.y = clip_extents->y1,
+		.width = clip_extents->x2 - clip_extents->x1,
+		.height = clip_extents->y2 - clip_extents->y1,
+	};
+
+	bool ok = blit_dmabuf(renderer, dma_buffer, output->front_buffer,
+		&clip_box);
 	*flags = dma_buffer->attributes.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT ?
 		ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT : 0;
 
@@ -299,6 +333,8 @@ static void frame_handle_output_commit(struct wl_listener *listener,
 		if (damage && !pixman_region32_not_empty(&damage->damage)) {
 			return;
 		}
+		pixman_region32_union(&frame->clip_region, &frame->clip_region,
+			&damage->damage);
 	}
 
 	wl_list_remove(&frame->output_commit.link);
@@ -465,6 +501,31 @@ static void frame_handle_copy_with_damage(struct wl_client *wl_client,
 	frame_handle_copy(wl_client, frame_resource, buffer_resource);
 }
 
+static void frame_set_clip_region(struct wl_client *wl_client,
+		struct wl_resource *frame_resource, uint32_t x, uint32_t y,
+		uint32_t width, uint32_t height)
+{
+	struct wlr_screencopy_frame_v1 *frame = frame_from_resource(frame_resource);
+	if (frame == NULL) {
+		return;
+	}
+	pixman_region32_clear(&frame->clip_region);
+	pixman_region32_union_rect(&frame->clip_region, &frame->clip_region, x,
+			y, width, height);
+}
+
+static void frame_add_clip_region(struct wl_client *wl_client,
+		struct wl_resource *frame_resource, uint32_t x, uint32_t y,
+		uint32_t width, uint32_t height)
+{
+	struct wlr_screencopy_frame_v1 *frame = frame_from_resource(frame_resource);
+	if (frame == NULL) {
+		return;
+	}
+	pixman_region32_union_rect(&frame->clip_region, &frame->clip_region, x,
+			y, width, height);
+}
+
 static void frame_handle_destroy(struct wl_client *wl_client,
 		struct wl_resource *frame_resource) {
 	wl_resource_destroy(frame_resource);
@@ -474,6 +535,8 @@ static const struct zwlr_screencopy_frame_v1_interface frame_impl = {
 	.copy = frame_handle_copy,
 	.destroy = frame_handle_destroy,
 	.copy_with_damage = frame_handle_copy_with_damage,
+	.set_clip_region = frame_set_clip_region,
+	.add_clip_region = frame_add_clip_region,
 };
 
 static void frame_handle_resource_destroy(struct wl_resource *frame_resource) {
@@ -530,6 +593,9 @@ static void capture_output(struct wl_client *wl_client,
 		free(frame);
 		return;
 	}
+
+	pixman_region32_init_rect(&frame->clip_region, 0, 0, output->width,
+		output->height);
 
 	frame->client = client;
 	client->ref++;

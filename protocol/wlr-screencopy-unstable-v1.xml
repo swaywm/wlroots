@@ -38,7 +38,7 @@
     interface version number is reset.
   </description>
 
-  <interface name="zwlr_screencopy_manager_v1" version="3">
+  <interface name="zwlr_screencopy_manager_v1" version="4">
     <description summary="manager to inform clients and begin capturing">
       This object is a manager which offers requests to start capturing from a
       source.
@@ -80,7 +80,7 @@
     </request>
   </interface>
 
-  <interface name="zwlr_screencopy_frame_v1" version="3">
+  <interface name="zwlr_screencopy_frame_v1" version="4">
     <description summary="a frame ready for copy">
       This object represents a single frame.
 
@@ -228,5 +228,29 @@
         types, and send a "copy" request.
       </description>
     </event>
+
+    <!-- Version 4 additions -->
+    <request name="set_clip_region" since="4">
+      <description summary="set clip region">
+        Sets the clip region for the subsequent copy request. This tells the
+        compositor that it needn't copy outside the given region. The default
+        clip region contains the whole frame.
+      </description>
+      <arg name="x" type="uint" summary="region x coordinates"/>
+      <arg name="y" type="uint" summary="region y coordinates"/>
+      <arg name="width" type="uint" summary="region width"/>
+      <arg name="height" type="uint" summary="region height"/>
+    </request>
+
+    <request name="add_clip_region" since="4">
+      <description summary="add box to clip region">
+        Adds the given box to the clip region. This can be used to compose a
+        more fine grained region.
+      </description>
+      <arg name="x" type="uint" summary="region x coordinates"/>
+      <arg name="y" type="uint" summary="region y coordinates"/>
+      <arg name="width" type="uint" summary="region width"/>
+      <arg name="height" type="uint" summary="region height"/>
+    </request>
   </interface>
 </protocol>
