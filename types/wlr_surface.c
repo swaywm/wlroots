@@ -496,20 +496,6 @@ static void surface_commit_state(struct wlr_surface *surface,
 	wlr_signal_emit_safe(&surface->events.commit, surface);
 }
 
-static void surface_commit_pending(struct wlr_surface *surface) {
-	surface_finalize_pending(surface);
-
-	if (surface->role && surface->role->precommit) {
-		surface->role->precommit(surface);
-	}
-
-	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
-		surface_cache_pending(surface);
-	} else {
-		surface_commit_state(surface, &surface->pending);
-	}
-}
-
 static bool subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
 	while (subsurface != NULL) {
 		if (subsurface->synchronized) {
@@ -578,7 +564,17 @@ static void surface_handle_commit(struct wl_client *client,
 		subsurface_commit(subsurface);
 	}
 
-	surface_commit_pending(surface);
+	surface_finalize_pending(surface);
+
+	if (surface->role && surface->role->precommit) {
+		surface->role->precommit(surface);
+	}
+
+	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
+		surface_cache_pending(surface);
+	} else {
+		surface_commit_state(surface, &surface->pending);
+	}
 
 	wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
 		subsurface_parent_commit(subsurface, false);
