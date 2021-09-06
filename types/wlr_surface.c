@@ -458,28 +458,31 @@ static void surface_commit_state(struct wlr_surface *surface,
 	surface_update_opaque_region(surface);
 	surface_update_input_region(surface);
 
-	// commit subsurface order
-	struct wlr_subsurface *subsurface;
-	wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_above,
-			pending.link) {
-		wl_list_remove(&subsurface->current.link);
-		wl_list_insert(&surface->current.subsurfaces_above,
-			&subsurface->current.link);
+	// TODO: use `next` instead of `surface->pending`
+	if (surface->pending.committed & WLR_SURFACE_STATE_SUBSURFACES) {
+		// commit subsurface order
+		struct wlr_subsurface *subsurface;
+		wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_above,
+				pending.link) {
+			wl_list_remove(&subsurface->current.link);
+			wl_list_insert(&surface->current.subsurfaces_above,
+				&subsurface->current.link);
 
-		if (subsurface->reordered) {
-			// TODO: damage all the subsurfaces
-			surface_damage_subsurfaces(subsurface);
+			if (subsurface->reordered) {
+				// TODO: damage all the subsurfaces
+				surface_damage_subsurfaces(subsurface);
+			}
 		}
-	}
-	wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_below,
-			pending.link) {
-		wl_list_remove(&subsurface->current.link);
-		wl_list_insert(&surface->current.subsurfaces_below,
-			&subsurface->current.link);
+		wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_below,
+				pending.link) {
+			wl_list_remove(&subsurface->current.link);
+			wl_list_insert(&surface->current.subsurfaces_below,
+				&subsurface->current.link);
 
-		if (subsurface->reordered) {
-			// TODO: damage all the subsurfaces
-			surface_damage_subsurfaces(subsurface);
+			if (subsurface->reordered) {
+				// TODO: damage all the subsurfaces
+				surface_damage_subsurfaces(subsurface);
+			}
 		}
 	}
 
