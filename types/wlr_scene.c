@@ -426,7 +426,7 @@ void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
 			.output = output,
 			.damage = damage,
 		};
-		scene_node_for_each_node(&scene->node, lx, ly,
+		scene_node_for_each_node(&scene->node, -lx, -ly,
 			render_node_iterator, &data);
 		wlr_renderer_scissor(renderer, NULL);
 	}
