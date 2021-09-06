@@ -8,6 +8,14 @@
 
 #define VIEWPORTER_VERSION 1
 
+struct wlr_viewport {
+	struct wl_resource *resource;
+	struct wlr_surface *surface;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit;
+};
+
 static const struct wp_viewport_interface viewport_impl;
 
 // Returns NULL if the viewport is inert
