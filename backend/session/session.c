@@ -202,7 +202,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_session_destroy(session);
 }
 
-struct wlr_session *wlr_session_create(struct wl_display *disp) {
+static struct wlr_session *_wlr_session_create(struct wl_display *disp) {
 	struct wlr_session *session = calloc(1, sizeof(*session));
 	if (!session) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
@@ -532,4 +532,60 @@ ssize_t wlr_session_find_gpus(struct wlr_session *session,
 	udev_enumerate_unref(en);
 
 	return i;
+}
+
+struct wait_session_active_handler {
+	bool active;
+	struct wl_listener listener;
+};
+
+static void	wait_session_active(struct wl_listener *listener, void *data) {
+	struct wait_session_active_handler *handler =
+		wl_container_of(listener, handler, listener);
+	handler->active = true;
+}
+
+struct wlr_session *wlr_session_create(struct wl_display *disp) {
+	struct wlr_session *session = _wlr_session_create(disp);
+
+	if (!session) {
+		wlr_log(WLR_ERROR, "Failed to start a session");
+		return NULL;
+	}
+
+	if (!session->active) {
+		wlr_log(WLR_INFO, "Waiting for a session to become active");
+
+		struct wait_session_active_handler handler = {0};
+		handler.listener.notify = wait_session_active;
+		wl_signal_add(&session->events.active, &handler.listener);
+
+		uint64_t started_at = get_current_time_ms();
+		uint64_t timeout = WAIT_GPU_TIMEOUT;
+		struct wl_event_loop *event_loop =
+			wl_display_get_event_loop(session->display);
+		while (!handler.active) {
+			int ret = wl_event_loop_dispatch(event_loop, (int)timeout);
+			if (ret < 0) {
+				wlr_log_errno(WLR_ERROR, "Failed to wait for session active: "
+					"wl_event_loop_dispatch failed");
+				return NULL;
+			}
+
+			uint64_t now = get_current_time_ms();
+			if (now >= started_at + WAIT_GPU_TIMEOUT) {
+				break;
+			}
+			timeout = started_at + WAIT_GPU_TIMEOUT - now;
+		}
+
+		wl_list_remove(&handler.listener.link);
+
+		if (!session->active) {
+			wlr_log(WLR_ERROR, "Wait session active timeout");
+			return NULL;
+		}
+	}
+
+	return session;
 }
