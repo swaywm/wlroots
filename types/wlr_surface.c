@@ -42,10 +42,13 @@ static void surface_handle_attach(struct wl_client *client,
 		struct wl_resource *buffer_resource, int32_t dx, int32_t dy) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 
-	struct wlr_buffer *buffer = wlr_buffer_from_resource(buffer_resource);
-	if (buffer == NULL) {
-		wl_resource_post_error(buffer_resource, 0, "unknown buffer type");
-		return;
+	struct wlr_buffer *buffer = NULL;
+	if (buffer_resource != NULL) {
+		buffer = wlr_buffer_from_resource(buffer_resource);
+		if (buffer == NULL) {
+			wl_resource_post_error(buffer_resource, 0, "unknown buffer type");
+			return;
+		}
 	}
 
 	surface->pending.committed |= WLR_SURFACE_STATE_BUFFER;
