@@ -654,27 +654,6 @@ struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane) {
 
 static void realloc_crtcs(struct wlr_drm_backend *drm);
 
-static void attempt_enable_needs_modeset(struct wlr_drm_backend *drm) {
-	// Try to modeset any output that has a desired mode and a CRTC (ie. was
-	// lacking a CRTC on last modeset)
-	struct wlr_drm_connector *conn;
-	wl_list_for_each(conn, &drm->outputs, link) {
-		if (conn->status == WLR_DRM_CONN_NEEDS_MODESET &&
-				conn->crtc != NULL && conn->desired_mode != NULL &&
-				conn->desired_enabled) {
-			wlr_drm_conn_log(conn, WLR_DEBUG,
-				"Output has a desired mode and a CRTC, attempting a modeset");
-			struct wlr_output_state state = {
-				.committed = WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_ENABLED,
-				.enabled = true,
-				.mode_type = WLR_OUTPUT_STATE_MODE_FIXED,
-				.mode = conn->desired_mode,
-			};
-			drm_connector_commit_state(conn, &state);
-		}
-	}
-}
-
 static bool drm_connector_alloc_crtc(struct wlr_drm_connector *conn) {
 	if (conn->crtc != NULL) {
 		return true;
@@ -690,8 +669,6 @@ static bool drm_connector_alloc_crtc(struct wlr_drm_connector *conn) {
 
 static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 		const struct wlr_drm_connector_state *state) {
-	struct wlr_drm_backend *drm = conn->backend;
-
 	struct wlr_output_mode *wlr_mode = NULL;
 	if (state->active) {
 		if (state->base->committed & WLR_OUTPUT_STATE_MODE) {
@@ -719,8 +696,6 @@ static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 			if (!drm_crtc_commit(conn, state, 0, false)) {
 				return false;
 			}
-			realloc_crtcs(drm);
-			attempt_enable_needs_modeset(drm);
 		}
 		wlr_output_update_enabled(&conn->output, false);
 		return true;
@@ -1394,8 +1369,6 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		wlr_signal_emit_safe(&drm->backend.events.new_output,
 			&conn->output);
 	}
-
-	attempt_enable_needs_modeset(drm);
 }
 
 static int mhz_to_nsec(int mhz) {
