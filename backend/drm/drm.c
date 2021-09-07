@@ -689,7 +689,6 @@ static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 	}
 
 	conn->desired_enabled = wlr_mode != NULL;
-	conn->desired_mode = wlr_mode;
 
 	if (wlr_mode == NULL) {
 		if (conn->crtc != NULL) {
@@ -730,7 +729,6 @@ static bool drm_connector_set_mode(struct wlr_drm_connector *conn,
 	}
 
 	conn->status = WLR_DRM_CONN_CONNECTED;
-	conn->desired_mode = NULL;
 	wlr_output_update_mode(&conn->output, wlr_mode);
 	wlr_output_update_enabled(&conn->output, true);
 	conn->desired_enabled = true;
@@ -904,7 +902,6 @@ static void drm_connector_destroy_output(struct wlr_output *output) {
 
 	conn->status = WLR_DRM_CONN_DISCONNECTED;
 	conn->desired_enabled = false;
-	conn->desired_mode = NULL;
 	conn->possible_crtcs = 0;
 	conn->pending_page_flip_crtc = 0;
 
@@ -1114,7 +1111,6 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 				wlr_drm_conn_log(conn, WLR_DEBUG, "Output has lost its CRTC");
 				conn->status = WLR_DRM_CONN_NEEDS_MODESET;
 				wlr_output_update_enabled(&conn->output, false);
-				conn->desired_mode = conn->output.current_mode;
 				wlr_output_update_mode(&conn->output, NULL);
 			}
 			continue;
