@@ -117,7 +117,6 @@ struct wlr_drm_connector {
 	struct wlr_drm_backend *backend;
 	char name[24];
 	enum wlr_drm_connector_status status;
-	struct wlr_output_mode *desired_mode;
 	bool desired_enabled;
 	uint32_t id;
 
