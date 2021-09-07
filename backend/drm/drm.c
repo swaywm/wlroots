@@ -1211,8 +1211,7 @@ static void realloc_crtcs(struct wlr_drm_backend *drm) {
 	}
 }
 
-static uint32_t get_possible_crtcs(int fd, drmModeRes *res,
-		drmModeConnector *conn) {
+static uint32_t get_possible_crtcs(int fd, const drmModeConnector *conn) {
 	uint32_t possible_crtcs = 0;
 
 	for (int i = 0; i < conn->count_encoders; ++i) {
@@ -1403,7 +1402,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 				wl_list_insert(wlr_conn->output.modes.prev, &mode->wlr_mode.link);
 			}
 
-			wlr_conn->possible_crtcs = get_possible_crtcs(drm->fd, res, drm_conn);
+			wlr_conn->possible_crtcs = get_possible_crtcs(drm->fd, drm_conn);
 			if (wlr_conn->possible_crtcs == 0) {
 				wlr_drm_conn_log(wlr_conn, WLR_ERROR, "No CRTC possible");
 			}
