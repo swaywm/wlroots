@@ -1,7 +1,7 @@
 # wlroots
 
 Pluggable, composable, unopinionated modules for building a [Wayland]
-compositor; or about 50,000 lines of code you were going to write anyway.
+compositor; or about 60,000 lines of code you were going to write anyway.
 
 - wlroots provides backends that abstract the underlying display and input
   hardware, including KMS/DRM, libinput, Wayland, X11, and headless backends,
