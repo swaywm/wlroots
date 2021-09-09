@@ -243,7 +243,7 @@ static void _scene_node_damage_whole(struct wlr_scene_node *node,
 			lx + child->state.x, ly + child->state.y);
 	}
 
-	int width, height;
+	int width = 0, height = 0;
 	switch (node->type) {
 	case WLR_SCENE_NODE_ROOT:
 		return;
