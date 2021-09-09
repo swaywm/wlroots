@@ -67,6 +67,8 @@ struct wlr_scene_surface {
 
 	// private state
 
+	int prev_width, prev_height;
+
 	struct wl_listener surface_destroy;
 	struct wl_listener surface_commit;
 };
