@@ -12,9 +12,9 @@
 #include <xf86drmMode.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/pixel_format.h>
 
 #include "render/allocator/drm_dumb.h"
-#include "render/pixel_format.h"
 
 static const struct wlr_buffer_impl buffer_impl;
 
@@ -52,7 +52,7 @@ static struct wlr_drm_dumb_buffer *create_buffer(
 	wl_list_insert(&alloc->buffers, &buffer->link);
 
 	const struct wlr_pixel_format_info *info =
-		drm_get_pixel_format_info(format->format);
+		wlr_pixel_format_info_from_drm(format->format);
 	if (info == NULL) {
 		wlr_log(WLR_ERROR, "DRM format 0x%"PRIX32" not supported",
 			format->format);

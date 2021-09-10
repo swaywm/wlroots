@@ -1,12 +1,12 @@
 #include <assert.h>
 #include <drm_fourcc.h>
 #include <stdlib.h>
+#include <wlr/render/pixel_format.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_drm.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
-#include "render/pixel_format.h"
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
 
@@ -427,7 +427,7 @@ static struct wlr_shm_client_buffer *shm_client_buffer_get_or_create(
 	buffer->shm_buffer = shm_buffer;
 
 	enum wl_shm_format wl_shm_format = wl_shm_buffer_get_format(shm_buffer);
-	buffer->format = convert_wl_shm_format_to_drm(wl_shm_format);
+	buffer->format = wlr_convert_wl_shm_format_to_drm(wl_shm_format);
 	buffer->stride = wl_shm_buffer_get_stride(shm_buffer);
 
 	buffer->resource_destroy.notify = shm_client_buffer_resource_handle_destroy;

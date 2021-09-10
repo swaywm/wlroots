@@ -11,13 +11,13 @@
 #include <wayland-util.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
+#include <wlr/render/pixel_format.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/box.h>
 #include <wlr/util/log.h>
 #include "render/egl.h"
 #include "render/gles2.h"
-#include "render/pixel_format.h"
 
 static const GLfloat verts[] = {
 	1, 0, // top right
@@ -443,7 +443,7 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 	}
 
 	const struct wlr_pixel_format_info *drm_fmt =
-		drm_get_pixel_format_info(fmt->drm_format);
+		wlr_pixel_format_info_from_drm(fmt->drm_format);
 	assert(drm_fmt);
 
 	push_gles2_debug(renderer);

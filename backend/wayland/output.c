@@ -11,12 +11,12 @@
 #include <wayland-client.h>
 
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/pixel_format.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 
 #include "backend/wayland.h"
-#include "render/pixel_format.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
 #include "util/signal.h"
@@ -178,7 +178,8 @@ static struct wl_buffer *import_dmabuf(struct wlr_wl_backend *wl,
 
 static struct wl_buffer *import_shm(struct wlr_wl_backend *wl,
 		struct wlr_shm_attributes *shm) {
-	enum wl_shm_format wl_shm_format = convert_drm_format_to_wl_shm(shm->format);
+	enum wl_shm_format wl_shm_format =
+			wlr_convert_drm_format_to_wl_shm(shm->format);
 	uint32_t size = shm->stride * shm->height;
 	struct wl_shm_pool *pool = wl_shm_create_pool(wl->shm, shm->fd, size);
 	if (pool == NULL) {

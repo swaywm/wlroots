@@ -1,10 +1,10 @@
 #ifndef RENDER_PIXMAN_H
 #define RENDER_PIXMAN_H
 
+#include <wlr/render/drm_format_set.h>
+#include <wlr/render/pixel_format.h>
 #include <wlr/render/pixman.h>
 #include <wlr/render/wlr_renderer.h>
-#include <wlr/render/drm_format_set.h>
-#include "render/pixel_format.h"
 
 struct wlr_pixman_pixel_format {
 	uint32_t drm_format;

@@ -8,12 +8,12 @@
 #include <wayland-util.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
+#include <wlr/render/pixel_format.h>
 #include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "render/egl.h"
 #include "render/gles2.h"
-#include "render/pixel_format.h"
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
 
@@ -65,7 +65,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	assert(fmt);
 
 	const struct wlr_pixel_format_info *drm_fmt =
-		drm_get_pixel_format_info(texture->drm_format);
+		wlr_pixel_format_info_from_drm(texture->drm_format);
 	assert(drm_fmt);
 
 	if (!check_stride(drm_fmt, stride, width)) {
@@ -194,7 +194,7 @@ static struct wlr_texture *gles2_texture_from_pixels(
 	}
 
 	const struct wlr_pixel_format_info *drm_fmt =
-		drm_get_pixel_format_info(drm_format);
+		wlr_pixel_format_info_from_drm(drm_format);
 	assert(drm_fmt);
 
 	if (!check_stride(drm_fmt, stride, width)) {
@@ -254,7 +254,7 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 		(attribs->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) != 0;
 
 	const struct wlr_pixel_format_info *drm_fmt =
-		drm_get_pixel_format_info(attribs->format);
+		wlr_pixel_format_info_from_drm(attribs->format);
 	if (drm_fmt != NULL) {
 		texture->has_alpha = drm_fmt->has_alpha;
 	} else {

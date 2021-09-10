@@ -13,12 +13,12 @@
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/pixel_format.h>
 #include <wlr/util/log.h>
 
 #include "backend/backend.h"
 #include "backend/wayland.h"
 #include "render/drm_format_set.h"
-#include "render/pixel_format.h"
 #include "render/wlr_renderer.h"
 #include "util/signal.h"
 
@@ -192,7 +192,7 @@ static const struct wl_drm_listener legacy_drm_listener = {
 static void shm_handle_format(void *data, struct wl_shm *shm,
 		uint32_t shm_format) {
 	struct wlr_wl_backend *wl = data;
-	uint32_t drm_format = convert_wl_shm_format_to_drm(shm_format);
+	uint32_t drm_format = wlr_convert_wl_shm_format_to_drm(shm_format);
 	wlr_drm_format_set_add(&wl->shm_formats, drm_format, DRM_FORMAT_MOD_INVALID);
 }
 
