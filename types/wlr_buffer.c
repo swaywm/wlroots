@@ -75,7 +75,7 @@ bool wlr_buffer_get_dmabuf(struct wlr_buffer *buffer,
 	return buffer->impl->get_dmabuf(buffer, attribs);
 }
 
-bool buffer_begin_data_ptr_access(struct wlr_buffer *buffer, uint32_t flags,
+bool wlr_buffer_begin_data_ptr_access(struct wlr_buffer *buffer, uint32_t flags,
 		void **data, uint32_t *format, size_t *stride) {
 	assert(!buffer->accessing_data_ptr);
 	if (!buffer->impl->begin_data_ptr_access) {
@@ -88,7 +88,7 @@ bool buffer_begin_data_ptr_access(struct wlr_buffer *buffer, uint32_t flags,
 	return true;
 }
 
-void buffer_end_data_ptr_access(struct wlr_buffer *buffer) {
+void wlr_buffer_end_data_ptr_access(struct wlr_buffer *buffer) {
 	assert(buffer->accessing_data_ptr);
 	buffer->impl->end_data_ptr_access(buffer);
 	buffer->accessing_data_ptr = false;
@@ -292,14 +292,14 @@ bool wlr_client_buffer_apply_damage(struct wlr_client_buffer *client_buffer,
 	void *data;
 	uint32_t format;
 	size_t stride;
-	if (!buffer_begin_data_ptr_access(next, WLR_BUFFER_DATA_PTR_ACCESS_READ,
+	if (!wlr_buffer_begin_data_ptr_access(next, WLR_BUFFER_DATA_PTR_ACCESS_READ,
 			&data, &format, &stride)) {
 		return false;
 	}
 
 	if (format != client_buffer->shm_source_format) {
 		// Uploading to textures can't change the format
-		buffer_end_data_ptr_access(next);
+		wlr_buffer_end_data_ptr_access(next);
 		return false;
 	}
 
@@ -310,12 +310,12 @@ bool wlr_client_buffer_apply_damage(struct wlr_client_buffer *client_buffer,
 		if (!wlr_texture_write_pixels(client_buffer->texture, stride,
 				r->x2 - r->x1, r->y2 - r->y1, r->x1, r->y1,
 				r->x1, r->y1, data)) {
-			buffer_end_data_ptr_access(next);
+			wlr_buffer_end_data_ptr_access(next);
 			return false;
 		}
 	}
 
-	buffer_end_data_ptr_access(next);
+	wlr_buffer_end_data_ptr_access(next);
 
 	return true;
 }

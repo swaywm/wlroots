@@ -96,13 +96,13 @@ static struct wlr_pixman_buffer *create_buffer(
 	void *data = NULL;
 	uint32_t drm_format;
 	size_t stride;
-	if (!buffer_begin_data_ptr_access(wlr_buffer,
+	if (!wlr_buffer_begin_data_ptr_access(wlr_buffer,
 			WLR_BUFFER_DATA_PTR_ACCESS_READ | WLR_BUFFER_DATA_PTR_ACCESS_WRITE,
 			&data, &drm_format, &stride)) {
 		wlr_log(WLR_ERROR, "Failed to get buffer data");
 		goto error_buffer;
 	}
-	buffer_end_data_ptr_access(wlr_buffer);
+	wlr_buffer_end_data_ptr_access(wlr_buffer);
 
 	pixman_format_code_t format = get_pixman_format_from_drm(drm_format);
 	if (format == 0) {
@@ -145,7 +145,7 @@ static void pixman_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 	void *data = NULL;
 	uint32_t drm_format;
 	size_t stride;
-	buffer_begin_data_ptr_access(buffer->buffer,
+	wlr_buffer_begin_data_ptr_access(buffer->buffer,
 		WLR_BUFFER_DATA_PTR_ACCESS_READ | WLR_BUFFER_DATA_PTR_ACCESS_WRITE,
 		&data, &drm_format, &stride);
 
@@ -166,7 +166,7 @@ static void pixman_end(struct wlr_renderer *wlr_renderer) {
 
 	assert(renderer->current_buffer != NULL);
 
-	buffer_end_data_ptr_access(renderer->current_buffer->buffer);
+	wlr_buffer_end_data_ptr_access(renderer->current_buffer->buffer);
 }
 
 static void pixman_clear(struct wlr_renderer *wlr_renderer,
@@ -233,7 +233,7 @@ static bool pixman_render_subtexture_with_matrix(
 		void *data;
 		uint32_t drm_format;
 		size_t stride;
-		if (!buffer_begin_data_ptr_access(texture->buffer,
+		if (!wlr_buffer_begin_data_ptr_access(texture->buffer,
 				WLR_BUFFER_DATA_PTR_ACCESS_READ, &data, &drm_format, &stride)) {
 			return false;
 		}
@@ -272,7 +272,7 @@ static bool pixman_render_subtexture_with_matrix(
 			renderer->height);
 
 	if (texture->buffer != NULL) {
-		buffer_end_data_ptr_access(texture->buffer);
+		wlr_buffer_end_data_ptr_access(texture->buffer);
 	}
 
 	pixman_image_unref(mask);
@@ -380,11 +380,11 @@ static struct wlr_texture *pixman_texture_from_buffer(
 	void *data = NULL;
 	uint32_t drm_format;
 	size_t stride;
-	if (!buffer_begin_data_ptr_access(buffer, WLR_BUFFER_DATA_PTR_ACCESS_READ,
+	if (!wlr_buffer_begin_data_ptr_access(buffer, WLR_BUFFER_DATA_PTR_ACCESS_READ,
 			&data, &drm_format, &stride)) {
 		return NULL;
 	}
-	buffer_end_data_ptr_access(buffer);
+	wlr_buffer_end_data_ptr_access(buffer);
 
 	struct wlr_pixman_texture *texture = pixman_texture_create(renderer,
 		drm_format, buffer->width, buffer->height);
