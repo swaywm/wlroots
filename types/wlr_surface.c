@@ -515,29 +515,9 @@ static void subsurface_parent_commit(struct wlr_subsurface *subsurface,
 	}
 }
 
-static void subsurface_commit(struct wlr_subsurface *subsurface) {
-	struct wlr_surface *surface = subsurface->surface;
-
-	if (subsurface_is_synchronized(subsurface)) {
-		if (subsurface->has_cache) {
-			// We already lock a previous commit. The prevents any future
-			// commit to be applied before we release the previous commit.
-			return;
-		}
-		subsurface->has_cache = true;
-		subsurface->cached_seq = wlr_surface_lock_pending(surface);
-	}
-}
-
 static void surface_handle_commit(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
-
-	struct wlr_subsurface *subsurface = wlr_surface_is_subsurface(surface) ?
-		wlr_subsurface_from_wlr_surface(surface) : NULL;
-	if (subsurface != NULL) {
-		subsurface_commit(subsurface);
-	}
 
 	if (surface->role && surface->role->commit_request) {
 		surface->role->commit_request(surface);
@@ -551,6 +531,7 @@ static void surface_handle_commit(struct wl_client *client,
 		surface_commit_state(surface, &surface->pending);
 	}
 
+	struct wlr_subsurface *subsurface;
 	wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
 		subsurface_parent_commit(subsurface, false);
 	}
@@ -1064,6 +1045,24 @@ static void subsurface_unmap(struct wlr_subsurface *subsurface) {
 	}
 }
 
+static void subsurface_role_commit_request(struct wlr_surface *surface) {
+	struct wlr_subsurface *subsurface =
+		wlr_subsurface_from_wlr_surface(surface);
+	if (subsurface == NULL) {
+		return;
+	}
+
+	if (subsurface_is_synchronized(subsurface)) {
+		if (subsurface->has_cache) {
+			// We already lock a previous commit. The prevents any future
+			// commit to be applied before we release the previous commit.
+			return;
+		}
+		subsurface->has_cache = true;
+		subsurface->cached_seq = wlr_surface_lock_pending(surface);
+	}
+}
+
 static void subsurface_role_commit(struct wlr_surface *surface) {
 	struct wlr_subsurface *subsurface =
 		wlr_subsurface_from_wlr_surface(surface);
@@ -1114,6 +1113,7 @@ static void subsurface_role_precommit(struct wlr_surface *surface,
 
 const struct wlr_surface_role subsurface_role = {
 	.name = "wl_subsurface",
+	.commit_request = subsurface_role_commit_request,
 	.commit = subsurface_role_commit,
 	.precommit = subsurface_role_precommit,
 };
