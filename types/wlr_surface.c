@@ -539,6 +539,10 @@ static void surface_handle_commit(struct wl_client *client,
 		subsurface_commit(subsurface);
 	}
 
+	if (surface->role && surface->role->commit_request) {
+		surface->role->commit_request(surface);
+	}
+
 	surface_finalize_pending(surface);
 
 	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {

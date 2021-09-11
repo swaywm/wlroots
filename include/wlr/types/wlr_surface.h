@@ -72,7 +72,11 @@ struct wlr_surface_state {
 
 struct wlr_surface_role {
 	const char *name;
+	// Called on wl_surface.commit
+	void (*commit_request)(struct wlr_surface *surface);
+	// Called on the current state update
 	void (*commit)(struct wlr_surface *surface);
+	// Called right before the current state update
 	void (*precommit)(struct wlr_surface *surface,
 		struct wlr_surface_state *next);
 };
