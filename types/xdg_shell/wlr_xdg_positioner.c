@@ -140,22 +140,6 @@ void create_xdg_positioner(struct wlr_xdg_client *client, uint32_t id) {
 		positioner, xdg_positioner_handle_resource_destroy);
 }
 
-void handle_xdg_surface_popup_committed(struct wlr_xdg_surface *surface) {
-	assert(surface->role == WLR_XDG_SURFACE_ROLE_POPUP);
-
-	if (!surface->popup->parent) {
-		wl_resource_post_error(surface->resource,
-			XDG_SURFACE_ERROR_NOT_CONSTRUCTED,
-			"xdg_popup has no parent");
-		return;
-	}
-
-	if (!surface->popup->committed) {
-		schedule_xdg_surface_configure(surface);
-		surface->popup->committed = true;
-	}
-}
-
 static bool positioner_anchor_has_edge(enum xdg_positioner_anchor anchor,
 		enum xdg_positioner_anchor edge) {
 	switch (edge) {
