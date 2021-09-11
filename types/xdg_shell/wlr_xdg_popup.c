@@ -196,6 +196,21 @@ struct wlr_xdg_popup_grab *get_xdg_shell_popup_grab_from_seat(
 	return xdg_grab;
 }
 
+void handle_xdg_surface_popup_committed(struct wlr_xdg_surface *surface) {
+	assert(surface->role == WLR_XDG_SURFACE_ROLE_POPUP);
+
+	if (!surface->popup->parent) {
+		wl_resource_post_error(surface->resource,
+			XDG_SURFACE_ERROR_NOT_CONSTRUCTED,
+			"xdg_popup has no parent");
+		return;
+	}
+
+	if (!surface->popup->committed) {
+		schedule_xdg_surface_configure(surface);
+		surface->popup->committed = true;
+	}
+}
 
 static const struct xdg_popup_interface xdg_popup_implementation;
 
