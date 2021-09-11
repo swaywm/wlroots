@@ -409,7 +409,7 @@ static void surface_commit_state(struct wlr_surface *surface,
 	assert(next->cached_state_locks == 0);
 
 	if (surface->role && surface->role->precommit) {
-		surface->role->precommit(surface);
+		surface->role->precommit(surface, next);
 	}
 
 	bool invalid_buffer = next->committed & WLR_SURFACE_STATE_BUFFER;
@@ -1094,15 +1094,15 @@ static void subsurface_role_commit(struct wlr_surface *surface) {
 	subsurface_consider_map(subsurface, true);
 }
 
-static void subsurface_role_precommit(struct wlr_surface *surface) {
+static void subsurface_role_precommit(struct wlr_surface *surface,
+		struct wlr_surface_state *next) {
 	struct wlr_subsurface *subsurface =
 		wlr_subsurface_from_wlr_surface(surface);
 	if (subsurface == NULL) {
 		return;
 	}
 
-	if (surface->pending.committed & WLR_SURFACE_STATE_BUFFER &&
-			surface->pending.buffer == NULL) {
+	if (next->committed & WLR_SURFACE_STATE_BUFFER && next->buffer == NULL) {
 		// This is a NULL commit
 		subsurface_unmap(subsurface);
 	}

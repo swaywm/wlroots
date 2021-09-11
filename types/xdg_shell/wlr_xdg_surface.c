@@ -356,15 +356,15 @@ void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 	}
 }
 
-void handle_xdg_surface_precommit(struct wlr_surface *wlr_surface) {
+void handle_xdg_surface_precommit(struct wlr_surface *wlr_surface,
+		struct wlr_surface_state *next) {
 	struct wlr_xdg_surface *surface =
 		wlr_xdg_surface_from_wlr_surface(wlr_surface);
 	if (surface == NULL) {
 		return;
 	}
 
-	if (wlr_surface->pending.committed & WLR_SURFACE_STATE_BUFFER &&
-			wlr_surface->pending.buffer == NULL) {
+	if (next->committed & WLR_SURFACE_STATE_BUFFER && next->buffer == NULL) {
 		// This is a NULL commit
 		if (surface->configured && surface->mapped) {
 			unmap_xdg_surface(surface);
