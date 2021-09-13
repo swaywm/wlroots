@@ -79,7 +79,7 @@ static struct wlr_renderer *backend_get_renderer(
 	if (backend->parent_renderer != NULL) {
 		return backend->parent_renderer;
 	} else {
-		return wlr_backend->renderer;
+		return backend->renderer;
 	}
 }
 
@@ -130,7 +130,7 @@ static bool backend_init(struct wlr_headless_backend *backend,
 			wlr_log(WLR_ERROR, "Failed to create renderer");
 			return false;
 		}
-		backend->backend.renderer = renderer;
+		backend->renderer = renderer;
 	} else {
 		backend->parent_renderer = renderer;
 		backend->parent_renderer_destroy.notify = handle_renderer_destroy;
