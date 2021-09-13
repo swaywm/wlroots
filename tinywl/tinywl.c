@@ -844,7 +844,7 @@ int main(int argc, char *argv[]) {
 	/* If we don't provide a renderer, autocreate makes a GLES2 renderer for us.
 	 * The renderer is responsible for defining the various pixel formats it
 	 * supports for shared memory, this configures that for clients. */
-	server.renderer = wlr_backend_get_renderer(server.backend);
+	server.renderer = wlr_renderer_autocreate(server.backend);
 	wlr_renderer_init_wl_display(server.renderer, server.wl_display);
 
 	/* This creates some hands-off wlroots interfaces. The compositor is
