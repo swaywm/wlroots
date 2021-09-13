@@ -611,12 +611,6 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		}
 	}
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(&x11->backend);
-	struct wlr_allocator *allocator = backend_get_allocator(&x11->backend);
-	if (renderer == NULL || allocator == NULL) {
-		goto error_event;
-	}
-
 	// Windows can only display buffers with the depth they were created with
 	// TODO: look into changing the window's depth at runtime
 	const struct wlr_drm_format *dri3_format =
