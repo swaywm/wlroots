@@ -34,10 +34,9 @@ tasks:
   - smoke-test: |
       cd wlroots/tinywl
       sudo modprobe vkms
-      sudo seatd -u "$USER" &
-      while ! [ -e /run/seatd.sock ]; do sleep 0.1; done
+      udevadm settle
       export WLR_BACKENDS=drm
       export WLR_RENDERER=pixman
       export WLR_DRM_DEVICES=/dev/dri/by-path/platform-vkms-card
       sudo chmod ugo+rw /dev/dri/by-path/platform-vkms-card
-      ./tinywl -s 'kill $PPID' || [ $? = 143 ]
+      sudo -E seatd-launch -- ./tinywl -s 'kill $PPID' || [ $? = 143 ]
