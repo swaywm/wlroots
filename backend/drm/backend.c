@@ -259,12 +259,6 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 		}
 	}
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(&drm->backend);
-	struct wlr_allocator *allocator = backend_get_allocator(&drm->backend);
-	if (renderer == NULL || allocator == NULL) {
-		goto error_mgpu_renderer;
-	}
-
 	drm->session_destroy.notify = handle_session_destroy;
 	wl_signal_add(&session->events.destroy, &drm->session_destroy);
 
