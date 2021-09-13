@@ -228,8 +228,9 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 	if (drm->parent) {
 		// Ensure we use the same renderer as the parent backend
-		drm->backend.renderer = wlr_backend_get_renderer(&drm->parent->backend);
-		assert(drm->backend.renderer != NULL);
+		struct wlr_renderer *parent_renderer =
+				wlr_backend_get_renderer(&drm->parent->backend);
+		assert(parent_renderer != NULL);
 
 		if (!init_drm_renderer(drm, &drm->mgpu_renderer)) {
 			wlr_log(WLR_ERROR, "Failed to initialize renderer");
