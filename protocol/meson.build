@@ -1,5 +1,5 @@
 wayland_protos = dependency('wayland-protocols',
-	version: '>=1.22',
+	version: '>=1.23',
 	fallback: ['wayland-protocols', 'wayland_protocols'],
 	default_options: ['tests=false'],
 )
