@@ -105,10 +105,16 @@ struct wlr_xdg_toplevel_state {
 	uint32_t width, height;
 	uint32_t max_width, max_height;
 	uint32_t min_width, min_height;
+};
 
-	// Since the fullscreen request may be made before the toplevel's surface
-	// is mapped, this is used to store the requested fullscreen output (if
-	// any) for wlr_xdg_toplevel::client_pending.
+struct wlr_xdg_toplevel_configure {
+	bool maximized, fullscreen, resizing, activated;
+	uint32_t tiled; // enum wlr_edges
+	uint32_t width, height;
+};
+
+struct wlr_xdg_toplevel_requested {
+	bool maximized, minimized, fullscreen;
 	struct wlr_output *fullscreen_output;
 	struct wl_listener fullscreen_output_destroy;
 };
@@ -121,10 +127,15 @@ struct wlr_xdg_toplevel {
 	struct wlr_xdg_surface *parent;
 	struct wl_listener parent_unmap;
 
-	struct wlr_xdg_toplevel_state client_pending;
-	struct wlr_xdg_toplevel_state server_pending;
-	struct wlr_xdg_toplevel_state last_acked;
-	struct wlr_xdg_toplevel_state current;
+	struct wlr_xdg_toplevel_state current, pending;
+
+	// Properties to be sent to the client in the next configure event.
+	struct wlr_xdg_toplevel_configure scheduled;
+
+	// Properties that the client has requested. Intended to be checked
+	// by the compositor on surface map and handled accordingly
+	// (e.g. a client might want to start already in a fullscreen state).
+	struct wlr_xdg_toplevel_requested requested;
 
 	char *title;
 	char *app_id;
@@ -147,7 +158,7 @@ struct wlr_xdg_surface_configure {
 	struct wl_list link; // wlr_xdg_surface::configure_list
 	uint32_t serial;
 
-	struct wlr_xdg_toplevel_state *toplevel_state;
+	struct wlr_xdg_toplevel_configure *toplevel_configure;
 };
 
 /**
