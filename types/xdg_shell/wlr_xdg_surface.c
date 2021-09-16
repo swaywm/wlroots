@@ -23,7 +23,7 @@ static void xdg_surface_configure_destroy(
 		return;
 	}
 	wl_list_remove(&configure->link);
-	free(configure->toplevel_state);
+	free(configure->toplevel_configure);
 	free(configure);
 }
 
@@ -487,11 +487,10 @@ void reset_xdg_surface(struct wlr_xdg_surface *xdg_surface) {
 	case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
 		wl_resource_set_user_data(xdg_surface->toplevel->resource, NULL);
 		xdg_surface->toplevel->resource = NULL;
-
-		if (xdg_surface->toplevel->client_pending.fullscreen_output) {
-			struct wlr_xdg_toplevel_state *client_pending =
-				&xdg_surface->toplevel->client_pending;
-			wl_list_remove(&client_pending->fullscreen_output_destroy.link);
+		struct wlr_xdg_toplevel_requested *req =
+			&xdg_surface->toplevel->requested;
+		if (req->fullscreen_output) {
+			wl_list_remove(&req->fullscreen_output_destroy.link);
 		}
 		free(xdg_surface->toplevel);
 		xdg_surface->toplevel = NULL;
