@@ -87,12 +87,13 @@ static void layer_surface_handle_ack_configure(struct wl_client *client,
 		layer_surface_configure_destroy(configure);
 	}
 
-	if (surface->acked_configure) {
-		layer_surface_configure_destroy(surface->acked_configure);
-	}
-	surface->acked_configure = configure;
-	wl_list_remove(&configure->link);
-	wl_list_init(&configure->link);
+	surface->pending.configure_serial = configure->serial;
+	surface->pending.actual_width = configure->width;
+	surface->pending.actual_height = configure->height;
+
+	surface->configured = true;
+
+	layer_surface_configure_destroy(configure);
 }
 
 static void layer_surface_handle_set_size(struct wl_client *client,
@@ -102,8 +103,8 @@ static void layer_surface_handle_set_size(struct wl_client *client,
 	if (!surface) {
 		return;
 	}
-	surface->client_pending.desired_width = width;
-	surface->client_pending.desired_height = height;
+	surface->pending.desired_width = width;
+	surface->pending.desired_height = height;
 }
 
 static void layer_surface_handle_set_anchor(struct wl_client *client,
@@ -123,7 +124,7 @@ static void layer_surface_handle_set_anchor(struct wl_client *client,
 	if (!surface) {
 		return;
 	}
-	surface->client_pending.anchor = anchor;
+	surface->pending.anchor = anchor;
 }
 
 static void layer_surface_handle_set_exclusive_zone(struct wl_client *client,
@@ -133,7 +134,7 @@ static void layer_surface_handle_set_exclusive_zone(struct wl_client *client,
 	if (!surface) {
 		return;
 	}
-	surface->client_pending.exclusive_zone = zone;
+	surface->pending.exclusive_zone = zone;
 }
 
 static void layer_surface_handle_set_margin(
@@ -144,10 +145,10 @@ static void layer_surface_handle_set_margin(
 	if (!surface) {
 		return;
 	}
-	surface->client_pending.margin.top = top;
-	surface->client_pending.margin.right = right;
-	surface->client_pending.margin.bottom = bottom;
-	surface->client_pending.margin.left = left;
+	surface->pending.margin.top = top;
+	surface->pending.margin.right = right;
+	surface->pending.margin.bottom = bottom;
+	surface->pending.margin.left = left;
 }
 
 static void layer_surface_handle_set_keyboard_interactivity(
@@ -160,14 +161,14 @@ static void layer_surface_handle_set_keyboard_interactivity(
 	}
 
 	if (wl_resource_get_version(resource) < ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND_SINCE_VERSION) {
-		surface->client_pending.keyboard_interactive = !!interactive;
+		surface->pending.keyboard_interactive = !!interactive;
 	} else {
 		if (interactive > ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND) {
 			wl_resource_post_error(resource,
 				ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_KEYBOARD_INTERACTIVITY,
 				"wrong keyboard interactivity value: %" PRIu32, interactive);
 		} else {
-			surface->client_pending.keyboard_interactive = interactive;
+			surface->pending.keyboard_interactive = interactive;
 		}
 	}
 }
@@ -203,7 +204,7 @@ static void layer_surface_set_layer(struct wl_client *client,
 				"Invalid layer %" PRIu32, layer);
 		return;
 	}
-	surface->client_pending.layer = layer;
+	surface->pending.layer = layer;
 }
 
 static const struct zwlr_layer_surface_v1_interface layer_surface_implementation = {
@@ -233,8 +234,6 @@ static void layer_surface_unmap(struct wlr_layer_surface_v1 *surface) {
 	}
 
 	surface->configured = surface->mapped = false;
-	surface->configure_serial = 0;
-	surface->configure_next_serial = 0;
 }
 
 static void layer_surface_destroy(struct wlr_layer_surface_v1 *surface) {
@@ -257,49 +256,24 @@ static void layer_surface_resource_destroy(struct wl_resource *resource) {
 	}
 }
 
-static bool layer_surface_state_changed(struct wlr_layer_surface_v1 *surface) {
-	struct wlr_layer_surface_v1_state *state;
-	if (wl_list_empty(&surface->configure_list)) {
-		if (surface->acked_configure) {
-			state = &surface->acked_configure->state;
-		} else if (!surface->configured) {
-			return true;
-		} else {
-			state = &surface->current;
-		}
-	} else {
-		struct wlr_layer_surface_v1_configure *configure =
-			wl_container_of(surface->configure_list.prev, configure, link);
-		state = &configure->state;
-	}
-
-	bool changed = state->actual_width != surface->server_pending.actual_width
-		|| state->actual_height != surface->server_pending.actual_height;
-	return changed;
-}
-
-void wlr_layer_surface_v1_configure(struct wlr_layer_surface_v1 *surface,
+uint32_t wlr_layer_surface_v1_configure(struct wlr_layer_surface_v1 *surface,
 		uint32_t width, uint32_t height) {
-	surface->server_pending.actual_width = width;
-	surface->server_pending.actual_height = height;
-	if (layer_surface_state_changed(surface)) {
-		struct wl_display *display =
-			wl_client_get_display(wl_resource_get_client(surface->resource));
-		struct wlr_layer_surface_v1_configure *configure =
-			calloc(1, sizeof(struct wlr_layer_surface_v1_configure));
-		if (configure == NULL) {
-			wl_client_post_no_memory(wl_resource_get_client(surface->resource));
-			return;
-		}
-		surface->configure_next_serial = wl_display_next_serial(display);
-		wl_list_insert(surface->configure_list.prev, &configure->link);
-		configure->state.actual_width = width;
-		configure->state.actual_height = height;
-		configure->serial = surface->configure_next_serial;
-		zwlr_layer_surface_v1_send_configure(surface->resource,
-				configure->serial, configure->state.actual_width,
-				configure->state.actual_height);
+	struct wl_display *display =
+		wl_client_get_display(wl_resource_get_client(surface->resource));
+	struct wlr_layer_surface_v1_configure *configure =
+		calloc(1, sizeof(struct wlr_layer_surface_v1_configure));
+	if (configure == NULL) {
+		wl_client_post_no_memory(wl_resource_get_client(surface->resource));
+		return surface->pending.configure_serial;
 	}
+	wl_list_insert(surface->configure_list.prev, &configure->link);
+	configure->width = width;
+	configure->height = height;
+	configure->serial = wl_display_next_serial(display);
+	zwlr_layer_surface_v1_send_configure(surface->resource,
+			configure->serial, configure->width,
+			configure->height);
+	return configure->serial;
 }
 
 void wlr_layer_surface_v1_destroy(struct wlr_layer_surface_v1 *surface) {
@@ -316,8 +290,8 @@ static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
 
 	const uint32_t horiz = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
 		ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
-	if (surface->client_pending.desired_width == 0 &&
-		(surface->client_pending.anchor & horiz) != horiz) {
+	if (surface->pending.desired_width == 0 &&
+		(surface->pending.anchor & horiz) != horiz) {
 		wl_resource_post_error(surface->resource,
 			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_SIZE,
 			"width 0 requested without setting left and right anchors");
@@ -326,24 +300,15 @@ static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
 
 	const uint32_t vert = ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
 		ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
-	if (surface->client_pending.desired_height == 0 &&
-		(surface->client_pending.anchor & vert) != vert) {
+	if (surface->pending.desired_height == 0 &&
+		(surface->pending.anchor & vert) != vert) {
 		wl_resource_post_error(surface->resource,
 			ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_SIZE,
 			"height 0 requested without setting top and bottom anchors");
 		return;
 	}
 
-	if (surface->acked_configure) {
-		struct wlr_layer_surface_v1_configure *configure =
-			surface->acked_configure;
-		surface->configured = true;
-		surface->configure_serial = configure->serial;
-		surface->current.actual_width = configure->state.actual_width;
-		surface->current.actual_height = configure->state.actual_height;
-		layer_surface_configure_destroy(configure);
-		surface->acked_configure = NULL;
-	}
+	surface->current = surface->pending;
 
 	if (wlr_surface_has_buffer(surface->surface) && !surface->configured) {
 		wl_resource_post_error(surface->resource,
@@ -351,15 +316,6 @@ static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
 			"layer_surface has never been configured");
 		return;
 	}
-
-	surface->current.anchor = surface->client_pending.anchor;
-	surface->current.exclusive_zone = surface->client_pending.exclusive_zone;
-	surface->current.margin = surface->client_pending.margin;
-	surface->current.keyboard_interactive =
-		surface->client_pending.keyboard_interactive;
-	surface->current.desired_width = surface->client_pending.desired_width;
-	surface->current.desired_height = surface->client_pending.desired_height;
-	surface->current.layer = surface->client_pending.layer;
 
 	if (!surface->added) {
 		surface->added = true;
@@ -422,7 +378,7 @@ static void layer_shell_handle_get_layer_surface(struct wl_client *wl_client,
 	if (output_resource) {
 		surface->output = wlr_output_from_resource(output_resource);
 	}
-	surface->current.layer = surface->client_pending.layer = layer;
+	surface->current.layer = surface->pending.layer = layer;
 	if (layer > ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY) {
 		free(surface);
 		wl_resource_post_error(client_resource,
