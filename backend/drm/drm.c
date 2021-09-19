@@ -977,6 +977,37 @@ uint32_t wlr_drm_connector_get_id(struct wlr_output *output) {
 	return conn->id;
 }
 
+enum wl_output_transform wlr_drm_connector_get_panel_orientation(
+		struct wlr_output *output) {
+	struct wlr_drm_connector *conn = get_drm_connector_from_output(output);
+	if (conn->props.panel_orientation) {
+		return WL_OUTPUT_TRANSFORM_NORMAL;
+	}
+
+	char *orientation = get_drm_prop_enum(conn->backend->fd, conn->id,
+		conn->props.panel_orientation);
+	if (orientation == NULL) {
+		return WL_OUTPUT_TRANSFORM_NORMAL;
+	}
+
+	enum wl_output_transform tr;
+	if (strcmp(orientation, "Normal") == 0) {
+		tr = WL_OUTPUT_TRANSFORM_NORMAL;
+	} else if (strcmp(orientation, "Left Side Up") == 0) {
+		tr = WL_OUTPUT_TRANSFORM_90;
+	} else if (strcmp(orientation, "Upside Down") == 0) {
+		tr = WL_OUTPUT_TRANSFORM_180;
+	} else if (strcmp(orientation, "Right Side Up") == 0) {
+		tr = WL_OUTPUT_TRANSFORM_270;
+	} else {
+		wlr_drm_conn_log(conn, WLR_ERROR, "Unknown panel orientation: %s", orientation);
+		tr = WL_OUTPUT_TRANSFORM_NORMAL;
+	}
+
+	free(orientation);
+	return tr;
+}
+
 static const int32_t subpixel_map[] = {
 	[DRM_MODE_SUBPIXEL_UNKNOWN] = WL_OUTPUT_SUBPIXEL_UNKNOWN,
 	[DRM_MODE_SUBPIXEL_HORIZONTAL_RGB] = WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB,
