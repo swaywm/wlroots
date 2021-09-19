@@ -61,4 +61,15 @@ typedef struct _drmModeModeInfo drmModeModeInfo;
 struct wlr_output_mode *wlr_drm_connector_add_mode(struct wlr_output *output,
 	const drmModeModeInfo *mode);
 
+/**
+ * Get the connector's panel orientation.
+ *
+ * On some devices the panel is mounted in the casing in such a way that the
+ * top side of the panel does not match with the top side of the device. This
+ * function returns the output transform which needs to be applied to compensate
+ * for this.
+ */
+enum wl_output_transform wlr_drm_connector_get_panel_orientation(
+	struct wlr_output *output);
+
 #endif
