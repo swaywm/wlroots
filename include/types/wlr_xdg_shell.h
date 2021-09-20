@@ -13,7 +13,6 @@ struct wlr_xdg_positioner_resource {
 extern const struct wlr_surface_role xdg_toplevel_surface_role;
 extern const struct wlr_surface_role xdg_popup_surface_role;
 
-uint32_t schedule_xdg_surface_configure(struct wlr_xdg_surface *surface);
 struct wlr_xdg_surface *create_xdg_surface(
 	struct wlr_xdg_client *client, struct wlr_surface *surface,
 	uint32_t id);
@@ -41,7 +40,6 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 	struct wlr_xdg_surface_configure *configure);
 void handle_xdg_toplevel_ack_configure(struct wlr_xdg_surface *surface,
 	struct wlr_xdg_surface_configure *configure);
-bool compare_xdg_surface_toplevel_state(struct wlr_xdg_toplevel *state);
 void destroy_xdg_toplevel(struct wlr_xdg_surface *surface);
 
 #endif
