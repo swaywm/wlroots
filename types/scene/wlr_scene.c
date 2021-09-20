@@ -283,6 +283,18 @@ void wlr_scene_buffer_set_source_box(struct wlr_scene_buffer *scene_buffer,
 	scene_node_damage_whole(&scene_buffer->node);
 }
 
+void wlr_scene_buffer_set_dest_size(struct wlr_scene_buffer *scene_buffer,
+		int width, int height) {
+	if (scene_buffer->dst_width == width && scene_buffer->dst_height == height) {
+		return;
+	}
+
+	scene_node_damage_whole(&scene_buffer->node);
+	scene_buffer->dst_width = width;
+	scene_buffer->dst_height = height;
+	scene_node_damage_whole(&scene_buffer->node);
+}
+
 static struct wlr_texture *scene_buffer_get_texture(
 		struct wlr_scene_buffer *scene_buffer, struct wlr_renderer *renderer) {
 	struct wlr_client_buffer *client_buffer =
@@ -322,8 +334,13 @@ static void scene_node_get_size(struct wlr_scene_node *node,
 		break;
 	case WLR_SCENE_NODE_BUFFER:;
 		struct wlr_scene_buffer *scene_buffer = scene_buffer_from_node(node);
-		*width = scene_buffer->buffer->width;
-		*height = scene_buffer->buffer->height;
+		if (scene_buffer->dst_width > 0 && scene_buffer->dst_height > 0) {
+			*width = scene_buffer->dst_width;
+			*height = scene_buffer->dst_height;
+		} else {
+			*width = scene_buffer->buffer->width;
+			*height = scene_buffer->buffer->height;
+		}
 		break;
 	}
 }
