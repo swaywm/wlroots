@@ -266,6 +266,23 @@ struct wlr_scene_buffer *wlr_scene_buffer_create(struct wlr_scene_node *parent,
 	return scene_buffer;
 }
 
+void wlr_scene_buffer_set_source_box(struct wlr_scene_buffer *scene_buffer,
+		const struct wlr_fbox *box) {
+	struct wlr_fbox *cur = &scene_buffer->src_box;
+	if ((wlr_fbox_empty(box) && wlr_fbox_empty(cur)) ||
+			(box != NULL && memcmp(cur, box, sizeof(*box)) == 0)) {
+		return;
+	}
+
+	if (box != NULL) {
+		memcpy(cur, box, sizeof(*box));
+	} else {
+		memset(cur, 0, sizeof(*cur));
+	}
+
+	scene_node_damage_whole(&scene_buffer->node);
+}
+
 static struct wlr_texture *scene_buffer_get_texture(
 		struct wlr_scene_buffer *scene_buffer, struct wlr_renderer *renderer) {
 	struct wlr_client_buffer *client_buffer =
@@ -571,20 +588,29 @@ static void render_rect(struct wlr_output *output,
 
 static void render_texture(struct wlr_output *output,
 		pixman_region32_t *output_damage, struct wlr_texture *texture,
-		const struct wlr_box *box, const float matrix[static 9]) {
+		const struct wlr_fbox *src_box, const struct wlr_box *dst_box,
+		const float matrix[static 9]) {
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	assert(renderer);
 
+	struct wlr_fbox default_src_box = {0};
+	if (wlr_fbox_empty(src_box)) {
+		default_src_box.width = dst_box->width;
+		default_src_box.height = dst_box->height;
+		src_box = &default_src_box;
+	}
+
 	pixman_region32_t damage;
 	pixman_region32_init(&damage);
-	pixman_region32_init_rect(&damage, box->x, box->y, box->width, box->height);
+	pixman_region32_init_rect(&damage, dst_box->x, dst_box->y,
+		dst_box->width, dst_box->height);
 	pixman_region32_intersect(&damage, &damage, output_damage);
 
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
 	for (int i = 0; i < nrects; ++i) {
 		scissor_output(output, &rects[i]);
-		wlr_render_texture_with_matrix(renderer, texture, matrix, 1.0);
+		wlr_render_subtexture_with_matrix(renderer, texture, src_box, matrix, 1.0);
 	}
 
 	pixman_region32_fini(&damage);
@@ -600,7 +626,7 @@ static void render_node_iterator(struct wlr_scene_node *node,
 	struct render_data *data = _data;
 	struct wlr_output *output = data->output;
 	pixman_region32_t *output_damage = data->damage;
-	struct wlr_box box = {
+	struct wlr_box dst_box = {
 		.x = x,
 		.y = y,
 	};
@@ -621,26 +647,26 @@ static void render_node_iterator(struct wlr_scene_node *node,
 			return;
 		}
 
-		box.width = surface->current.width;
-		box.height = surface->current.height;
-		scale_box(&box, output->scale);
+		dst_box.width = surface->current.width;
+		dst_box.height = surface->current.height;
+		scale_box(&dst_box, output->scale);
 
 		enum wl_output_transform transform =
 			wlr_output_transform_invert(surface->current.transform);
-		wlr_matrix_project_box(matrix, &box, transform, 0.0,
+		wlr_matrix_project_box(matrix, &dst_box, transform, 0.0,
 			output->transform_matrix);
 
-		render_texture(output, output_damage, texture, &box, matrix);
+		render_texture(output, output_damage, texture, NULL, &dst_box, matrix);
 		break;
 	case WLR_SCENE_NODE_RECT:;
 		struct wlr_scene_rect *scene_rect = scene_rect_from_node(node);
 
-		box.width = scene_rect->width;
-		box.height = scene_rect->height;
-		scale_box(&box, data->output->scale);
+		dst_box.width = scene_rect->width;
+		dst_box.height = scene_rect->height;
+		scale_box(&dst_box, data->output->scale);
 
-		render_rect(output, output_damage, scene_rect->color, &box,
-				output->transform_matrix);
+		render_rect(output, output_damage, scene_rect->color, &dst_box,
+			output->transform_matrix);
 		break;
 	case WLR_SCENE_NODE_BUFFER:;
 		struct wlr_scene_buffer *scene_buffer = scene_buffer_from_node(node);
@@ -651,14 +677,15 @@ static void render_node_iterator(struct wlr_scene_node *node,
 			return;
 		}
 
-		box.width = scene_buffer->buffer->width;
-		box.height = scene_buffer->buffer->height;
-		scale_box(&box, data->output->scale);
+		dst_box.width = scene_buffer->buffer->width;
+		dst_box.height = scene_buffer->buffer->height;
+		scale_box(&dst_box, data->output->scale);
 
-		wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0.0,
+		wlr_matrix_project_box(matrix, &dst_box, WL_OUTPUT_TRANSFORM_NORMAL, 0.0,
 			output->transform_matrix);
 
-		render_texture(output, output_damage, texture, &box, matrix);
+		render_texture(output, output_damage, texture, &scene_buffer->src_box,
+			&dst_box, matrix);
 		break;
 	}
 }
