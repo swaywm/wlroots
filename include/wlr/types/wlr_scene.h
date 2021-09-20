@@ -95,6 +95,7 @@ struct wlr_scene_buffer {
 
 	struct wlr_texture *texture;
 	struct wlr_fbox src_box;
+	int dst_width, dst_height;
 };
 
 /** A viewport for an output in the scene-graph */
@@ -220,6 +221,16 @@ struct wlr_scene_buffer *wlr_scene_buffer_create(struct wlr_scene_node *parent,
  */
 void wlr_scene_buffer_set_source_box(struct wlr_scene_buffer *scene_buffer,
 	const struct wlr_fbox *box);
+
+/**
+ * Set the destination size describing the region of the scene-graph the buffer
+ * will be painted onto. This allows scaling the buffer.
+ *
+ * If zero, the destination size will be the buffer size. By default, the
+ * destination size is zero.
+ */
+void wlr_scene_buffer_set_dest_size(struct wlr_scene_buffer *scene_buffer,
+	int width, int height);
 
 /**
  * Add a viewport for the specified output to the scene-graph.
