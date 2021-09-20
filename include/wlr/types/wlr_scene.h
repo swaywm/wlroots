@@ -94,6 +94,7 @@ struct wlr_scene_buffer {
 	// private state
 
 	struct wlr_texture *texture;
+	struct wlr_fbox src_box;
 };
 
 /** A viewport for an output in the scene-graph */
@@ -210,6 +211,15 @@ void wlr_scene_rect_set_color(struct wlr_scene_rect *rect, const float color[sta
  */
 struct wlr_scene_buffer *wlr_scene_buffer_create(struct wlr_scene_node *parent,
 	struct wlr_buffer *buffer);
+
+/**
+ * Set the source rectangle describing the region of the buffer which will be
+ * sampled to render this node. This allows cropping the buffer.
+ *
+ * If NULL, the whole buffer is sampled. By default, the source box is NULL.
+ */
+void wlr_scene_buffer_set_source_box(struct wlr_scene_buffer *scene_buffer,
+	const struct wlr_fbox *box);
 
 /**
  * Add a viewport for the specified output to the scene-graph.
