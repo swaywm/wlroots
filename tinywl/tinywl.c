@@ -45,6 +45,7 @@ struct tinywl_server {
 	struct wl_listener cursor_motion_absolute;
 	struct wl_listener cursor_button;
 	struct wl_listener cursor_axis;
+	struct wl_listener cursor_axis_value120;
 	struct wl_listener cursor_frame;
 
 	struct wlr_seat *seat;
@@ -517,6 +518,20 @@ static void server_cursor_axis(struct wl_listener *listener, void *data) {
 			event->delta_discrete, event->source);
 }
 
+static void server_cursor_axis_value120(struct wl_listener *listener,
+		void *data) {
+	/* This event is forwarded by the cursor when a pointer emits a
+	 * high-resolution axis event, for example when you move the scroll wheel
+	 * using a gamming mouse. */
+	struct tinywl_server *server =
+		wl_container_of(listener, server, cursor_axis_value120);
+	struct wlr_event_pointer_axis_value120 *event = data;
+	/* Notify the client with pointer focus of the axis event. */
+	wlr_seat_pointer_notify_axis_value120(server->seat,
+			event->time_msec, event->orientation, event->delta,
+			event->delta_value120, event->source);
+}
+
 static void server_cursor_frame(struct wl_listener *listener, void *data) {
 	/* This event is forwarded by the cursor when a pointer emits an frame
 	 * event. Frame events are sent after regular pointer events to group
@@ -913,6 +928,9 @@ int main(int argc, char *argv[]) {
 	wl_signal_add(&server.cursor->events.button, &server.cursor_button);
 	server.cursor_axis.notify = server_cursor_axis;
 	wl_signal_add(&server.cursor->events.axis, &server.cursor_axis);
+	server.cursor_axis_value120.notify = server_cursor_axis_value120;
+	wl_signal_add(&server.cursor->events.axis_value120,
+		&server.cursor_axis_value120);
 	server.cursor_frame.notify = server_cursor_frame;
 	wl_signal_add(&server.cursor->events.frame, &server.cursor_frame);
 
