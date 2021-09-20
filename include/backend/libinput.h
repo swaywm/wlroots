@@ -7,6 +7,7 @@
 #include <wlr/backend/libinput.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_pointer.h>
 
 struct wlr_libinput_backend {
 	struct wlr_backend backend;
@@ -54,6 +55,11 @@ void handle_pointer_button(struct libinput_event *event,
 		struct libinput_device *device);
 void handle_pointer_axis(struct libinput_event *event,
 		struct libinput_device *device);
+#if LIBINPUT_HAS_SCROLL_VALUE120
+void handle_pointer_axis_value120(struct libinput_event *event,
+		struct libinput_device *device,
+		enum wlr_axis_source source);
+#endif
 void handle_pointer_swipe_begin(struct libinput_event *event,
 		struct libinput_device *device);
 void handle_pointer_swipe_update(struct libinput_event *event,

@@ -262,6 +262,20 @@ void handle_libinput_event(struct wlr_libinput_backend *backend,
 		handle_pointer_axis(event, libinput_dev);
 #endif
 		break;
+#if LIBINPUT_HAS_SCROLL_VALUE120
+	case LIBINPUT_EVENT_POINTER_SCROLL_WHEEL:
+		handle_pointer_axis_value120(event, libinput_dev,
+				WLR_AXIS_SOURCE_WHEEL);
+		break;
+	case LIBINPUT_EVENT_POINTER_SCROLL_FINGER:
+		handle_pointer_axis_value120(event, libinput_dev,
+				WLR_AXIS_SOURCE_FINGER);
+		break;
+	case LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS:
+		handle_pointer_axis_value120(event, libinput_dev,
+				WLR_AXIS_SOURCE_CONTINUOUS);
+		break;
+#endif
 	case LIBINPUT_EVENT_TOUCH_DOWN:
 		handle_touch_down(event, libinput_dev);
 		break;
