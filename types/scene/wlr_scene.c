@@ -300,6 +300,34 @@ static struct wlr_texture *scene_buffer_get_texture(
 	return scene_buffer->texture;
 }
 
+static void scene_node_get_size(struct wlr_scene_node *node,
+		int *width, int *height) {
+	*width = 0;
+	*height = 0;
+
+	switch (node->type) {
+	case WLR_SCENE_NODE_ROOT:
+	case WLR_SCENE_NODE_TREE:
+		return;
+	case WLR_SCENE_NODE_SURFACE:;
+		struct wlr_scene_surface *scene_surface =
+			wlr_scene_surface_from_node(node);
+		*width = scene_surface->surface->current.width;
+		*height = scene_surface->surface->current.height;
+		break;
+	case WLR_SCENE_NODE_RECT:;
+		struct wlr_scene_rect *scene_rect = scene_rect_from_node(node);
+		*width = scene_rect->width;
+		*height = scene_rect->height;
+		break;
+	case WLR_SCENE_NODE_BUFFER:;
+		struct wlr_scene_buffer *scene_buffer = scene_buffer_from_node(node);
+		*width = scene_buffer->buffer->width;
+		*height = scene_buffer->buffer->height;
+		break;
+	}
+}
+
 static int scale_length(int length, int offset, float scale) {
 	return round((offset + length) * scale) - round(offset * scale);
 }
@@ -323,28 +351,8 @@ static void _scene_node_damage_whole(struct wlr_scene_node *node,
 			lx + child->state.x, ly + child->state.y);
 	}
 
-	int width = 0, height = 0;
-	switch (node->type) {
-	case WLR_SCENE_NODE_ROOT:
-	case WLR_SCENE_NODE_TREE:
-		return;
-	case WLR_SCENE_NODE_SURFACE:;
-		struct wlr_scene_surface *scene_surface =
-			wlr_scene_surface_from_node(node);
-		width = scene_surface->surface->current.width;
-		height = scene_surface->surface->current.height;
-		break;
-	case WLR_SCENE_NODE_RECT:;
-		struct wlr_scene_rect *scene_rect = scene_rect_from_node(node);
-		width = scene_rect->width;
-		height = scene_rect->height;
-		break;
-	case WLR_SCENE_NODE_BUFFER:;
-		struct wlr_scene_buffer *scene_buffer = scene_buffer_from_node(node);
-		width = scene_buffer->buffer->width;
-		height = scene_buffer->buffer->height;
-		break;
-	}
+	int width, height;
+	scene_node_get_size(node, &width, &height);
 
 	struct wlr_scene_output *scene_output;
 	wl_list_for_each(scene_output, &scene->outputs, link) {
@@ -626,10 +634,13 @@ static void render_node_iterator(struct wlr_scene_node *node,
 	struct render_data *data = _data;
 	struct wlr_output *output = data->output;
 	pixman_region32_t *output_damage = data->damage;
+
 	struct wlr_box dst_box = {
 		.x = x,
 		.y = y,
 	};
+	scene_node_get_size(node, &dst_box.width, &dst_box.height);
+	scale_box(&dst_box, output->scale);
 
 	struct wlr_texture *texture;
 	float matrix[9];
@@ -647,10 +658,6 @@ static void render_node_iterator(struct wlr_scene_node *node,
 			return;
 		}
 
-		dst_box.width = surface->current.width;
-		dst_box.height = surface->current.height;
-		scale_box(&dst_box, output->scale);
-
 		enum wl_output_transform transform =
 			wlr_output_transform_invert(surface->current.transform);
 		wlr_matrix_project_box(matrix, &dst_box, transform, 0.0,
@@ -660,10 +667,6 @@ static void render_node_iterator(struct wlr_scene_node *node,
 		break;
 	case WLR_SCENE_NODE_RECT:;
 		struct wlr_scene_rect *scene_rect = scene_rect_from_node(node);
-
-		dst_box.width = scene_rect->width;
-		dst_box.height = scene_rect->height;
-		scale_box(&dst_box, data->output->scale);
 
 		render_rect(output, output_damage, scene_rect->color, &dst_box,
 			output->transform_matrix);
@@ -676,10 +679,6 @@ static void render_node_iterator(struct wlr_scene_node *node,
 		if (texture == NULL) {
 			return;
 		}
-
-		dst_box.width = scene_buffer->buffer->width;
-		dst_box.height = scene_buffer->buffer->height;
-		scale_box(&dst_box, data->output->scale);
 
 		wlr_matrix_project_box(matrix, &dst_box, WL_OUTPUT_TRANSFORM_NORMAL, 0.0,
 			output->transform_matrix);
