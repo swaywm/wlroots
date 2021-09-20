@@ -295,6 +295,17 @@ void wlr_scene_buffer_set_dest_size(struct wlr_scene_buffer *scene_buffer,
 	scene_node_damage_whole(&scene_buffer->node);
 }
 
+void wlr_scene_buffer_set_transform(struct wlr_scene_buffer *scene_buffer,
+		enum wl_output_transform transform) {
+	if (scene_buffer->transform == transform) {
+		return;
+	}
+
+	scene_node_damage_whole(&scene_buffer->node);
+	scene_buffer->transform = transform;
+	scene_node_damage_whole(&scene_buffer->node);
+}
+
 static struct wlr_texture *scene_buffer_get_texture(
 		struct wlr_scene_buffer *scene_buffer, struct wlr_renderer *renderer) {
 	struct wlr_client_buffer *client_buffer =
@@ -338,8 +349,13 @@ static void scene_node_get_size(struct wlr_scene_node *node,
 			*width = scene_buffer->dst_width;
 			*height = scene_buffer->dst_height;
 		} else {
-			*width = scene_buffer->buffer->width;
-			*height = scene_buffer->buffer->height;
+			if (scene_buffer->transform & WL_OUTPUT_TRANSFORM_90) {
+				*height = scene_buffer->buffer->width;
+				*width = scene_buffer->buffer->height;
+			} else {
+				*width = scene_buffer->buffer->width;
+				*height = scene_buffer->buffer->height;
+			}
 		}
 		break;
 	}
@@ -658,6 +674,7 @@ static void render_node_iterator(struct wlr_scene_node *node,
 
 	struct wlr_texture *texture;
 	float matrix[9];
+	enum wl_output_transform transform;
 	switch (node->type) {
 	case WLR_SCENE_NODE_ROOT:
 	case WLR_SCENE_NODE_TREE:
@@ -672,8 +689,7 @@ static void render_node_iterator(struct wlr_scene_node *node,
 			return;
 		}
 
-		enum wl_output_transform transform =
-			wlr_output_transform_invert(surface->current.transform);
+		transform = wlr_output_transform_invert(surface->current.transform);
 		wlr_matrix_project_box(matrix, &dst_box, transform, 0.0,
 			output->transform_matrix);
 
@@ -694,7 +710,8 @@ static void render_node_iterator(struct wlr_scene_node *node,
 			return;
 		}
 
-		wlr_matrix_project_box(matrix, &dst_box, WL_OUTPUT_TRANSFORM_NORMAL, 0.0,
+		transform = wlr_output_transform_invert(scene_buffer->transform);
+		wlr_matrix_project_box(matrix, &dst_box, transform, 0.0,
 			output->transform_matrix);
 
 		render_texture(output, output_damage, texture, &scene_buffer->src_box,

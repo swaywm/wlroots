@@ -96,6 +96,7 @@ struct wlr_scene_buffer {
 	struct wlr_texture *texture;
 	struct wlr_fbox src_box;
 	int dst_width, dst_height;
+	enum wl_output_transform transform;
 };
 
 /** A viewport for an output in the scene-graph */
@@ -231,6 +232,12 @@ void wlr_scene_buffer_set_source_box(struct wlr_scene_buffer *scene_buffer,
  */
 void wlr_scene_buffer_set_dest_size(struct wlr_scene_buffer *scene_buffer,
 	int width, int height);
+
+/**
+ * Set a transform which will be applied to the buffer.
+ */
+void wlr_scene_buffer_set_transform(struct wlr_scene_buffer *scene_buffer,
+	enum wl_output_transform transform);
 
 /**
  * Add a viewport for the specified output to the scene-graph.
