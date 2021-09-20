@@ -195,6 +195,9 @@ uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface) {
 		surface->configure_next_serial = wl_display_next_serial(display);
 		surface->configure_idle = wl_event_loop_add_idle(loop,
 			surface_send_configure, surface);
+		if (surface->configure_idle == NULL) {
+			wl_client_post_no_memory(surface->client->client);
+		}
 	}
 	return surface->configure_next_serial;
 }
