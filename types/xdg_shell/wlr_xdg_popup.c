@@ -207,7 +207,7 @@ void handle_xdg_surface_popup_committed(struct wlr_xdg_surface *surface) {
 	}
 
 	if (!surface->popup->committed) {
-		schedule_xdg_surface_configure(surface);
+		wlr_xdg_surface_schedule_configure(surface);
 		surface->popup->committed = true;
 	}
 }

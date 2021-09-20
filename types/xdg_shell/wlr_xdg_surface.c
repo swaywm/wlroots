@@ -187,53 +187,16 @@ static void surface_send_configure(void *user_data) {
 	xdg_surface_send_configure(surface->resource, configure->serial);
 }
 
-static uint32_t schedule_configure(struct wlr_xdg_surface *surface,
-		bool pending_same) {
+uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface) {
 	struct wl_display *display = wl_client_get_display(surface->client->client);
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);
 
-	if (surface->configure_idle != NULL) {
-		if (!pending_same) {
-			// configure request already scheduled
-			return surface->configure_next_serial;
-		}
-
-		// configure request not necessary anymore
-		wl_event_source_remove(surface->configure_idle);
-		surface->configure_idle = NULL;
-		return 0;
-	} else {
-		if (pending_same) {
-			// configure request not necessary
-			return 0;
-		}
-
+	if (surface->configure_idle == NULL) {
 		surface->configure_next_serial = wl_display_next_serial(display);
 		surface->configure_idle = wl_event_loop_add_idle(loop,
 			surface_send_configure, surface);
-		return surface->configure_next_serial;
 	}
-}
-
-uint32_t schedule_xdg_surface_configure(struct wlr_xdg_surface *surface) {
-	bool pending_same = false;
-
-	switch (surface->role) {
-	case WLR_XDG_SURFACE_ROLE_NONE:
-		assert(0 && "not reached");
-		break;
-	case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
-		pending_same = compare_xdg_surface_toplevel_state(surface->toplevel);
-		break;
-	case WLR_XDG_SURFACE_ROLE_POPUP:
-		break;
-	}
-
-	return schedule_configure(surface, pending_same);
-}
-
-uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface) {
-	return schedule_configure(surface, false);
+	return surface->configure_next_serial;
 }
 
 static void xdg_surface_handle_get_popup(struct wl_client *client,
