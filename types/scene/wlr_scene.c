@@ -446,6 +446,9 @@ struct wlr_scene_node *wlr_scene_node_at(struct wlr_scene_node *node,
 	}
 
 	switch (node->type) {
+	case WLR_SCENE_NODE_ROOT:
+	case WLR_SCENE_NODE_TREE:
+		break;
 	case WLR_SCENE_NODE_SURFACE:;
 		struct wlr_scene_surface *scene_surface = wlr_scene_surface_from_node(node);
 		if (wlr_surface_point_accepts_input(scene_surface->surface, lx, ly)) {
@@ -469,8 +472,6 @@ struct wlr_scene_node *wlr_scene_node_at(struct wlr_scene_node *node,
 			}
 			return &rect->node;
 		}
-		break;
-	default:
 		break;
 	}
 
