@@ -25,6 +25,7 @@ struct wlr_cursor_device {
 	struct wl_listener motion_absolute;
 	struct wl_listener button;
 	struct wl_listener axis;
+	struct wl_listener axis_value120;
 	struct wl_listener frame;
 	struct wl_listener swipe_begin;
 	struct wl_listener swipe_update;
@@ -93,6 +94,7 @@ struct wlr_cursor *wlr_cursor_create(void) {
 	wl_signal_init(&cur->events.motion_absolute);
 	wl_signal_init(&cur->events.button);
 	wl_signal_init(&cur->events.axis);
+	wl_signal_init(&cur->events.axis_value120);
 	wl_signal_init(&cur->events.frame);
 	wl_signal_init(&cur->events.swipe_begin);
 	wl_signal_init(&cur->events.swipe_update);
@@ -153,6 +155,7 @@ static void cursor_device_destroy(struct wlr_cursor_device *c_device) {
 		wl_list_remove(&c_device->motion_absolute.link);
 		wl_list_remove(&c_device->button.link);
 		wl_list_remove(&c_device->axis.link);
+		wl_list_remove(&c_device->axis_value120.link);
 		wl_list_remove(&c_device->frame.link);
 		wl_list_remove(&c_device->swipe_begin.link);
 		wl_list_remove(&c_device->swipe_update.link);
@@ -447,6 +450,14 @@ static void handle_pointer_axis(struct wl_listener *listener, void *data) {
 	wlr_signal_emit_safe(&device->cursor->events.axis, event);
 }
 
+static void handle_pointer_axis_value120(struct wl_listener *listener,
+		void *data) {
+	struct wlr_event_pointer_axis_value120 *event = data;
+	struct wlr_cursor_device *device =
+		wl_container_of(listener, device, axis_value120);
+	wlr_signal_emit_safe(&device->cursor->events.axis_value120, event);
+}
+
 static void handle_pointer_frame(struct wl_listener *listener, void *data) {
 	struct wlr_cursor_device *device = wl_container_of(listener, device, frame);
 	wlr_signal_emit_safe(&device->cursor->events.frame, device->cursor);
@@ -639,6 +650,9 @@ static struct wlr_cursor_device *cursor_device_create(
 
 		wl_signal_add(&device->pointer->events.axis, &c_device->axis);
 		c_device->axis.notify = handle_pointer_axis;
+
+		wl_signal_add(&device->pointer->events.axis_value120, &c_device->axis_value120);
+		c_device->axis_value120.notify = handle_pointer_axis_value120;
 
 		wl_signal_add(&device->pointer->events.frame, &c_device->frame);
 		c_device->frame.notify = handle_pointer_frame;
