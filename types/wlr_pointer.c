@@ -11,6 +11,7 @@ void wlr_pointer_init(struct wlr_pointer *pointer,
 	wl_signal_init(&pointer->events.motion_absolute);
 	wl_signal_init(&pointer->events.button);
 	wl_signal_init(&pointer->events.axis);
+	wl_signal_init(&pointer->events.axis_value120);
 	wl_signal_init(&pointer->events.frame);
 	wl_signal_init(&pointer->events.swipe_begin);
 	wl_signal_init(&pointer->events.swipe_update);
