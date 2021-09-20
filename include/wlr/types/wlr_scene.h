@@ -31,6 +31,7 @@ enum wlr_scene_node_type {
 	WLR_SCENE_NODE_TREE,
 	WLR_SCENE_NODE_SURFACE,
 	WLR_SCENE_NODE_RECT,
+	WLR_SCENE_NODE_BUFFER,
 };
 
 struct wlr_scene_node_state {
@@ -83,6 +84,16 @@ struct wlr_scene_rect {
 	struct wlr_scene_node node;
 	int width, height;
 	float color[4];
+};
+
+/** A scene-graph node displaying a buffer */
+struct wlr_scene_buffer {
+	struct wlr_scene_node node;
+	struct wlr_buffer *buffer;
+
+	// private state
+
+	struct wlr_texture *texture;
 };
 
 /** A viewport for an output in the scene-graph */
@@ -193,6 +204,12 @@ void wlr_scene_rect_set_size(struct wlr_scene_rect *rect, int width, int height)
  * Change the color of an existing rectangle node.
  */
 void wlr_scene_rect_set_color(struct wlr_scene_rect *rect, const float color[static 4]);
+
+/**
+ * Add a node displaying a buffer to the scene-graph.
+ */
+struct wlr_scene_buffer *wlr_scene_buffer_create(struct wlr_scene_node *parent,
+	struct wlr_buffer *buffer);
 
 /**
  * Add a viewport for the specified output to the scene-graph.
