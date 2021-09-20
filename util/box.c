@@ -120,6 +120,10 @@ void wlr_box_transform(struct wlr_box *dest, const struct wlr_box *box,
 	}
 }
 
+bool wlr_fbox_empty(const struct wlr_fbox *box) {
+	return box == NULL || box->width <= 0 || box->height <= 0;
+}
+
 void wlr_fbox_transform(struct wlr_fbox *dest, const struct wlr_fbox *box,
 		enum wl_output_transform transform, double width, double height) {
 	struct wlr_fbox src = *box;

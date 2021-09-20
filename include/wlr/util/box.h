@@ -42,7 +42,7 @@ struct wlr_fbox {
 
 /**
  * Finds the closest point within the box bounds
- * 
+ *
  * Returns NAN if the box is empty
  */
 void wlr_box_closest_point(const struct wlr_box *box, double x, double y,
@@ -59,7 +59,7 @@ bool wlr_box_intersection(struct wlr_box *dest, const struct wlr_box *box_a,
 /**
  * Verifies if a point is contained within the bounds of a given wlr_box.
  *
- * For example: 
+ * For example:
  *   - A point at (100, 50) is not contained in the box (0, 0, 100, 50).
  *   - A point at (10, 10) is contained in the box (10, 0, 50, 50).
  */
@@ -67,7 +67,7 @@ bool wlr_box_contains_point(const struct wlr_box *box, double x, double y);
 
 /**
  * Checks whether a box is empty or not.
- * 
+ *
  * A wlr_box is considered empty if its width and/or height is zero or negative.
  */
 bool wlr_box_empty(const struct wlr_box *box);
@@ -79,8 +79,16 @@ void wlr_box_transform(struct wlr_box *dest, const struct wlr_box *box,
 	enum wl_output_transform transform, int width, int height);
 
 /**
+ * Checks whether a box is empty or not.
+ *
+ * A wlr_box is considered empty if its width and/or height is zero or negative.
+ */
+bool wlr_fbox_empty(const struct wlr_fbox *box);
+
+/**
  * Transforms a floating-point box inside a (0, 0, width, height) box.
  */
 void wlr_fbox_transform(struct wlr_fbox *dest, const struct wlr_fbox *box,
 	enum wl_output_transform transform, double width, double height);
+
 #endif
