@@ -88,6 +88,9 @@ struct wlr_pointer_grab_interface {
 	void (*axis)(struct wlr_seat_pointer_grab *grab, uint32_t time_msec,
 			enum wlr_axis_orientation orientation, double value,
 			int32_t value_discrete, enum wlr_axis_source source);
+	void (*axis_value120)(struct wlr_seat_pointer_grab *grab,
+			uint32_t time_msec, enum wlr_axis_orientation orientation,
+			double delta, int32_t delta_value120, enum wlr_axis_source source);
 	void (*frame)(struct wlr_seat_pointer_grab *grab);
 	void (*cancel)(struct wlr_seat_pointer_grab *grab);
 };
@@ -395,6 +398,15 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time_msec,
 		int32_t value_discrete, enum wlr_axis_source source);
 
 /**
+ * Send a high-resolution axis event to the surface with pointer focus. This
+ * function does not respect pointer grabs: you probably want
+ * `wlr_seat_pointer_notify_axis_value120()` instead.
+ */
+void wlr_seat_pointer_send_axis_value120(struct wlr_seat *wlr_seat,
+		uint32_t time_msec, enum wlr_axis_orientation orientation, double delta,
+		int32_t delta_value120, enum wlr_axis_source source);
+
+/**
  * Send a frame event to the surface with pointer focus. This function does not
  * respect pointer grabs: you probably want `wlr_seat_pointer_notify_frame()`
  * instead.
@@ -444,6 +456,14 @@ uint32_t wlr_seat_pointer_notify_button(struct wlr_seat *wlr_seat,
 void wlr_seat_pointer_notify_axis(struct wlr_seat *wlr_seat, uint32_t time_msec,
 		enum wlr_axis_orientation orientation, double value,
 		int32_t value_discrete, enum wlr_axis_source source);
+
+/**
+ * Notify the seat of a high-resolution axis event. Defers to any grab of the
+ * pointer.
+ */
+void wlr_seat_pointer_notify_axis_value120(struct wlr_seat *wlr_seat,
+		uint32_t time_msec, enum wlr_axis_orientation orientation, double delta,
+		int32_t delta_value120, enum wlr_axis_source source);
 
 /**
  * Notify the seat of a frame event. Frame events are sent to end a group of
