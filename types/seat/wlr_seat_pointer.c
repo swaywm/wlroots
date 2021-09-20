@@ -298,10 +298,14 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 			wl_pointer_send_axis_source(resource, source);
 		}
 		if (value) {
-			if (value_discrete &&
-					version >= WL_POINTER_AXIS_DISCRETE_SINCE_VERSION) {
-				wl_pointer_send_axis_discrete(resource, orientation,
-					value_discrete);
+			if (value_discrete) {
+				if (version >= WL_POINTER_AXIS_VALUE120_SINCE_VERSION) {
+					wl_pointer_send_axis_value120(resource, orientation,
+						value_discrete * 120);
+				} else if (version >= WL_POINTER_AXIS_DISCRETE_SINCE_VERSION) {
+					wl_pointer_send_axis_discrete(resource, orientation,
+						value_discrete);
+				}
 			}
 
 			wl_pointer_send_axis(resource, time, orientation,

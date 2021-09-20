@@ -13,7 +13,7 @@
 #include "util/global.h"
 #include "util/signal.h"
 
-#define SEAT_VERSION 7
+#define SEAT_VERSION 8
 
 static void seat_handle_get_pointer(struct wl_client *client,
 		struct wl_resource *seat_resource, uint32_t id) {
