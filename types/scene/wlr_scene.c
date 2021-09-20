@@ -445,34 +445,29 @@ struct wlr_scene_node *wlr_scene_node_at(struct wlr_scene_node *node,
 		}
 	}
 
+	bool intersects = false;
 	switch (node->type) {
 	case WLR_SCENE_NODE_ROOT:
 	case WLR_SCENE_NODE_TREE:
 		break;
 	case WLR_SCENE_NODE_SURFACE:;
 		struct wlr_scene_surface *scene_surface = wlr_scene_surface_from_node(node);
-		if (wlr_surface_point_accepts_input(scene_surface->surface, lx, ly)) {
-			if (nx != NULL) {
-				*nx = lx;
-			}
-			if (ny != NULL) {
-				*ny = ly;
-			}
-			return &scene_surface->node;
-		}
+		intersects = wlr_surface_point_accepts_input(scene_surface->surface, lx, ly);
 		break;
 	case WLR_SCENE_NODE_RECT:;
 		struct wlr_scene_rect *rect = scene_rect_from_node(node);
-		if (lx >= 0 && lx < rect->width && ly >= 0 && ly < rect->height) {
-			if (nx != NULL) {
-				*nx = lx;
-			}
-			if (ny != NULL) {
-				*ny = ly;
-			}
-			return &rect->node;
-		}
+		intersects = lx >= 0 && lx < rect->width && ly >= 0 && ly < rect->height;
 		break;
+	}
+
+	if (intersects) {
+		if (nx != NULL) {
+			*nx = lx;
+		}
+		if (ny != NULL) {
+			*ny = ly;
+		}
+		return node;
 	}
 
 	return NULL;
