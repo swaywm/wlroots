@@ -27,3 +27,14 @@ wlr_files += files(
 
 features += { 'libinput-backend': true }
 wlr_deps += libinput
+
+# Check whether libinput supports high-resolution scroll or not
+libinput_supports_scroll_value120 = cc.has_function(
+	'libinput_event_pointer_get_scroll_value_v120',
+	dependencies: libinput,
+)
+
+add_project_arguments(
+	'-DLIBINPUT_HAS_SCROLL_VALUE120=@0@'.format(libinput_supports_scroll_value120.to_int()),
+	language: 'c',
+)
