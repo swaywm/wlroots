@@ -32,6 +32,12 @@ static struct wlr_scene_rect *scene_rect_from_node(
 	return (struct wlr_scene_rect *)node;
 }
 
+static struct wlr_scene_buffer *scene_buffer_from_node(
+		struct wlr_scene_node *node) {
+	assert(node->type == WLR_SCENE_NODE_BUFFER);
+	return (struct wlr_scene_buffer *)node;
+}
+
 static void scene_node_state_init(struct wlr_scene_node_state *state) {
 	wl_list_init(&state->children);
 	wl_list_init(&state->link);
@@ -101,6 +107,12 @@ void wlr_scene_node_destroy(struct wlr_scene_node *node) {
 	case WLR_SCENE_NODE_RECT:;
 		struct wlr_scene_rect *scene_rect = scene_rect_from_node(node);
 		free(scene_rect);
+		break;
+	case WLR_SCENE_NODE_BUFFER:;
+		struct wlr_scene_buffer *scene_buffer = scene_buffer_from_node(node);
+		wlr_texture_destroy(scene_buffer->texture);
+		wlr_buffer_unlock(scene_buffer->buffer);
+		free(scene_buffer);
 		break;
 	}
 }
@@ -239,6 +251,38 @@ void wlr_scene_rect_set_color(struct wlr_scene_rect *rect, const float color[sta
 	scene_node_damage_whole(&rect->node);
 }
 
+struct wlr_scene_buffer *wlr_scene_buffer_create(struct wlr_scene_node *parent,
+		struct wlr_buffer *buffer) {
+	struct wlr_scene_buffer *scene_buffer = calloc(1, sizeof(*scene_buffer));
+	if (scene_buffer == NULL) {
+		return NULL;
+	}
+	scene_node_init(&scene_buffer->node, WLR_SCENE_NODE_BUFFER, parent);
+
+	scene_buffer->buffer = wlr_buffer_lock(buffer);
+
+	scene_node_damage_whole(&scene_buffer->node);
+
+	return scene_buffer;
+}
+
+static struct wlr_texture *scene_buffer_get_texture(
+		struct wlr_scene_buffer *scene_buffer, struct wlr_renderer *renderer) {
+	struct wlr_client_buffer *client_buffer =
+		wlr_client_buffer_get(scene_buffer->buffer);
+	if (client_buffer != NULL) {
+		return client_buffer->texture;
+	}
+
+	if (scene_buffer->texture != NULL) {
+		return scene_buffer->texture;
+	}
+
+	scene_buffer->texture =
+		wlr_texture_from_buffer(renderer, scene_buffer->buffer);
+	return scene_buffer->texture;
+}
+
 static int scale_length(int length, int offset, float scale) {
 	return round((offset + length) * scale) - round(offset * scale);
 }
@@ -277,6 +321,11 @@ static void _scene_node_damage_whole(struct wlr_scene_node *node,
 		struct wlr_scene_rect *scene_rect = scene_rect_from_node(node);
 		width = scene_rect->width;
 		height = scene_rect->height;
+		break;
+	case WLR_SCENE_NODE_BUFFER:;
+		struct wlr_scene_buffer *scene_buffer = scene_buffer_from_node(node);
+		width = scene_buffer->buffer->width;
+		height = scene_buffer->buffer->height;
 		break;
 	}
 
@@ -458,6 +507,11 @@ struct wlr_scene_node *wlr_scene_node_at(struct wlr_scene_node *node,
 		struct wlr_scene_rect *rect = scene_rect_from_node(node);
 		intersects = lx >= 0 && lx < rect->width && ly >= 0 && ly < rect->height;
 		break;
+	case WLR_SCENE_NODE_BUFFER:;
+		struct wlr_scene_buffer *scene_buffer = scene_buffer_from_node(node);
+		intersects = lx >= 0 && lx < scene_buffer->buffer->width &&
+			ly >= 0 && ly < scene_buffer->buffer->height;
+		break;
 	}
 
 	if (intersects) {
@@ -551,6 +605,8 @@ static void render_node_iterator(struct wlr_scene_node *node,
 		.y = y,
 	};
 
+	struct wlr_texture *texture;
+	float matrix[9];
 	switch (node->type) {
 	case WLR_SCENE_NODE_ROOT:
 	case WLR_SCENE_NODE_TREE:
@@ -560,7 +616,7 @@ static void render_node_iterator(struct wlr_scene_node *node,
 		struct wlr_scene_surface *scene_surface = wlr_scene_surface_from_node(node);
 		struct wlr_surface *surface = scene_surface->surface;
 
-		struct wlr_texture *texture = wlr_surface_get_texture(surface);
+		texture = wlr_surface_get_texture(surface);
 		if (texture == NULL) {
 			return;
 		}
@@ -569,7 +625,6 @@ static void render_node_iterator(struct wlr_scene_node *node,
 		box.height = surface->current.height;
 		scale_box(&box, output->scale);
 
-		float matrix[9];
 		enum wl_output_transform transform =
 			wlr_output_transform_invert(surface->current.transform);
 		wlr_matrix_project_box(matrix, &box, transform, 0.0,
@@ -586,6 +641,24 @@ static void render_node_iterator(struct wlr_scene_node *node,
 
 		render_rect(output, output_damage, scene_rect->color, &box,
 				output->transform_matrix);
+		break;
+	case WLR_SCENE_NODE_BUFFER:;
+		struct wlr_scene_buffer *scene_buffer = scene_buffer_from_node(node);
+
+		struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+		texture = scene_buffer_get_texture(scene_buffer, renderer);
+		if (texture == NULL) {
+			return;
+		}
+
+		box.width = scene_buffer->buffer->width;
+		box.height = scene_buffer->buffer->height;
+		scale_box(&box, data->output->scale);
+
+		wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0.0,
+			output->transform_matrix);
+
+		render_texture(output, output_damage, texture, &box, matrix);
 		break;
 	}
 }
