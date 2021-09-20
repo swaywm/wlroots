@@ -135,6 +135,10 @@ static void seat_handle_bind(struct wl_client *client, void *_wlr_seat,
 
 		seat_client->client = client;
 		seat_client->seat = wlr_seat;
+		seat_client->acc_vertical_value120 = 0;
+		seat_client->acc_horizontal_value120 = 0;
+		seat_client->acc_axis = 0;
+		seat_client->last_value120_time = 0;
 		wl_list_init(&seat_client->resources);
 		wl_list_init(&seat_client->pointers);
 		wl_list_init(&seat_client->keyboards);

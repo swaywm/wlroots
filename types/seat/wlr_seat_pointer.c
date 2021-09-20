@@ -10,6 +10,8 @@
 #include "util/signal.h"
 #include "util/array.h"
 
+#define VALUE120_ACC_EXPIRE_TIME 1000 // milliseconds
+
 static void default_pointer_enter(struct wlr_seat_pointer_grab *grab,
 		struct wlr_surface *surface, double sx, double sy) {
 	wlr_seat_pointer_enter(grab->seat, surface, sx, sy);
@@ -341,6 +343,22 @@ void wlr_seat_pointer_send_axis_value120(struct wlr_seat *wlr_seat,
 		send_source = true;
 	}
 
+	bool send_axis = true;
+	wl_fixed_t axis_value = wl_fixed_from_double(delta);
+
+	if (time - client->last_value120_time > VALUE120_ACC_EXPIRE_TIME) {
+		client->acc_vertical_value120 = 0;
+		client->acc_horizontal_value120 = 0;
+		client->acc_axis = 0;
+	}
+
+	int32_t *acc_value = (orientation == WLR_AXIS_ORIENTATION_VERTICAL) ?
+		&client->acc_vertical_value120 :
+		&client->acc_horizontal_value120;
+	*acc_value += delta_value120;
+	client->acc_axis += delta;
+	client->last_value120_time = time;
+
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->pointers) {
 		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
@@ -357,11 +375,24 @@ void wlr_seat_pointer_send_axis_value120(struct wlr_seat *wlr_seat,
 				if (version >= WL_POINTER_AXIS_VALUE120_SINCE_VERSION) {
 					wl_pointer_send_axis_value120(resource, orientation,
 						delta_value120);
+				} else if (version >= WL_POINTER_AXIS_DISCRETE_SINCE_VERSION) {
+					send_axis = (abs(*acc_value) >= 120);
+					if (send_axis) {
+						int32_t discrete = (*acc_value / 120);
+						*acc_value -= (discrete * 120);
+
+						axis_value = wl_fixed_from_double(client->acc_axis);
+						client->acc_axis = 0;
+
+						wl_pointer_send_axis_discrete(resource, orientation,
+							discrete);
+					}
 				}
 			}
 
-			wl_pointer_send_axis(resource, time, orientation,
-				wl_fixed_from_double(delta));
+			if (send_axis) {
+				wl_pointer_send_axis(resource, time, orientation, axis_value);
+			}
 		} else if (version >= WL_POINTER_AXIS_STOP_SINCE_VERSION) {
 			wl_pointer_send_axis_stop(resource, time, orientation);
 		}

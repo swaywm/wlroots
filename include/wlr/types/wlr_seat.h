@@ -53,6 +53,13 @@ struct wlr_seat_client {
 	// for use by wlr_seat_client_{next_serial,validate_event_serial}
 	struct wlr_serial_ringset serials;
 	bool needs_touch_frame;
+
+	// when the backend supports high-resolution scroll but the client doesn't,
+	// accumulate deltas until we can notify a discrete event.
+	int32_t acc_vertical_value120;
+	int32_t acc_horizontal_value120;
+	double acc_axis;
+	uint32_t last_value120_time;
 };
 
 struct wlr_touch_point {
