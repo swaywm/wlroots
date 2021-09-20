@@ -257,7 +257,10 @@ void handle_libinput_event(struct wlr_libinput_backend *backend,
 		handle_pointer_button(event, libinput_dev);
 		break;
 	case LIBINPUT_EVENT_POINTER_AXIS:
+#if !LIBINPUT_HAS_SCROLL_VALUE120
+		/* This event must be ignored in favour of the SCROLL_* events */
 		handle_pointer_axis(event, libinput_dev);
+#endif
 		break;
 	case LIBINPUT_EVENT_TOUCH_DOWN:
 		handle_touch_down(event, libinput_dev);
