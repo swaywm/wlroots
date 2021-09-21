@@ -81,11 +81,14 @@ struct wlr_egl {
  * Callers are expected to clear the current context when they are done by
  * calling wlr_egl_unset_current.
  */
-bool wlr_egl_make_current(struct wlr_egl *egl);
+bool wlr_egl_context_set_current(struct wlr_egl_context *ctx);
 
-bool wlr_egl_unset_current(struct wlr_egl *egl);
+/**
+ * Clear the EGL context
+ */
+bool wlr_egl_context_unset_current(struct wlr_egl_context *ctx);
 
-bool wlr_egl_is_current(struct wlr_egl *egl);
+bool wlr_egl_context_is_current(struct wlr_egl_context *ctx);
 
 /**
  * Save the current EGL context to the structure provided in the argument.

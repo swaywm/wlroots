@@ -560,6 +560,27 @@ bool wlr_egl_is_current(struct wlr_egl *egl) {
 	return eglGetCurrentContext() == egl->context;
 }
 
+bool wlr_egl_context_set_current(struct wlr_egl_context *ctx) {
+	if (!eglMakeCurrent(ctx->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+			ctx->context)) {
+		wlr_log(WLR_ERROR, "eglMakeCurrent failed");
+		return false;
+	}
+	return true;
+}
+
+bool wlr_egl_context_unset_current(struct wlr_egl_context *ctx) {
+	if (!eglMakeCurrent(ctx->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+			EGL_NO_CONTEXT)) {
+		wlr_log(WLR_ERROR, "eglMakeCurrent failed");
+		return false;
+	}
+	return true;
+}
+
+bool wlr_egl_context_is_current(struct wlr_egl_context *ctx) {
+	return eglGetCurrentContext() == ctx->context;
+}
 
 void wlr_egl_context_save(struct wlr_egl_context *context) {
 	context->display = eglGetCurrentDisplay();
@@ -567,7 +588,6 @@ void wlr_egl_context_save(struct wlr_egl_context *context) {
 	context->draw_surface = eglGetCurrentSurface(EGL_DRAW);
 	context->read_surface = eglGetCurrentSurface(EGL_READ);
 }
-
 
 bool wlr_egl_context_restore(struct wlr_egl_context *context) {
 	// If the saved context is a null-context, we must use the current

@@ -41,4 +41,19 @@ bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImageKHR image);
 
 int wlr_egl_dup_drm_fd(struct wlr_egl *egl);
 
+/**
+ * Makes the provided EGL context current
+ *
+ * Callers are expected to clear the current context when they are done by
+ * calling wlr_egl_unset_current.
+ */
+bool wlr_egl_make_current(struct wlr_egl *egl);
+
+/**
+ * Clears the current EGLContext
+ */
+bool wlr_egl_unset_current(struct wlr_egl *egl);
+
+bool wlr_egl_is_current(struct wlr_egl *egl);
+
 #endif
