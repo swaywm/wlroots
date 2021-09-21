@@ -1,6 +1,7 @@
 #ifndef RENDER_EGL_H
 #define RENDER_EGL_H
 
+#include <wlr/render/dmabuf.h>
 #include <wlr/render/egl.h>
 
 struct wlr_egl {
