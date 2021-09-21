@@ -29,6 +29,13 @@
 #include <wlr/render/dmabuf.h>
 #include <wlr/render/drm_format_set.h>
 
+struct wlr_egl_context {
+	EGLDisplay display;
+	EGLContext context;
+	EGLSurface draw_surface;
+	EGLSurface read_surface;
+};
+
 struct wlr_egl {
 	EGLDisplay display;
 	EGLContext context;
@@ -79,5 +86,17 @@ bool wlr_egl_make_current(struct wlr_egl *egl);
 bool wlr_egl_unset_current(struct wlr_egl *egl);
 
 bool wlr_egl_is_current(struct wlr_egl *egl);
+
+/**
+ * Save the current EGL context to the structure provided in the argument.
+ *
+ * This includes display, context, draw surface and read surface.
+ */
+void wlr_egl_context_save(struct wlr_egl_context *context);
+
+/**
+ * Restore EGL context that was previously saved using wlr_egl_context_save().
+ */
+bool wlr_egl_context_restore(struct wlr_egl_context *context);
 
 #endif

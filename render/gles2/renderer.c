@@ -51,7 +51,7 @@ static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
 	wlr_addon_finish(&buffer->addon);
 
 	struct wlr_egl_context prev_ctx;
-	wlr_egl_save_context(&prev_ctx);
+	wlr_egl_context_save(&prev_ctx);
 	wlr_egl_make_current(buffer->renderer->egl);
 
 	push_gles2_debug(buffer->renderer);
@@ -63,7 +63,7 @@ static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
 
 	wlr_egl_destroy_image(buffer->renderer->egl, buffer->image);
 
-	wlr_egl_restore_context(&prev_ctx);
+	wlr_egl_context_restore(&prev_ctx);
 
 	free(buffer);
 }

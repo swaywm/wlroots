@@ -73,7 +73,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	}
 
 	struct wlr_egl_context prev_ctx;
-	wlr_egl_save_context(&prev_ctx);
+	wlr_egl_context_save(&prev_ctx);
 	wlr_egl_make_current(texture->renderer->egl);
 
 	push_gles2_debug(texture->renderer);
@@ -95,7 +95,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 
 	pop_gles2_debug(texture->renderer);
 
-	wlr_egl_restore_context(&prev_ctx);
+	wlr_egl_context_restore(&prev_ctx);
 
 	return true;
 }
@@ -110,7 +110,7 @@ static bool gles2_texture_invalidate(struct wlr_gles2_texture *texture) {
 	}
 
 	struct wlr_egl_context prev_ctx;
-	wlr_egl_save_context(&prev_ctx);
+	wlr_egl_context_save(&prev_ctx);
 	wlr_egl_make_current(texture->renderer->egl);
 
 	push_gles2_debug(texture->renderer);
@@ -122,7 +122,7 @@ static bool gles2_texture_invalidate(struct wlr_gles2_texture *texture) {
 
 	pop_gles2_debug(texture->renderer);
 
-	wlr_egl_restore_context(&prev_ctx);
+	wlr_egl_context_restore(&prev_ctx);
 
 	return true;
 }
@@ -134,7 +134,7 @@ void gles2_texture_destroy(struct wlr_gles2_texture *texture) {
 	}
 
 	struct wlr_egl_context prev_ctx;
-	wlr_egl_save_context(&prev_ctx);
+	wlr_egl_context_save(&prev_ctx);
 	wlr_egl_make_current(texture->renderer->egl);
 
 	push_gles2_debug(texture->renderer);
@@ -144,7 +144,7 @@ void gles2_texture_destroy(struct wlr_gles2_texture *texture) {
 
 	pop_gles2_debug(texture->renderer);
 
-	wlr_egl_restore_context(&prev_ctx);
+	wlr_egl_context_restore(&prev_ctx);
 
 	free(texture);
 }
@@ -211,7 +211,7 @@ static struct wlr_texture *gles2_texture_from_pixels(
 	texture->drm_format = fmt->drm_format;
 
 	struct wlr_egl_context prev_ctx;
-	wlr_egl_save_context(&prev_ctx);
+	wlr_egl_context_save(&prev_ctx);
 	wlr_egl_make_current(renderer->egl);
 
 	push_gles2_debug(renderer);
@@ -230,7 +230,7 @@ static struct wlr_texture *gles2_texture_from_pixels(
 
 	pop_gles2_debug(renderer);
 
-	wlr_egl_restore_context(&prev_ctx);
+	wlr_egl_context_restore(&prev_ctx);
 
 	return &texture->wlr_texture;
 }
@@ -263,7 +263,7 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 	}
 
 	struct wlr_egl_context prev_ctx;
-	wlr_egl_save_context(&prev_ctx);
+	wlr_egl_context_save(&prev_ctx);
 	wlr_egl_make_current(renderer->egl);
 
 	bool external_only;
@@ -271,7 +271,7 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 		wlr_egl_create_image_from_dmabuf(renderer->egl, attribs, &external_only);
 	if (texture->image == EGL_NO_IMAGE_KHR) {
 		wlr_log(WLR_ERROR, "Failed to create EGL image from DMA-BUF");
-		wlr_egl_restore_context(&prev_ctx);
+		wlr_egl_context_restore(&prev_ctx);
 		wl_list_remove(&texture->link);
 		free(texture);
 		return NULL;
@@ -290,7 +290,7 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 
 	pop_gles2_debug(renderer);
 
-	wlr_egl_restore_context(&prev_ctx);
+	wlr_egl_context_restore(&prev_ctx);
 
 	return &texture->wlr_texture;
 }
