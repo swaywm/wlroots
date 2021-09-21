@@ -494,10 +494,10 @@ static uint32_t gles2_get_render_buffer_caps(struct wlr_renderer *wlr_renderer) 
 	return WLR_BUFFER_CAP_DMABUF;
 }
 
-struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *wlr_renderer) {
-	struct wlr_gles2_renderer *renderer =
-		gles2_get_renderer(wlr_renderer);
-	return renderer->egl;
+struct wlr_egl_context *wlr_gles2_renderer_get_egl_context(
+		struct wlr_renderer *wlr_renderer) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	return &renderer->egl->ctx;
 }
 
 static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
