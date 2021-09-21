@@ -5,8 +5,7 @@
 #include <wlr/render/egl.h>
 
 struct wlr_egl {
-	EGLDisplay display;
-	EGLContext context;
+	struct wlr_egl_context ctx;
 	EGLDeviceEXT device; // may be EGL_NO_DEVICE_EXT
 	struct gbm_device *gbm_device;
 

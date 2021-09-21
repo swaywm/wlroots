@@ -223,20 +223,21 @@ static struct wlr_egl *egl_create(void) {
 
 static bool egl_init(struct wlr_egl *egl, EGLenum platform,
 		void *remote_display) {
-	egl->display = egl->procs.eglGetPlatformDisplayEXT(platform,
+	egl->ctx.display = egl->procs.eglGetPlatformDisplayEXT(platform,
 		remote_display, NULL);
-	if (egl->display == EGL_NO_DISPLAY) {
+	if (egl->ctx.display == EGL_NO_DISPLAY) {
 		wlr_log(WLR_ERROR, "Failed to create EGL display");
 		return false;
 	}
 
 	EGLint major, minor;
-	if (eglInitialize(egl->display, &major, &minor) == EGL_FALSE) {
+	if (eglInitialize(egl->ctx.display, &major, &minor) == EGL_FALSE) {
 		wlr_log(WLR_ERROR, "Failed to initialize EGL");
 		return false;
 	}
 
-	const char *display_exts_str = eglQueryString(egl->display, EGL_EXTENSIONS);
+	const char *display_exts_str =
+			eglQueryString(egl->ctx.display, EGL_EXTENSIONS);
 	if (display_exts_str == NULL) {
 		wlr_log(WLR_ERROR, "Failed to query EGL display extensions");
 		return false;
@@ -262,7 +263,7 @@ static bool egl_init(struct wlr_egl *egl, EGLenum platform,
 	const char *device_exts_str = NULL, *driver_name = NULL;
 	if (egl->exts.EXT_device_query) {
 		EGLAttrib device_attrib;
-		if (!egl->procs.eglQueryDisplayAttribEXT(egl->display,
+		if (!egl->procs.eglQueryDisplayAttribEXT(egl->ctx.display,
 				EGL_DEVICE_EXT, &device_attrib)) {
 			wlr_log(WLR_ERROR, "eglQueryDisplayAttribEXT(EGL_DEVICE_EXT) failed");
 			return false;
@@ -318,7 +319,8 @@ static bool egl_init(struct wlr_egl *egl, EGLenum platform,
 		wlr_log(WLR_INFO, "Supported EGL device extensions: %s", device_exts_str);
 	}
 	wlr_log(WLR_INFO, "Using EGL %d.%d", (int)major, (int)minor);
-	wlr_log(WLR_INFO, "EGL vendor: %s", eglQueryString(egl->display, EGL_VENDOR));
+	wlr_log(WLR_INFO, "EGL vendor: %s",
+			eglQueryString(egl->ctx.display, EGL_VENDOR));
 	if (driver_name != NULL) {
 		wlr_log(WLR_INFO, "EGL driver name: %s", driver_name);
 	}
@@ -347,16 +349,16 @@ static bool egl_init(struct wlr_egl *egl, EGLenum platform,
 	attribs[atti++] = EGL_NONE;
 	assert(atti <= sizeof(attribs)/sizeof(attribs[0]));
 
-	egl->context = eglCreateContext(egl->display, EGL_NO_CONFIG_KHR,
+	egl->ctx.context = eglCreateContext(egl->ctx.display, EGL_NO_CONFIG_KHR,
 		EGL_NO_CONTEXT, attribs);
-	if (egl->context == EGL_NO_CONTEXT) {
+	if (egl->ctx.context == EGL_NO_CONTEXT) {
 		wlr_log(WLR_ERROR, "Failed to create EGL context");
 		return false;
 	}
 
 	if (request_high_priority) {
 		EGLint priority = EGL_CONTEXT_PRIORITY_MEDIUM_IMG;
-		eglQueryContext(egl->display, egl->context,
+		eglQueryContext(egl->ctx.display, egl->ctx.context,
 			EGL_CONTEXT_PRIORITY_LEVEL_IMG, &priority);
 		if (priority != EGL_CONTEXT_PRIORITY_HIGH_IMG) {
 			wlr_log(WLR_INFO, "Failed to obtain a high priority context");
@@ -495,10 +497,10 @@ struct wlr_egl *wlr_egl_create_with_drm_fd(int drm_fd) {
 
 error:
 	wlr_log(WLR_ERROR, "Failed to initialize EGL context");
-	if (egl->display) {
-		eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+	if (egl->ctx.display) {
+		eglMakeCurrent(egl->ctx.display, EGL_NO_SURFACE, EGL_NO_SURFACE,
 			EGL_NO_CONTEXT);
-		eglTerminate(egl->display);
+		eglTerminate(egl->ctx.display);
 	}
 	free(egl);
 	eglReleaseThread();
@@ -513,10 +515,11 @@ void wlr_egl_destroy(struct wlr_egl *egl) {
 	wlr_drm_format_set_finish(&egl->dmabuf_render_formats);
 	wlr_drm_format_set_finish(&egl->dmabuf_texture_formats);
 
-	eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	eglMakeCurrent(egl->ctx.display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+			EGL_NO_CONTEXT);
 
-	eglDestroyContext(egl->display, egl->context);
-	eglTerminate(egl->display);
+	eglDestroyContext(egl->ctx.display, egl->ctx.context);
+	eglTerminate(egl->ctx.display);
 	eglReleaseThread();
 
 	if (egl->gbm_device) {
@@ -535,29 +538,19 @@ bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
 	if (!image) {
 		return true;
 	}
-	return egl->procs.eglDestroyImageKHR(egl->display, image);
+	return egl->procs.eglDestroyImageKHR(egl->ctx.display, image);
 }
 
 bool wlr_egl_make_current(struct wlr_egl *egl) {
-	if (!eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
-			egl->context)) {
-		wlr_log(WLR_ERROR, "eglMakeCurrent failed");
-		return false;
-	}
-	return true;
+	return wlr_egl_context_set_current(&egl->ctx);
 }
 
 bool wlr_egl_unset_current(struct wlr_egl *egl) {
-	if (!eglMakeCurrent(egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
-			EGL_NO_CONTEXT)) {
-		wlr_log(WLR_ERROR, "eglMakeCurrent failed");
-		return false;
-	}
-	return true;
+	return wlr_egl_context_unset_current(&egl->ctx);
 }
 
 bool wlr_egl_is_current(struct wlr_egl *egl) {
-	return eglGetCurrentContext() == egl->context;
+	return wlr_egl_context_is_current(&egl->ctx);
 }
 
 bool wlr_egl_context_set_current(struct wlr_egl_context *ctx) {
@@ -694,15 +687,15 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 	attribs[atti++] = EGL_NONE;
 	assert(atti < sizeof(attribs)/sizeof(attribs[0]));
 
-	EGLImageKHR image = egl->procs.eglCreateImageKHR(egl->display, EGL_NO_CONTEXT,
-		EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
+	EGLImageKHR image = egl->procs.eglCreateImageKHR(egl->ctx.display,
+			EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
 	if (image == EGL_NO_IMAGE_KHR) {
 		wlr_log(WLR_ERROR, "eglCreateImageKHR failed");
 		return EGL_NO_IMAGE_KHR;
 	}
 
 	*external_only = !wlr_drm_format_set_has(&egl->dmabuf_render_formats,
-		attributes->format, attributes->modifier);
+			attributes->format, attributes->modifier);
 	return image;
 }
 
@@ -736,7 +729,7 @@ static int get_egl_dmabuf_formats(struct wlr_egl *egl, int **formats) {
 	}
 
 	EGLint num;
-	if (!egl->procs.eglQueryDmaBufFormatsEXT(egl->display, 0, NULL, &num)) {
+	if (!egl->procs.eglQueryDmaBufFormatsEXT(egl->ctx.display, 0, NULL, &num)) {
 		wlr_log(WLR_ERROR, "Failed to query number of dmabuf formats");
 		return -1;
 	}
@@ -747,7 +740,8 @@ static int get_egl_dmabuf_formats(struct wlr_egl *egl, int **formats) {
 		return -1;
 	}
 
-	if (!egl->procs.eglQueryDmaBufFormatsEXT(egl->display, num, *formats, &num)) {
+	if (!egl->procs.eglQueryDmaBufFormatsEXT(egl->ctx.display, num, *formats,
+			&num)) {
 		wlr_log(WLR_ERROR, "Failed to query dmabuf format");
 		free(*formats);
 		return -1;
@@ -769,7 +763,7 @@ static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
 	}
 
 	EGLint num;
-	if (!egl->procs.eglQueryDmaBufModifiersEXT(egl->display, format, 0,
+	if (!egl->procs.eglQueryDmaBufModifiersEXT(egl->ctx.display, format, 0,
 			NULL, NULL, &num)) {
 		wlr_log(WLR_ERROR, "Failed to query dmabuf number of modifiers");
 		return -1;
@@ -791,7 +785,7 @@ static int get_egl_dmabuf_modifiers(struct wlr_egl *egl, int format,
 		return -1;
 	}
 
-	if (!egl->procs.eglQueryDmaBufModifiersEXT(egl->display, format, num,
+	if (!egl->procs.eglQueryDmaBufModifiersEXT(egl->ctx.display, format, num,
 			*modifiers, *external_only, &num)) {
 		wlr_log(WLR_ERROR, "Failed to query dmabuf modifiers");
 		free(*modifiers);
@@ -892,8 +886,8 @@ int wlr_egl_dup_drm_fd(struct wlr_egl *egl) {
 #endif
 
 	if (render_name == NULL) {
-		const char *primary_name = egl->procs.eglQueryDeviceStringEXT(egl->device,
-			EGL_DRM_DEVICE_FILE_EXT);
+		const char *primary_name = egl->procs.eglQueryDeviceStringEXT(
+				egl->device, EGL_DRM_DEVICE_FILE_EXT);
 		if (primary_name == NULL) {
 			wlr_log(WLR_ERROR,
 				"eglQueryDeviceStringEXT(EGL_DRM_DEVICE_FILE_EXT) failed");
