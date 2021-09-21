@@ -694,7 +694,7 @@ struct wlr_renderer *wlr_gles2_renderer_create_with_drm_fd(int drm_fd) {
 		return NULL;
 	}
 
-	struct wlr_renderer *renderer = wlr_gles2_renderer_create(egl);
+	struct wlr_renderer *renderer = gles2_renderer_create(egl);
 	if (!renderer) {
 		wlr_log(WLR_ERROR, "Failed to create GLES2 renderer");
 		wlr_egl_destroy(egl);
@@ -704,7 +704,7 @@ struct wlr_renderer *wlr_gles2_renderer_create_with_drm_fd(int drm_fd) {
 	return renderer;
 }
 
-struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
+struct wlr_renderer *gles2_renderer_create(struct wlr_egl *egl) {
 	if (!wlr_egl_context_set_current(&egl->ctx)) {
 		return NULL;
 	}
