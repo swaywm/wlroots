@@ -77,6 +77,10 @@ struct wlr_layer_surface_v1 {
 
 	struct wlr_layer_surface_v1_state current, pending;
 
+	// Properties to be sent to the client in the next configure event.
+	struct wlr_layer_surface_v1_configure scheduled;
+	struct wl_event_source *configure_idle;
+
 	struct wl_listener surface_destroy;
 
 	struct {
@@ -117,7 +121,7 @@ struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display)
  * layer_surface will signal its map event when the surface is ready to assume
  * this size. Returns the associated configure serial.
  */
-uint32_t wlr_layer_surface_v1_configure(struct wlr_layer_surface_v1 *surface,
+uint32_t wlr_layer_surface_v1_set_size(struct wlr_layer_surface_v1 *surface,
 		uint32_t width, uint32_t height);
 
 /**

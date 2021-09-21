@@ -234,6 +234,10 @@ static void layer_surface_unmap(struct wlr_layer_surface_v1 *surface) {
 	}
 
 	surface->configured = surface->mapped = false;
+	if (surface->configure_idle) {
+		wl_event_source_remove(surface->configure_idle);
+		surface->configure_idle = NULL;
+	}
 }
 
 static void layer_surface_destroy(struct wlr_layer_surface_v1 *surface) {
@@ -256,24 +260,44 @@ static void layer_surface_resource_destroy(struct wl_resource *resource) {
 	}
 }
 
-uint32_t wlr_layer_surface_v1_configure(struct wlr_layer_surface_v1 *surface,
-		uint32_t width, uint32_t height) {
-	struct wl_display *display =
-		wl_client_get_display(wl_resource_get_client(surface->resource));
+static void surface_send_configure(void *data) {
+	struct wlr_layer_surface_v1 *surface = data;
+
+	surface->configure_idle = NULL;
+
 	struct wlr_layer_surface_v1_configure *configure =
-		calloc(1, sizeof(struct wlr_layer_surface_v1_configure));
+		calloc(1, sizeof(*configure));
 	if (configure == NULL) {
-		wl_client_post_no_memory(wl_resource_get_client(surface->resource));
-		return surface->pending.configure_serial;
+		wl_resource_post_no_memory(surface->resource);
+		return;
 	}
+	*configure = surface->scheduled;
 	wl_list_insert(surface->configure_list.prev, &configure->link);
-	configure->width = width;
-	configure->height = height;
-	configure->serial = wl_display_next_serial(display);
 	zwlr_layer_surface_v1_send_configure(surface->resource,
-			configure->serial, configure->width,
-			configure->height);
-	return configure->serial;
+		configure->serial, configure->width, configure->height);
+}
+
+static uint32_t schedule_configure(struct wlr_layer_surface_v1 *surface) {
+	struct wl_client *client = wl_resource_get_client(surface->resource);
+	struct wl_display *display = wl_client_get_display(client);
+	struct wl_event_loop *loop = wl_display_get_event_loop(display);
+
+	if (surface->configure_idle == NULL) {
+		surface->scheduled.serial = wl_display_next_serial(display);
+		surface->configure_idle = wl_event_loop_add_idle(loop,
+			surface_send_configure, surface);
+		if (surface->configure_idle == NULL) {
+			wl_client_post_no_memory(client);
+		}
+	}
+	return surface->scheduled.serial;
+}
+
+uint32_t wlr_layer_surface_v1_set_size(struct wlr_layer_surface_v1 *surface,
+		uint32_t width, uint32_t height) {
+	surface->scheduled.width = width;
+	surface->scheduled.height = height;
+	return schedule_configure(surface);
 }
 
 void wlr_layer_surface_v1_destroy(struct wlr_layer_surface_v1 *surface) {
