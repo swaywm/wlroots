@@ -41,7 +41,7 @@ struct wlr_gles2_renderer *gles2_get_renderer(
 static struct wlr_gles2_renderer *gles2_get_renderer_in_context(
 		struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	assert(wlr_egl_is_current(renderer->egl));
+	assert(wlr_egl_context_is_current(&renderer->egl->ctx));
 	assert(renderer->current_buffer != NULL);
 	return renderer;
 }
@@ -52,7 +52,7 @@ static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_context_save(&prev_ctx);
-	wlr_egl_make_current(buffer->renderer->egl);
+	wlr_egl_context_set_current(&buffer->renderer->egl->ctx);
 
 	push_gles2_debug(buffer->renderer);
 
@@ -156,7 +156,7 @@ static bool gles2_bind_buffer(struct wlr_renderer *wlr_renderer,
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
 	if (renderer->current_buffer != NULL) {
-		assert(wlr_egl_is_current(renderer->egl));
+		assert(wlr_egl_context_is_current(&renderer->egl->ctx));
 
 		push_gles2_debug(renderer);
 		glFlush();
@@ -168,11 +168,11 @@ static bool gles2_bind_buffer(struct wlr_renderer *wlr_renderer,
 	}
 
 	if (wlr_buffer == NULL) {
-		wlr_egl_unset_current(renderer->egl);
+		wlr_egl_context_unset_current(&renderer->egl->ctx);
 		return true;
 	}
 
-	wlr_egl_make_current(renderer->egl);
+	wlr_egl_context_set_current(&renderer->egl->ctx);
 
 	struct wlr_gles2_buffer *buffer = get_buffer(renderer, wlr_buffer);
 	if (buffer == NULL) {
@@ -503,7 +503,7 @@ struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *wlr_renderer) {
 static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
-	wlr_egl_make_current(renderer->egl);
+	wlr_egl_context_set_current(&renderer->egl->ctx);
 
 	struct wlr_gles2_buffer *buffer, *buffer_tmp;
 	wl_list_for_each_safe(buffer, buffer_tmp, &renderer->buffers, link) {
@@ -527,7 +527,7 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 		renderer->procs.glDebugMessageCallbackKHR(NULL, NULL);
 	}
 
-	wlr_egl_unset_current(renderer->egl);
+	wlr_egl_context_unset_current(&renderer->egl->ctx);
 	wlr_egl_destroy(renderer->egl);
 
 	if (renderer->drm_fd >= 0) {
@@ -705,7 +705,7 @@ struct wlr_renderer *wlr_gles2_renderer_create_with_drm_fd(int drm_fd) {
 }
 
 struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
-	if (!wlr_egl_make_current(egl)) {
+	if (!wlr_egl_context_set_current(&egl->ctx)) {
 		return NULL;
 	}
 
@@ -844,7 +844,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 
 	pop_gles2_debug(renderer);
 
-	wlr_egl_unset_current(renderer->egl);
+	wlr_egl_context_unset_current(&renderer->egl->ctx);
 
 	return &renderer->wlr_renderer;
 
@@ -861,7 +861,7 @@ error:
 		renderer->procs.glDebugMessageCallbackKHR(NULL, NULL);
 	}
 
-	wlr_egl_unset_current(renderer->egl);
+	wlr_egl_context_unset_current(&renderer->egl->ctx);
 
 	free(renderer);
 	return NULL;

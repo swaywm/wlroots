@@ -541,18 +541,6 @@ bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImage image) {
 	return egl->procs.eglDestroyImageKHR(egl->ctx.display, image);
 }
 
-bool wlr_egl_make_current(struct wlr_egl *egl) {
-	return wlr_egl_context_set_current(&egl->ctx);
-}
-
-bool wlr_egl_unset_current(struct wlr_egl *egl) {
-	return wlr_egl_context_unset_current(&egl->ctx);
-}
-
-bool wlr_egl_is_current(struct wlr_egl *egl) {
-	return wlr_egl_context_is_current(&egl->ctx);
-}
-
 bool wlr_egl_context_set_current(struct wlr_egl_context *ctx) {
 	if (!eglMakeCurrent(ctx->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
 			ctx->context)) {

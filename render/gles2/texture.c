@@ -74,7 +74,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_context_save(&prev_ctx);
-	wlr_egl_make_current(texture->renderer->egl);
+	wlr_egl_context_set_current(&texture->renderer->egl->ctx);
 
 	push_gles2_debug(texture->renderer);
 
@@ -111,7 +111,7 @@ static bool gles2_texture_invalidate(struct wlr_gles2_texture *texture) {
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_context_save(&prev_ctx);
-	wlr_egl_make_current(texture->renderer->egl);
+	wlr_egl_context_set_current(&texture->renderer->egl->ctx);
 
 	push_gles2_debug(texture->renderer);
 
@@ -135,7 +135,7 @@ void gles2_texture_destroy(struct wlr_gles2_texture *texture) {
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_context_save(&prev_ctx);
-	wlr_egl_make_current(texture->renderer->egl);
+	wlr_egl_context_set_current(&texture->renderer->egl->ctx);
 
 	push_gles2_debug(texture->renderer);
 
@@ -212,7 +212,7 @@ static struct wlr_texture *gles2_texture_from_pixels(
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_context_save(&prev_ctx);
-	wlr_egl_make_current(renderer->egl);
+	wlr_egl_context_set_current(&renderer->egl->ctx);
 
 	push_gles2_debug(renderer);
 
@@ -264,7 +264,7 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_context_save(&prev_ctx);
-	wlr_egl_make_current(renderer->egl);
+	wlr_egl_context_set_current(&renderer->egl->ctx);
 
 	bool external_only;
 	texture->image =
