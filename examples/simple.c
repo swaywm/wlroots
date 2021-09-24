@@ -18,6 +18,7 @@ struct sample_state {
 	struct wl_display *display;
 	struct wl_listener new_output;
 	struct wl_listener new_input;
+	struct wlr_renderer *renderer;
 	struct timespec last_frame;
 	float color[4];
 	int dec;
@@ -61,8 +62,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 	wlr_output_attach_render(wlr_output, NULL);
 
-	struct wlr_renderer *renderer =
-		wlr_backend_get_renderer(wlr_output->backend);
+	struct wlr_renderer *renderer = sample->renderer;
 	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(renderer, sample->color);
 	wlr_renderer_end(renderer);
@@ -171,6 +171,9 @@ int main(void) {
 	if (!backend) {
 		exit(1);
 	}
+
+	state.renderer = wlr_renderer_autocreate(backend);
+
 	wl_signal_add(&backend->events.new_output, &state.new_output);
 	state.new_output.notify = new_output_notify;
 	wl_signal_add(&backend->events.new_input, &state.new_input);

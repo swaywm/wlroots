@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
 	server.backend = wlr_backend_autocreate(server.display);
 	server.scene = wlr_scene_create();
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(server.backend);
+	struct wlr_renderer *renderer = wlr_renderer_autocreate(server.backend);
 	wlr_renderer_init_wl_display(renderer, server.display);
 
 	struct wlr_compositor *compositor =
