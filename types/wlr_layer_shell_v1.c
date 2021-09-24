@@ -103,6 +103,7 @@ static void layer_surface_handle_set_size(struct wl_client *client,
 	if (!surface) {
 		return;
 	}
+	surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_DESIRED_SIZE;
 	surface->pending.desired_width = width;
 	surface->pending.desired_height = height;
 }
@@ -124,6 +125,7 @@ static void layer_surface_handle_set_anchor(struct wl_client *client,
 	if (!surface) {
 		return;
 	}
+	surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_ANCHOR;
 	surface->pending.anchor = anchor;
 }
 
@@ -134,6 +136,7 @@ static void layer_surface_handle_set_exclusive_zone(struct wl_client *client,
 	if (!surface) {
 		return;
 	}
+	surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_EXCLUSIVE_ZONE;
 	surface->pending.exclusive_zone = zone;
 }
 
@@ -145,6 +148,7 @@ static void layer_surface_handle_set_margin(
 	if (!surface) {
 		return;
 	}
+	surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_MARGIN;
 	surface->pending.margin.top = top;
 	surface->pending.margin.right = right;
 	surface->pending.margin.bottom = bottom;
@@ -160,6 +164,7 @@ static void layer_surface_handle_set_keyboard_interactivity(
 		return;
 	}
 
+	surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_KEYBOARD_INTERACTIVITY;
 	if (wl_resource_get_version(resource) < ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND_SINCE_VERSION) {
 		surface->pending.keyboard_interactive = !!interactive;
 	} else {
@@ -204,6 +209,7 @@ static void layer_surface_set_layer(struct wl_client *client,
 				"Invalid layer %" PRIu32, layer);
 		return;
 	}
+	surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_LAYER;
 	surface->pending.layer = layer;
 }
 
@@ -309,6 +315,7 @@ static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
 	}
 
 	surface->current = surface->pending;
+	surface->pending.committed = 0;
 
 	if (wlr_surface_has_buffer(surface->surface) && !surface->configured) {
 		wl_resource_post_error(surface->resource,
