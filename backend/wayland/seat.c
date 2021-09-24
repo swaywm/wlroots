@@ -129,15 +129,28 @@ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 		return;
 	}
 
-	struct wlr_event_pointer_axis event = {
-		.device = &pointer->input_device->wlr_input_device,
-		.delta = wl_fixed_to_double(value),
-		.delta_discrete = pointer->axis_discrete,
-		.orientation = axis,
-		.time_msec = time,
-		.source = pointer->axis_source,
-	};
-	wlr_signal_emit_safe(&pointer->wlr_pointer.events.axis, &event);
+	uint32_t seat_version = wl_seat_get_version(seat->wl_seat);
+	if (seat_version >= WL_POINTER_AXIS_VALUE120_SINCE_VERSION) {
+		struct wlr_event_pointer_axis_value120 event = {
+			.device = &pointer->input_device->wlr_input_device,
+			.delta = wl_fixed_to_double(value),
+			.delta_value120 = pointer->axis_value120,
+			.orientation = axis,
+			.time_msec = time,
+			.source = pointer->axis_source,
+		};
+		wlr_signal_emit_safe(&pointer->wlr_pointer.events.axis_value120, &event);
+	} else {
+		struct wlr_event_pointer_axis event = {
+			.device = &pointer->input_device->wlr_input_device,
+			.delta = wl_fixed_to_double(value),
+			.delta_discrete = pointer->axis_discrete,
+			.orientation = axis,
+			.time_msec = time,
+			.source = pointer->axis_source,
+		};
+		wlr_signal_emit_safe(&pointer->wlr_pointer.events.axis, &event);
+	}
 
 	pointer->axis_discrete = 0;
 }
@@ -194,6 +207,17 @@ static void pointer_handle_axis_discrete(void *data,
 	pointer->axis_discrete = discrete;
 }
 
+static void pointer_handle_axis_value120(void *data, struct wl_pointer *wl_pointer,
+		uint32_t axis, int32_t value120) {
+	struct wlr_wl_seat *seat = data;
+	struct wlr_wl_pointer *pointer = seat->active_pointer;
+	if (pointer == NULL) {
+		return;
+	}
+
+	pointer->axis_value120 = value120;
+}
+
 static const struct wl_pointer_listener pointer_listener = {
 	.enter = pointer_handle_enter,
 	.leave = pointer_handle_leave,
@@ -204,6 +228,7 @@ static const struct wl_pointer_listener pointer_listener = {
 	.axis_source = pointer_handle_axis_source,
 	.axis_stop = pointer_handle_axis_stop,
 	.axis_discrete = pointer_handle_axis_discrete,
+	.axis_value120 = pointer_handle_axis_value120,
 };
 
 static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
