@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
+#include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_fullscreen_shell_v1.h>
@@ -25,6 +26,7 @@ struct fullscreen_server {
 	struct wl_display *wl_display;
 	struct wlr_backend *backend;
 	struct wlr_renderer *renderer;
+	struct wlr_allocator *allocator;
 
 	struct wlr_fullscreen_shell_v1 *fullscreen_shell;
 	struct wl_listener present_surface;
@@ -146,6 +148,8 @@ static void server_handle_new_output(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, server, new_output);
 	struct wlr_output *wlr_output = data;
 
+	wlr_output_init_render(wlr_output, server->allocator, server->renderer);
+
 	struct fullscreen_output *output =
 		calloc(1, sizeof(struct fullscreen_output));
 	output->wlr_output = wlr_output;
@@ -203,8 +207,10 @@ int main(int argc, char *argv[]) {
 	struct fullscreen_server server = {0};
 	server.wl_display = wl_display_create();
 	server.backend = wlr_backend_autocreate(server.wl_display);
-	server.renderer = wlr_backend_get_renderer(server.backend);
+	server.renderer = wlr_renderer_autocreate(server.backend);
 	wlr_renderer_init_wl_display(server.renderer, server.wl_display);
+	server.allocator = wlr_allocator_autocreate(server.backend,
+		server.renderer);
 
 	wlr_compositor_create(server.wl_display, server.renderer);
 
