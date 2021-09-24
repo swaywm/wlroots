@@ -150,6 +150,14 @@ bool wlr_output_damage_attach_render(struct wlr_output_damage *output_damage,
 		return false;
 	}
 
+	wlr_output_damage_step(output_damage, buffer_age, needs_frame, damage);
+	return true;
+}
+
+void wlr_output_damage_step(struct wlr_output_damage *output_damage,
+		int buffer_age, bool *needs_frame, pixman_region32_t *damage) {
+	struct wlr_output *output = output_damage->output;
+
 	*needs_frame =
 		output->needs_frame || pixman_region32_not_empty(&output_damage->current);
 	// Check if we can use damage tracking
@@ -178,8 +186,6 @@ bool wlr_output_damage_attach_render(struct wlr_output_damage *output_damage,
 				extents->x2 - extents->x1, extents->y2 - extents->y1);
 		}
 	}
-
-	return true;
 }
 
 void wlr_output_damage_add(struct wlr_output_damage *output_damage,

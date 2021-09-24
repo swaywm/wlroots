@@ -77,6 +77,13 @@ void wlr_output_damage_destroy(struct wlr_output_damage *output_damage);
 bool wlr_output_damage_attach_render(struct wlr_output_damage *output_damage,
 	bool *needs_frame, pixman_region32_t *buffer_damage);
 /**
+ * Advance the output damage state machine. Takes the buffer age as input,
+ * returns a bool indicating whether rendering a new frame is necessary and the
+ * accumulated damage.
+ */
+void wlr_output_damage_step(struct wlr_output_damage *output_damage,
+	int buffer_age, bool *needs_frame, pixman_region32_t *buffer_damage);
+/**
  * Accumulates damage and schedules a `frame` event.
  */
 void wlr_output_damage_add(struct wlr_output_damage *output_damage,
