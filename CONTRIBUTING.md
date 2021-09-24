@@ -193,7 +193,7 @@ zeroed value and exit cleanly; this simplifies error handling a lot.
 ### Error Codes
 
 For functions not returning a value, they should return a (stdbool.h) bool to
-indicated if they succeeded or not.
+indicate whether they succeeded or not.
 
 ### Macros
 
