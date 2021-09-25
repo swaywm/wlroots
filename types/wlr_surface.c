@@ -1372,7 +1372,7 @@ static void handle_bounding_box_surface(struct wlr_surface *surface,
 	acc->max_y = max(y + surface->current.height, acc->max_y);
 }
 
-void wlr_surface_get_extends(struct wlr_surface *surface, struct wlr_box *box) {
+void wlr_surface_get_extents(struct wlr_surface *surface, struct wlr_box *box) {
 	struct bound_acc acc = {
 		.min_x = 0,
 		.min_y = 0,
