@@ -506,7 +506,7 @@ void wlr_layer_surface_v1_for_each_popup_surface(struct wlr_layer_surface_v1 *su
 	struct wlr_xdg_popup *popup_state;
 	wl_list_for_each(popup_state, &surface->popups, link) {
 		struct wlr_xdg_surface *popup = popup_state->base;
-		if (!popup->configured) {
+		if (!popup->configured || !popup->mapped) {
 			continue;
 		}
 

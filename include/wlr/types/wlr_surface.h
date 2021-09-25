@@ -264,9 +264,9 @@ void wlr_surface_get_extends(struct wlr_surface *surface, struct wlr_box *box);
 struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource);
 
 /**
- * Call `iterator` on each surface in the surface tree, with the surface's
- * position relative to the root surface. The function is called from root to
- * leaves (in rendering order).
+ * Call `iterator` on each mapped surface in the surface tree (whether or not
+ * this surface is mapped), with the surface's position relative to the root
+ * surface. The function is called from root to leaves (in rendering order).
  */
 void wlr_surface_for_each_surface(struct wlr_surface *surface,
 	wlr_surface_iterator_func_t iterator, void *user_data);
