@@ -413,17 +413,19 @@ void wlr_xdg_surface_get_geometry(struct wlr_xdg_surface *surface,
 		struct wlr_box *box);
 
 /**
- * Call `iterator` on each surface and popup in the xdg-surface tree, with the
- * surface's position relative to the root xdg-surface. The function is called
- * from root to leaves (in rendering order).
+ * Call `iterator` on each mapped surface and popup in the xdg-surface tree
+ * (whether or not this xdg-surface is mapped), with the surface's position
+ * relative to the root xdg-surface. The function is called from root to leaves
+ * (in rendering order).
  */
 void wlr_xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data);
 
 /**
- * Call `iterator` on each popup's surface and popup's subsurface in the
- * xdg-surface tree, with the surfaces's position relative to the root
- * xdg-surface. The function is called from root to leaves (in rendering order).
+ * Call `iterator` on each mapped popup's surface and popup's subsurface in the
+ * xdg-surface tree (whether or not this xdg-surface is mapped), with the
+ * surfaces's position relative to the root xdg-surface. The function is called
+ * from root to leaves (in rendering order).
  */
 void wlr_xdg_surface_for_each_popup_surface(struct wlr_xdg_surface *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data);

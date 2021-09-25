@@ -143,7 +143,10 @@ bool wlr_surface_is_layer_surface(struct wlr_surface *surface);
 struct wlr_layer_surface_v1 *wlr_layer_surface_v1_from_wlr_surface(
 		struct wlr_surface *surface);
 
-/* Calls the iterator function for each sub-surface and popup of this surface */
+/**
+ * Calls the iterator function for each mapped sub-surface and popup of this
+ * surface (whether or not this surface is mapped).
+ */
 void wlr_layer_surface_v1_for_each_surface(struct wlr_layer_surface_v1 *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data);
 
