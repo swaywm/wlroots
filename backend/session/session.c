@@ -322,11 +322,11 @@ error:
 
 void wlr_session_close_file(struct wlr_session *session,
 		struct wlr_device *dev) {
+	wl_list_remove(&dev->link);
 	if (libseat_close_device(session->seat_handle, dev->device_id) == -1) {
 		wlr_log_errno(WLR_ERROR, "Failed to close device %d", dev->device_id);
 	}
 	close(dev->fd);
-	wl_list_remove(&dev->link);
 	free(dev);
 }
 
