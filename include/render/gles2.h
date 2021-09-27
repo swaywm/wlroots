@@ -111,6 +111,7 @@ struct wlr_gles2_texture {
 	struct wlr_addon buffer_addon;
 };
 
+struct wlr_renderer *gles2_renderer_create(struct wlr_egl *egl);
 
 bool is_gles2_pixel_format_supported(const struct wlr_gles2_renderer *renderer,
 	const struct wlr_gles2_pixel_format *format);

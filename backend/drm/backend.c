@@ -228,8 +228,9 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 
 	if (drm->parent) {
 		// Ensure we use the same renderer as the parent backend
-		drm->backend.renderer = wlr_backend_get_renderer(&drm->parent->backend);
-		assert(drm->backend.renderer != NULL);
+		struct wlr_renderer *parent_renderer =
+				wlr_backend_get_renderer(&drm->parent->backend);
+		assert(parent_renderer != NULL);
 
 		if (!init_drm_renderer(drm, &drm->mgpu_renderer)) {
 			wlr_log(WLR_ERROR, "Failed to initialize renderer");
@@ -256,12 +257,6 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 			wlr_drm_format_set_add(&drm->mgpu_formats, fmt->format,
 				DRM_FORMAT_MOD_LINEAR);
 		}
-	}
-
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(&drm->backend);
-	struct wlr_allocator *allocator = backend_get_allocator(&drm->backend);
-	if (renderer == NULL || allocator == NULL) {
-		goto error_mgpu_renderer;
 	}
 
 	drm->session_destroy.notify = handle_session_destroy;

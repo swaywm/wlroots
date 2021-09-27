@@ -8,12 +8,12 @@
 #include <wayland-util.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
+#include <wlr/render/pixel_format.h>
 #include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
 #include "render/egl.h"
 #include "render/gles2.h"
-#include "render/pixel_format.h"
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
 
@@ -65,7 +65,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	assert(fmt);
 
 	const struct wlr_pixel_format_info *drm_fmt =
-		drm_get_pixel_format_info(texture->drm_format);
+		wlr_pixel_format_info_from_drm(texture->drm_format);
 	assert(drm_fmt);
 
 	if (!check_stride(drm_fmt, stride, width)) {
@@ -73,8 +73,8 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 	}
 
 	struct wlr_egl_context prev_ctx;
-	wlr_egl_save_context(&prev_ctx);
-	wlr_egl_make_current(texture->renderer->egl);
+	wlr_egl_context_save(&prev_ctx);
+	wlr_egl_context_set_current(&texture->renderer->egl->ctx);
 
 	push_gles2_debug(texture->renderer);
 
@@ -95,7 +95,7 @@ static bool gles2_texture_write_pixels(struct wlr_texture *wlr_texture,
 
 	pop_gles2_debug(texture->renderer);
 
-	wlr_egl_restore_context(&prev_ctx);
+	wlr_egl_context_restore(&prev_ctx);
 
 	return true;
 }
@@ -110,8 +110,8 @@ static bool gles2_texture_invalidate(struct wlr_gles2_texture *texture) {
 	}
 
 	struct wlr_egl_context prev_ctx;
-	wlr_egl_save_context(&prev_ctx);
-	wlr_egl_make_current(texture->renderer->egl);
+	wlr_egl_context_save(&prev_ctx);
+	wlr_egl_context_set_current(&texture->renderer->egl->ctx);
 
 	push_gles2_debug(texture->renderer);
 
@@ -122,7 +122,7 @@ static bool gles2_texture_invalidate(struct wlr_gles2_texture *texture) {
 
 	pop_gles2_debug(texture->renderer);
 
-	wlr_egl_restore_context(&prev_ctx);
+	wlr_egl_context_restore(&prev_ctx);
 
 	return true;
 }
@@ -134,8 +134,8 @@ void gles2_texture_destroy(struct wlr_gles2_texture *texture) {
 	}
 
 	struct wlr_egl_context prev_ctx;
-	wlr_egl_save_context(&prev_ctx);
-	wlr_egl_make_current(texture->renderer->egl);
+	wlr_egl_context_save(&prev_ctx);
+	wlr_egl_context_set_current(&texture->renderer->egl->ctx);
 
 	push_gles2_debug(texture->renderer);
 
@@ -144,7 +144,7 @@ void gles2_texture_destroy(struct wlr_gles2_texture *texture) {
 
 	pop_gles2_debug(texture->renderer);
 
-	wlr_egl_restore_context(&prev_ctx);
+	wlr_egl_context_restore(&prev_ctx);
 
 	free(texture);
 }
@@ -194,7 +194,7 @@ static struct wlr_texture *gles2_texture_from_pixels(
 	}
 
 	const struct wlr_pixel_format_info *drm_fmt =
-		drm_get_pixel_format_info(drm_format);
+		wlr_pixel_format_info_from_drm(drm_format);
 	assert(drm_fmt);
 
 	if (!check_stride(drm_fmt, stride, width)) {
@@ -211,8 +211,8 @@ static struct wlr_texture *gles2_texture_from_pixels(
 	texture->drm_format = fmt->drm_format;
 
 	struct wlr_egl_context prev_ctx;
-	wlr_egl_save_context(&prev_ctx);
-	wlr_egl_make_current(renderer->egl);
+	wlr_egl_context_save(&prev_ctx);
+	wlr_egl_context_set_current(&renderer->egl->ctx);
 
 	push_gles2_debug(renderer);
 
@@ -230,7 +230,7 @@ static struct wlr_texture *gles2_texture_from_pixels(
 
 	pop_gles2_debug(renderer);
 
-	wlr_egl_restore_context(&prev_ctx);
+	wlr_egl_context_restore(&prev_ctx);
 
 	return &texture->wlr_texture;
 }
@@ -254,7 +254,7 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 		(attribs->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) != 0;
 
 	const struct wlr_pixel_format_info *drm_fmt =
-		drm_get_pixel_format_info(attribs->format);
+		wlr_pixel_format_info_from_drm(attribs->format);
 	if (drm_fmt != NULL) {
 		texture->has_alpha = drm_fmt->has_alpha;
 	} else {
@@ -263,15 +263,15 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 	}
 
 	struct wlr_egl_context prev_ctx;
-	wlr_egl_save_context(&prev_ctx);
-	wlr_egl_make_current(renderer->egl);
+	wlr_egl_context_save(&prev_ctx);
+	wlr_egl_context_set_current(&renderer->egl->ctx);
 
 	bool external_only;
 	texture->image =
 		wlr_egl_create_image_from_dmabuf(renderer->egl, attribs, &external_only);
 	if (texture->image == EGL_NO_IMAGE_KHR) {
 		wlr_log(WLR_ERROR, "Failed to create EGL image from DMA-BUF");
-		wlr_egl_restore_context(&prev_ctx);
+		wlr_egl_context_restore(&prev_ctx);
 		wl_list_remove(&texture->link);
 		free(texture);
 		return NULL;
@@ -290,7 +290,7 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 
 	pop_gles2_debug(renderer);
 
-	wlr_egl_restore_context(&prev_ctx);
+	wlr_egl_context_restore(&prev_ctx);
 
 	return &texture->wlr_texture;
 }

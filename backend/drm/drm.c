@@ -15,6 +15,7 @@
 #include <wayland-util.h>
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/pixel_format.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/box.h>
@@ -25,7 +26,6 @@
 #include "backend/drm/drm.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
-#include "render/pixel_format.h"
 #include "render/drm_format_set.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"

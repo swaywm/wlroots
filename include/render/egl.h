@@ -1,13 +1,45 @@
 #ifndef RENDER_EGL_H
 #define RENDER_EGL_H
 
+#include <wlr/render/dmabuf.h>
 #include <wlr/render/egl.h>
 
-struct wlr_egl_context {
-	EGLDisplay display;
-	EGLContext context;
-	EGLSurface draw_surface;
-	EGLSurface read_surface;
+struct wlr_egl {
+	struct wlr_egl_context ctx;
+	EGLDeviceEXT device; // may be EGL_NO_DEVICE_EXT
+	struct gbm_device *gbm_device;
+
+	struct {
+		// Display extensions
+		bool KHR_image_base;
+		bool EXT_image_dma_buf_import;
+		bool EXT_image_dma_buf_import_modifiers;
+
+		// Device extensions
+		bool EXT_device_drm;
+		bool EXT_device_drm_render_node;
+
+		// Client extensions
+		bool EXT_device_query;
+		bool KHR_platform_gbm;
+		bool EXT_platform_device;
+	} exts;
+
+	struct {
+		PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT;
+		PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
+		PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
+		PFNEGLQUERYWAYLANDBUFFERWL eglQueryWaylandBufferWL;
+		PFNEGLQUERYDMABUFFORMATSEXTPROC eglQueryDmaBufFormatsEXT;
+		PFNEGLQUERYDMABUFMODIFIERSEXTPROC eglQueryDmaBufModifiersEXT;
+		PFNEGLDEBUGMESSAGECONTROLKHRPROC eglDebugMessageControlKHR;
+		PFNEGLQUERYDISPLAYATTRIBEXTPROC eglQueryDisplayAttribEXT;
+		PFNEGLQUERYDEVICESTRINGEXTPROC eglQueryDeviceStringEXT;
+		PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT;
+	} procs;
+
+	struct wlr_drm_format_set dmabuf_texture_formats;
+	struct wlr_drm_format_set dmabuf_render_formats;
 };
 
 /**
@@ -47,17 +79,5 @@ const struct wlr_drm_format_set *wlr_egl_get_dmabuf_render_formats(
 bool wlr_egl_destroy_image(struct wlr_egl *egl, EGLImageKHR image);
 
 int wlr_egl_dup_drm_fd(struct wlr_egl *egl);
-
-/**
- * Save the current EGL context to the structure provided in the argument.
- *
- * This includes display, context, draw surface and read surface.
- */
-void wlr_egl_save_context(struct wlr_egl_context *context);
-
-/**
- * Restore EGL context that was previously saved using wlr_egl_save_current().
- */
-bool wlr_egl_restore_context(struct wlr_egl_context *context);
 
 #endif

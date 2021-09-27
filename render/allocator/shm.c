@@ -3,8 +3,9 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <wlr/render/pixel_format.h>
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
-#include "render/pixel_format.h"
 #include "render/allocator/shm.h"
 #include "util/shm.h"
 
@@ -54,7 +55,7 @@ static struct wlr_buffer *allocator_create_buffer(
 		struct wlr_allocator *wlr_allocator, int width, int height,
 		const struct wlr_drm_format *format) {
 	const struct wlr_pixel_format_info *info =
-		drm_get_pixel_format_info(format->format);
+		wlr_pixel_format_info_from_drm(format->format);
 	if (info == NULL) {
 		wlr_log(WLR_ERROR, "Unsupported pixel format 0x%"PRIX32, format->format);
 		return NULL;

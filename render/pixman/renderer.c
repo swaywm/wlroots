@@ -353,7 +353,7 @@ static struct wlr_pixman_texture *pixman_texture_create(
 	wlr_texture_init(&texture->wlr_texture, &texture_impl, width, height);
 	texture->renderer = renderer;
 
-	texture->format_info = drm_get_pixel_format_info(drm_format);
+	texture->format_info = wlr_pixel_format_info_from_drm(drm_format);
 	if (!texture->format_info) {
 		wlr_log(WLR_ERROR, "Unsupported drm format 0x%"PRIX32, drm_format);
 		free(texture);
@@ -476,7 +476,7 @@ static bool pixman_read_pixels(struct wlr_renderer *wlr_renderer,
 	}
 
 	const struct wlr_pixel_format_info *drm_fmt =
-		drm_get_pixel_format_info(drm_format);
+		wlr_pixel_format_info_from_drm(drm_format);
 	assert(drm_fmt);
 
 	pixman_image_t *dst = pixman_image_create_bits_no_clear(fmt, width, height,

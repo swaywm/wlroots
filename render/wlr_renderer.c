@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/render/interface.h>
+#include <wlr/render/pixel_format.h>
 #include <wlr/render/pixman.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_drm.h>
@@ -18,7 +19,6 @@
 #endif
 
 #include "util/signal.h"
-#include "render/pixel_format.h"
 #include "render/wlr_renderer.h"
 
 void wlr_renderer_init(struct wlr_renderer *renderer,
@@ -211,7 +211,7 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
 	for (size_t i = 0; i < len; ++i) {
 		// ARGB8888 and XRGB8888 must be supported and are implicitly
 		// advertised by wl_display_init_shm
-		enum wl_shm_format fmt = convert_drm_format_to_wl_shm(formats[i]);
+		enum wl_shm_format fmt = wlr_convert_drm_format_to_wl_shm(formats[i]);
 		switch (fmt) {
 		case WL_SHM_FORMAT_ARGB8888:
 			argb8888 = true;

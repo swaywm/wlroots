@@ -6,11 +6,11 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/types/wlr_screencopy_v1.h>
+#include <wlr/render/pixel_format.h>
 #include <wlr/backend.h>
 #include <wlr/util/box.h>
 #include <wlr/util/log.h>
 #include "wlr-screencopy-unstable-v1-protocol.h"
-#include "render/pixel_format.h"
 #include "util/signal.h"
 
 #define SCREENCOPY_MANAGER_VERSION 3
@@ -199,7 +199,7 @@ static bool frame_shm_copy(struct wlr_screencopy_frame_v1 *frame,
 	int y = frame->box.y;
 
 	enum wl_shm_format wl_shm_format = wl_shm_buffer_get_format(shm_buffer);
-	uint32_t drm_format = convert_wl_shm_format_to_drm(wl_shm_format);
+	uint32_t drm_format = wlr_convert_wl_shm_format_to_drm(wl_shm_format);
 	int32_t width = wl_shm_buffer_get_width(shm_buffer);
 	int32_t height = wl_shm_buffer_get_height(shm_buffer);
 	int32_t stride = wl_shm_buffer_get_stride(shm_buffer);
@@ -555,7 +555,7 @@ static void capture_output(struct wl_client *wl_client,
 		goto error;
 	}
 
-	frame->format = convert_drm_format_to_wl_shm(drm_format);
+	frame->format = wlr_convert_drm_format_to_wl_shm(drm_format);
 	frame->fourcc = get_output_fourcc(output);
 
 	struct wlr_box buffer_box = {0};

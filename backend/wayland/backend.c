@@ -13,12 +13,12 @@
 #include <wlr/backend/interface.h>
 #include <wlr/interfaces/wlr_input_device.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/pixel_format.h>
 #include <wlr/util/log.h>
 
 #include "backend/backend.h"
 #include "backend/wayland.h"
 #include "render/drm_format_set.h"
-#include "render/pixel_format.h"
 #include "render/wlr_renderer.h"
 #include "util/signal.h"
 
@@ -192,7 +192,7 @@ static const struct wl_drm_listener legacy_drm_listener = {
 static void shm_handle_format(void *data, struct wl_shm *shm,
 		uint32_t shm_format) {
 	struct wlr_wl_backend *wl = data;
-	uint32_t drm_format = convert_wl_shm_format_to_drm(shm_format);
+	uint32_t drm_format = wlr_convert_wl_shm_format_to_drm(shm_format);
 	wlr_drm_format_set_add(&wl->shm_formats, drm_format, DRM_FORMAT_MOD_INVALID);
 }
 
@@ -444,19 +444,11 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		wl->drm_fd = -1;
 	}
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(&wl->backend);
-	struct wlr_allocator *allocator = backend_get_allocator(&wl->backend);
-	if (renderer == NULL || allocator == NULL) {
-		goto error_drm_fd;
-	}
-
 	wl->local_display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &wl->local_display_destroy);
 
 	return &wl->backend;
 
-error_drm_fd:
-	close(wl->drm_fd);
 error_remote_display_src:
 	wl_event_source_remove(wl->remote_display_src);
 error_registry:

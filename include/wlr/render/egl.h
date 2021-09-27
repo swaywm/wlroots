@@ -23,49 +23,14 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <pixman.h>
 #include <stdbool.h>
-#include <wayland-server-core.h>
-#include <wlr/render/dmabuf.h>
 #include <wlr/render/drm_format_set.h>
 
-struct wlr_egl {
+struct wlr_egl_context {
 	EGLDisplay display;
 	EGLContext context;
-	EGLDeviceEXT device; // may be EGL_NO_DEVICE_EXT
-	struct gbm_device *gbm_device;
-
-	struct {
-		// Display extensions
-		bool KHR_image_base;
-		bool EXT_image_dma_buf_import;
-		bool EXT_image_dma_buf_import_modifiers;
-
-		// Device extensions
-		bool EXT_device_drm;
-		bool EXT_device_drm_render_node;
-
-		// Client extensions
-		bool EXT_device_query;
-		bool KHR_platform_gbm;
-		bool EXT_platform_device;
-	} exts;
-
-	struct {
-		PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT;
-		PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR;
-		PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR;
-		PFNEGLQUERYWAYLANDBUFFERWL eglQueryWaylandBufferWL;
-		PFNEGLQUERYDMABUFFORMATSEXTPROC eglQueryDmaBufFormatsEXT;
-		PFNEGLQUERYDMABUFMODIFIERSEXTPROC eglQueryDmaBufModifiersEXT;
-		PFNEGLDEBUGMESSAGECONTROLKHRPROC eglDebugMessageControlKHR;
-		PFNEGLQUERYDISPLAYATTRIBEXTPROC eglQueryDisplayAttribEXT;
-		PFNEGLQUERYDEVICESTRINGEXTPROC eglQueryDeviceStringEXT;
-		PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT;
-	} procs;
-
-	struct wlr_drm_format_set dmabuf_texture_formats;
-	struct wlr_drm_format_set dmabuf_render_formats;
+	EGLSurface draw_surface;
+	EGLSurface read_surface;
 };
 
 /**
@@ -74,10 +39,25 @@ struct wlr_egl {
  * Callers are expected to clear the current context when they are done by
  * calling wlr_egl_unset_current.
  */
-bool wlr_egl_make_current(struct wlr_egl *egl);
+bool wlr_egl_context_set_current(struct wlr_egl_context *ctx);
 
-bool wlr_egl_unset_current(struct wlr_egl *egl);
+/**
+ * Clear the EGL context
+ */
+bool wlr_egl_context_unset_current(struct wlr_egl_context *ctx);
 
-bool wlr_egl_is_current(struct wlr_egl *egl);
+bool wlr_egl_context_is_current(struct wlr_egl_context *ctx);
+
+/**
+ * Save the current EGL context to the structure provided in the argument.
+ *
+ * This includes display, context, draw surface and read surface.
+ */
+void wlr_egl_context_save(struct wlr_egl_context *context);
+
+/**
+ * Restore EGL context that was previously saved using wlr_egl_context_save().
+ */
+bool wlr_egl_context_restore(struct wlr_egl_context *context);
 
 #endif

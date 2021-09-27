@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <wayland-util.h>
+#include <wlr/render/pixel_format.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/log.h>
@@ -14,7 +15,6 @@
 #include "backend/drm/util.h"
 #include "render/drm_format_set.h"
 #include "render/allocator/allocator.h"
-#include "render/pixel_format.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
 
@@ -151,7 +151,7 @@ struct wlr_drm_format *drm_plane_pick_render_format(
 	uint32_t fmt = DRM_FORMAT_ARGB8888;
 	if (!wlr_drm_format_set_has(&plane->formats, fmt, DRM_FORMAT_MOD_INVALID)) {
 		const struct wlr_pixel_format_info *format_info =
-			drm_get_pixel_format_info(fmt);
+			wlr_pixel_format_info_from_drm(fmt);
 		assert(format_info != NULL &&
 			format_info->opaque_substitute != DRM_FORMAT_INVALID);
 		fmt = format_info->opaque_substitute;
@@ -306,7 +306,7 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 		// The format isn't supported by the plane. Try stripping the alpha
 		// channel, if any.
 		const struct wlr_pixel_format_info *info =
-			drm_get_pixel_format_info(attribs.format);
+			wlr_pixel_format_info_from_drm(attribs.format);
 		if (info != NULL && info->opaque_substitute != DRM_FORMAT_INVALID &&
 				wlr_drm_format_set_has(formats, info->opaque_substitute, attribs.modifier)) {
 			attribs.format = info->opaque_substitute;
