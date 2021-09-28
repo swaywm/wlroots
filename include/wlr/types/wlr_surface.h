@@ -233,7 +233,8 @@ bool wlr_surface_point_accepts_input(struct wlr_surface *surface,
 		double sx, double sy);
 
 /**
- * Find a surface in this surface's tree that accepts input events at the given
+ * Find a surface in this surface's tree that accepts input events and has all
+ * parents mapped (except this surface, which can be unmapped) at the given
  * surface-local coordinates. Returns the surface and coordinates in the leaf
  * surface coordinate system or NULL if no surface is found at that location.
  */
