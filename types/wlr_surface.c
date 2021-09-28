@@ -1204,6 +1204,10 @@ struct wlr_surface *wlr_surface_surface_at(struct wlr_surface *surface,
 	struct wlr_subsurface *subsurface;
 	wl_list_for_each_reverse(subsurface, &surface->current.subsurfaces_above,
 			current.link) {
+		if (!subsurface->mapped) {
+			continue;
+		}
+
 		double _sub_x = subsurface->current.x;
 		double _sub_y = subsurface->current.y;
 		struct wlr_surface *sub = wlr_surface_surface_at(subsurface->surface,
@@ -1225,6 +1229,10 @@ struct wlr_surface *wlr_surface_surface_at(struct wlr_surface *surface,
 
 	wl_list_for_each_reverse(subsurface, &surface->current.subsurfaces_below,
 			current.link) {
+		if (!subsurface->mapped) {
+			continue;
+		}
+
 		double _sub_x = subsurface->current.x;
 		double _sub_y = subsurface->current.y;
 		struct wlr_surface *sub = wlr_surface_surface_at(subsurface->surface,

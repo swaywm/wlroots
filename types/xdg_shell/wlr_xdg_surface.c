@@ -563,6 +563,9 @@ struct wlr_surface *wlr_xdg_surface_popup_surface_at(
 	struct wlr_xdg_popup *popup_state;
 	wl_list_for_each(popup_state, &surface->popups, link) {
 		struct wlr_xdg_surface *popup = popup_state->base;
+		if (!popup->mapped) {
+			continue;
+		}
 
 		double popup_sx, popup_sy;
 		wlr_xdg_popup_get_position(popup_state, &popup_sx, &popup_sy);
