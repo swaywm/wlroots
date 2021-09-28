@@ -9,10 +9,8 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
-#include "backend/backend.h"
 #include "backend/headless.h"
 #include "render/drm_format_set.h"
-#include "render/wlr_renderer.h"
 #include "util/signal.h"
 
 struct wlr_headless_backend *headless_backend_from_backend(
@@ -135,11 +133,6 @@ static bool backend_init(struct wlr_headless_backend *backend,
 		backend->parent_renderer = renderer;
 		backend->parent_renderer_destroy.notify = handle_renderer_destroy;
 		wl_signal_add(&renderer->events.destroy, &backend->parent_renderer_destroy);
-	}
-
-	if (backend_get_allocator(&backend->backend) == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create allocator");
-		return false;
 	}
 
 	backend->display_destroy.notify = handle_display_destroy;

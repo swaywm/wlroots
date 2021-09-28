@@ -15,11 +15,9 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 
-#include "backend/backend.h"
 #include "backend/wayland.h"
 #include "render/drm_format_set.h"
 #include "render/pixel_format.h"
-#include "render/wlr_renderer.h"
 #include "util/signal.h"
 
 #include "drm-client-protocol.h"
@@ -444,19 +442,11 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		wl->drm_fd = -1;
 	}
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(&wl->backend);
-	struct wlr_allocator *allocator = backend_get_allocator(&wl->backend);
-	if (renderer == NULL || allocator == NULL) {
-		goto error_drm_fd;
-	}
-
 	wl->local_display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &wl->local_display_destroy);
 
 	return &wl->backend;
 
-error_drm_fd:
-	close(wl->drm_fd);
 error_remote_display_src:
 	wl_event_source_remove(wl->remote_display_src);
 error_registry:
