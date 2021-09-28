@@ -29,7 +29,6 @@
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/util/log.h>
 
-#include "backend/backend.h"
 #include "backend/x11.h"
 #include "render/drm_format_set.h"
 #include "util/signal.h"
@@ -609,12 +608,6 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 			wlr_log(WLR_ERROR, "Failed to query DRI3 DRM FD");
 			goto error_event;
 		}
-	}
-
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(&x11->backend);
-	struct wlr_allocator *allocator = backend_get_allocator(&x11->backend);
-	if (renderer == NULL || allocator == NULL) {
-		goto error_event;
 	}
 
 	// Windows can only display buffers with the depth they were created with

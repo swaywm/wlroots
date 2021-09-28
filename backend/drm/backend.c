@@ -11,7 +11,6 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
-#include "backend/backend.h"
 #include "backend/drm/drm.h"
 #include "util/signal.h"
 
@@ -256,12 +255,6 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 			wlr_drm_format_set_add(&drm->mgpu_formats, fmt->format,
 				DRM_FORMAT_MOD_LINEAR);
 		}
-	}
-
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(&drm->backend);
-	struct wlr_allocator *allocator = backend_get_allocator(&drm->backend);
-	if (renderer == NULL || allocator == NULL) {
-		goto error_mgpu_renderer;
 	}
 
 	drm->session_destroy.notify = handle_session_destroy;
