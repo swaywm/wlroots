@@ -7,11 +7,13 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <wlr/allocator/interface.h>
+#include <wlr/backend.h>
+#include <wlr/backend/session.h>
+#include <wlr/render/drm_format_set.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include <wlr/backend.h>
-#include <wlr/backend/session.h>
 
 #include "allocator/drm_dumb.h"
 #include "render/pixel_format.h"
