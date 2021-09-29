@@ -6,8 +6,8 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
+#include "allocator/allocator.h"
 #include "backend/backend.h"
-#include "render/allocator/allocator.h"
 #include "render/swapchain.h"
 #include "types/wlr_output.h"
 #include "util/signal.h"

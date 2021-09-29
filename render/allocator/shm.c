@@ -4,8 +4,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <wlr/util/log.h>
+#include "allocator/shm.h"
 #include "render/pixel_format.h"
-#include "render/allocator/shm.h"
 #include "util/shm.h"
 
 static const struct wlr_buffer_impl buffer_impl;

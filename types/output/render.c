@@ -4,8 +4,8 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/interface.h>
 #include <wlr/util/log.h>
+#include "allocator/allocator.h"
 #include "backend/backend.h"
-#include "render/allocator/allocator.h"
 #include "render/drm_format_set.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"

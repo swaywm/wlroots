@@ -7,10 +7,10 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include "backend/backend.h"
-#include "render/allocator/allocator.h"
-#include "render/allocator/drm_dumb.h"
-#include "render/allocator/gbm.h"
-#include "render/allocator/shm.h"
+#include "allocator/allocator.h"
+#include "allocator/drm_dumb.h"
+#include "allocator/gbm.h"
+#include "allocator/shm.h"
 #include "render/wlr_renderer.h"
 
 void wlr_allocator_init(struct wlr_allocator *alloc,

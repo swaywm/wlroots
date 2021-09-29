@@ -4,7 +4,7 @@
 #include <gbm.h>
 #include <wlr/render/dmabuf.h>
 #include <wlr/types/wlr_buffer.h>
-#include "render/allocator/allocator.h"
+#include "allocator/allocator.h"
 
 struct wlr_gbm_buffer {
 	struct wlr_buffer base;
