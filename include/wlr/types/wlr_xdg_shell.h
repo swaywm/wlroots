@@ -106,6 +106,8 @@ struct wlr_xdg_toplevel_state {
 	uint32_t width, height;
 	uint32_t max_width, max_height;
 	uint32_t min_width, min_height;
+
+	struct wlr_surface_synced_state synced_state;
 };
 
 struct wlr_xdg_toplevel_configure {
@@ -140,6 +142,8 @@ struct wlr_xdg_toplevel {
 
 	char *title;
 	char *app_id;
+
+	struct wlr_surface_synced synced;
 
 	struct {
 		struct wl_signal request_maximize;

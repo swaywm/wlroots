@@ -479,6 +479,7 @@ void reset_xdg_surface(struct wlr_xdg_surface *xdg_surface) {
 		if (req->fullscreen_output) {
 			wl_list_remove(&req->fullscreen_output_destroy.link);
 		}
+		wlr_surface_synced_finish(&xdg_surface->toplevel->synced);
 		free(xdg_surface->toplevel);
 		xdg_surface->toplevel = NULL;
 		break;
