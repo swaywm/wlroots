@@ -30,16 +30,22 @@ struct wlr_xdg_toplevel_decoration_v1_configure {
 	enum wlr_xdg_toplevel_decoration_v1_mode mode;
 };
 
+struct wlr_xdg_toplevel_decoration_v1_state {
+	enum wlr_xdg_toplevel_decoration_v1_mode mode;
+};
+
 struct wlr_xdg_toplevel_decoration_v1 {
 	struct wl_resource *resource;
 	struct wlr_xdg_surface *surface;
 	struct wlr_xdg_decoration_manager_v1 *manager;
 	struct wl_list link; // wlr_xdg_decoration_manager_v1::link
 
+	struct wlr_xdg_toplevel_decoration_v1_state current, pending;
+
+	enum wlr_xdg_toplevel_decoration_v1_mode scheduled_mode;
+	enum wlr_xdg_toplevel_decoration_v1_mode requested_mode;
+
 	bool added;
-	enum wlr_xdg_toplevel_decoration_v1_mode current_mode;
-	enum wlr_xdg_toplevel_decoration_v1_mode client_pending_mode;
-	enum wlr_xdg_toplevel_decoration_v1_mode server_pending_mode;
 
 	struct wl_list configure_list; // wlr_xdg_toplevel_decoration_v1_configure::link
 
