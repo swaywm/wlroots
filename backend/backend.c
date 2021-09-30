@@ -9,7 +9,6 @@
 #include <wlr/backend/headless.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/multi.h>
-#include <wlr/backend/noop.h>
 #include <wlr/backend/session.h>
 #include <wlr/backend/wayland.h>
 #include <wlr/config.h>
@@ -203,20 +202,6 @@ static struct wlr_backend *attempt_headless_backend(
 	return backend;
 }
 
-static struct wlr_backend *attempt_noop_backend(struct wl_display *display) {
-	struct wlr_backend *backend = wlr_noop_backend_create(display);
-	if (backend == NULL) {
-		return NULL;
-	}
-
-	size_t outputs = parse_outputs_env("WLR_NOOP_OUTPUTS");
-	for (size_t i = 0; i < outputs; ++i) {
-		wlr_noop_add_output(backend);
-	}
-
-	return backend;
-}
-
 #if WLR_HAS_DRM_BACKEND
 static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 		struct wlr_backend *backend, struct wlr_session *session) {
@@ -269,8 +254,6 @@ static bool attempt_backend_by_name(struct wl_display *display,
 #endif
 	} else if (strcmp(name, "headless") == 0) {
 		backend = attempt_headless_backend(display);
-	} else if (strcmp(name, "noop") == 0) {
-		backend = attempt_noop_backend(display);
 	} else if (strcmp(name, "drm") == 0 || strcmp(name, "libinput") == 0) {
 		// DRM and libinput need a session
 		if (multi->session == NULL) {

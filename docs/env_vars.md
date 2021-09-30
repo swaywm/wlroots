@@ -3,7 +3,7 @@ wlroots reads these environment variables
 # wlroots specific
 
 * *WLR_BACKENDS*: comma-separated list of backends to use (available backends:
-  libinput, drm, wayland, x11, headless, noop)
+  libinput, drm, wayland, x11, headless)
 * *WLR_NO_HARDWARE_CURSORS*: set to 1 to use software cursors instead of
   hardware cursors
 * *WLR_XWAYLAND*: specifies the path to an Xwayland binary to be used (instead
