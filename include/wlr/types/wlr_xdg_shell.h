@@ -192,7 +192,7 @@ struct wlr_xdg_surface {
 
 	bool added, configured, mapped;
 	struct wl_event_source *configure_idle;
-	uint32_t configure_next_serial;
+	uint32_t scheduled_serial;
 	struct wl_list configure_list;
 
 	struct wlr_xdg_surface_state current, pending;

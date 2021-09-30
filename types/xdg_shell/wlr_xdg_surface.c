@@ -85,7 +85,7 @@ void unmap_xdg_surface(struct wlr_xdg_surface *surface) {
 		wl_event_source_remove(surface->configure_idle);
 		surface->configure_idle = NULL;
 	}
-	surface->configure_next_serial = 0;
+	surface->scheduled_serial = 0;
 
 	memset(&surface->current, 0, sizeof(struct wlr_xdg_surface_state));
 	memset(&surface->pending, 0, sizeof(struct wlr_xdg_surface_state));
@@ -160,7 +160,7 @@ static void surface_send_configure(void *user_data) {
 	}
 
 	wl_list_insert(surface->configure_list.prev, &configure->link);
-	configure->serial = surface->configure_next_serial;
+	configure->serial = surface->scheduled_serial;
 	configure->surface = surface;
 
 	switch (surface->role) {
@@ -189,14 +189,14 @@ uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface) {
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);
 
 	if (surface->configure_idle == NULL) {
-		surface->configure_next_serial = wl_display_next_serial(display);
+		surface->scheduled_serial = wl_display_next_serial(display);
 		surface->configure_idle = wl_event_loop_add_idle(loop,
 			surface_send_configure, surface);
 		if (surface->configure_idle == NULL) {
 			wl_client_post_no_memory(surface->client->client);
 		}
 	}
-	return surface->configure_next_serial;
+	return surface->scheduled_serial;
 }
 
 static void xdg_surface_handle_get_popup(struct wl_client *client,
