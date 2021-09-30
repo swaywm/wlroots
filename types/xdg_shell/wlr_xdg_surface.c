@@ -81,14 +81,13 @@ void unmap_xdg_surface(struct wlr_xdg_surface *surface) {
 	}
 
 	surface->configured = surface->mapped = false;
-	surface->configure_serial = 0;
 	if (surface->configure_idle) {
 		wl_event_source_remove(surface->configure_idle);
 		surface->configure_idle = NULL;
 	}
 	surface->configure_next_serial = 0;
 
-	memset(&surface->geometry, 0, sizeof(struct wlr_box));
+	memset(&surface->current, 0, sizeof(struct wlr_xdg_surface_state));
 	memset(&surface->pending, 0, sizeof(struct wlr_xdg_surface_state));
 }
 
@@ -310,14 +309,6 @@ static void xdg_surface_handle_surface_commit(struct wl_listener *listener,
 	}
 }
 
-static void surface_commit_state(struct wlr_xdg_surface *surface,
-		struct wlr_xdg_surface_state *state) {
-	surface->configure_serial = state->configure_serial;
-	if (!wlr_box_empty(&state->geometry)) {
-		surface->geometry = state->geometry;
-	}
-}
-
 void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 	struct wlr_xdg_surface *surface =
 		wlr_xdg_surface_from_wlr_surface(wlr_surface);
@@ -325,7 +316,7 @@ void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 		return;
 	}
 
-	surface_commit_state(surface, &surface->pending);
+	surface->current = surface->pending;
 
 	switch (surface->role) {
 	case WLR_XDG_SURFACE_ROLE_NONE:
@@ -540,9 +531,9 @@ void wlr_xdg_popup_get_position(struct wlr_xdg_popup *popup,
 	struct wlr_box parent_geo;
 	wlr_xdg_surface_get_geometry(parent, &parent_geo);
 	*popup_sx = parent_geo.x + popup->geometry.x -
-		popup->base->geometry.x;
+		popup->base->current.geometry.x;
 	*popup_sy = parent_geo.y + popup->geometry.y -
-		popup->base->geometry.y;
+		popup->base->current.geometry.y;
 }
 
 struct wlr_surface *wlr_xdg_surface_surface_at(
@@ -632,10 +623,11 @@ void wlr_xdg_surface_for_each_popup_surface(struct wlr_xdg_surface *surface,
 void wlr_xdg_surface_get_geometry(struct wlr_xdg_surface *surface,
 		struct wlr_box *box) {
 	wlr_surface_get_extends(surface->surface, box);
+
 	/* The client never set the geometry */
-	if (!surface->geometry.width) {
+	if (wlr_box_empty(&surface->current.geometry)) {
 		return;
 	}
 
-	wlr_box_intersection(box, &surface->geometry, box);
+	wlr_box_intersection(box, &surface->current.geometry, box);
 }
