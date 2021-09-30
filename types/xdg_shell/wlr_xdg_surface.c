@@ -85,10 +85,6 @@ void unmap_xdg_surface(struct wlr_xdg_surface *surface) {
 		wl_event_source_remove(surface->configure_idle);
 		surface->configure_idle = NULL;
 	}
-	surface->scheduled_serial = 0;
-
-	memset(&surface->current, 0, sizeof(struct wlr_xdg_surface_state));
-	memset(&surface->pending, 0, sizeof(struct wlr_xdg_surface_state));
 }
 
 static void xdg_surface_handle_ack_configure(struct wl_client *client,
