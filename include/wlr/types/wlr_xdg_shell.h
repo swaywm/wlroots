@@ -191,14 +191,11 @@ struct wlr_xdg_surface {
 	struct wl_list popups; // wlr_xdg_popup::link
 
 	bool added, configured, mapped;
-	uint32_t configure_serial;
 	struct wl_event_source *configure_idle;
 	uint32_t configure_next_serial;
 	struct wl_list configure_list;
 
-	struct wlr_box geometry;
-
-	struct wlr_xdg_surface_state pending;
+	struct wlr_xdg_surface_state current, pending;
 
 	struct wl_listener surface_destroy;
 	struct wl_listener surface_commit;

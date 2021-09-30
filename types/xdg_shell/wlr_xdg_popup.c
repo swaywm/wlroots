@@ -408,8 +408,8 @@ void wlr_xdg_popup_get_toplevel_coords(struct wlr_xdg_popup *popup,
 			popup_sy += xdg_surface->popup->geometry.y;
 			parent = xdg_surface->popup->parent;
 		} else {
-			popup_sx += xdg_surface->geometry.x;
-			popup_sy += xdg_surface->geometry.y;
+			popup_sx += xdg_surface->current.geometry.x;
+			popup_sy += xdg_surface->current.geometry.y;
 			break;
 		}
 	}
