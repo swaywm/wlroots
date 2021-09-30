@@ -369,13 +369,13 @@ void wlr_xdg_popup_unconstrain_from_box(struct wlr_xdg_popup *popup,
   Invert the right/left anchor and gravity for this positioner. This can be
   used to "flip" the positioner around the anchor rect in the x direction.
  */
-void wlr_positioner_invert_x(struct wlr_xdg_positioner *positioner);
+void wlr_xdg_positioner_invert_x(struct wlr_xdg_positioner *positioner);
 
 /**
   Invert the top/bottom anchor and gravity for this positioner. This can be
   used to "flip" the positioner around the anchor rect in the y direction.
  */
-void wlr_positioner_invert_y(struct wlr_xdg_positioner *positioner);
+void wlr_xdg_positioner_invert_y(struct wlr_xdg_positioner *positioner);
 
 /**
  * Find a surface within this xdg-surface tree at the given surface-local

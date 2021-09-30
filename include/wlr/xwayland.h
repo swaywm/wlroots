@@ -322,11 +322,11 @@ void wlr_xwayland_surface_ping(struct wlr_xwayland_surface *surface);
  * Returns: true if the window should receive focus
  *          false if it should be ignored
  */
-bool wlr_xwayland_or_surface_wants_focus(
+bool wlr_xwayland_surface_override_redirect_wants_focus(
 	const struct wlr_xwayland_surface *xsurface);
 
 
-enum wlr_xwayland_icccm_input_model wlr_xwayland_icccm_input_model(
+enum wlr_xwayland_icccm_input_model wlr_xwayland_surface_icccm_input_model(
 	const struct wlr_xwayland_surface *xsurface);
 
 #endif

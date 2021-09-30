@@ -326,6 +326,6 @@ struct wlr_tablet_pad_v2_grab_interface {
 void wlr_tablet_v2_end_grab(struct wlr_tablet_v2_tablet_pad *pad);
 void wlr_tablet_v2_start_grab(struct wlr_tablet_v2_tablet_pad *pad, struct wlr_tablet_pad_v2_grab *grab);
 
-bool wlr_surface_accepts_tablet_v2(struct wlr_tablet_v2_tablet *tablet,
-	struct wlr_surface *surface);
+bool wlr_surface_accepts_tablet_v2(struct wlr_surface *surface,
+		struct wlr_tablet_v2_tablet *tablet);
 #endif /* WLR_TYPES_WLR_TABLET_V2_H */

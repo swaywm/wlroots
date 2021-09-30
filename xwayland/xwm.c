@@ -2190,7 +2190,7 @@ void wlr_xwayland_surface_ping(struct wlr_xwayland_surface *surface) {
 	surface->pinging = true;
 }
 
-bool wlr_xwayland_or_surface_wants_focus(
+bool wlr_xwayland_surface_override_redirect_wants_focus(
 		const struct wlr_xwayland_surface *xsurface) {
 	static enum atom_name needles[] = {
 		NET_WM_WINDOW_TYPE_COMBO,
@@ -2214,8 +2214,8 @@ bool wlr_xwayland_or_surface_wants_focus(
 	return true;
 }
 
-enum wlr_xwayland_icccm_input_model wlr_xwayland_icccm_input_model(
-	const struct wlr_xwayland_surface *xsurface) {
+enum wlr_xwayland_icccm_input_model wlr_xwayland_surface_icccm_input_model(
+		const struct wlr_xwayland_surface *xsurface) {
 	bool take_focus = xwm_atoms_contains(xsurface->xwm,
 		xsurface->protocols, xsurface->protocols_len,
 		WM_TAKE_FOCUS);

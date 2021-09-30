@@ -632,7 +632,7 @@ void wlr_xdg_surface_for_each_popup_surface(struct wlr_xdg_surface *surface,
 
 void wlr_xdg_surface_get_geometry(struct wlr_xdg_surface *surface,
 		struct wlr_box *box) {
-	wlr_surface_get_extends(surface->surface, box);
+	wlr_surface_get_extents(surface->surface, box);
 	/* The client never set the geometry */
 	if (!surface->geometry.width) {
 		return;

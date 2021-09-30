@@ -438,7 +438,7 @@ bool wlr_seat_validate_touch_grab_serial(struct wlr_seat *seat,
 	return false;
 }
 
-bool wlr_surface_accepts_touch(struct wlr_seat *wlr_seat, struct wlr_surface *surface) {
+bool wlr_surface_accepts_touch(struct wlr_surface *surface, struct wlr_seat *wlr_seat) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
 	struct wlr_seat_client *seat_client = wlr_seat_client_for_wl_client(wlr_seat, client);
 	if (!seat_client) {
