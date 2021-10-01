@@ -119,11 +119,12 @@ static void init_dmabuf_formats(struct wlr_egl *egl) {
 
 		has_modifiers = has_modifiers || modifiers_len > 0;
 
-		// EGL always supports implicit modifiers
-		wlr_drm_format_set_add(&egl->dmabuf_texture_formats, fmt,
-			DRM_FORMAT_MOD_INVALID);
-		wlr_drm_format_set_add(&egl->dmabuf_render_formats, fmt,
-			DRM_FORMAT_MOD_INVALID);
+		if (modifiers_len == 0) {
+			wlr_drm_format_set_add(&egl->dmabuf_texture_formats, fmt,
+				DRM_FORMAT_MOD_INVALID);
+			wlr_drm_format_set_add(&egl->dmabuf_render_formats, fmt,
+				DRM_FORMAT_MOD_INVALID);
+		}
 
 		for (int j = 0; j < modifiers_len; j++) {
 			wlr_drm_format_set_add(&egl->dmabuf_texture_formats, fmt,
