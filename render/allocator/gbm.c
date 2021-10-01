@@ -7,7 +7,6 @@
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include "render/allocator/gbm.h"
-#include "render/drm_format_set.h"
 
 static const struct wlr_buffer_impl buffer_impl;
 
@@ -87,20 +86,17 @@ static struct wlr_gbm_buffer *create_buffer(struct wlr_gbm_allocator *alloc,
 		int width, int height, const struct wlr_drm_format *format) {
 	struct gbm_device *gbm_device = alloc->gbm_device;
 
-	assert(format->len > 0);
-
+	struct gbm_bo *bo = NULL;
 	bool has_modifier = true;
-	struct gbm_bo *bo = gbm_bo_create_with_modifiers(gbm_device, width, height,
-		format->format, format->modifiers, format->len);
+	if (format->len > 0) {
+		bo = gbm_bo_create_with_modifiers(gbm_device, width, height,
+			format->format, format->modifiers, format->len);
+	}
 	if (bo == NULL) {
 		uint32_t usage = GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING;
 		if (format->len == 1 &&
 				format->modifiers[0] == DRM_FORMAT_MOD_LINEAR) {
 			usage |= GBM_BO_USE_LINEAR;
-		} else if (!wlr_drm_format_has(format, DRM_FORMAT_MOD_INVALID)) {
-			// If the format doesn't accept an implicit modifier, bail out.
-			wlr_log(WLR_ERROR, "gbm_bo_create_with_modifiers failed");
-			return NULL;
 		}
 		bo = gbm_bo_create(gbm_device, width, height, format->format, usage);
 		has_modifier = false;
