@@ -36,11 +36,4 @@ size_t match_obj(size_t num_objs, const uint32_t objs[static restrict num_objs],
 		size_t num_res, const uint32_t res[static restrict num_res],
 		uint32_t out[static restrict num_res]);
 
-/**
- * Close a GEM buffer handle.
- *
- * TODO: replace with drmCloseBufferHandle.
- */
-void close_bo_handle(int drm_fd, uint32_t handle);
-
 #endif

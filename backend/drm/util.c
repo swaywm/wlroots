@@ -320,14 +320,3 @@ size_t match_obj(size_t num_objs, const uint32_t objs[static restrict num_objs],
 	match_obj_(&st, 0, 0, 0, 0);
 	return st.score;
 }
-
-void close_bo_handle(int drm_fd, uint32_t handle) {
-	if (handle == 0) {
-		return;
-	}
-
-	struct drm_gem_close args = { .handle = handle };
-	if (drmIoctl(drm_fd, DRM_IOCTL_GEM_CLOSE, &args) != 0) {
-		wlr_log_errno(WLR_ERROR, "drmIoctl(GEM_CLOSE) failed");
-	}
-}

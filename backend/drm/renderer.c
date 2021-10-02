@@ -271,7 +271,9 @@ static void close_all_bo_handles(struct wlr_drm_backend *drm,
 			continue;
 		}
 
-		close_bo_handle(drm->fd, handles[i]);
+		if (drmCloseBufferHandle(drm->fd, handles[i]) != 0) {
+			wlr_log_errno(WLR_ERROR, "drmCloseBufferHandle failed");
+		}
 	}
 }
 
