@@ -25,11 +25,19 @@ void wlr_allocator_init(struct wlr_allocator *alloc,
  * TODO: don't assume we have the permission to just open the DRM node,
  * find another way to re-open it.
  */
-static int reopen_drm_node(int drm_fd) {
-	char *name = drmGetDeviceNameFromFd2(drm_fd);
+static int reopen_drm_node(int drm_fd, bool allow_render_node) {
+	char *name = NULL;
+	if (allow_render_node) {
+		name = drmGetRenderDeviceNameFromFd(drm_fd);
+	}
 	if (name == NULL) {
-		wlr_log(WLR_ERROR, "drmGetDeviceNameFromFd2 failed");
-		return -1;
+		// Either the DRM device has no render node, either the caller wants
+		// a primary node
+		name = drmGetDeviceNameFromFd2(drm_fd);
+		if (name == NULL) {
+			wlr_log(WLR_ERROR, "drmGetDeviceNameFromFd2 failed");
+			return -1;
+		}
 	}
 
 	int new_fd = open(name, O_RDWR | O_CLOEXEC);
@@ -74,7 +82,7 @@ struct wlr_allocator *allocator_autocreate_with_drm_fd(
 	if ((backend_caps & gbm_caps) && (renderer_caps & gbm_caps)
 			&& drm_fd >= 0) {
 		wlr_log(WLR_DEBUG, "Trying to create gbm allocator");
-		int gbm_fd = reopen_drm_node(drm_fd);
+		int gbm_fd = reopen_drm_node(drm_fd, true);
 		if (gbm_fd < 0) {
 			return NULL;
 		}
@@ -98,7 +106,7 @@ struct wlr_allocator *allocator_autocreate_with_drm_fd(
 	if ((backend_caps & drm_caps) && (renderer_caps & drm_caps)
 			&& drm_fd >= 0 && drmIsMaster(drm_fd)) {
 		wlr_log(WLR_DEBUG, "Trying to create drm dumb allocator");
-		int dumb_fd = reopen_drm_node(drm_fd);
+		int dumb_fd = reopen_drm_node(drm_fd, false);
 		if (dumb_fd < 0) {
 			return NULL;
 		}
