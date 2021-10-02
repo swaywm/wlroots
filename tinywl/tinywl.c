@@ -281,7 +281,7 @@ static void server_new_input(struct wl_listener *listener, void *data) {
 static void seat_request_cursor(struct wl_listener *listener, void *data) {
 	struct tinywl_server *server = wl_container_of(
 			listener, server, request_cursor);
-	/* This event is rasied by the seat when a client provides a cursor image */
+	/* This event is raised by the seat when a client provides a cursor image */
 	struct wlr_seat_pointer_request_set_cursor_event *event = data;
 	struct wlr_seat_client *focused_client =
 		server->seat->pointer_state.focused_client;
@@ -656,7 +656,7 @@ static void output_frame(struct wl_listener *listener, void *data) {
 }
 
 static void server_new_output(struct wl_listener *listener, void *data) {
-	/* This event is rasied by the backend when a new output (aka a display or
+	/* This event is raised by the backend when a new output (aka a display or
 	 * monitor) becomes available. */
 	struct tinywl_server *server =
 		wl_container_of(listener, server, new_output);
@@ -758,7 +758,7 @@ static void xdg_toplevel_request_move(
 	/* This event is raised when a client would like to begin an interactive
 	 * move, typically because the user clicked on their client-side
 	 * decorations. Note that a more sophisticated compositor should check the
-	 * provied serial against a list of button press serials sent to this
+	 * provided serial against a list of button press serials sent to this
 	 * client, to prevent the client from requesting this whenever they want. */
 	struct tinywl_view *view = wl_container_of(listener, view, request_move);
 	begin_interactive(view, TINYWL_CURSOR_MOVE, 0);
@@ -769,7 +769,7 @@ static void xdg_toplevel_request_resize(
 	/* This event is raised when a client would like to begin an interactive
 	 * resize, typically because the user clicked on their client-side
 	 * decorations. Note that a more sophisticated compositor should check the
-	 * provied serial against a list of button press serials sent to this
+	 * provided serial against a list of button press serials sent to this
 	 * client, to prevent the client from requesting this whenever they want. */
 	struct wlr_xdg_toplevel_resize_event *event = data;
 	struct tinywl_view *view = wl_container_of(listener, view, request_resize);

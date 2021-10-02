@@ -76,7 +76,7 @@ void wlr_idle_set_enabled(struct wlr_idle *idle, struct wlr_seat *seat,
 /**
  * Create a new timer on the given seat. The idle event will be called after
  * the given amount of milliseconds of inactivity, and the resumed event will
- * be sent at the first user activty after the fired event.
+ * be sent at the first user activity after the fired event.
  */
 struct wlr_idle_timeout *wlr_idle_timeout_create(struct wlr_idle *idle,
 	struct wlr_seat *seat, uint32_t timeout);

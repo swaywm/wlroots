@@ -49,7 +49,7 @@ void wlr_box_closest_point(const struct wlr_box *box, double x, double y,
 	double *dest_x, double *dest_y);
 
 /**
- * Gives the intersecting box betweem two wlr_box.
+ * Gives the intersecting box between two wlr_box.
  *
  * Returns an empty wlr_box if the provided wlr_box don't intersect.
  */
