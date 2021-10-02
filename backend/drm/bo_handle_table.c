@@ -18,7 +18,7 @@ bool drm_bo_handle_table_ref(struct wlr_drm_bo_handle_table *table,
 	assert(handle != 0);
 
 	if (handle > table->len) {
-		// Grow linearily, because we don't expect the number of BOs to explode
+		// Grow linearly, because we don't expect the number of BOs to explode
 		size_t len = align(handle + 1, 512);
 		size_t *nrefs = realloc(table->nrefs, len * sizeof(size_t));
 		if (nrefs == NULL) {

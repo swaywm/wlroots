@@ -18,7 +18,7 @@ struct wlr_allocator_interface {
 struct wlr_allocator {
 	const struct wlr_allocator_interface *impl;
 
-	// Capabilites of the buffers created with this allocator
+	// Capabilities of the buffers created with this allocator
 	uint32_t buffer_caps;
 
 	struct {
