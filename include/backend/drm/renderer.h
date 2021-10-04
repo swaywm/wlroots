@@ -32,7 +32,6 @@ struct wlr_drm_fb {
 	struct wlr_drm_backend *backend;
 	struct wl_list link; // wlr_drm_backend.fbs
 
-	uint32_t handles[WLR_DMABUF_MAX_PLANES];
 	uint32_t id;
 };
 

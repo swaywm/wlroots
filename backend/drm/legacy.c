@@ -138,11 +138,21 @@ static bool legacy_crtc_commit(struct wlr_drm_connector *conn,
 			return false;
 		}
 
-		uint32_t cursor_handle = cursor_fb->handles[0];
-		uint32_t cursor_width = cursor_fb->wlr_buf->width;
-		uint32_t cursor_height = cursor_fb->wlr_buf->height;
-		if (drmModeSetCursor(drm->fd, crtc->id, cursor_handle,
-				cursor_width, cursor_height)) {
+		drmModeFB *drm_fb = drmModeGetFB(drm->fd, cursor_fb->id);
+		if (drm_fb == NULL) {
+			wlr_drm_conn_log_errno(conn, WLR_DEBUG, "Failed to get cursor "
+				"BO handle: drmModeGetFB failed");
+			return false;
+		}
+		uint32_t cursor_handle = drm_fb->handle;
+		uint32_t cursor_width = drm_fb->width;
+		uint32_t cursor_height = drm_fb->height;
+		drmModeFreeFB(drm_fb);
+
+		int ret = drmModeSetCursor(drm->fd, crtc->id, cursor_handle,
+			cursor_width, cursor_height);
+		close_bo_handle(drm->fd, cursor_handle);
+		if (ret != 0) {
 			wlr_drm_conn_log_errno(conn, WLR_DEBUG, "drmModeSetCursor failed");
 			return false;
 		}
