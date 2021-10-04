@@ -186,6 +186,7 @@ struct wlr_subsurface {
 	bool mapped;
 
 	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit_request;
 	struct wl_listener parent_destroy;
 
 	struct {
