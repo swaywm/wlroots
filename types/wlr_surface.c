@@ -541,6 +541,8 @@ static void surface_handle_commit(struct wl_client *client,
 
 	surface_finalize_pending(surface);
 
+	wlr_signal_emit_safe(&surface->events.commit_request, surface);
+
 	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
 		surface_cache_pending(surface);
 	} else {
@@ -745,6 +747,7 @@ struct wlr_surface *surface_create(struct wl_client *client,
 	surface->pending.seq = 1;
 
 	wl_signal_init(&surface->events.commit);
+	wl_signal_init(&surface->events.commit_request);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.new_subsurface);
 	wl_list_init(&surface->current_outputs);

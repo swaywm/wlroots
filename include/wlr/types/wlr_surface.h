@@ -136,7 +136,10 @@ struct wlr_surface {
 	void *role_data; // role-specific data
 
 	struct {
+		// Fired on the current state update
 		struct wl_signal commit;
+		// Fired on wl_surface.commit request
+		struct wl_signal commit_request;
 		struct wl_signal new_subsurface;
 		struct wl_signal destroy;
 	} events;
