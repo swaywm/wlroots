@@ -204,42 +204,6 @@ static const struct wlr_addon_interface fb_addon_impl = {
 	.destroy = drm_fb_handle_destroy,
 };
 
-static uint32_t get_bo_handle_for_fd(struct wlr_drm_backend *drm,
-		int dmabuf_fd) {
-	uint32_t handle = 0;
-	int ret = drmPrimeFDToHandle(drm->fd, dmabuf_fd, &handle);
-	if (ret != 0) {
-		wlr_log_errno(WLR_DEBUG, "drmPrimeFDToHandle failed");
-		return 0;
-	}
-
-	if (!drm_bo_handle_table_ref(&drm->bo_handles, handle)) {
-		// If that failed, the handle wasn't ref'ed in the table previously,
-		// so safe to delete
-		struct drm_gem_close args = { .handle = handle };
-		drmIoctl(drm->fd, DRM_IOCTL_GEM_CLOSE, &args);
-		return 0;
-	}
-
-	return handle;
-}
-
-static void close_bo_handle(struct wlr_drm_backend *drm, uint32_t handle) {
-	if (handle == 0) {
-		return;
-	}
-
-	size_t nrefs = drm_bo_handle_table_unref(&drm->bo_handles, handle);
-	if (nrefs > 0) {
-		return;
-	}
-
-	struct drm_gem_close args = { .handle = handle };
-	if (drmIoctl(drm->fd, DRM_IOCTL_GEM_CLOSE, &args) != 0) {
-		wlr_log_errno(WLR_ERROR, "drmIoctl(GEM_CLOSE) failed");
-	}
-}
-
 static uint32_t get_fb_for_bo(struct wlr_drm_backend *drm,
 		struct wlr_dmabuf_attributes *dmabuf, uint32_t handles[static 4]) {
 	uint64_t modifiers[4] = {0};
@@ -281,6 +245,29 @@ static uint32_t get_fb_for_bo(struct wlr_drm_backend *drm,
 	return id;
 }
 
+static void close_all_bo_handles(struct wlr_drm_backend *drm,
+		uint32_t handles[static 4]) {
+	for (int i = 0; i < 4; ++i) {
+		if (handles[i] == 0) {
+			continue;
+		}
+
+		// If multiple planes share the same BO handle, avoid double-closing it
+		bool already_closed = false;
+		for (int j = 0; j < i; ++j) {
+			if (handles[i] == handles[j]) {
+				already_closed = true;
+				break;
+			}
+		}
+		if (already_closed) {
+			continue;
+		}
+
+		close_bo_handle(drm->fd, handles[i]);
+	}
+}
+
 static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, const struct wlr_drm_format_set *formats) {
 	struct wlr_drm_fb *fb = calloc(1, sizeof(*fb));
@@ -318,18 +305,22 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 		}
 	}
 
+	uint32_t handles[4] = {0};
 	for (int i = 0; i < attribs.n_planes; ++i) {
-		fb->handles[i] = get_bo_handle_for_fd(drm, attribs.fd[i]);
-		if (fb->handles[i] == 0) {
+		int ret = drmPrimeFDToHandle(drm->fd, attribs.fd[i], &handles[i]);
+		if (ret != 0) {
+			wlr_log_errno(WLR_DEBUG, "drmPrimeFDToHandle failed");
 			goto error_bo_handle;
 		}
 	}
 
-	fb->id = get_fb_for_bo(drm, &attribs, fb->handles);
+	fb->id = get_fb_for_bo(drm, &attribs, handles);
 	if (!fb->id) {
 		wlr_log(WLR_DEBUG, "Failed to import BO in KMS");
 		goto error_bo_handle;
 	}
+
+	close_all_bo_handles(drm, handles);
 
 	fb->backend = drm;
 	fb->wlr_buf = buf;
@@ -340,9 +331,7 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 	return fb;
 
 error_bo_handle:
-	for (int i = 0; i < attribs.n_planes; ++i) {
-		close_bo_handle(drm, fb->handles[i]);
-	}
+	close_all_bo_handles(drm, handles);
 error_get_dmabuf:
 	free(fb);
 	return NULL;
@@ -356,10 +345,6 @@ void drm_fb_destroy(struct wlr_drm_fb *fb) {
 
 	if (drmModeRmFB(drm->fd, fb->id) != 0) {
 		wlr_log(WLR_ERROR, "drmModeRmFB failed");
-	}
-
-	for (size_t i = 0; i < sizeof(fb->handles) / sizeof(fb->handles[0]); ++i) {
-		close_bo_handle(drm, fb->handles[i]);
 	}
 
 	free(fb);

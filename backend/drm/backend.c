@@ -52,8 +52,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&drm->dev_change.link);
 	wl_list_remove(&drm->dev_remove.link);
 
-	drm_bo_handle_table_finish(&drm->bo_handles);
-
 	if (drm->parent) {
 		finish_drm_renderer(&drm->mgpu_renderer);
 	}
