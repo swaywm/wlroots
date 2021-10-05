@@ -1,7 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <errno.h>
-#include <libinput.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
