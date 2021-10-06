@@ -206,6 +206,8 @@ struct wlr_surface {
 struct wlr_subsurface_parent_state {
 	int32_t x, y;
 	struct wl_list link;
+
+	struct wlr_surface_synced_state synced_state;
 };
 
 struct wlr_subsurface {
@@ -222,6 +224,8 @@ struct wlr_subsurface {
 	bool reordered;
 	bool mapped;
 
+	struct wlr_surface_synced parent_synced;
+
 	struct wl_listener surface_destroy;
 	struct wl_listener parent_destroy;
 
@@ -230,6 +234,10 @@ struct wlr_subsurface {
 		struct wl_signal map;
 		struct wl_signal unmap;
 	} events;
+
+	struct {
+		int32_t x, y;
+	} previous;
 
 	void *data;
 };
