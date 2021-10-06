@@ -128,6 +128,11 @@ static void print_toplevel_state(struct toplevel_v1 *toplevel, bool print_endl) 
 	}
 }
 
+static void finish_toplevel_state(struct toplevel_state *state) {
+	free(state->title);
+	free(state->app_id);
+}
+
 static void toplevel_handle_title(void *data,
 		struct zwlr_foreign_toplevel_handle_v1 *zwlr_toplevel,
 		const char *title) {
@@ -228,6 +233,9 @@ static void toplevel_handle_closed(void *data,
 	printf(" closed\n");
 
 	zwlr_foreign_toplevel_handle_v1_destroy(zwlr_toplevel);
+	finish_toplevel_state(&toplevel->current);
+	finish_toplevel_state(&toplevel->pending);
+	free(toplevel);
 }
 
 static const struct zwlr_foreign_toplevel_handle_v1_listener toplevel_impl = {
