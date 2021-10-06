@@ -339,15 +339,28 @@ static void layer_surface_role_commit(struct wlr_surface *wlr_surface) {
 		surface->mapped = true;
 		wlr_signal_emit_safe(&surface->events.map, surface);
 	}
-	if (surface->configured && !wlr_surface_has_buffer(surface->surface) &&
-			surface->mapped) {
-		layer_surface_unmap(surface);
+}
+
+static void layer_surface_role_precommit(struct wlr_surface *wlr_surface) {
+	struct wlr_layer_surface_v1 *surface =
+		wlr_layer_surface_v1_from_wlr_surface(wlr_surface);
+	if (surface == NULL) {
+		return;
+	}
+
+	if (wlr_surface->pending.committed & WLR_SURFACE_STATE_BUFFER &&
+			wlr_surface->pending.buffer == NULL) {
+		// This is a NULL commit
+		if (surface->configured && surface->mapped) {
+			layer_surface_unmap(surface);
+		}
 	}
 }
 
 static const struct wlr_surface_role layer_surface_role = {
 	.name = "zwlr_layer_surface_v1",
 	.commit = layer_surface_role_commit,
+	.precommit = layer_surface_role_precommit,
 };
 
 static void handle_surface_destroyed(struct wl_listener *listener,
