@@ -336,10 +336,6 @@ void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 		surface->mapped = true;
 		wlr_signal_emit_safe(&surface->events.map, surface);
 	}
-	if (surface->configured && !wlr_surface_has_buffer(surface->surface) &&
-			surface->mapped) {
-		unmap_xdg_surface(surface);
-	}
 }
 
 void handle_xdg_surface_precommit(struct wlr_surface *wlr_surface) {
