@@ -289,9 +289,11 @@ static void feedback_handle_output_present(struct wl_listener *listener,
 		return;
 	}
 
-	struct wlr_presentation_event event = {0};
-	wlr_presentation_event_from_output(&event, output_event);
-	wlr_presentation_feedback_send_presented(feedback, &event);
+	if (output_event->presented) {
+		struct wlr_presentation_event event = {0};
+		wlr_presentation_event_from_output(&event, output_event);
+		wlr_presentation_feedback_send_presented(feedback, &event);
+	}
 	wlr_presentation_feedback_destroy(feedback);
 }
 
