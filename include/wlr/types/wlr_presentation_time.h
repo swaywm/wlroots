@@ -20,7 +20,6 @@ struct wlr_output_event_present;
 struct wlr_presentation {
 	struct wl_global *global;
 	struct wl_list feedbacks; // wlr_presentation_feedback::link
-	clockid_t clock;
 
 	struct {
 		struct wl_signal destroy;
