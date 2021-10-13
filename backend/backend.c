@@ -153,13 +153,6 @@ static struct wlr_session *session_create_and_wait(struct wl_display *disp) {
 	return session;
 }
 
-clockid_t wlr_backend_get_presentation_clock(struct wlr_backend *backend) {
-	if (backend->impl->get_presentation_clock) {
-		return backend->impl->get_presentation_clock(backend);
-	}
-	return CLOCK_MONOTONIC;
-}
-
 int wlr_backend_get_drm_fd(struct wlr_backend *backend) {
 	if (!backend->impl->get_drm_fd) {
 		return -1;
