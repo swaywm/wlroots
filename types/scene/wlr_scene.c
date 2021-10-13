@@ -470,6 +470,24 @@ void wlr_scene_node_place_below(struct wlr_scene_node *node,
 	scene_node_damage_whole(sibling);
 }
 
+void wlr_scene_node_raise_to_top(struct wlr_scene_node *node) {
+	struct wlr_scene_node *current_top = wl_container_of(
+		node->parent->state.children.prev, current_top, state.link);
+	if (node == current_top) {
+		return;
+	}
+	wlr_scene_node_place_above(node, current_top);
+}
+
+void wlr_scene_node_lower_to_bottom(struct wlr_scene_node *node) {
+	struct wlr_scene_node *current_bottom = wl_container_of(
+		node->parent->state.children.prev, current_bottom, state.link);
+	if (node == current_bottom) {
+		return;
+	}
+	wlr_scene_node_place_below(node, current_bottom);
+}
+
 void wlr_scene_node_reparent(struct wlr_scene_node *node,
 		struct wlr_scene_node *new_parent) {
 	assert(node->type != WLR_SCENE_NODE_ROOT && new_parent != NULL);
