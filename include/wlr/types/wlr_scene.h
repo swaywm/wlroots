@@ -129,11 +129,13 @@ void wlr_scene_node_set_enabled(struct wlr_scene_node *node, bool enabled);
 void wlr_scene_node_set_position(struct wlr_scene_node *node, int x, int y);
 /**
  * Move the node right above the specified sibling.
+ * Asserts that node and sibling are distinct and share the same parent.
  */
 void wlr_scene_node_place_above(struct wlr_scene_node *node,
 	struct wlr_scene_node *sibling);
 /**
  * Move the node right below the specified sibling.
+ * Asserts that node and sibling are distinct and share the same parent.
  */
 void wlr_scene_node_place_below(struct wlr_scene_node *node,
 	struct wlr_scene_node *sibling);

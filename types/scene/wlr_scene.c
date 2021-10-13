@@ -440,6 +440,7 @@ void wlr_scene_node_set_position(struct wlr_scene_node *node, int x, int y) {
 
 void wlr_scene_node_place_above(struct wlr_scene_node *node,
 		struct wlr_scene_node *sibling) {
+	assert(node != sibling);
 	assert(node->parent == sibling->parent);
 
 	if (node->state.link.prev == &sibling->state.link) {
@@ -455,6 +456,7 @@ void wlr_scene_node_place_above(struct wlr_scene_node *node,
 
 void wlr_scene_node_place_below(struct wlr_scene_node *node,
 		struct wlr_scene_node *sibling) {
+	assert(node != sibling);
 	assert(node->parent == sibling->parent);
 
 	if (node->state.link.next == &sibling->state.link) {
