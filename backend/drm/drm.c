@@ -72,6 +72,11 @@ bool check_drm_features(struct wlr_drm_backend *drm) {
 		return false;
 	}
 
+	if (drmGetCap(drm->fd, DRM_CAP_TIMESTAMP_MONOTONIC, &cap) || !cap) {
+		wlr_log(WLR_ERROR, "DRM_CAP_TIMESTAMP_MONOTONIC unsupported");
+		return false;
+	}
+
 	const char *no_atomic = getenv("WLR_DRM_NO_ATOMIC");
 	if (no_atomic && strcmp(no_atomic, "1") == 0) {
 		wlr_log(WLR_DEBUG,
@@ -86,14 +91,13 @@ bool check_drm_features(struct wlr_drm_backend *drm) {
 		drm->iface = &atomic_iface;
 	}
 
-	int ret = drmGetCap(drm->fd, DRM_CAP_TIMESTAMP_MONOTONIC, &cap);
-	drm->clock = (ret == 0 && cap == 1) ? CLOCK_MONOTONIC : CLOCK_REALTIME;
+	drm->clock = CLOCK_MONOTONIC;
 
 	const char *no_modifiers = getenv("WLR_DRM_NO_MODIFIERS");
 	if (no_modifiers != NULL && strcmp(no_modifiers, "1") == 0) {
 		wlr_log(WLR_DEBUG, "WLR_DRM_NO_MODIFIERS set, disabling modifiers");
 	} else {
-		ret = drmGetCap(drm->fd, DRM_CAP_ADDFB2_MODIFIERS, &cap);
+		int ret = drmGetCap(drm->fd, DRM_CAP_ADDFB2_MODIFIERS, &cap);
 		drm->addfb2_modifiers = ret == 0 && cap == 1;
 		wlr_log(WLR_DEBUG, "ADDFB2 modifiers %s",
 			drm->addfb2_modifiers ? "supported" : "unsupported");
