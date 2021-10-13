@@ -140,6 +140,14 @@ void wlr_scene_node_place_above(struct wlr_scene_node *node,
 void wlr_scene_node_place_below(struct wlr_scene_node *node,
 	struct wlr_scene_node *sibling);
 /**
+ * Move the node above all of its sibling nodes.
+ */
+void wlr_scene_node_raise_to_top(struct wlr_scene_node *node);
+/**
+ * Move the node below all of its sibling nodes.
+ */
+void wlr_scene_node_lower_to_bottom(struct wlr_scene_node *node);
+/**
  * Move the node to another location in the tree.
  */
 void wlr_scene_node_reparent(struct wlr_scene_node *node,
