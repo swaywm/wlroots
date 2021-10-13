@@ -66,11 +66,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	free(drm);
 }
 
-static clockid_t backend_get_presentation_clock(struct wlr_backend *backend) {
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
-	return drm->clock;
-}
-
 static int backend_get_drm_fd(struct wlr_backend *backend) {
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
 
@@ -88,7 +83,6 @@ static uint32_t drm_backend_get_buffer_caps(struct wlr_backend *backend) {
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
-	.get_presentation_clock = backend_get_presentation_clock,
 	.get_drm_fd = backend_get_drm_fd,
 	.get_buffer_caps = drm_backend_get_buffer_caps,
 };

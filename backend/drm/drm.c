@@ -91,8 +91,6 @@ bool check_drm_features(struct wlr_drm_backend *drm) {
 		drm->iface = &atomic_iface;
 	}
 
-	drm->clock = CLOCK_MONOTONIC;
-
 	const char *no_modifiers = getenv("WLR_DRM_NO_MODIFIERS");
 	if (no_modifiers != NULL && strcmp(no_modifiers, "1") == 0) {
 		wlr_log(WLR_DEBUG, "WLR_DRM_NO_MODIFIERS set, disabling modifiers");
