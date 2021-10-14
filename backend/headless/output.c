@@ -66,6 +66,7 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		struct wlr_output_event_present present_event = {
 			.commit_seq = wlr_output->commit_seq + 1,
+			.presented = true,
 		};
 		wlr_output_send_present(wlr_output, &present_event);
 	}
