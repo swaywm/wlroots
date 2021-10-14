@@ -228,6 +228,8 @@ struct wlr_output_event_present {
 	// Frame submission for which this presentation event is for (see
 	// wlr_output.commit_seq).
 	uint32_t commit_seq;
+	// Whether the frame was presented at all.
+	bool presented;
 	// Time when the content update turned into light the first time.
 	struct timespec *when;
 	// Vertical retrace counter. Zero if unavailable.

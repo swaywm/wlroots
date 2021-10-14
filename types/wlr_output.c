@@ -959,8 +959,8 @@ void wlr_output_send_present(struct wlr_output *output,
 	assert(event);
 	event->output = output;
 
-	struct timespec now;
-	if (event->when == NULL) {
+	if (event->presented && event->when == NULL) {
+		struct timespec now;
 		clockid_t clock = wlr_backend_get_presentation_clock(output->backend);
 		errno = 0;
 		if (clock_gettime(clock, &now) != 0) {

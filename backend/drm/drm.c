@@ -1465,6 +1465,7 @@ static void handle_page_flip(int fd, unsigned seq,
 		/* The DRM backend guarantees that the presentation event will be for
 		 * the last submitted frame. */
 		.commit_seq = conn->output.commit_seq,
+		.presented = true,
 		.when = &present_time,
 		.seq = seq,
 		.refresh = mhz_to_nsec(conn->output.refresh),

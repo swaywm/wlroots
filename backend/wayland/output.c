@@ -75,6 +75,7 @@ static void presentation_feedback_handle_presented(void *data,
 	};
 	struct wlr_output_event_present event = {
 		.commit_seq = feedback->commit_seq,
+		.presented = true,
 		.when = &t,
 		.seq = ((uint64_t)seq_hi << 32) | seq_lo,
 		.refresh = refresh_ns,
@@ -91,6 +92,7 @@ static void presentation_feedback_handle_discarded(void *data,
 
 	struct wlr_output_event_present event = {
 		.commit_seq = feedback->commit_seq,
+		.presented = false,
 	};
 	wlr_output_send_present(&feedback->output->wlr_output, &event);
 
@@ -350,6 +352,7 @@ static bool output_commit(struct wlr_output *wlr_output) {
 		} else {
 			struct wlr_output_event_present present_event = {
 				.commit_seq = wlr_output->commit_seq + 1,
+				.presented = true,
 			};
 			wlr_output_send_present(wlr_output, &present_event);
 		}

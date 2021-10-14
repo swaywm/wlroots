@@ -690,9 +690,11 @@ void handle_x11_present_event(struct wlr_x11_backend *x11,
 			flags |= WLR_OUTPUT_PRESENT_ZERO_COPY;
 		}
 
+		bool presented = complete_notify->mode != XCB_PRESENT_COMPLETE_MODE_SKIP;
 		struct wlr_output_event_present present_event = {
 			.output = &output->wlr_output,
 			.commit_seq = complete_notify->serial,
+			.presented = presented,
 			.when = &t,
 			.seq = complete_notify->msc,
 			.flags = flags,
