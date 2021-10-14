@@ -956,12 +956,7 @@ void wlr_output_schedule_frame(struct wlr_output *output) {
 
 void wlr_output_send_present(struct wlr_output *output,
 		struct wlr_output_event_present *event) {
-	struct wlr_output_event_present _event = {0};
-	if (event == NULL) {
-		event = &_event;
-		event->commit_seq = output->commit_seq + 1;
-	}
-
+	assert(event);
 	event->output = output;
 
 	struct timespec now;

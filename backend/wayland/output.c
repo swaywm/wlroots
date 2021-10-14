@@ -89,7 +89,10 @@ static void presentation_feedback_handle_discarded(void *data,
 		struct wp_presentation_feedback *wp_feedback) {
 	struct wlr_wl_presentation_feedback *feedback = data;
 
-	wlr_output_send_present(&feedback->output->wlr_output, NULL);
+	struct wlr_output_event_present event = {
+		.commit_seq = feedback->commit_seq,
+	};
+	wlr_output_send_present(&feedback->output->wlr_output, &event);
 
 	presentation_feedback_destroy(feedback);
 }
@@ -345,7 +348,10 @@ static bool output_commit(struct wlr_output *wlr_output) {
 			wp_presentation_feedback_add_listener(wp_feedback,
 				&presentation_feedback_listener, feedback);
 		} else {
-			wlr_output_send_present(wlr_output, NULL);
+			struct wlr_output_event_present present_event = {
+				.commit_seq = wlr_output->commit_seq + 1,
+			};
+			wlr_output_send_present(wlr_output, &present_event);
 		}
 	}
 
