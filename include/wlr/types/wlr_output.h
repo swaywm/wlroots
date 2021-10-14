@@ -18,6 +18,8 @@
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/util/addon.h>
 
+struct wlr_allocator;
+
 struct wlr_output_mode {
 	int32_t width, height;
 	int32_t refresh; // mHz
@@ -112,6 +114,7 @@ struct wlr_output_impl;
 struct wlr_output {
 	const struct wlr_output_impl *impl;
 	struct wlr_backend *backend;
+	struct wlr_allocator *allocator;
 	struct wl_display *display;
 
 	struct wl_global *global;
@@ -304,6 +307,15 @@ void wlr_output_set_scale(struct wlr_output *output, float scale);
 void wlr_output_set_subpixel(struct wlr_output *output,
 	enum wl_output_subpixel subpixel);
 void wlr_output_set_description(struct wlr_output *output, const char *desc);
+/**
+ * Sets the output allocator. The allocator and the output backend must have
+ * matching buffer capabilities. Returns false otherwise.
+ *
+ * The allocator is responsible for swapchain managment inside the output,
+ * the swapchain provides a place for the output to write pixels.
+ */
+bool wlr_output_set_allocator(struct wlr_output *output,
+	struct wlr_allocator *allocator);
 /**
  * Schedule a done event.
  *
