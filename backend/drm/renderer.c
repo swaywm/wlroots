@@ -216,8 +216,7 @@ static uint32_t get_bo_handle_for_fd(struct wlr_drm_backend *drm,
 	if (!drm_bo_handle_table_ref(&drm->bo_handles, handle)) {
 		// If that failed, the handle wasn't ref'ed in the table previously,
 		// so safe to delete
-		struct drm_gem_close args = { .handle = handle };
-		drmIoctl(drm->fd, DRM_IOCTL_GEM_CLOSE, &args);
+		drmCloseBufferHandle(drm->fd, handle);
 		return 0;
 	}
 
@@ -234,9 +233,8 @@ static void close_bo_handle(struct wlr_drm_backend *drm, uint32_t handle) {
 		return;
 	}
 
-	struct drm_gem_close args = { .handle = handle };
-	if (drmIoctl(drm->fd, DRM_IOCTL_GEM_CLOSE, &args) != 0) {
-		wlr_log_errno(WLR_ERROR, "drmIoctl(GEM_CLOSE) failed");
+	if (drmCloseBufferHandle(drm->fd, handle) != 0) {
+		wlr_log_errno(WLR_ERROR, "drmCloseBufferHandle failed");
 	}
 }
 
