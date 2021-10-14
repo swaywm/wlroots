@@ -20,3 +20,7 @@ subdir('noop')
 subdir('headless')
 
 subdir('session')
+
+if ('drm' in backends or 'libinput' in backends) and not features['session']
+	error('DRM and libinput backends require session support')
+endif

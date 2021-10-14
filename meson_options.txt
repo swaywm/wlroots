@@ -4,3 +4,4 @@ option('examples', type: 'boolean', value: true, description: 'Build example app
 option('icon_directory', description: 'Location used to look for cursors (default: ${datadir}/icons)', type: 'string', value: '')
 option('renderers', type: 'array', choices: ['auto', 'gles2', 'vulkan'], value: ['auto'], description: 'Select built-in renderers')
 option('backends', type: 'array', choices: ['auto', 'drm', 'libinput', 'x11'], value: ['auto'], description: 'Select built-in backends')
+option('session', type: 'feature', value: 'auto', description: 'Enable session support (required for DRM and libinput backends)')
