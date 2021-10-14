@@ -1,9 +1,11 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <drm_fourcc.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <wlr/allocator/interface.h>
+#include <wlr/render/drm_format_set.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -12,6 +14,8 @@
 #include "allocator/drm_dumb.h"
 #include "allocator/gbm.h"
 #include "allocator/shm.h"
+#include "render/drm_format_set.h"
+#include "render/swapchain.h"
 #include "render/wlr_renderer.h"
 
 void wlr_allocator_init(struct wlr_allocator *alloc,
@@ -139,7 +143,18 @@ struct wlr_allocator *wlr_allocator_autocreate(struct wlr_backend *backend,
 		struct wlr_renderer *renderer) {
 	// Note, drm_fd may be negative if unavailable
 	int drm_fd = wlr_backend_get_drm_fd(backend);
-	return allocator_autocreate_with_drm_fd(backend, renderer, drm_fd);
+	struct wlr_allocator *alloc = allocator_autocreate_with_drm_fd(backend,
+			renderer, drm_fd);
+	if (alloc != NULL) {
+		alloc->render_formats = wlr_renderer_get_render_formats(renderer);
+		if (alloc->render_formats == NULL) {
+			wlr_log(WLR_ERROR, "Failed to get render formats");
+			free(alloc);
+			return NULL;
+		}
+	}
+
+	return alloc;
 }
 
 void wlr_allocator_destroy(struct wlr_allocator *alloc) {
@@ -148,6 +163,61 @@ void wlr_allocator_destroy(struct wlr_allocator *alloc) {
 	}
 	wl_signal_emit(&alloc->events.destroy, NULL);
 	alloc->impl->destroy(alloc);
+}
+
+struct wlr_swapchain *wlr_allocator_create_swapchain(struct wlr_allocator *alloc,
+		int width, int height, const struct wlr_drm_format_set *display_formats,
+		bool allow_modifiers) {
+	static const uint32_t candidates[] = {
+		DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB8888
+	};
+
+	struct wlr_drm_format *format = NULL;
+	for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
+		uint32_t fmt = candidates[i];
+
+		const struct wlr_drm_format *render_format =
+			wlr_drm_format_set_get(alloc->render_formats, fmt);
+		if (render_format == NULL) {
+			wlr_log(WLR_DEBUG, "Renderer doesn't support format 0x%"PRIX32, fmt);
+			continue;
+		}
+
+		if (display_formats != NULL) {
+			const struct wlr_drm_format *display_format =
+				wlr_drm_format_set_get(display_formats, fmt);
+			if (display_format == NULL) {
+				wlr_log(WLR_DEBUG, "Output doesn't support format 0x%"PRIX32, fmt);
+				continue;
+			}
+			format = wlr_drm_format_intersect(display_format, render_format);
+		} else {
+			// The output can display any format
+			format = wlr_drm_format_dup(render_format);
+		}
+
+		if (format == NULL) {
+			wlr_log(WLR_DEBUG, "Failed to intersect display and render "
+				"modifiers for format 0x%"PRIX32, fmt);
+		} else {
+			break;
+		}
+	}
+
+	if (format == NULL) {
+		wlr_log(WLR_ERROR, "Failed to choose a swapchain format");
+		return NULL;
+	}
+
+	if (!allow_modifiers
+		&& (format->len != 1 || format->modifiers[0] != DRM_FORMAT_MOD_LINEAR)) {
+			format->len = 0;
+	}
+
+	wlr_log(WLR_DEBUG, "Choosing primary buffer format 0x%"PRIX32,
+		format->format);
+
+	return wlr_swapchain_create(alloc, width, height, format);
 }
 
 struct wlr_buffer *wlr_allocator_create_buffer(struct wlr_allocator *alloc,
