@@ -794,17 +794,6 @@ static bool vulkan_render_subtexture_with_matrix(struct wlr_renderer *wlr_render
 		vert_pcr_data.uv_size[1] = -vert_pcr_data.uv_size[1];
 	}
 
-	// When the texture itself does not have alpha information we want
-	// to ignore the sampled value and just use the alpha passed here,
-	// we pass a negative value to communicate that.
-	// See the texture.frag shader for more details.
-	const struct wlr_pixel_format_info *format_info = drm_get_pixel_format_info(
-			texture->format->drm_format);
-	assert(format_info);
-	if (!format_info->has_alpha) {
-		alpha *= -1;
-	}
-
 	vkCmdPushConstants(cb, renderer->pipe_layout,
 		VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vert_pcr_data), &vert_pcr_data);
 	vkCmdPushConstants(cb, renderer->pipe_layout,

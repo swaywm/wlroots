@@ -288,6 +288,9 @@ static struct wlr_texture *vulkan_texture_from_pixels(struct wlr_renderer *wlr_r
 		goto error;
 	}
 
+	const struct wlr_pixel_format_info *format_info = drm_get_pixel_format_info(drm_fmt);
+	assert(format_info);
+
 	// view
 	VkImageViewCreateInfo view_info = {0};
 	view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -296,7 +299,9 @@ static struct wlr_texture *vulkan_texture_from_pixels(struct wlr_renderer *wlr_r
 	view_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
 	view_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
 	view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-	view_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+	view_info.components.a = format_info->has_alpha
+		? VK_COMPONENT_SWIZZLE_IDENTITY
+		: VK_COMPONENT_SWIZZLE_ONE;
 
 	view_info.subresourceRange = (VkImageSubresourceRange) {
 		VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1
@@ -613,6 +618,9 @@ static struct wlr_texture *vulkan_texture_from_dmabuf(struct wlr_renderer *wlr_r
 		// return VK_NULL_HANDLE;
 	}
 
+	const struct wlr_pixel_format_info *format_info = drm_get_pixel_format_info(attribs->format);
+	assert(format_info);
+
 	// view
 	VkImageViewCreateInfo view_info = {0};
 	view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -621,7 +629,9 @@ static struct wlr_texture *vulkan_texture_from_dmabuf(struct wlr_renderer *wlr_r
 	view_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
 	view_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
 	view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-	view_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+	view_info.components.a = format_info->has_alpha
+		? VK_COMPONENT_SWIZZLE_IDENTITY
+		: VK_COMPONENT_SWIZZLE_ONE;
 
 	view_info.subresourceRange = (VkImageSubresourceRange) {
 		VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1
