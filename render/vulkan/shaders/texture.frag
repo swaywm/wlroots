@@ -11,15 +11,6 @@ layout(push_constant) uniform UBO {
 
 void main() {
 	out_color = textureLod(tex, uv, 0);
-
-	// We expect this shader to output pre-alpha-multiplied color values.
-	// alpha < 0.0 means that this shader should ignore the texture's alpha
-	// value.
-	if (data.alpha < 0.0) {
-		out_color.a = -data.alpha;
-		out_color.rgb *= -data.alpha;
-	} else {
-		out_color *= data.alpha;
-	}
+	out_color *= data.alpha;
 }
 
