@@ -106,22 +106,28 @@ struct wlr_vk_format_modifier_props {
 	bool export_imported;
 };
 
+enum wlr_vk_image_usage {
+	WLR_VK_IMAGE_USAGE_RENDER,
+	WLR_VK_IMAGE_USAGE_SAMPLED,
+
+	WLR_VK_IMAGE_USAGE_COUNT,
+};
+
+VkImageUsageFlags wlr_vk_image_usage_to_vk(enum wlr_vk_image_usage usage);
+
 struct wlr_vk_format_props {
 	struct wlr_vk_format format;
 	VkExtent2D max_extent; // relevant if not created as dma_buf
 	VkFormatFeatureFlags features; // relevant if not created as dma_buf
 
-	uint32_t render_mod_count;
-	struct wlr_vk_format_modifier_props *render_mods;
-
-	uint32_t texture_mod_count;
-	struct wlr_vk_format_modifier_props *texture_mods;
+	uint32_t mod_count[WLR_VK_IMAGE_USAGE_COUNT];
+	struct wlr_vk_format_modifier_props *mods[WLR_VK_IMAGE_USAGE_COUNT];
 };
 
 void vulkan_format_props_query(struct wlr_vk_device *dev,
 	const struct wlr_vk_format *format);
 struct wlr_vk_format_modifier_props *vulkan_format_props_find_modifier(
-	struct wlr_vk_format_props *props, uint64_t mod, bool render);
+	struct wlr_vk_format_props *props, uint64_t mod, enum wlr_vk_image_usage usage);
 void vulkan_format_props_finish(struct wlr_vk_format_props *props);
 
 // For each format we want to render, we need a separate renderpass
@@ -260,7 +266,7 @@ struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture);
 VkImage vulkan_import_dmabuf(struct wlr_vk_renderer *renderer,
 	const struct wlr_dmabuf_attributes *attribs,
 	VkDeviceMemory mems[static WLR_DMABUF_MAX_PLANES], uint32_t *n_mems,
-	bool for_render);
+	enum wlr_vk_image_usage usage);
 struct wlr_texture *vulkan_texture_from_buffer(
 	struct wlr_renderer *wlr_renderer, struct wlr_buffer *buffer);
 void vulkan_texture_destroy(struct wlr_vk_texture *texture);
