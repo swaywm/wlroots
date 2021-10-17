@@ -293,7 +293,12 @@ static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 		return NULL;
 	}
 
-	wlr_log(WLR_INFO, "Found %zu GPUs", num_gpus);
+	if (num_gpus == 0) {
+		wlr_log(WLR_ERROR, "Found 0 GPUs, cannot create backend");
+		return NULL;
+	} else {
+		wlr_log(WLR_INFO, "Found %zu GPUs", num_gpus);
+	}
 
 	struct wlr_backend *primary_drm = NULL;
 	for (size_t i = 0; i < (size_t)num_gpus; ++i) {
@@ -309,6 +314,10 @@ static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 		}
 
 		wlr_multi_backend_add(backend, drm);
+	}
+	if (!primary_drm) {
+		wlr_log(WLR_ERROR, "Could not successfully create backend on any GPU");
+		return NULL;
 	}
 
 	return ensure_backend_renderer_and_allocator(primary_drm);
