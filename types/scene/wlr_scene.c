@@ -101,6 +101,7 @@ void wlr_scene_node_destroy(struct wlr_scene_node *node) {
 		break;
 	case WLR_SCENE_NODE_SURFACE:;
 		struct wlr_scene_surface *scene_surface = wlr_scene_surface_from_node(node);
+		wl_list_remove(&scene_surface->surface_commit.link);
 		wl_list_remove(&scene_surface->surface_destroy.link);
 		free(scene_surface);
 		break;
