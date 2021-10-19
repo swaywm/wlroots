@@ -10,9 +10,18 @@ dep_vulkan = dependency('vulkan',
 	required: 'vulkan' in renderers,
 	not_found_message: '\n'.join(msg).format('vulkan')
 )
-
 if not dep_vulkan.found()
 	subdir_done()
+endif
+
+# Vulkan headers are installed separately from the loader (which ships the
+# pkg-config file)
+if not cc.check_header('vulkan/vulkan.h', dependencies: dep_vulkan)
+	if 'vulkan' in renderers
+		error('\n'.join(msg).format('vulkan-headers'))
+	else
+		subdir_done()
+	endif
 endif
 
 glslang = find_program('glslangValidator', native: true, required: false)
