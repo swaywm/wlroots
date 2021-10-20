@@ -109,6 +109,10 @@ struct wlr_scene_output {
 	struct wlr_output_damage *damage;
 
 	int x, y;
+
+	// private state
+
+	bool prev_scanout;
 };
 
 typedef void (*wlr_scene_node_iterator_func_t)(struct wlr_scene_node *node,
