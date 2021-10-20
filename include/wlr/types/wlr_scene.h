@@ -271,6 +271,14 @@ void wlr_scene_output_set_position(struct wlr_scene_output *scene_output,
 bool wlr_scene_output_commit(struct wlr_scene_output *scene_output);
 
 /**
+ * Call `iterator` on each surface in the scene-graph visible on the output,
+ * with the surface's position in layout coordinates. The function is called
+ * from root to leaves (in rendering order).
+ */
+void wlr_scene_output_for_each_surface(struct wlr_scene_output *scene_output,
+	wlr_surface_iterator_func_t iterator, void *user_data);
+
+/**
  * Attach an output layout to a scene.
  *
  * Outputs in the output layout are automatically added to the scene. Any
