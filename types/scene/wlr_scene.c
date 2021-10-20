@@ -887,3 +887,41 @@ bool wlr_scene_output_commit(struct wlr_scene_output *scene_output) {
 
 	return wlr_output_commit(output);
 }
+
+static void scene_output_for_each_surface(const struct wlr_box *output_box,
+		struct wlr_scene_node *node, int lx, int ly,
+		wlr_surface_iterator_func_t user_iterator, void *user_data) {
+	if (!node->state.enabled) {
+		return;
+	}
+
+	lx += node->state.x;
+	ly += node->state.y;
+
+	if (node->type == WLR_SCENE_NODE_SURFACE) {
+		struct wlr_box node_box = { .x = lx, .y = ly };
+		scene_node_get_size(node, &node_box.width, &node_box.height);
+
+		struct wlr_box intersection;
+		if (wlr_box_intersection(&intersection, output_box, &node_box)) {
+			struct wlr_scene_surface *scene_surface =
+				wlr_scene_surface_from_node(node);
+			user_iterator(scene_surface->surface, lx, ly, user_data);
+		}
+	}
+
+	struct wlr_scene_node *child;
+	wl_list_for_each(child, &node->state.children, state.link) {
+		scene_output_for_each_surface(output_box, child, lx, ly,
+			user_iterator, user_data);
+	}
+}
+
+void wlr_scene_output_for_each_surface(struct wlr_scene_output *scene_output,
+		wlr_surface_iterator_func_t iterator, void *user_data) {
+	struct wlr_box box = { .x = scene_output->x, .y = scene_output->y };
+	wlr_output_effective_resolution(scene_output->output,
+		&box.width, &box.height);
+	scene_output_for_each_surface(&box, &scene_output->scene->node, 0, 0,
+		iterator, user_data);
+}
