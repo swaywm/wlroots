@@ -11,6 +11,7 @@
 #include <wayland-util.h>
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
+#include <wlr/render/timeline.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/box.h>
@@ -490,6 +491,48 @@ static int gles2_get_drm_fd(struct wlr_renderer *wlr_renderer) {
 	return renderer->drm_fd;
 }
 
+static bool gles2_wait_timeline(struct wlr_renderer *wlr_renderer,
+		struct wlr_render_timeline *timeline, uint64_t src_point) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
+
+	int sync_file_fd = wlr_render_timeline_export_sync_file(timeline, src_point);
+	if (sync_file_fd < 0) {
+		return false;
+	}
+
+	EGLSyncKHR sync = wlr_egl_create_sync(renderer->egl, sync_file_fd);
+	close(sync_file_fd);
+	if (sync == EGL_NO_SYNC_KHR) {
+		return false;
+	}
+
+	bool ok = wlr_egl_wait_sync(renderer->egl, sync);
+	wlr_egl_destroy_sync(renderer->egl, sync);
+	return ok;
+}
+
+static bool gles2_signal_timeline(struct wlr_renderer *wlr_renderer,
+		struct wlr_render_timeline *timeline, uint64_t dst_point) {
+	struct wlr_gles2_renderer *renderer =
+		gles2_get_renderer_in_context(wlr_renderer);
+
+	EGLSyncKHR sync = wlr_egl_create_sync(renderer->egl, -1);
+	if (sync == EGL_NO_SYNC_KHR) {
+		return false;
+	}
+
+	int sync_file_fd = wlr_egl_dup_fence_fd(renderer->egl, sync);
+	wlr_egl_destroy_sync(renderer->egl, sync);
+	if (sync_file_fd < 0) {
+		return false;
+	}
+
+	bool ok = wlr_render_timeline_import_sync_file(timeline, dst_point, sync_file_fd);
+	close(sync_file_fd);
+	return ok;
+}
+
 static uint32_t gles2_get_render_buffer_caps(struct wlr_renderer *wlr_renderer) {
 	return WLR_BUFFER_CAP_DMABUF;
 }
@@ -554,6 +597,8 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.get_drm_fd = gles2_get_drm_fd,
 	.get_render_buffer_caps = gles2_get_render_buffer_caps,
 	.texture_from_buffer = gles2_texture_from_buffer,
+	.wait_timeline = gles2_wait_timeline,
+	.signal_timeline = gles2_signal_timeline,
 };
 
 void push_gles2_debug_(struct wlr_gles2_renderer *renderer,
