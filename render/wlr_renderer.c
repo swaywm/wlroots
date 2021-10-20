@@ -308,3 +308,19 @@ int wlr_renderer_get_drm_fd(struct wlr_renderer *r) {
 	}
 	return r->impl->get_drm_fd(r);
 }
+
+bool wlr_renderer_wait_timeline(struct wlr_renderer *r,
+		struct wlr_render_timeline *timeline, uint64_t src_point) {
+	if (!r->impl->wait_timeline) {
+		return false;
+	}
+	return r->impl->wait_timeline(r, timeline, src_point);
+}
+
+bool wlr_renderer_signal_timeline(struct wlr_renderer *r,
+		struct wlr_render_timeline *timeline, uint64_t dst_point) {
+	if (!r->impl->signal_timeline) {
+		return false;
+	}
+	return r->impl->signal_timeline(r, timeline, dst_point);
+}
