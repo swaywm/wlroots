@@ -327,13 +327,20 @@ bool wlr_linux_explicit_synchronization_v1_signal_surface_timeline(
 		uint64_t dst_point) {
 	struct wlr_linux_surface_synchronization_v1 *surface_sync =
 		surface_sync_from_surface(explicit_sync, surface);
-	if (!surface_sync) {
-		// TODO: fallback to DMA-BUF fence export
-		return false;
+	if (surface_sync) {
+		return wlr_render_timeline_import_sync_file(timeline, dst_point,
+			surface_sync->current.acquire_fence_fd);
 	}
 
-	return wlr_render_timeline_import_sync_file(timeline, dst_point,
-		surface_sync->current.acquire_fence_fd);
+	// Client doesn't support explicit sync, try to extract the fence from the
+	// DMA-BUF
+	struct wlr_dmabuf_attributes dmabuf;
+	if (surface->buffer == NULL ||
+			!wlr_buffer_get_dmabuf(&surface->buffer->base, &dmabuf)) {
+		return false;
+	}
+	return wlr_render_timeline_import_dmabuf(timeline, dst_point,
+		dmabuf.fd[0]);
 }
 
 bool wlr_linux_explicit_synchronization_v1_wait_surface_timeline(
