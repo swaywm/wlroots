@@ -39,6 +39,7 @@ union wlr_drm_crtc_props {
 
 		uint32_t active;
 		uint32_t mode_id;
+		uint32_t out_fence_ptr;
 	};
 	uint32_t props[6];
 };
@@ -62,6 +63,7 @@ union wlr_drm_plane_props {
 		uint32_t fb_id;
 		uint32_t crtc_id;
 		uint32_t fb_damage_clips;
+		uint32_t in_fence_fd;
 	};
 	uint32_t props[14];
 };

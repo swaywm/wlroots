@@ -54,6 +54,13 @@ static bool legacy_crtc_test(struct wlr_drm_connector *conn,
 		}
 	}
 
+	if (state->base->committed & (WLR_OUTPUT_STATE_WAIT_TIMELINE |
+			WLR_OUTPUT_STATE_SIGNAL_TIMELINE)) {
+		wlr_drm_conn_log(conn, WLR_DEBUG,
+			"Sync timelines are unsupported with legacy KMS interface");
+		return false;
+	}
+
 	return true;
 }
 
