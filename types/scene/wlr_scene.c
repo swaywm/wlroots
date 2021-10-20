@@ -7,6 +7,7 @@
 #include <wlr/types/wlr_output_damage.h>
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_surface.h>
+#include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include "util/signal.h"
 
@@ -835,11 +836,103 @@ void wlr_scene_output_set_position(struct wlr_scene_output *scene_output,
 	wlr_output_damage_add_whole(scene_output->damage);
 }
 
+struct check_scanout_data {
+	// in
+	struct wlr_box viewport_box;
+	// out
+	struct wlr_scene_node *node;
+	size_t n;
+};
+
+static void check_scanout_iterator(struct wlr_scene_node *node,
+		int x, int y, void *_data) {
+	struct check_scanout_data *data = _data;
+
+	struct wlr_box node_box = { .x = x, .y = y };
+	scene_node_get_size(node, &node_box.width, &node_box.height);
+
+	struct wlr_box intersection;
+	if (!wlr_box_intersection(&intersection, &data->viewport_box, &node_box)) {
+		return;
+	}
+
+	data->n++;
+
+	if (data->viewport_box.x == node_box.x &&
+			data->viewport_box.y == node_box.y &&
+			data->viewport_box.width == node_box.width &&
+			data->viewport_box.height == node_box.height) {
+		data->node = node;
+	}
+}
+
+static bool scene_output_scanout(struct wlr_scene_output *scene_output) {
+	struct wlr_output *output = scene_output->output;
+
+	struct wlr_box viewport_box = { .x = scene_output->x, .y = scene_output->y };
+	wlr_output_effective_resolution(output,
+		&viewport_box.width, &viewport_box.height);
+
+	struct check_scanout_data check_scanout_data = {
+		.viewport_box = viewport_box,
+	};
+	scene_node_for_each_node(&scene_output->scene->node, 0, 0,
+		check_scanout_iterator, &check_scanout_data);
+	if (check_scanout_data.n != 1 || check_scanout_data.node == NULL) {
+		return false;
+	}
+
+	struct wlr_scene_node *node = check_scanout_data.node;
+	struct wlr_buffer *buffer;
+	switch (node->type) {
+	case WLR_SCENE_NODE_SURFACE:;
+		struct wlr_scene_surface *scene_surface = wlr_scene_surface_from_node(node);
+		if (scene_surface->surface->buffer == NULL ||
+				scene_surface->surface->current.viewport.has_src ||
+				scene_surface->surface->current.transform != output->transform) {
+			return false;
+		}
+		buffer = &scene_surface->surface->buffer->base;
+		break;
+	case WLR_SCENE_NODE_BUFFER:;
+		struct wlr_scene_buffer *scene_buffer = scene_buffer_from_node(node);
+		if (scene_buffer->buffer == NULL ||
+				!wlr_fbox_empty(&scene_buffer->src_box) ||
+				scene_buffer->transform != output->transform) {
+			return false;
+		}
+		buffer = scene_buffer->buffer;
+		break;
+	default:
+		return false;
+	}
+
+	wlr_output_attach_buffer(output, buffer);
+	if (!wlr_output_test(output)) {
+		wlr_output_rollback(output);
+		return false;
+	}
+
+	return wlr_output_commit(output);
+}
+
 bool wlr_scene_output_commit(struct wlr_scene_output *scene_output) {
 	struct wlr_output *output = scene_output->output;
 
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	assert(renderer != NULL);
+
+	bool scanout = scene_output_scanout(scene_output);
+	if (scanout != scene_output->prev_scanout) {
+		wlr_log(WLR_DEBUG, "Direct scan-out %s",
+			scanout ? "enabled" : "disabled");
+		// When exiting direct scan-out, damage everything
+		wlr_output_damage_add_whole(scene_output->damage);
+	}
+	scene_output->prev_scanout = scanout;
+	if (scanout) {
+		return true;
+	}
 
 	bool needs_frame;
 	pixman_region32_t damage;
