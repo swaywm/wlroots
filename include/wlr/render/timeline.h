@@ -56,5 +56,16 @@ int wlr_render_timeline_export_sync_file(struct wlr_render_timeline *timeline,
  */
 bool wlr_render_timeline_import_sync_file(struct wlr_render_timeline *timeline,
 	uint64_t dst_point, int sync_file_fd);
+/**
+ * Import a timeline point from a DMA-BUF's implicit fence.
+ *
+ * The provided timeline point will be signalled when the DMA-BUF's producer
+ * has finished their write operations.
+ *
+ * This allows inter-operation with other APIs which don't support drm_syncobj
+ * nor sync_file yet.
+ */
+bool wlr_render_timeline_import_dmabuf(struct wlr_render_timeline *timeline,
+	uint64_t dst_point, int dmabuf_fd);
 
 #endif

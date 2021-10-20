@@ -1,5 +1,7 @@
-#include <xf86drm.h>
+#include <linux/dma-buf.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <xf86drm.h>
 #include <wlr/render/timeline.h>
 #include <wlr/util/log.h>
 
@@ -82,5 +84,33 @@ bool wlr_render_timeline_import_sync_file(struct wlr_render_timeline *timeline,
 
 out:
 	drmSyncobjDestroy(timeline->drm_fd, syncobj_handle);
+	return ok;
+}
+
+#ifndef DMA_BUF_IOCTL_EXPORT_SYNC_FILE
+
+struct dma_buf_export_sync_file {
+	__u32 flags;
+	__s32 fd;
+};
+
+#define DMA_BUF_IOCTL_EXPORT_SYNC_FILE	_IOWR(DMA_BUF_BASE, 2, struct dma_buf_export_sync_file)
+
+#endif
+
+bool wlr_render_timeline_import_dmabuf(struct wlr_render_timeline *timeline,
+		uint64_t dst_point, int dmabuf_fd) {
+	struct dma_buf_export_sync_file ioctl_data = {
+		.flags = DMA_BUF_SYNC_READ,
+	};
+	if (drmIoctl(dmabuf_fd, DMA_BUF_IOCTL_EXPORT_SYNC_FILE,
+			&ioctl_data) != 0) {
+		wlr_log_errno(WLR_ERROR, "drmIoctl(EXPORT_SYNC_FILE) failed");
+		return false;
+	}
+
+	bool ok = wlr_render_timeline_import_sync_file(timeline,
+		ioctl_data.fd, dst_point);
+	close(ioctl_data.fd);
 	return ok;
 }
