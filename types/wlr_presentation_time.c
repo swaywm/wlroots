@@ -1,7 +1,8 @@
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <wlr/types/wlr_presentation_time.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/backend.h>
@@ -159,7 +160,7 @@ static void presentation_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &presentation_impl, presentation,
 		NULL);
 
-	wp_presentation_send_clock_id(resource, (uint32_t)presentation->clock);
+	wp_presentation_send_clock_id(resource, CLOCK_MONOTONIC);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -185,8 +186,6 @@ struct wlr_presentation *wlr_presentation_create(struct wl_display *display,
 		free(presentation);
 		return NULL;
 	}
-
-	presentation->clock = wlr_backend_get_presentation_clock(backend);
 
 	wl_list_init(&presentation->feedbacks);
 	wl_signal_init(&presentation->events.destroy);

@@ -961,9 +961,8 @@ void wlr_output_send_present(struct wlr_output *output,
 
 	if (event->presented && event->when == NULL) {
 		struct timespec now;
-		clockid_t clock = wlr_backend_get_presentation_clock(output->backend);
 		errno = 0;
-		if (clock_gettime(clock, &now) != 0) {
+		if (clock_gettime(CLOCK_MONOTONIC, &now) != 0) {
 			wlr_log_errno(WLR_ERROR, "failed to send output present event: "
 				"failed to read clock");
 			return;
