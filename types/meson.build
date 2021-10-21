@@ -39,6 +39,7 @@ wlr_files += files(
 	'wlr_layer_shell_v1.c',
 	'wlr_linux_dmabuf_v1.c',
 	'wlr_linux_explicit_synchronization_v1.c',
+	'wlr_linux_explicit_synchronization_v2.c',
 	'wlr_matrix.c',
 	'wlr_output_damage.c',
 	'wlr_output_layout.c',

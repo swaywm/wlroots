@@ -20,6 +20,7 @@ protocols = {
 	# Staging upstream protocols
 	'xdg-activation-v1': wl_protocol_dir / 'staging/xdg-activation/xdg-activation-v1.xml',
 	'drm-lease-v1': wl_protocol_dir / 'staging/drm-lease/drm-lease-v1.xml',
+	'linux-explicit-synchronization-v2': wl_protocol_dir / 'staging/linux-explicit-synchronization/linux-explicit-synchronization-v2.xml',
 
 	# Unstable upstream protocols
 	'fullscreen-shell-unstable-v1': wl_protocol_dir / 'unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml',
