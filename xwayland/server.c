@@ -73,6 +73,14 @@ noreturn static void exec_xwayland(struct wlr_xwayland_server *server) {
 		argv[i++] = wmfd;
 	}
 
+#if HAVE_XWAYLAND_NO_TOUCH_POINTER_EMULATION
+	if (server->options.no_touch_pointer_emulation) {
+		argv[i++] = "-noTouchPointerEmulation";
+	}
+#else
+	server->options.no_touch_pointer_emulation = false;
+#endif
+
 	argv[i++] = NULL;
 
 	assert(i < sizeof(argv) / sizeof(argv[0]));

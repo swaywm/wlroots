@@ -22,6 +22,7 @@ struct wlr_xwayland_cursor;
 struct wlr_xwayland_server_options {
 	bool lazy;
 	bool enable_wm;
+	bool no_touch_pointer_emulation;
 };
 
 struct wlr_xwayland_server {
