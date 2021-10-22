@@ -23,6 +23,7 @@ struct wlr_drm_format_set;
 struct wlr_buffer;
 struct wlr_box;
 struct wlr_fbox;
+struct wlr_render_timeline;
 
 struct wlr_renderer {
 	const struct wlr_renderer_impl *impl;
@@ -112,6 +113,34 @@ bool wlr_renderer_init_wl_display(struct wlr_renderer *r,
  * The caller doesn't have ownership of the FD, it must not close it.
  */
 int wlr_renderer_get_drm_fd(struct wlr_renderer *r);
+
+/**
+ * Wait for a timeline synchronization point before continuing rendering
+ * operations.
+ *
+ * The renderer implementation is allowed to wait sooner, e.g. wait before
+ * executing any rendering operation since the previous wlr_renderer_begin()
+ * call.
+ *
+ * When a compositor calls wlr_renderer_wait_timeline(), the renderer is
+ * allowed to skip implicit wait synchronization. Compositors are not allowed
+ * to mix implicit and explicit wait synchronization usage.
+ */
+bool wlr_renderer_wait_timeline(struct wlr_renderer *renderer,
+	struct wlr_render_timeline *timeline, uint64_t src_point);
+/**
+ * Signal a timeline synchronization point when all previous rendering
+ * operations have finished.
+ *
+ * The renderer implementation is allowed to signal later, e.g. signal when all
+ * rendering operations up to wlr_renderer_end() have finished.
+ *
+ * When a compositor calls wlr_renderer_signal_timeline(), the renderer is
+ * allowed to skip implicit signal synchronization. Compositors are not allowed
+ * to mix implicit and explicit signal synchronization usage.
+ */
+bool wlr_renderer_signal_timeline(struct wlr_renderer *renderer,
+	struct wlr_render_timeline *timeline, uint64_t dst_point);
 
 /**
  * Destroys this wlr_renderer. Textures must be destroyed separately.

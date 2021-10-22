@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <unistd.h>
+#include <wlr/render/timeline.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -163,6 +165,41 @@ error:
 	atom->failed = true;
 }
 
+static int set_plane_in_fence_fd(struct atomic *atom, struct wlr_drm_plane *plane,
+		struct wlr_render_timeline *timeline, uint64_t src_point) {
+	if (!plane->props.in_fence_fd) {
+		wlr_log(WLR_ERROR, "Missing IN_FENCE_FD property");
+		goto error;
+	}
+
+	int sync_file_fd = wlr_render_timeline_export_sync_file(timeline, src_point);
+	if (sync_file_fd < 0) {
+		goto error;
+	}
+
+	atomic_add(atom, plane->id, plane->props.in_fence_fd, sync_file_fd);
+
+	return sync_file_fd;
+
+error:
+	wlr_log(WLR_ERROR, "Failed to set plane %"PRIu32" IN_FENCE_FD", plane->id);
+	atom->failed = true;
+	return -1;
+}
+
+static void set_crtc_out_fence_ptr(struct atomic *atom, struct wlr_drm_crtc *crtc,
+		int *fd_ptr) {
+	if (!crtc->props.out_fence_ptr) {
+		wlr_log(WLR_ERROR,
+			"CRTC %"PRIu32" is missing the OUT_FENCE_PTR property",
+			crtc->id);
+		atom->failed = true;
+		return;
+	}
+
+	atomic_add(atom, crtc->id, crtc->props.out_fence_ptr, (uintptr_t)fd_ptr);
+}
+
 static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
 		const struct wlr_drm_connector_state *state, uint32_t flags,
 		bool test_only) {
@@ -228,6 +265,8 @@ static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
 		flags |= DRM_MODE_ATOMIC_NONBLOCK;
 	}
 
+	int in_fence_fd = -1, out_fence_fd = -1;
+
 	struct atomic atom;
 	atomic_begin(&atom);
 	atomic_add(&atom, conn->id, conn->props.crtc_id, active ? crtc->id : 0);
@@ -248,6 +287,13 @@ static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
 		if (crtc->primary->props.fb_damage_clips != 0) {
 			atomic_add(&atom, crtc->primary->id,
 				crtc->primary->props.fb_damage_clips, fb_damage_clips);
+		}
+		if (state->base->committed & WLR_OUTPUT_STATE_WAIT_TIMELINE) {
+			in_fence_fd = set_plane_in_fence_fd(&atom, crtc->primary,
+				state->base->wait_timeline, state->base->wait_point);
+		}
+		if (state->base->committed & WLR_OUTPUT_STATE_SIGNAL_TIMELINE) {
+			set_crtc_out_fence_ptr(&atom, crtc, &out_fence_fd);
 		}
 		if (crtc->cursor) {
 			if (drm_connector_is_cursor_visible(conn)) {
@@ -286,6 +332,14 @@ static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
 	if (fb_damage_clips != 0 &&
 			drmModeDestroyPropertyBlob(drm->fd, fb_damage_clips) != 0) {
 		wlr_log_errno(WLR_ERROR, "Failed to destroy FB_DAMAGE_CLIPS property blob");
+	}
+
+	close(in_fence_fd);
+
+	if (out_fence_fd > 0) {
+		ok = wlr_render_timeline_import_sync_file(state->base->signal_timeline,
+			state->base->signal_point, out_fence_fd);
+		close(out_fence_fd);
 	}
 
 	return ok;

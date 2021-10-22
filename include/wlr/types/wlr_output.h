@@ -62,6 +62,8 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_TRANSFORM = 1 << 5,
 	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED = 1 << 6,
 	WLR_OUTPUT_STATE_GAMMA_LUT = 1 << 7,
+	WLR_OUTPUT_STATE_WAIT_TIMELINE = 1 << 8,
+	WLR_OUTPUT_STATE_SIGNAL_TIMELINE = 1 << 9,
 };
 
 enum wlr_output_state_mode_type {
@@ -94,6 +96,13 @@ struct wlr_output_state {
 	// only valid if WLR_OUTPUT_STATE_GAMMA_LUT
 	uint16_t *gamma_lut;
 	size_t gamma_lut_size;
+
+	// only valid if WLR_OUTPUT_STATE_WAIT_TIMELINE
+	struct wlr_render_timeline *wait_timeline;
+	uint64_t wait_point;
+	// only valid if WLR_OUTPUT_STATE_SIGNAL_TIMELINE
+	struct wlr_render_timeline *signal_timeline;
+	uint64_t signal_point;
 };
 
 struct wlr_output_impl;
@@ -361,6 +370,31 @@ uint32_t wlr_output_preferred_read_format(struct wlr_output *output);
  */
 void wlr_output_set_damage(struct wlr_output *output,
 	pixman_region32_t *damage);
+/**
+ * Set a timeline point to wait on before displaying the next frame.
+ *
+ * The timeline must continue to remain valid until the next call to
+ * wlr_output_commit() or wlr_output_rollback(). Committing a wait timeline
+ * point without a buffer is invalid.
+ *
+ * There is only a single wait timeline point, waiting for multiple timeline
+ * points is unsupported.
+ */
+void wlr_output_set_wait_timeline(struct wlr_output *output,
+	struct wlr_render_timeline *timeline, uint64_t src_point);
+/**
+ * Set a timeline point to be signalled when the frame is no longer being used
+ * by the backend.
+ *
+ * The timeline must continue to remain valid until the next call to
+ * wlr_output_commit() or wlr_output_rollback(). Committing a signal timeline
+ * point without a buffer is invalid.
+ *
+ * There is only a single signal timeline point, signalling multiple timeline
+ * points is unsupported.
+ */
+void wlr_output_set_signal_timeline(struct wlr_output *output,
+	struct wlr_render_timeline *timeline, uint64_t dst_point);
 /**
  * Test whether the pending output state would be accepted by the backend. If
  * this function returns true, `wlr_output_commit` can only fail due to a
