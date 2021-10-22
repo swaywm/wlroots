@@ -5,7 +5,9 @@
 #include <time.h>
 #include <wlr/backend/interface.h>
 #include <wlr/backend/session.h>
+#include <wlr/types/wlr_buffer.h>
 #include <wlr/util/log.h>
+#include "backend/backend.h"
 #include "backend/multi.h"
 #include "util/signal.h"
 
@@ -109,6 +111,28 @@ static int multi_backend_get_drm_fd(struct wlr_backend *backend) {
 	return -1;
 }
 
+static uint32_t multi_backend_get_buffer_caps(struct wlr_backend *backend) {
+	struct wlr_multi_backend *multi = multi_backend_from_backend(backend);
+
+	if (wl_list_empty(&multi->backends)) {
+		return 0;
+	}
+
+	uint32_t caps = WLR_BUFFER_CAP_DATA_PTR | WLR_BUFFER_CAP_DMABUF
+			| WLR_BUFFER_CAP_SHM;
+
+	struct subbackend_state *sub;
+	wl_list_for_each(sub, &multi->backends, link) {
+		uint32_t backend_caps = backend_get_buffer_caps(sub->backend);
+		if (backend_caps != 0) {
+			// only count backend capable of presenting a buffer
+			caps = caps & backend_caps;
+		}
+	}
+
+	return caps;
+}
+
 static const struct wlr_backend_impl backend_impl = {
 	.start = multi_backend_start,
 	.destroy = multi_backend_destroy,
@@ -116,6 +140,7 @@ static const struct wlr_backend_impl backend_impl = {
 	.get_session = multi_backend_get_session,
 	.get_presentation_clock = multi_backend_get_presentation_clock,
 	.get_drm_fd = multi_backend_get_drm_fd,
+	.get_buffer_caps = multi_backend_get_buffer_caps,
 };
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
