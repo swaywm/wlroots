@@ -38,6 +38,7 @@ static const struct prop_info crtc_info[] = {
 	{ "GAMMA_LUT", INDEX(gamma_lut) },
 	{ "GAMMA_LUT_SIZE", INDEX(gamma_lut_size) },
 	{ "MODE_ID", INDEX(mode_id) },
+	{ "OUT_FENCE_PTR", INDEX(out_fence_ptr) },
 	{ "VRR_ENABLED", INDEX(vrr_enabled) },
 #undef INDEX
 };
@@ -51,6 +52,7 @@ static const struct prop_info plane_info[] = {
 	{ "CRTC_Y", INDEX(crtc_y) },
 	{ "FB_DAMAGE_CLIPS", INDEX(fb_damage_clips) },
 	{ "FB_ID", INDEX(fb_id) },
+	{ "IN_FENCE_FD", INDEX(in_fence_fd) },
 	{ "IN_FORMATS", INDEX(in_formats) },
 	{ "SRC_H", INDEX(src_h) },
 	{ "SRC_W", INDEX(src_w) },

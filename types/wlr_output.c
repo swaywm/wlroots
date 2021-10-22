@@ -613,6 +613,20 @@ void wlr_output_set_damage(struct wlr_output *output,
 	output->pending.committed |= WLR_OUTPUT_STATE_DAMAGE;
 }
 
+void wlr_output_set_wait_timeline(struct wlr_output *output,
+		struct wlr_render_timeline *timeline, uint64_t src_point) {
+	output->pending.committed |= WLR_OUTPUT_STATE_WAIT_TIMELINE;
+	output->pending.wait_timeline = timeline;
+	output->pending.wait_point = src_point;
+}
+
+void wlr_output_set_signal_timeline(struct wlr_output *output,
+		struct wlr_render_timeline *timeline, uint64_t dst_point) {
+	output->pending.committed |= WLR_OUTPUT_STATE_SIGNAL_TIMELINE;
+	output->pending.signal_timeline = timeline;
+	output->pending.signal_point = dst_point;
+}
+
 static void output_state_clear_gamma_lut(struct wlr_output_state *state) {
 	free(state->gamma_lut);
 	state->gamma_lut = NULL;
@@ -757,6 +771,15 @@ static bool output_basic_test(struct wlr_output *output) {
 				wlr_log(WLR_DEBUG, "Direct scan-out buffer size mismatch");
 				return false;
 			}
+		}
+	} else {
+		if (output->pending.committed & WLR_OUTPUT_STATE_WAIT_TIMELINE) {
+			wlr_log(WLR_DEBUG, "Tried to set wait timeline without a buffer");
+			return false;
+		}
+		if (output->pending.committed & WLR_OUTPUT_STATE_SIGNAL_TIMELINE) {
+			wlr_log(WLR_DEBUG, "Tried to set signal timeline without a buffer");
+			return false;
 		}
 	}
 
