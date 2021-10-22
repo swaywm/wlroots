@@ -31,8 +31,6 @@ struct wlr_presentation {
 };
 
 struct wlr_presentation_feedback {
-	struct wlr_presentation *presentation;
-
 	struct wl_list resources; // wl_resource_get_link
 
 	// Only when the wlr_presentation_surface_sampled_on_output helper has been
