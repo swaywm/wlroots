@@ -30,19 +30,25 @@ static void xdg_imported_handle_destroy(struct wl_client *client,
 
 static bool verify_is_toplevel(struct wl_resource *client_resource,
 		struct wlr_surface *surface) {
-	if (wlr_surface_is_xdg_surface(surface)) {
-		struct wlr_xdg_surface *xdg_surface =
-			wlr_xdg_surface_from_wlr_surface(surface);
-		if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
-			wl_resource_post_error(client_resource, -1,
-					"surface must be an xdg_toplevel");
-			return false;
-		}
-	} else {
-		wl_resource_post_error(client_resource, -1,
-				"surface must be an xdg_surface");
+	// Note: the error codes are the same for zxdg_exporter_v2 and
+	// zxdg_importer_v2
+
+	if (!wlr_surface_is_xdg_surface(surface)) {
+		wl_resource_post_error(client_resource,
+			ZXDG_EXPORTER_V2_ERROR_INVALID_SURFACE,
+			"surface must be an xdg_surface");
 		return false;
 	}
+
+	struct wlr_xdg_surface *xdg_surface =
+		wlr_xdg_surface_from_wlr_surface(surface);
+	if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
+		wl_resource_post_error(client_resource,
+			ZXDG_EXPORTER_V2_ERROR_INVALID_SURFACE,
+			"surface must be an xdg_toplevel");
+		return false;
+	}
+
 	return true;
 }
 
