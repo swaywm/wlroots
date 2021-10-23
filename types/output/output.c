@@ -163,11 +163,12 @@ void wlr_output_update_enabled(struct wlr_output *output, bool enabled) {
 static void output_update_matrix(struct wlr_output *output) {
 	wlr_matrix_identity(output->transform_matrix);
 	if (output->transform != WL_OUTPUT_TRANSFORM_NORMAL) {
-		int tr_width, tr_height;
+		int tr_width, tr_height, width, height;
+		wlr_output_pending_resolution(output, &width, &height);
 		wlr_output_transformed_resolution(output, &tr_width, &tr_height);
 
 		wlr_matrix_translate(output->transform_matrix,
-			output->width / 2.0, output->height / 2.0);
+			width / 2.0, height / 2.0);
 		wlr_matrix_transform(output->transform_matrix, output->transform);
 		wlr_matrix_translate(output->transform_matrix,
 			- tr_width / 2.0, - tr_height / 2.0);
@@ -422,12 +423,10 @@ void wlr_output_destroy(struct wlr_output *output) {
 
 void wlr_output_transformed_resolution(struct wlr_output *output,
 		int *width, int *height) {
-	if (output->transform % 2 == 0) {
-		*width = output->width;
-		*height = output->height;
+	if (output->pending.transform % 2 == 0) {
+		wlr_output_pending_resolution(output, width, height);
 	} else {
-		*width = output->height;
-		*height = output->width;
+		wlr_output_pending_resolution(output, height, width);
 	}
 }
 
@@ -467,8 +466,10 @@ static void output_state_clear_buffer(struct wlr_output_state *state) {
 
 void wlr_output_set_damage(struct wlr_output *output,
 		pixman_region32_t *damage) {
+	int width, height;
+	wlr_output_pending_resolution(output, &width, &height);
 	pixman_region32_intersect_rect(&output->pending.damage, damage,
-		0, 0, output->width, output->height);
+		0, 0, width, height);
 	output->pending.committed |= WLR_OUTPUT_STATE_DAMAGE;
 }
 
@@ -485,7 +486,7 @@ static void output_state_clear(struct wlr_output_state *state) {
 	state->committed = 0;
 }
 
-void output_pending_resolution(struct wlr_output *output, int *width,
+void wlr_output_pending_resolution(struct wlr_output *output, int *width,
 		int *height) {
 	if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
 		switch (output->pending.mode_type) {
@@ -502,6 +503,14 @@ void output_pending_resolution(struct wlr_output *output, int *width,
 	} else {
 		*width = output->width;
 		*height = output->height;
+	}
+}
+
+bool wlr_output_pending_enabled(struct wlr_output *output) {
+	if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
+		return output->pending.enabled;
+	} else {
+		return output->enabled;
 	}
 }
 
@@ -533,7 +542,7 @@ static bool output_basic_test(struct wlr_output *output) {
 			// If the size doesn't match, reject buffer (scaling is not
 			// supported)
 			int pending_width, pending_height;
-			output_pending_resolution(output, &pending_width, &pending_height);
+			wlr_output_pending_resolution(output, &pending_width, &pending_height);
 			if (output->pending.buffer->width != pending_width ||
 					output->pending.buffer->height != pending_height) {
 				wlr_log(WLR_DEBUG, "Direct scan-out buffer size mismatch");

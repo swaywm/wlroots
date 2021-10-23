@@ -465,4 +465,15 @@ enum wl_output_transform wlr_output_transform_invert(
 enum wl_output_transform wlr_output_transform_compose(
 	enum wl_output_transform tr_a, enum wl_output_transform tr_b);
 
+/**
+ * Obtains the pending resolution of the output. Parameters must be valid
+ * non-NULL pointers.
+ */
+void wlr_output_pending_resolution(struct wlr_output *output,
+	int *width, int *height);
+
+/**
+ * Returns the pending state of the enabled flag.
+ */
+bool wlr_output_pending_enabled(struct wlr_output *output);
 #endif

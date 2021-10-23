@@ -21,7 +21,7 @@
 static bool output_create_swapchain(struct wlr_output *output,
 		bool allow_modifiers) {
 	int width, height;
-	output_pending_resolution(output, &width, &height);
+	wlr_output_pending_resolution(output, &width, &height);
 
 	if (output->swapchain != NULL && output->swapchain->width == width &&
 			output->swapchain->height == height &&
@@ -128,7 +128,7 @@ static bool output_attach_empty_buffer(struct wlr_output *output) {
 	}
 
 	int width, height;
-	output_pending_resolution(output, &width, &height);
+	wlr_output_pending_resolution(output, &width, &height);
 
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 	wlr_renderer_begin(renderer, width, height);

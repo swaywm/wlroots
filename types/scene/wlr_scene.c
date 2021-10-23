@@ -763,7 +763,9 @@ static void scene_node_for_each_node(struct wlr_scene_node *node,
 void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
 		int lx, int ly, pixman_region32_t *damage) {
 	pixman_region32_t full_region;
-	pixman_region32_init_rect(&full_region, 0, 0, output->width, output->height);
+	int width, height;
+	wlr_output_pending_resolution(output, &width, &height);
+	pixman_region32_init_rect(&full_region, 0, 0, width, height);
 	if (damage == NULL) {
 		damage = &full_region;
 	}
@@ -772,7 +774,8 @@ void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
 		wlr_backend_get_renderer(output->backend);
 	assert(renderer);
 
-	if (output->enabled && pixman_region32_not_empty(damage)) {
+	if (wlr_output_pending_enabled(output) &&
+	    pixman_region32_not_empty(damage)) {
 		struct render_data data = {
 			.output = output,
 			.damage = damage,
@@ -949,7 +952,9 @@ bool wlr_scene_output_commit(struct wlr_scene_output *scene_output) {
 		return true;
 	}
 
-	wlr_renderer_begin(renderer, output->width, output->height);
+	int width, height;
+	wlr_output_pending_resolution(output, &width, &height);
+	wlr_renderer_begin(renderer, width, height);
 
 	int nrects;
 	pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
