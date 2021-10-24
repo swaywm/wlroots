@@ -44,6 +44,8 @@ struct wlr_xdg_activation_v1 {
 
 	// private state
 
+	struct wl_display *display;
+
 	struct wl_global *global;
 
 	struct wl_listener display_destroy;
@@ -59,5 +61,18 @@ struct wlr_xdg_activation_v1_request_activate_event {
 
 struct wlr_xdg_activation_v1 *wlr_xdg_activation_v1_create(
 	struct wl_display *display);
+
+struct wlr_xdg_activation_token_v1 *wlr_xdg_activation_token_v1_create(
+		struct wlr_xdg_activation_v1 *activation);
+
+void wlr_xdg_activation_token_v1_destroy(
+		struct wlr_xdg_activation_token_v1 *token);
+
+struct wlr_xdg_activation_token_v1 *wlr_xdg_activation_v1_find_token(
+		struct wlr_xdg_activation_v1 *activation, const char *token_str);
+
+// Get a string suitable for exporting to launched clients
+const char *wlr_xdg_activation_token_v1_get_name(
+		struct wlr_xdg_activation_token_v1 *token);
 
 #endif
