@@ -21,7 +21,8 @@ static struct wlr_xdg_activation_token_v1 *token_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-static void token_destroy(struct wlr_xdg_activation_token_v1 *token) {
+void wlr_xdg_activation_token_v1_destroy(
+		struct wlr_xdg_activation_token_v1 *token) {
 	if (token == NULL) {
 		return;
 	}
@@ -42,18 +43,48 @@ static void token_destroy(struct wlr_xdg_activation_token_v1 *token) {
 static int token_handle_timeout(void *data) {
 	struct wlr_xdg_activation_token_v1 *token = data;
 	wlr_log(WLR_DEBUG, "Activation token '%s' has expired", token->token);
-	token_destroy(token);
+	wlr_xdg_activation_token_v1_destroy(token);
 	return 0;
 }
 
 static void token_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_xdg_activation_token_v1 *token = token_from_resource(resource);
-	token_destroy(token);
+	wlr_xdg_activation_token_v1_destroy(token);
 }
 
 static void token_handle_destroy(struct wl_client *client,
 		struct wl_resource *token_resource) {
 	wl_resource_destroy(token_resource);
+}
+
+static bool token_init( struct wlr_xdg_activation_token_v1 *token) {
+	char token_str[TOKEN_STRLEN + 1] = {0};
+	if (!generate_token(token_str)) {
+		return false;
+	}
+
+	token->token = strdup(token_str);
+	if (token->token == NULL) {
+		return false;
+	}
+
+	if (token->activation->token_timeout_msec > 0) {
+		// Needs wayland > 1.19
+		// struct wl_display *display = wl_global_get_display(activation->global);
+		struct wl_display *display = token->activation->display;
+		struct wl_event_loop *loop = wl_display_get_event_loop(display);
+		token->timeout =
+			wl_event_loop_add_timer(loop, token_handle_timeout, token);
+		if (token->timeout == NULL) {
+			return false;
+		}
+		wl_event_source_timer_update(token->timeout,
+			token->activation->token_timeout_msec);
+	}
+
+	assert(wl_list_empty(&token->link));
+	wl_list_insert(&token->activation->tokens, &token->link);
+	return true;
 }
 
 static void token_handle_commit(struct wl_client *client,
@@ -70,12 +101,6 @@ static void token_handle_commit(struct wl_client *client,
 	// Make the token resource inert
 	wl_resource_set_user_data(token->resource, NULL);
 	token->resource = NULL;
-
-	char token_str[TOKEN_STRLEN + 1] = {0};
-	if (!generate_token(token_str)) {
-		wl_client_post_no_memory(client);
-		return;
-	}
 
 	if (token->seat != NULL) {
 		struct wlr_seat_client *seat_client =
@@ -95,39 +120,28 @@ static void token_handle_commit(struct wl_client *client,
 		}
 	}
 
-	token->token = strdup(token_str);
-	if (token->token == NULL) {
+	if (!token_init(token)) {
 		wl_client_post_no_memory(client);
 		return;
 	}
 
-	if (token->activation->token_timeout_msec > 0) {
-		struct wl_display *display = wl_client_get_display(client);
-		struct wl_event_loop *loop = wl_display_get_event_loop(display);
-		token->timeout =
-			wl_event_loop_add_timer(loop, token_handle_timeout, token);
-		if (token->timeout == NULL) {
-			wl_client_post_no_memory(client);
-			return;
-		}
-		wl_event_source_timer_update(token->timeout,
-			token->activation->token_timeout_msec);
-	}
-
-	assert(wl_list_empty(&token->link));
-	wl_list_insert(&token->activation->tokens, &token->link);
-
-	xdg_activation_token_v1_send_done(token_resource, token_str);
+	xdg_activation_token_v1_send_done(token_resource, token->token);
 
 	// TODO: consider emitting a new_token event
 
 	return;
 
-error:
-	// Here we send the generated token, but it's invalid and can't be used to
+error:;
+	// Here we send a generated token, but it's invalid and can't be used to
 	// request activation.
+	char token_str[TOKEN_STRLEN + 1] = {0};
+	if (!generate_token(token_str)) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+
 	xdg_activation_token_v1_send_done(token_resource, token_str);
-	token_destroy(token);
+	wlr_xdg_activation_token_v1_destroy(token);
 }
 
 static void token_handle_set_app_id(struct wl_client *client,
@@ -286,7 +300,7 @@ static void activation_handle_activate(struct wl_client *client,
 	};
 	wlr_signal_emit_safe(&activation->events.request_activate, &event);
 
-	token_destroy(token);
+	wlr_xdg_activation_token_v1_destroy(token);
 }
 
 static const struct xdg_activation_v1_interface activation_impl = {
@@ -315,7 +329,7 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 
 	struct wlr_xdg_activation_token_v1 *token, *token_tmp;
 	wl_list_for_each_safe(token, token_tmp, &activation->tokens, link) {
-		token_destroy(token);
+		wlr_xdg_activation_token_v1_destroy(token);
 	}
 
 	wl_list_remove(&activation->display_destroy.link);
@@ -343,8 +357,48 @@ struct wlr_xdg_activation_v1 *wlr_xdg_activation_v1_create(
 		return NULL;
 	}
 
+	activation->display = display;
+
 	activation->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &activation->display_destroy);
 
 	return activation;
+}
+
+struct wlr_xdg_activation_token_v1 *wlr_xdg_activation_token_v1_create(
+		struct wlr_xdg_activation_v1 *activation) {
+	struct wlr_xdg_activation_token_v1 *token = calloc(1, sizeof(*token));
+	if (token == NULL) {
+		return NULL;
+	}
+
+	wl_list_init(&token->link);
+	// Currently no way to set seat/surface
+	wl_list_init(&token->seat_destroy.link);
+	wl_list_init(&token->surface_destroy.link);
+
+	token->activation = activation;
+
+	if (!token_init(token)) {
+		wlr_xdg_activation_token_v1_destroy(token);
+		return NULL;
+	}
+
+	return token;
+}
+
+struct wlr_xdg_activation_token_v1 *wlr_xdg_activation_v1_find_token(
+		struct wlr_xdg_activation_v1 *activation, const char *token_str) {
+	struct wlr_xdg_activation_token_v1 *token;
+	wl_list_for_each(token, &activation->tokens, link) {
+		if (strcmp(token_str, token->token) == 0) {
+			return token;
+		}
+	}
+	return NULL;
+}
+
+const char *wlr_xdg_activation_token_v1_get_name(
+		struct wlr_xdg_activation_token_v1 *token) {
+	return token->token;
 }
