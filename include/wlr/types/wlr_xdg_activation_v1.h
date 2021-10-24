@@ -22,6 +22,12 @@ struct wlr_xdg_activation_token_v1 {
 	char *app_id; // can be NULL
 	struct wl_list link; // wlr_xdg_activation_v1.tokens
 
+	void *data;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
+
 	// private state
 
 	char *token;
