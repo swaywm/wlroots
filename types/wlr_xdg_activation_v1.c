@@ -32,6 +32,9 @@ void wlr_xdg_activation_token_v1_destroy(
 	if (token->timeout != NULL) {
 		wl_event_source_remove(token->timeout);
 	}
+
+	wlr_signal_emit_safe(&token->events.destroy, NULL);
+
 	wl_list_remove(&token->link);
 	wl_list_remove(&token->seat_destroy.link);
 	wl_list_remove(&token->surface_destroy.link);
@@ -258,6 +261,7 @@ static void activation_handle_get_activation_token(struct wl_client *client,
 	wl_list_init(&token->link);
 	wl_list_init(&token->seat_destroy.link);
 	wl_list_init(&token->surface_destroy.link);
+	wl_signal_init(&token->events.destroy);
 
 	token->activation = activation;
 
@@ -376,6 +380,7 @@ struct wlr_xdg_activation_token_v1 *wlr_xdg_activation_token_v1_create(
 	// Currently no way to set seat/surface
 	wl_list_init(&token->seat_destroy.link);
 	wl_list_init(&token->surface_destroy.link);
+	wl_signal_init(&token->events.destroy);
 
 	token->activation = activation;
 
