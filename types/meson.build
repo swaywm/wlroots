@@ -10,6 +10,7 @@ wlr_files += files(
 	'scene/subsurface_tree.c',
 	'scene/wlr_scene.c',
 	'scene/output_layout.c',
+	'scene/xdg_shell.c',
 	'seat/wlr_seat_keyboard.c',
 	'seat/wlr_seat_pointer.c',
 	'seat/wlr_seat_touch.c',
