@@ -25,6 +25,7 @@
 
 struct wlr_output;
 struct wlr_output_layout;
+struct wlr_xdg_surface;
 
 enum wlr_scene_node_type {
 	WLR_SCENE_NODE_ROOT,
@@ -297,5 +298,15 @@ bool wlr_scene_attach_output_layout(struct wlr_scene *scene,
  */
 struct wlr_scene_node *wlr_scene_subsurface_tree_create(
 	struct wlr_scene_node *parent, struct wlr_surface *surface);
+
+/**
+ * Add a node displaying an xdg_surface and all of its sub-surfaces to the
+ * scene-graph.
+ *
+ * The origin of the returned scene-graph node will match the top-left corner
+ * of the xdg_surface window geometry.
+ */
+struct wlr_scene_node *wlr_scene_xdg_surface_create(
+	struct wlr_scene_node *parent, struct wlr_xdg_surface *xdg_surface);
 
 #endif
