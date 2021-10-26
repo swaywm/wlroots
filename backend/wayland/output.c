@@ -23,6 +23,7 @@
 
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
 #include "presentation-time-client-protocol.h"
+#include "xdg-activation-v1-client-protocol.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
@@ -592,6 +593,12 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 		if (seat->pointer) {
 			create_wl_pointer(seat, output);
 		}
+	}
+
+	// TODO: let the compositor do this bit
+	if (backend->activation_v1 && backend->activation_token) {
+		xdg_activation_v1_activate(backend->activation_v1,
+				backend->activation_token, output->surface);
 	}
 
 	// Start the rendering loop by requesting the compositor to render a frame

@@ -24,6 +24,7 @@ struct wlr_wl_backend {
 	size_t requested_outputs;
 	size_t last_output_num;
 	struct wl_listener local_display_destroy;
+	char *activation_token;
 
 	/* remote state */
 	struct wl_display *remote_display;
@@ -42,6 +43,7 @@ struct wlr_wl_backend {
 	struct wlr_drm_format_set shm_formats;
 	struct wlr_drm_format_set linux_dmabuf_v1_formats;
 	struct wl_drm *legacy_drm;
+	struct xdg_activation_v1 *activation_v1;
 	char *drm_render_name;
 };
 
