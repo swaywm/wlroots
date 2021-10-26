@@ -157,12 +157,6 @@ out:
 }
 
 static struct wlr_egl *egl_create(void) {
-	struct wlr_egl *egl = calloc(1, sizeof(struct wlr_egl));
-	if (egl == NULL) {
-		wlr_log_errno(WLR_ERROR, "Allocation failed");
-		return NULL;
-	}
-
 	const char *client_exts_str = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
 	if (client_exts_str == NULL) {
 		if (eglGetError() == EGL_BAD_DISPLAY) {
@@ -172,12 +166,20 @@ static struct wlr_egl *egl_create(void) {
 		}
 		return NULL;
 	}
+
 	wlr_log(WLR_INFO, "Supported EGL client extensions: %s", client_exts_str);
 
 	if (!check_egl_ext(client_exts_str, "EGL_EXT_platform_base")) {
 		wlr_log(WLR_ERROR, "EGL_EXT_platform_base not supported");
 		return NULL;
 	}
+
+	struct wlr_egl *egl = calloc(1, sizeof(struct wlr_egl));
+	if (egl == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return NULL;
+	}
+
 	load_egl_proc(&egl->procs.eglGetPlatformDisplayEXT,
 		"eglGetPlatformDisplayEXT");
 
@@ -215,6 +217,7 @@ static struct wlr_egl *egl_create(void) {
 
 	if (eglBindAPI(EGL_OPENGL_ES_API) == EGL_FALSE) {
 		wlr_log(WLR_ERROR, "Failed to bind to the OpenGL ES API");
+		free(egl);
 		return NULL;
 	}
 
