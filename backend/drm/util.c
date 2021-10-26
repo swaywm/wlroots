@@ -94,6 +94,7 @@ static const char *get_manufacturer(uint16_t id) {
 	case ID('V', 'E', 'S'): return "Vestel Elektronik Sanayi ve Ticaret A. S.";
 	case ID('V', 'I', 'T'): return "Visitech AS";
 	case ID('V', 'I', 'Z'): return "VIZIO, Inc";
+	case ID('V', 'L', 'V'): return "Valve";
 	case ID('V', 'S', 'C'): return "ViewSonic Corporation";
 	case ID('Y', 'M', 'H'): return "Yamaha Corporation";
 	default:                return "Unknown";
