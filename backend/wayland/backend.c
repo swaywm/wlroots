@@ -24,6 +24,7 @@
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
 #include "pointer-gestures-unstable-v1-client-protocol.h"
 #include "presentation-time-client-protocol.h"
+#include "xdg-activation-v1-client-protocol.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 #include "tablet-unstable-v2-client-protocol.h"
@@ -244,6 +245,9 @@ static void registry_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(iface, wl_shm_interface.name) == 0) {
 		wl->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
 		wl_shm_add_listener(wl->shm, &shm_listener, wl);
+	} else if (strcmp(iface, xdg_activation_v1_interface.name) == 0) {
+		wl->activation_v1 = wl_registry_bind(registry, name,
+			&xdg_activation_v1_interface, 1);
 	}
 }
 
@@ -339,6 +343,7 @@ static void backend_destroy(struct wlr_backend *backend) {
 		zwp_relative_pointer_manager_v1_destroy(wl->zwp_relative_pointer_manager_v1);
 	}
 	free(wl->drm_render_name);
+	free(wl->activation_token);
 	xdg_wm_base_destroy(wl->xdg_wm_base);
 	wl_compositor_destroy(wl->compositor);
 	wl_registry_destroy(wl->registry);
@@ -444,6 +449,12 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 
 	wl->local_display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &wl->local_display_destroy);
+
+	const char *token = getenv("XDG_ACTIVATION_TOKEN");
+	if (token != NULL) {
+		wl->activation_token = strdup(token);
+		unsetenv("XDG_ACTIVATION_TOKEN");
+	}
 
 	return &wl->backend;
 

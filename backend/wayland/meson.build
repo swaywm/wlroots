@@ -12,6 +12,7 @@ client_protos = [
 	'presentation-time',
 	'relative-pointer-unstable-v1',
 	'tablet-unstable-v2',
+	'xdg-activation-v1',
 	'xdg-decoration-unstable-v1',
 	'xdg-shell',
 ]
