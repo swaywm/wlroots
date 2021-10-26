@@ -204,6 +204,7 @@ bool drm_legacy_crtc_set_gamma(struct wlr_drm_backend *drm,
 	if (drmModeCrtcSetGamma(drm->fd, crtc->id, size, r, g, b) != 0) {
 		wlr_log_errno(WLR_ERROR, "Failed to set gamma LUT on CRTC %"PRIu32,
 			crtc->id);
+		free(linear_lut);
 		return false;
 	}
 
