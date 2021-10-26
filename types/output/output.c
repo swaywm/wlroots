@@ -547,6 +547,16 @@ static bool output_basic_test(struct wlr_output *output) {
 		enabled = output->pending.enabled;
 	}
 
+	if (enabled && (output->pending.committed & (WLR_OUTPUT_STATE_ENABLED |
+			WLR_OUTPUT_STATE_MODE))) {
+		int pending_width, pending_height;
+		output_pending_resolution(output, &pending_width, &pending_height);
+		if (pending_width == 0 || pending_height == 0) {
+			wlr_log(WLR_DEBUG, "Tried to enable an output with a zero mode");
+			return false;
+		}
+	}
+
 	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		wlr_log(WLR_DEBUG, "Tried to commit a buffer on a disabled output");
 		return false;
