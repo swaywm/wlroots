@@ -438,9 +438,6 @@ static void frame_handle_copy(struct wl_client *wl_client,
 	wl_signal_add(&output->events.destroy, &frame->output_enable);
 	frame->output_enable.notify = frame_handle_output_enable;
 
-	wl_signal_add(&output->events.destroy, &frame->output_destroy);
-	frame->output_destroy.notify = frame_handle_output_destroy;
-
 	wl_resource_add_destroy_listener(buffer_resource, &frame->buffer_destroy);
 	frame->buffer_destroy.notify = frame_handle_buffer_destroy;
 
@@ -538,8 +535,10 @@ static void capture_output(struct wl_client *wl_client,
 
 	wl_list_init(&frame->output_commit.link);
 	wl_list_init(&frame->output_enable.link);
-	wl_list_init(&frame->output_destroy.link);
 	wl_list_init(&frame->buffer_destroy.link);
+
+	wl_signal_add(&output->events.destroy, &frame->output_destroy);
+	frame->output_destroy.notify = frame_handle_output_destroy;
 
 	if (output == NULL || !output->enabled) {
 		goto error;
