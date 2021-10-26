@@ -43,11 +43,11 @@ Install dependencies:
 * meson
 * wayland
 * wayland-protocols
-* EGL
-* GLESv2
+* EGL and GLESv2 (optional, for the GLES2 renderer)
+* Vulkan loader, headers and glslang (optional, for the Vulkan renderer)
 * libdrm
 * GBM
-* libinput
+* libinput (optional, for the libinput backend)
 * xkbcommon
 * udev
 * pixman
