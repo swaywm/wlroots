@@ -463,7 +463,6 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 		attempt_drm_backend(display, backend, multi->session);
 	if (!primary_drm) {
 		wlr_log(WLR_ERROR, "Failed to open any DRM device");
-		wlr_backend_destroy(libinput);
 		wlr_session_destroy(multi->session);
 		wlr_backend_destroy(backend);
 		return NULL;
