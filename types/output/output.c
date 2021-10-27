@@ -175,13 +175,12 @@ static void output_update_matrix(struct wlr_output *output) {
 }
 
 void wlr_output_enable(struct wlr_output *output, bool enable) {
+	output->pending.enabled = enable;
 	if (output->enabled == enable) {
 		output->pending.committed &= ~WLR_OUTPUT_STATE_ENABLED;
-		return;
+	} else {
+		output->pending.committed |= WLR_OUTPUT_STATE_ENABLED;
 	}
-
-	output->pending.committed |= WLR_OUTPUT_STATE_ENABLED;
-	output->pending.enabled = enable;
 }
 
 static void output_state_clear_mode(struct wlr_output_state *state) {
