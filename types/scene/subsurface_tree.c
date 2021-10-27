@@ -22,7 +22,10 @@ struct wlr_scene_subsurface_tree {
 	struct wl_listener surface_new_subsurface;
 };
 
-static void subsurface_tree_destroy(struct wlr_scene_subsurface_tree *subsurface_tree) {
+static void subsurface_tree_handle_tree_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_scene_subsurface_tree *subsurface_tree =
+		wl_container_of(listener, subsurface_tree, tree_destroy);
 	// tree and scene_surface will be cleaned up by scene_node_finish
 	if (subsurface_tree->parent) {
 		wlr_addon_finish(&subsurface_tree->surface_addon);
@@ -32,13 +35,6 @@ static void subsurface_tree_destroy(struct wlr_scene_subsurface_tree *subsurface
 	wl_list_remove(&subsurface_tree->surface_commit.link);
 	wl_list_remove(&subsurface_tree->surface_new_subsurface.link);
 	free(subsurface_tree);
-}
-
-static void subsurface_tree_handle_tree_destroy(struct wl_listener *listener,
-		void *data) {
-	struct wlr_scene_subsurface_tree *subsurface_tree =
-		wl_container_of(listener, subsurface_tree, tree_destroy);
-	subsurface_tree_destroy(subsurface_tree);
 }
 
 static void subsurface_tree_handle_surface_destroy(struct wl_listener *listener,
