@@ -201,6 +201,7 @@ static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
 
 	uint32_t fb_damage_clips = 0;
 	if ((state->base->committed & WLR_OUTPUT_STATE_DAMAGE) &&
+			pixman_region32_not_empty((pixman_region32_t *)&state->base->damage) &&
 			crtc->primary->props.fb_damage_clips != 0) {
 		int rects_len;
 		const pixman_box32_t *rects = pixman_region32_rectangles(
