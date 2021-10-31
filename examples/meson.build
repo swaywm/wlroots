@@ -143,7 +143,7 @@ clients = {
 		'src': 'screencopy-dmabuf.c',
 		'dep': [libpng, rt, gbm, drm],
 		'proto': [
-			'wlr-screencopy-unstable-v1',
+			'screencopy-unstable-v1',
 			'linux-dmabuf-unstable-v1',
 		],
 	},
