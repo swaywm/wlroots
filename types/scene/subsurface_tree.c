@@ -19,6 +19,8 @@ struct wlr_scene_subsurface_tree {
 	struct wl_listener tree_destroy;
 	struct wl_listener surface_destroy;
 	struct wl_listener surface_commit;
+	struct wl_listener surface_map;
+	struct wl_listener surface_unmap;
 	struct wl_listener surface_new_subsurface;
 };
 
@@ -33,6 +35,8 @@ static void subsurface_tree_handle_tree_destroy(struct wl_listener *listener,
 	wl_list_remove(&subsurface_tree->tree_destroy.link);
 	wl_list_remove(&subsurface_tree->surface_destroy.link);
 	wl_list_remove(&subsurface_tree->surface_commit.link);
+	wl_list_remove(&subsurface_tree->surface_map.link);
+	wl_list_remove(&subsurface_tree->surface_unmap.link);
 	wl_list_remove(&subsurface_tree->surface_new_subsurface.link);
 	free(subsurface_tree);
 }
@@ -102,6 +106,22 @@ static void subsurface_tree_handle_surface_commit(struct wl_listener *listener,
 	subsurface_tree_reconfigure(subsurface_tree);
 }
 
+static void subsurface_tree_handle_surface_map(struct wl_listener *listener,
+		void *data) {
+	struct wlr_scene_subsurface_tree *subsurface_tree =
+		wl_container_of(listener, subsurface_tree, surface_map);
+
+	wlr_scene_node_set_enabled(&subsurface_tree->tree->node, true);
+}
+
+static void subsurface_tree_handle_surface_unmap(struct wl_listener *listener,
+		void *data) {
+	struct wlr_scene_subsurface_tree *subsurface_tree =
+		wl_container_of(listener, subsurface_tree, surface_unmap);
+
+	wlr_scene_node_set_enabled(&subsurface_tree->tree->node, false);
+}
+
 static void subsurface_tree_addon_destroy(struct wlr_addon *addon) {
 	struct wlr_scene_subsurface_tree *subsurface_tree =
 		wl_container_of(addon, subsurface_tree, surface_addon);
@@ -126,8 +146,13 @@ static bool subsurface_tree_create_subsurface(
 	}
 
 	child->parent = parent;
+	wlr_scene_node_set_enabled(&child->tree->node, subsurface->mapped);
+
 	wlr_addon_init(&child->surface_addon, &subsurface->surface->addons,
 		parent, &subsurface_tree_addon_impl);
+
+	wl_signal_add(&subsurface->events.map, &child->surface_map);
+	wl_signal_add(&subsurface->events.unmap, &child->surface_unmap);
 
 	return true;
 }
@@ -188,6 +213,12 @@ static struct wlr_scene_subsurface_tree *scene_surface_tree_create(
 
 	subsurface_tree->surface_commit.notify = subsurface_tree_handle_surface_commit;
 	wl_signal_add(&surface->events.commit, &subsurface_tree->surface_commit);
+
+	subsurface_tree->surface_map.notify = subsurface_tree_handle_surface_map;
+	wl_list_init(&subsurface_tree->surface_map.link);
+
+	subsurface_tree->surface_unmap.notify = subsurface_tree_handle_surface_unmap;
+	wl_list_init(&subsurface_tree->surface_unmap.link);
 
 	subsurface_tree->surface_new_subsurface.notify =
 		subsurface_tree_handle_surface_new_subsurface;
