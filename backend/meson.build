@@ -16,7 +16,6 @@ endforeach
 
 subdir('multi')
 subdir('wayland')
-subdir('noop')
 subdir('headless')
 
 subdir('session')
