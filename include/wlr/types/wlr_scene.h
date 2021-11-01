@@ -25,6 +25,7 @@
 
 struct wlr_output;
 struct wlr_output_layout;
+struct wlr_xdg_popup;
 
 enum wlr_scene_node_type {
 	WLR_SCENE_NODE_ROOT,
@@ -297,5 +298,12 @@ bool wlr_scene_attach_output_layout(struct wlr_scene *scene,
  */
 struct wlr_scene_node *wlr_scene_subsurface_tree_create(
 	struct wlr_scene_node *parent, struct wlr_surface *surface);
+
+/**
+ * Add a node displaying an xdg_popup and all of its sub-surfaces to the
+ * scene-graph.
+ */
+struct wlr_scene_node *wlr_scene_xdg_popup_create(
+	struct wlr_scene_node *parent, struct wlr_xdg_popup *popup);
 
 #endif
