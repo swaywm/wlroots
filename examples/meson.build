@@ -188,6 +188,11 @@ clients = {
 			'input-method-unstable-v2',
 		],
 	},
+	'ext-workspace': {
+		'src': 'ext-workspace.c',
+		'dep': [wlroots],
+		'proto': ['ext-workspace-unstable-v1'],
+	},
 }
 
 foreach name, info : compositors
