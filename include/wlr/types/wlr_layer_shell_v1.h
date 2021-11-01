@@ -66,6 +66,8 @@ struct wlr_layer_surface_v1_state {
 
 	uint32_t configure_serial;
 	uint32_t actual_width, actual_height;
+
+	struct wlr_surface_synced_state synced_state;
 };
 
 struct wlr_layer_surface_v1_configure {
@@ -89,7 +91,7 @@ struct wlr_layer_surface_v1 {
 
 	struct wlr_layer_surface_v1_state current, pending;
 
-	struct wl_listener surface_destroy;
+	struct wlr_surface_synced synced;
 
 	struct {
 		/**

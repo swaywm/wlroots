@@ -48,10 +48,10 @@ static void pointer_constraint_destroy(struct wlr_pointer_constraint_v1 *constra
 
 	wlr_signal_emit_safe(&constraint->events.destroy, constraint);
 
+	wlr_surface_synced_finish(&constraint->synced);
 	wl_resource_set_user_data(constraint->resource, NULL);
 	wl_list_remove(&constraint->link);
 	wl_list_remove(&constraint->surface_commit.link);
-	wl_list_remove(&constraint->surface_destroy.link);
 	wl_list_remove(&constraint->seat_destroy.link);
 	pixman_region32_fini(&constraint->current.region);
 	pixman_region32_fini(&constraint->pending.region);
@@ -105,20 +105,6 @@ static void pointer_constraint_set_cursor_position_hint(struct wl_client *client
 
 static void pointer_constraint_commit(
 		struct wlr_pointer_constraint_v1 *constraint) {
-	if (constraint->pending.committed &
-			WLR_POINTER_CONSTRAINT_V1_STATE_REGION) {
-		pixman_region32_copy(&constraint->current.region,
-			&constraint->pending.region);
-	}
-	if (constraint->pending.committed &
-			WLR_POINTER_CONSTRAINT_V1_STATE_CURSOR_HINT) {
-		constraint->current.cursor_hint = constraint->pending.cursor_hint;
-	}
-	constraint->current.committed |= constraint->pending.committed;
-
-	bool updated_region = !!constraint->pending.committed;
-	constraint->pending.committed = 0;
-
 	pixman_region32_clear(&constraint->region);
 	if (pixman_region32_not_empty(&constraint->current.region)) {
 		pixman_region32_intersect(&constraint->region,
@@ -128,7 +114,7 @@ static void pointer_constraint_commit(
 			&constraint->surface->input_region);
 	}
 
-	if (updated_region) {
+	if (constraint->current.committed != 0) {
 		wlr_signal_emit_safe(&constraint->events.set_region, NULL);
 	}
 }
@@ -138,13 +124,6 @@ static void handle_surface_commit(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, constraint, surface_commit);
 
 	pointer_constraint_commit(constraint);
-}
-
-static void handle_surface_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_pointer_constraint_v1 *constraint =
-		wl_container_of(listener, constraint, surface_destroy);
-
-	pointer_constraint_destroy(constraint);
 }
 
 static void handle_seat_destroy(struct wl_listener *listener, void *data) {
@@ -163,6 +142,64 @@ static const struct zwp_locked_pointer_v1_interface locked_pointer_impl = {
 	.destroy = resource_destroy,
 	.set_region = pointer_constraint_handle_set_region,
 	.set_cursor_position_hint = pointer_constraint_set_cursor_position_hint,
+};
+
+static void pointer_constraint_synced_destroy(struct wlr_surface_synced *synced) {
+	struct wlr_pointer_constraint_v1 *constraint =
+		wl_container_of(synced, constraint, synced);
+	pointer_constraint_destroy(constraint);
+}
+
+static void pointer_constraint_synced_squash_state(
+		struct wlr_surface_synced_state *synced_state,
+		struct wlr_surface_synced_state *synced_prev) {
+	struct wlr_pointer_constraint_v1_state *state =
+		wl_container_of(synced_state, state, synced_state);
+	struct wlr_pointer_constraint_v1_state *prev =
+		wl_container_of(synced_prev, prev, synced_state);
+
+	if (state->committed & WLR_POINTER_CONSTRAINT_V1_STATE_REGION) {
+		pixman_region32_copy(&prev->region, &state->region);
+	}
+	if (state->committed & WLR_POINTER_CONSTRAINT_V1_STATE_CURSOR_HINT) {
+		prev->cursor_hint = state->cursor_hint;
+	}
+
+	prev->committed |= state->committed;
+	state->committed = 0;
+}
+
+static struct wlr_surface_synced_state *pointer_constraint_synced_create_state(void) {
+	struct wlr_pointer_constraint_v1_state *state = calloc(1, sizeof(*state));
+	if (!state) {
+		return NULL;
+	}
+	pixman_region32_init(&state->region);
+	return &state->synced_state;
+}
+
+static void pointer_constraint_synced_destroy_state(
+		struct wlr_surface_synced_state *synced_state) {
+	struct wlr_pointer_constraint_v1_state *state =
+		wl_container_of(synced_state, state, synced_state);
+	pixman_region32_fini(&state->region);
+	free(state);
+}
+
+static void pointer_constraint_synced_precommit(struct wlr_surface_synced *synced,
+		struct wlr_surface_synced_state *synced_state) {
+	struct wlr_pointer_constraint_v1 *constraint =
+		wl_container_of(synced, constraint, synced);
+	constraint->current.committed = 0;
+}
+
+static const struct wlr_surface_synced_interface pointer_constraint_synced_impl = {
+	.name = "wlr_pointer_constraint_v1",
+	.destroy = pointer_constraint_synced_destroy,
+	.squash_state = pointer_constraint_synced_squash_state,
+	.create_state = pointer_constraint_synced_create_state,
+	.destroy_state = pointer_constraint_synced_destroy_state,
+	.precommit = pointer_constraint_synced_precommit,
 };
 
 static void pointer_constraint_create(struct wl_client *client,
@@ -207,6 +244,16 @@ static void pointer_constraint_create(struct wl_client *client,
 		return;
 	}
 
+	if (!wlr_surface_synced_init(&constraint->synced,
+			&pointer_constraint_synced_impl, surface,
+			&constraint->current.synced_state,
+			&constraint->pending.synced_state)) {
+		free(constraint);
+		wl_resource_destroy(resource);
+		wl_client_post_no_memory(client);
+		return;
+	}
+
 	constraint->resource = resource;
 	constraint->surface = surface;
 	constraint->seat = seat;
@@ -227,9 +274,6 @@ static void pointer_constraint_create(struct wl_client *client,
 
 	constraint->surface_commit.notify = handle_surface_commit;
 	wl_signal_add(&surface->events.commit, &constraint->surface_commit);
-
-	constraint->surface_destroy.notify = handle_surface_destroy;
-	wl_signal_add(&surface->events.destroy, &constraint->surface_destroy);
 
 	constraint->seat_destroy.notify = handle_seat_destroy;
 	wl_signal_add(&seat->events.destroy, &constraint->seat_destroy);

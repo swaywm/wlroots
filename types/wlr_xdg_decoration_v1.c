@@ -63,8 +63,8 @@ static void toplevel_decoration_handle_resource_destroy(
 	struct wlr_xdg_toplevel_decoration_v1 *decoration =
 		toplevel_decoration_from_resource(resource);
 	wlr_signal_emit_safe(&decoration->events.destroy, decoration);
+	wlr_surface_synced_finish(&decoration->synced);
 	wl_list_remove(&decoration->surface_commit.link);
-	wl_list_remove(&decoration->surface_destroy.link);
 	wl_list_remove(&decoration->surface_configure.link);
 	wl_list_remove(&decoration->surface_ack_configure.link);
 	struct wlr_xdg_toplevel_decoration_v1_configure *configure, *tmp;
@@ -73,13 +73,6 @@ static void toplevel_decoration_handle_resource_destroy(
 	}
 	wl_list_remove(&decoration->link);
 	free(decoration);
-}
-
-static void toplevel_decoration_handle_surface_destroy(
-		struct wl_listener *listener, void *data) {
-	struct wlr_xdg_toplevel_decoration_v1 *decoration =
-		wl_container_of(listener, decoration, surface_destroy);
-	wl_resource_destroy(decoration->resource);
 }
 
 static void toplevel_decoration_handle_surface_configure(
@@ -144,14 +137,53 @@ static void toplevel_decoration_handle_surface_commit(
 		wl_container_of(listener, decoration, surface_commit);
 	struct wlr_xdg_decoration_manager_v1 *manager = decoration->manager;
 
-	decoration->current = decoration->pending;
-
 	if (decoration->surface->added && !decoration->added) {
 		decoration->added = true;
 		wlr_signal_emit_safe(&manager->events.new_toplevel_decoration,
 			decoration);
 	}
 }
+
+static void xdg_toplevel_decoration_synced_destroy(struct wlr_surface_synced *synced) {
+	struct wlr_xdg_toplevel_decoration_v1 *decoration =
+		wl_container_of(synced, decoration, synced);
+	wl_resource_destroy(decoration->resource);
+}
+
+static void xdg_toplevel_decoration_synced_squash_state(
+		struct wlr_surface_synced_state *synced_state,
+		struct wlr_surface_synced_state *synced_prev) {
+	struct wlr_xdg_toplevel_decoration_v1_state *state =
+		wl_container_of(synced_state, state, synced_state);
+	struct wlr_xdg_toplevel_decoration_v1_state *prev =
+		wl_container_of(synced_prev, prev, synced_state);
+
+	prev->mode = state->mode;
+}
+
+static struct wlr_surface_synced_state *xdg_toplevel_decoration_synced_create_state(void) {
+	struct wlr_xdg_toplevel_decoration_v1_state *state =
+		calloc(1, sizeof(*state));
+	if (!state) {
+		return NULL;
+	}
+	return &state->synced_state;
+}
+
+static void xdg_toplevel_decoration_synced_destroy_state(
+		struct wlr_surface_synced_state *synced_state) {
+	struct wlr_xdg_toplevel_decoration_v1_state *state =
+		wl_container_of(synced_state, state, synced_state);
+	free(state);
+}
+
+static const struct wlr_surface_synced_interface xdg_toplevel_decoration_synced_impl = {
+	.name = "wlr_xdg_toplevel_decoration",
+	.destroy = xdg_toplevel_decoration_synced_destroy,
+	.squash_state = xdg_toplevel_decoration_synced_squash_state,
+	.create_state = xdg_toplevel_decoration_synced_create_state,
+	.destroy_state = xdg_toplevel_decoration_synced_destroy_state,
+};
 
 static const struct zxdg_decoration_manager_v1_interface decoration_manager_impl;
 
@@ -193,10 +225,20 @@ static void decoration_manager_handle_get_toplevel_decoration(
 	decoration->manager = manager;
 	decoration->surface = surface;
 
+	if (!wlr_surface_synced_init(&decoration->synced,
+			&xdg_toplevel_decoration_synced_impl, surface->surface,
+			&decoration->current.synced_state,
+			&decoration->pending.synced_state)) {
+		free(decoration);
+		wl_client_post_no_memory(client);
+		return;
+	}
+
 	uint32_t version = wl_resource_get_version(manager_resource);
 	decoration->resource = wl_resource_create(client,
 		&zxdg_toplevel_decoration_v1_interface, version, id);
 	if (decoration->resource == NULL) {
+		wlr_surface_synced_finish(&decoration->synced);
 		free(decoration);
 		wl_client_post_no_memory(client);
 		return;
@@ -212,9 +254,6 @@ static void decoration_manager_handle_get_toplevel_decoration(
 	wl_signal_init(&decoration->events.destroy);
 	wl_signal_init(&decoration->events.request_mode);
 
-	wl_signal_add(&surface->events.destroy, &decoration->surface_destroy);
-	decoration->surface_destroy.notify =
-		toplevel_decoration_handle_surface_destroy;
 	wl_signal_add(&surface->events.configure, &decoration->surface_configure);
 	decoration->surface_configure.notify =
 		toplevel_decoration_handle_surface_configure;

@@ -11,6 +11,7 @@
 
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
+#include <wlr/types/wlr_surface.h>
 #include <wlr/util/box.h>
 #include "xdg-shell-protocol.h"
 
@@ -105,6 +106,8 @@ struct wlr_xdg_toplevel_state {
 	uint32_t width, height;
 	uint32_t max_width, max_height;
 	uint32_t min_width, min_height;
+
+	struct wlr_surface_synced_state synced_state;
 };
 
 struct wlr_xdg_toplevel_configure {
@@ -140,6 +143,8 @@ struct wlr_xdg_toplevel {
 	char *title;
 	char *app_id;
 
+	struct wlr_surface_synced synced;
+
 	struct {
 		struct wl_signal request_maximize;
 		struct wl_signal request_fullscreen;
@@ -164,6 +169,8 @@ struct wlr_xdg_surface_configure {
 struct wlr_xdg_surface_state {
 	uint32_t configure_serial;
 	struct wlr_box geometry;
+
+	struct wlr_surface_synced_state synced_state;
 };
 
 /**
@@ -197,7 +204,8 @@ struct wlr_xdg_surface {
 
 	struct wlr_xdg_surface_state current, pending;
 
-	struct wl_listener surface_destroy;
+	struct wlr_surface_synced synced;
+
 	struct wl_listener surface_commit;
 
 	struct {

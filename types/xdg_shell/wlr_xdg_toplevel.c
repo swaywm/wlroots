@@ -134,8 +134,6 @@ void handle_xdg_surface_toplevel_committed(struct wlr_xdg_surface *surface) {
 		surface->toplevel->added = true;
 		return;
 	}
-
-	surface->toplevel->current = surface->toplevel->pending;
 }
 
 static const struct xdg_toplevel_interface xdg_toplevel_implementation;
@@ -447,6 +445,51 @@ const struct wlr_surface_role xdg_toplevel_surface_role = {
 	.precommit = handle_xdg_surface_precommit,
 };
 
+static void xdg_toplevel_synced_squash_state(
+		struct wlr_surface_synced_state *synced_state,
+		struct wlr_surface_synced_state *synced_prev) {
+	struct wlr_xdg_toplevel_state *state =
+		wl_container_of(synced_state, state, synced_state);
+	struct wlr_xdg_toplevel_state *prev =
+		wl_container_of(synced_prev, prev, synced_state);
+
+	prev->maximized = state->maximized;
+	prev->fullscreen = state->fullscreen;
+	prev->resizing = state->resizing;
+	prev->activated = state->activated;
+	prev->tiled = state->tiled;
+
+	prev->width = state->width;
+	prev->height = state->height;
+
+	prev->max_width = state->max_width;
+	prev->max_height = state->max_height;
+	prev->min_width = state->min_width;
+	prev->min_height = state->min_height;
+}
+
+static struct wlr_surface_synced_state *xdg_toplevel_synced_create_state(void) {
+	struct wlr_xdg_toplevel_state *state = calloc(1, sizeof(*state));
+	if (!state) {
+		return NULL;
+	}
+	return &state->synced_state;
+}
+
+static void xdg_toplevel_synced_destroy_state(
+		struct wlr_surface_synced_state *synced_state) {
+	struct wlr_xdg_toplevel_state *state =
+		wl_container_of(synced_state, state, synced_state);
+	free(state);
+}
+
+static const struct wlr_surface_synced_interface xdg_toplevel_synced_impl = {
+	.name = "wlr_xdg_toplevel",
+	.squash_state = xdg_toplevel_synced_squash_state,
+	.create_state = xdg_toplevel_synced_create_state,
+	.destroy_state = xdg_toplevel_synced_destroy_state,
+};
+
 void create_xdg_toplevel(struct wlr_xdg_surface *xdg_surface,
 		uint32_t id) {
 	if (!wlr_surface_set_role(xdg_surface->surface, &xdg_toplevel_surface_role,
@@ -479,10 +522,20 @@ void create_xdg_toplevel(struct wlr_xdg_surface *xdg_surface,
 	wl_signal_init(&xdg_surface->toplevel->events.set_title);
 	wl_signal_init(&xdg_surface->toplevel->events.set_app_id);
 
+	if (!wlr_surface_synced_init(&xdg_surface->toplevel->synced,
+			&xdg_toplevel_synced_impl, xdg_surface->surface,
+			&xdg_surface->toplevel->current.synced_state,
+			&xdg_surface->toplevel->pending.synced_state)) {
+		free(xdg_surface->toplevel);
+		wl_resource_post_no_memory(xdg_surface->resource);
+		return;
+	}
+
 	xdg_surface->toplevel->resource = wl_resource_create(
 		xdg_surface->client->client, &xdg_toplevel_interface,
 		wl_resource_get_version(xdg_surface->resource), id);
 	if (xdg_surface->toplevel->resource == NULL) {
+		wlr_surface_synced_finish(&xdg_surface->toplevel->synced);
 		free(xdg_surface->toplevel);
 		wl_resource_post_no_memory(xdg_surface->resource);
 		return;

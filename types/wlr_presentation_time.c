@@ -13,6 +13,8 @@
 
 struct wlr_presentation_surface_state {
 	struct wlr_presentation_feedback *feedback;
+
+	struct wlr_surface_synced_state synced_state;
 };
 
 struct wlr_presentation_surface {
@@ -20,7 +22,7 @@ struct wlr_presentation_surface {
 
 	struct wlr_addon addon; // wlr_surface::addons
 
-	struct wl_listener surface_commit;
+	struct wlr_surface_synced synced;
 };
 
 static void feedback_handle_resource_destroy(struct wl_resource *resource) {
@@ -65,7 +67,7 @@ static void presentation_surface_addon_destroy(struct wlr_addon *addon) {
 	wlr_presentation_feedback_destroy(p_surface->current.feedback);
 	wlr_presentation_feedback_destroy(p_surface->pending.feedback);
 
-	wl_list_remove(&p_surface->surface_commit.link);
+	wlr_surface_synced_finish(&p_surface->synced);
 	free(p_surface);
 }
 
@@ -74,15 +76,40 @@ static const struct wlr_addon_interface presentation_surface_addon_impl = {
 	.destroy = presentation_surface_addon_destroy,
 };
 
-static void presentation_surface_handle_surface_commit(
-		struct wl_listener *listener, void *data) {
-	struct wlr_presentation_surface *p_surface =
-		wl_container_of(listener, p_surface, surface_commit);
+static void presentation_surface_synced_squash_state(
+		struct wlr_surface_synced_state *synced_state,
+		struct wlr_surface_synced_state *synced_prev) {
+	struct wlr_presentation_surface_state *state =
+		wl_container_of(synced_state, state, synced_state);
+	struct wlr_presentation_surface_state *prev =
+		wl_container_of(synced_prev, prev, synced_state);
 
-	wlr_presentation_feedback_destroy(p_surface->current.feedback);
-	p_surface->current.feedback = p_surface->pending.feedback;
-	p_surface->pending.feedback = NULL;
+	wlr_presentation_feedback_destroy(prev->feedback);
+	prev->feedback = state->feedback;
+	state->feedback = NULL;
 }
+
+static struct wlr_surface_synced_state *presentation_surface_synced_create_state(void) {
+	struct wlr_presentation_surface_state *state = calloc(1, sizeof(*state));
+	if (!state) {
+		return NULL;
+	}
+	return &state->synced_state;
+}
+
+static void presentation_surface_synced_destroy_state(
+		struct wlr_surface_synced_state *synced_state) {
+	struct wlr_presentation_surface_state *state =
+		wl_container_of(synced_state, state, synced_state);
+	free(state);
+}
+
+static const struct wlr_surface_synced_interface presentation_surface_synced_impl = {
+	.name = "wlr_presentation_surface",
+	.squash_state = presentation_surface_synced_squash_state,
+	.create_state = presentation_surface_synced_create_state,
+	.destroy_state = presentation_surface_synced_destroy_state,
+};
 
 static const struct wp_presentation_interface presentation_impl;
 
@@ -111,12 +138,16 @@ static void presentation_handle_feedback(struct wl_client *client,
 			wl_client_post_no_memory(client);
 			return;
 		}
+		if (!wlr_surface_synced_init(&p_surface->synced,
+				&presentation_surface_synced_impl, surface,
+				&p_surface->current.synced_state,
+				&p_surface->pending.synced_state)) {
+			free(p_surface);
+			wl_client_post_no_memory(client);
+			return;
+		}
 		wlr_addon_init(&p_surface->addon, &surface->addons,
 			presentation, &presentation_surface_addon_impl);
-		p_surface->surface_commit.notify =
-			presentation_surface_handle_surface_commit;
-		wl_signal_add(&surface->events.commit,
-			&p_surface->surface_commit);
 	}
 
 	struct wlr_presentation_feedback *feedback = p_surface->pending.feedback;

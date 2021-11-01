@@ -2,6 +2,7 @@
 #define WLR_TYPES_WLR_XDG_DECORATION_V1
 
 #include <wayland-server-core.h>
+#include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_shell.h>
 
 enum wlr_xdg_toplevel_decoration_v1_mode {
@@ -32,6 +33,8 @@ struct wlr_xdg_toplevel_decoration_v1_configure {
 
 struct wlr_xdg_toplevel_decoration_v1_state {
 	enum wlr_xdg_toplevel_decoration_v1_mode mode;
+
+	struct wlr_surface_synced_state synced_state;
 };
 
 struct wlr_xdg_toplevel_decoration_v1 {
@@ -49,15 +52,16 @@ struct wlr_xdg_toplevel_decoration_v1 {
 
 	struct wl_list configure_list; // wlr_xdg_toplevel_decoration_v1_configure::link
 
+	struct wlr_surface_synced synced;
+
+	struct wl_listener surface_configure;
+	struct wl_listener surface_ack_configure;
+	struct wl_listener surface_commit;
+
 	struct {
 		struct wl_signal destroy;
 		struct wl_signal request_mode;
 	} events;
-
-	struct wl_listener surface_destroy;
-	struct wl_listener surface_configure;
-	struct wl_listener surface_ack_configure;
-	struct wl_listener surface_commit;
 
 	void *data;
 };
