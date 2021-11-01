@@ -364,14 +364,14 @@ static void scene_node_get_size(struct wlr_scene_node *node,
 }
 
 static int scale_length(int length, int offset, float scale) {
-	return round((offset + length) * scale) - round(offset * scale);
+	return (int)((offset + length) * scale + .5f) - (int)(offset * scale + .5f);
 }
 
 static void scale_box(struct wlr_box *box, float scale) {
 	box->width = scale_length(box->width, box->x, scale);
 	box->height = scale_length(box->height, box->y, scale);
-	box->x = round(box->x * scale);
-	box->y = round(box->y * scale);
+	box->x = box->x * scale + .5f;
+	box->y = box->y * scale + .5f;
 }
 
 static void _scene_node_damage_whole(struct wlr_scene_node *node,
