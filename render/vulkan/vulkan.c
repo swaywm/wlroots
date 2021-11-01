@@ -33,6 +33,72 @@ static const char *find_extensions(const VkExtensionProperties *avail,
 	return NULL;
 }
 
+static const char* const *get_instance_layers(uint32_t *layer_count) {
+	static const char * const layers[] = {
+		"VK_LAYER_KHRONOS_validation",
+		// "VK_LAYER_RENDERDOC_Capture",
+		// "VK_LAYER_live_introspection",
+	};
+
+	static const size_t layers_len = sizeof(layers) / sizeof(layers[0]);
+
+	VkLayerProperties *layer_props = NULL;
+
+	uint32_t count;
+	if (vkEnumerateInstanceLayerProperties(&count, NULL) != VK_SUCCESS) {
+		wlr_log(WLR_ERROR, "Failed to call vkEnumerateInstanceLayerProperties");
+		goto layers_err;
+	}
+
+	if (count == 0) {
+		wlr_log(WLR_DEBUG, "No validation layers found");
+		goto layers_err;
+	}
+	wlr_log(WLR_DEBUG, "%"PRIu32" instance layers available", count);
+
+	layer_props = calloc((size_t)count, sizeof(VkLayerProperties));
+	if (layer_props == NULL) {
+		wlr_log(WLR_ERROR, "Failed to allocate %"PRIu32" VkLayerProperties",
+			count);
+		goto layers_err;
+	}
+
+	if (vkEnumerateInstanceLayerProperties(&count, layer_props) != VK_SUCCESS) {
+		wlr_log(WLR_ERROR, "Failed to call vkEnumerateInstanceLayerProperties");
+		goto layers_err;
+	}
+
+	for (uint32_t i = 0; i < count; ++i) {
+		wlr_log(WLR_DEBUG, "Vulkan instance validation layer %s v%"PRIu32,
+			layer_props[i].layerName, layer_props[i].implementationVersion);
+	}
+
+	for (uint32_t i = 0; i < layers_len; ++i) {
+		bool found = false;
+		for (size_t j = 0; j < count; ++j) {
+			if (strcmp(layer_props[j].layerName, layers[i]) == 0) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			wlr_log(WLR_ERROR, "Vulkan instance layer %s not found", layers[i]);
+			goto layers_err;
+		}
+	}
+
+	free(layer_props);
+
+	*layer_count = layers_len;
+	return layers;
+
+layers_err:
+	free(layer_props);
+	*layer_count = 0;
+	return NULL;
+}
+
 static VkBool32 debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 		VkDebugUtilsMessageTypeFlagsEXT type,
 		const VkDebugUtilsMessengerCallbackDataEXT *debug_data,
@@ -163,13 +229,13 @@ struct wlr_vk_instance *vulkan_instance_create(size_t ext_count,
 	application_info.engineVersion = WLR_VERSION_NUM;
 	application_info.apiVersion = VK_API_VERSION_1_1;
 
-	const char *layers[] = {
-		"VK_LAYER_KHRONOS_validation",
-		// "VK_LAYER_RENDERDOC_Capture",
-		// "VK_LAYER_live_introspection",
-	};
-
-	unsigned layer_count = debug * (sizeof(layers) / sizeof(layers[0]));
+	uint32_t layer_count = 0;
+	const char * const *layers = get_instance_layers(&layer_count);
+	wlr_log(WLR_DEBUG, "Using %"PRIu32" instance validation layers",
+		layer_count);
+	for (uint32_t i = 0; i < layer_count; ++i) {
+		wlr_log(WLR_DEBUG, "%s", layers[i]);
+	}
 
 	VkInstanceCreateInfo instance_info = {0};
 	instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -177,7 +243,7 @@ struct wlr_vk_instance *vulkan_instance_create(size_t ext_count,
 	instance_info.enabledExtensionCount = ini->extension_count;
 	instance_info.ppEnabledExtensionNames = ini->extensions;
 	instance_info.enabledLayerCount = layer_count;
-	instance_info.ppEnabledLayerNames = layers;
+	instance_info.ppEnabledLayerNames = (const char *const *)layers;
 
 	VkDebugUtilsMessageSeverityFlagsEXT severity =
 		// VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
