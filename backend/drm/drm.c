@@ -18,6 +18,7 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/box.h>
+#include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -1217,7 +1218,22 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		wl_list_for_each(c, &drm->outputs, link) {
 			index++;
 			if (c->id == drm_conn->connector_id) {
-				wlr_conn = c;
+				struct wlr_output edid_holder;
+				size_t edid_len = 0;
+				uint8_t *edid = get_drm_prop_blob(drm->fd, c->id,
+					c->props.edid, &edid_len);
+
+				parse_edid(&edid_holder, edid_len, edid);
+				free(edid);
+
+				if (strcmp(c->output.make, edid_holder.make) == 0
+					&& strcmp(c->output.model, edid_holder.model) == 0
+					&& strcmp(c->output.serial, edid_holder.serial) == 0) {
+					wlr_conn = c;
+				} else {
+					disconnect_drm_connector(c);
+				}
+
 				break;
 			}
 		}
