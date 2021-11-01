@@ -1,5 +1,9 @@
 # wlroots
 
+> ### ⚠️ Migrated to gitlab.freedesktop.org
+>
+> This project has [migrated to gitlab.freedesktop.org](https://gitlab.freedesktop.org/wlroots/wlroots).
+
 Pluggable, composable, unopinionated modules for building a [Wayland]
 compositor; or about 60,000 lines of code you were going to write anyway.
 
