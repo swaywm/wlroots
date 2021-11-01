@@ -1,21 +1,21 @@
 # Contributing to wlroots
 
-Contributing just involves sending a pull request. You will probably be more
+Contributing just involves sending a merge request. You will probably be more
 successful with your contribution if you visit [#sway-devel on Libera Chat]
 upfront and discuss your plans.
 
 Note: rules are made to be broken. Adjust or ignore any/all of these as you see
 fit, but be prepared to justify it to your peers.
 
-## Pull Requests
+## Merge Requests
 
-If you already have your own pull request habits, feel free to use them. If you
+If you already have your own merge request habits, feel free to use them. If you
 don't, however, allow me to make a suggestion: feature branches pulled from
 upstream. Try this:
 
 1. Fork wlroots
-2. `git clone git@github.com:<username>/wlroots.git && cd wlroots`
-3. `git remote add upstream https://github.com/swaywm/wlroots`
+2. `git clone git@gitlab.freedesktop.org:<username>/wlroots.git && cd wlroots`
+3. `git remote add upstream https://gitlab.freedesktop.org/wlroots/wlroots.git`
 
 You only need to do this once. You're never going to use your fork's master
 branch. Instead, when you start working on a feature, do this:
@@ -24,11 +24,11 @@ branch. Instead, when you start working on a feature, do this:
 2. `git checkout -b add-so-and-so-feature upstream/master`
 3. Add and commit your changes
 4. `git push -u origin add-so-and-so-feature`
-5. Make a pull request from your feature branch
+5. Make a merge request from your feature branch
 
-When you submit your pull request, your commit log should do most of the talking
+When you submit your merge request, your commit log should do most of the talking
 when it comes to describing your changes and their motivation. In addition to
-this, your pull request's comments will ideally include a test plan that the
+this, your merge request's comments will ideally include a test plan that the
 reviewers can use to (1) demonstrate the problem on master, if applicable and
 (2) verify that the problem no longer exists with your changes applied (or that
 your new features work correctly). Document all of the edge cases you're aware
@@ -80,15 +80,15 @@ cmd_move"* or *"Improve performance of arrange_windows on ARM"* or similar.
 
 The subsequent lines should be separated from the subject line by a single
 blank line, and include optional details. In this you can give justification
-for the change, [reference Github issues], or explain some of the subtler
+for the change, [reference issues], or explain some of the subtler
 details of your patch. This is important because when someone finds a line of
 code they don't understand later, they can use the `git blame` command to find
 out what the author was thinking when they wrote it. It's also easier to review
-your pull requests if they're separated into logical commits that have good
+your merge requests if they're separated into logical commits that have good
 commit messages and justify themselves in the extended commit description.
 
-As a good rule of thumb, anything you might put into the pull request
-description on Github is probably fair game for going into the extended commit
+As a good rule of thumb, anything you might put into the merge request
+description on GitLab is probably fair game for going into the extended commit
 message as well.
 
 See [How to Write a Git Commit Message] for more details.
@@ -101,16 +101,16 @@ changes will typically see review from several people. Be prepared to receive
 some feedback - you may be asked to make changes to your work. Our code review
 process is:
 
-1. **Triage** the pull request. Do the commit messages make sense? Is a test
+1. **Triage** the merge request. Do the commit messages make sense? Is a test
    plan necessary and/or present? Add anyone as reviewers that you think should
-   be there (using the relevant GitHub feature, if you have the permissions, or
+   be there (using the relevant GitLab feature, if you have the permissions, or
    with an @mention if necessary).
 2. **Review** the code. Look for code style violations, naming convention
    violations, buffer overflows, memory leaks, logic errors, non-portable code
    (including GNU-isms), etc. For significant changes to the public API, loop in
    a couple more people for discussion.
 3. **Execute** the test plan, if present.
-4. **Merge** the pull request when all reviewers approve.
+4. **Merge** the merge request when all reviewers approve.
 5. **File** follow-up tickets if appropriate.
 
 ## Style Reference
@@ -396,6 +396,6 @@ static void subsurface_handle_surface_destroy(struct wl_listener *listener,
 [#sway-devel on Libera Chat]: https://web.libera.chat/gamja/?channels=#sway-devel
 [linear, "recipe" style]: https://www.bitsnbites.eu/git-history-work-log-vs-recipe/
 [git-rebase.io]: https://git-rebase.io/
-[reference Github issues]: https://help.github.com/articles/closing-issues-via-commit-messages/
+[reference issues]: https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically
 [How to Write a Git Commit Message]: https://chris.beams.io/posts/git-commit/
 [kernel style]: https://www.kernel.org/doc/Documentation/process/coding-style.rst
