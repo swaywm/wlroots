@@ -130,6 +130,7 @@ wlr_deps = [
 ]
 
 subdir('protocol')
+subdir('allocator')
 subdir('render')
 
 subdir('backend')

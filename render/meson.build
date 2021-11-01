@@ -29,5 +29,3 @@ if 'vulkan' in renderers or 'auto' in renderers
 endif
 
 subdir('pixman')
-
-subdir('allocator')

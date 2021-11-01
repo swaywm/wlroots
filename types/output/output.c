@@ -1,10 +1,12 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <stdlib.h>
+#include <wlr/allocator/wlr_allocator.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
+#include "backend/backend.h"
 #include "render/swapchain.h"
 #include "types/wlr_output.h"
 #include "util/global.h"
@@ -325,6 +327,20 @@ void wlr_output_set_description(struct wlr_output *output, const char *desc) {
 	}
 
 	wlr_signal_emit_safe(&output->events.description, output);
+}
+
+bool wlr_output_set_allocator(struct wlr_output *output,
+		struct wlr_allocator *allocator) {
+	uint32_t backend_caps = backend_get_buffer_caps(output->backend);
+
+	if (!(backend_caps & allocator->buffer_caps)) {
+		wlr_log(WLR_ERROR, "backend and allocator buffer capabilities "
+			"don't match");
+		return false;
+	}
+
+	output->allocator = allocator;
+	return true;
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {

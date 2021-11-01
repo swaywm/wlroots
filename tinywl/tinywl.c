@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
+#include <wlr/allocator/wlr_allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_compositor.h>
@@ -34,6 +35,7 @@ struct tinywl_server {
 	struct wl_display *wl_display;
 	struct wlr_backend *backend;
 	struct wlr_renderer *renderer;
+	struct wlr_allocator *allocator;
 
 	struct wlr_xdg_shell *xdg_shell;
 	struct wl_listener new_xdg_surface;
@@ -676,6 +678,10 @@ static void server_new_output(struct wl_listener *listener, void *data) {
 		}
 	}
 
+	/* Give our current allocator to the new output to handle swapchain
+	 * management. */
+	wlr_output_set_allocator(wlr_output, server->allocator);
+
 	/* Allocates and configures our state for this output */
 	struct tinywl_output *output =
 		calloc(1, sizeof(struct tinywl_output));
@@ -846,6 +852,12 @@ int main(int argc, char *argv[]) {
 	 * supports for shared memory, this configures that for clients. */
 	server.renderer = wlr_backend_get_renderer(server.backend);
 	wlr_renderer_init_wl_display(server.renderer, server.wl_display);
+
+	/* The allocator is the bridge between the renderer and the backend.
+	 * It handles the buffer managment between the two, allowing wlroots
+	 * to render onto the screen */
+	server.allocator = wlr_allocator_autocreate(server.backend,
+		 server.renderer);
 
 	/* This creates some hands-off wlroots interfaces. The compositor is
 	 * necessary for clients to allocate surfaces and the data device manager

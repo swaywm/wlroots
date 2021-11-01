@@ -6,8 +6,8 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
+#include "allocator/allocator.h"
 #include "backend/backend.h"
-#include "render/allocator/allocator.h"
 #include "render/swapchain.h"
 #include "types/wlr_output.h"
 #include "util/signal.h"
@@ -194,23 +194,6 @@ static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
 	cursor->visible = visible;
 }
 
-static struct wlr_drm_format *output_pick_cursor_format(struct wlr_output *output) {
-	struct wlr_allocator *allocator = backend_get_allocator(output->backend);
-	assert(allocator != NULL);
-
-	const struct wlr_drm_format_set *display_formats = NULL;
-	if (output->impl->get_cursor_formats) {
-		display_formats =
-			output->impl->get_cursor_formats(output, allocator->buffer_caps);
-		if (display_formats == NULL) {
-			wlr_log(WLR_ERROR, "Failed to get cursor display formats");
-			return NULL;
-		}
-	}
-
-	return output_pick_format(output, display_formats);
-}
-
 static struct wlr_buffer *render_cursor_buffer(struct wlr_output_cursor *cursor) {
 	struct wlr_output *output = cursor->output;
 
@@ -232,9 +215,9 @@ static struct wlr_buffer *render_cursor_buffer(struct wlr_output_cursor *cursor)
 		return NULL;
 	}
 
-	struct wlr_allocator *allocator = backend_get_allocator(output->backend);
+	struct wlr_allocator *allocator = output->allocator;
 	if (allocator == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get backend allocator");
+		wlr_log(WLR_ERROR, "No allocator available");
 		return NULL;
 	}
 
@@ -254,20 +237,28 @@ static struct wlr_buffer *render_cursor_buffer(struct wlr_output_cursor *cursor)
 	if (output->cursor_swapchain == NULL ||
 			output->cursor_swapchain->width != width ||
 			output->cursor_swapchain->height != height) {
-		struct wlr_drm_format *format =
-			output_pick_cursor_format(output);
-		if (format == NULL) {
-			wlr_log(WLR_ERROR, "Failed to pick cursor format");
+		const struct wlr_drm_format_set *cursor_formats = NULL;
+		if (output->impl->get_cursor_formats) {
+			cursor_formats = output->impl->get_cursor_formats(output,
+				allocator->buffer_caps);
+			if (cursor_formats == NULL) {
+				wlr_log(WLR_ERROR, "Failed to get cursor formats");
+				return NULL;
+			}
+		} else {
+			wlr_log(WLR_ERROR, "No cursor formats available");
+			return NULL;
+		}
+
+		struct wlr_swapchain *swapchain = wlr_allocator_create_swapchain(
+			allocator, width, height, cursor_formats, true);
+		if (swapchain == NULL) {
+			wlr_log(WLR_ERROR, "Failed to create cursor swapchain");
 			return NULL;
 		}
 
 		wlr_swapchain_destroy(output->cursor_swapchain);
-		output->cursor_swapchain = wlr_swapchain_create(allocator,
-			width, height, format);
-		if (output->cursor_swapchain == NULL) {
-			wlr_log(WLR_ERROR, "Failed to create cursor swapchain");
-			return NULL;
-		}
+		output->cursor_swapchain = swapchain;
 	}
 
 	struct wlr_buffer *buffer =

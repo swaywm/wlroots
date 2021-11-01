@@ -4,8 +4,8 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/interface.h>
 #include <wlr/util/log.h>
+#include "allocator/allocator.h"
 #include "backend/backend.h"
-#include "render/allocator/allocator.h"
 #include "render/drm_format_set.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
@@ -29,9 +29,9 @@ static bool output_create_swapchain(struct wlr_output *output,
 		return true;
 	}
 
-	struct wlr_allocator *allocator = backend_get_allocator(output->backend);
+	struct wlr_allocator *allocator = output->allocator;
 	if (allocator == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get backend allocator");
+		wlr_log(WLR_ERROR, "No allocator available");
 		return false;
 	}
 
@@ -43,24 +43,13 @@ static bool output_create_swapchain(struct wlr_output *output,
 			wlr_log(WLR_ERROR, "Failed to get primary display formats");
 			return false;
 		}
-	}
-
-	struct wlr_drm_format *format = output_pick_format(output, display_formats);
-	if (format == NULL) {
-		wlr_log(WLR_ERROR, "Failed to pick primary buffer format for output '%s'",
-			output->name);
+	} else {
+		wlr_log(WLR_ERROR, "No output display formats available");
 		return false;
 	}
-	wlr_log(WLR_DEBUG, "Choosing primary buffer format 0x%"PRIX32" for output '%s'",
-		format->format, output->name);
 
-	if (!allow_modifiers && (format->len != 1 || format->modifiers[0] != DRM_FORMAT_MOD_LINEAR)) {
-		format->len = 0;
-	}
-
-	struct wlr_swapchain *swapchain =
-		wlr_swapchain_create(allocator, width, height, format);
-	free(format);
+	struct wlr_swapchain *swapchain = wlr_allocator_create_swapchain(allocator,
+		width, height, display_formats, allow_modifiers);
 	if (swapchain == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create output swapchain");
 		return false;
@@ -207,60 +196,6 @@ void wlr_output_lock_attach_render(struct wlr_output *output, bool lock) {
 	wlr_log(WLR_DEBUG, "%s direct scan-out on output '%s' (locks: %d)",
 		lock ? "Disabling" : "Enabling", output->name,
 		output->attach_render_locks);
-}
-
-struct wlr_drm_format *output_pick_format(struct wlr_output *output,
-		const struct wlr_drm_format_set *display_formats) {
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
-	struct wlr_allocator *allocator = backend_get_allocator(output->backend);
-	assert(renderer != NULL && allocator != NULL);
-
-	const struct wlr_drm_format_set *render_formats =
-		wlr_renderer_get_render_formats(renderer);
-	if (render_formats == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get render formats");
-		return NULL;
-	}
-
-	struct wlr_drm_format *format = NULL;
-	const uint32_t candidates[] = { DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB8888 };
-	for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
-		uint32_t fmt = candidates[i];
-
-		const struct wlr_drm_format *render_format =
-			wlr_drm_format_set_get(render_formats, fmt);
-		if (render_format == NULL) {
-			wlr_log(WLR_DEBUG, "Renderer doesn't support format 0x%"PRIX32, fmt);
-			continue;
-		}
-
-		if (display_formats != NULL) {
-			const struct wlr_drm_format *display_format =
-				wlr_drm_format_set_get(display_formats, fmt);
-			if (display_format == NULL) {
-				wlr_log(WLR_DEBUG, "Output doesn't support format 0x%"PRIX32, fmt);
-				continue;
-			}
-			format = wlr_drm_format_intersect(display_format, render_format);
-		} else {
-			// The output can display any format
-			format = wlr_drm_format_dup(render_format);
-		}
-
-		if (format == NULL) {
-			wlr_log(WLR_DEBUG, "Failed to intersect display and render "
-				"modifiers for format 0x%"PRIX32, fmt);
-		} else {
-			break;
-		}
-	}
-	if (format == NULL) {
-		wlr_log(WLR_ERROR, "Failed to choose a format for output '%s'",
-			output->name);
-		return NULL;
-	}
-
-	return format;
 }
 
 uint32_t wlr_output_preferred_read_format(struct wlr_output *output) {
