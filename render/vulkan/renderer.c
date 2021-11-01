@@ -155,7 +155,8 @@ static void destroy_render_format_setup(struct wlr_vk_renderer *renderer,
 	}
 
 	VkDevice dev = renderer->dev->dev;
-	vkDestroyRenderPass(dev, setup->render_pass, NULL);
+	vkDestroyRenderPass(dev, setup->render_pass_load, NULL);
+	vkDestroyRenderPass(dev, setup->render_pass_clear, NULL);
 	vkDestroyPipeline(dev, setup->tex_pipe, NULL);
 	vkDestroyPipeline(dev, setup->quad_pipe, NULL);
 }
@@ -490,7 +491,7 @@ static struct wlr_vk_render_buffer *create_render_buffer(
 	fb_info.width = dmabuf.width;
 	fb_info.height = dmabuf.height;
 	fb_info.layers = 1u;
-	fb_info.renderPass = buffer->render_setup->render_pass;
+	fb_info.renderPass = buffer->render_setup->render_pass_load;
 
 	res = vkCreateFramebuffer(dev, &fb_info, NULL, &buffer->framebuffer);
 	if (res != VK_SUCCESS) {
@@ -544,6 +545,28 @@ static bool vulkan_bind_buffer(struct wlr_renderer *wlr_renderer,
 	return true;
 }
 
+static void vulkan_begin_renderpass(struct wlr_vk_renderer *renderer, VkCommandBuffer cb) {
+	if (!renderer->in_render_pass) {
+		VkFramebuffer fb = renderer->current_render_buffer->framebuffer;
+
+		VkRect2D rect = {{0, 0}, {renderer->render_width, renderer->render_height}};
+
+		VkRenderPassBeginInfo rp_info = {0};
+		rp_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		rp_info.renderArea = rect;
+		rp_info.renderPass = renderer->pending_render_pass_clear
+			? renderer->current_render_buffer->render_setup->render_pass_clear
+			: renderer->current_render_buffer->render_setup->render_pass_load;
+		rp_info.framebuffer = fb;
+		rp_info.clearValueCount = 1;
+		rp_info.pClearValues = &renderer->render_pass_clear_color;
+
+		vkCmdBeginRenderPass(cb, &rp_info, VK_SUBPASS_CONTENTS_INLINE);
+
+		renderer->in_render_pass = true;
+	}
+}
+
 static void vulkan_begin(struct wlr_renderer *wlr_renderer,
 		uint32_t width, uint32_t height) {
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
@@ -554,19 +577,8 @@ static void vulkan_begin(struct wlr_renderer *wlr_renderer,
 	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	vkBeginCommandBuffer(cb, &begin_info);
 
-	// begin render pass
-	VkFramebuffer fb = renderer->current_render_buffer->framebuffer;
-
 	VkRect2D rect = {{0, 0}, {width, height}};
 	renderer->scissor = rect;
-
-	VkRenderPassBeginInfo rp_info = {0};
-	rp_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	rp_info.renderArea = rect;
-	rp_info.renderPass = renderer->current_render_buffer->render_setup->render_pass;
-	rp_info.framebuffer = fb;
-	rp_info.clearValueCount = 0;
-	vkCmdBeginRenderPass(cb, &rp_info, VK_SUBPASS_CONTENTS_INLINE);
 
 	VkViewport vp = {0.f, 0.f, (float) width, (float) height, 0.f, 1.f};
 	vkCmdSetViewport(cb, 0, 1, &vp);
@@ -581,6 +593,8 @@ static void vulkan_begin(struct wlr_renderer *wlr_renderer,
 	renderer->render_width = width;
 	renderer->render_height = height;
 	renderer->bound_pipe = VK_NULL_HANDLE;
+	renderer->in_render_pass = false;
+	renderer->pending_render_pass_clear = false;
 }
 
 static void vulkan_end(struct wlr_renderer *wlr_renderer) {
@@ -594,7 +608,10 @@ static void vulkan_end(struct wlr_renderer *wlr_renderer) {
 	renderer->render_height = 0u;
 	renderer->bound_pipe = VK_NULL_HANDLE;
 
-	vkCmdEndRenderPass(render_cb);
+	if (renderer->in_render_pass) {
+		vkCmdEndRenderPass(render_cb);
+		renderer->in_render_pass = false;
+	}
 
 	// insert acquire and release barriers for dmabuf-images
 	unsigned barrier_count = wl_list_length(&renderer->foreign_textures) + 1;
@@ -753,6 +770,7 @@ static bool vulkan_render_subtexture_with_matrix(struct wlr_renderer *wlr_render
 		const float matrix[static 9], float alpha) {
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
 	VkCommandBuffer cb = renderer->cb;
+	vulkan_begin_renderpass(renderer, cb);
 
 	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
 	assert(texture->renderer == renderer);
@@ -809,10 +827,7 @@ static void vulkan_clear(struct wlr_renderer *wlr_renderer,
 		const float color[static 4]) {
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
 	VkCommandBuffer cb = renderer->cb;
-
-	VkClearAttachment att = {0};
-	att.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	att.colorAttachment = 0u;
+	VkClearValue clear_color;
 
 	// Input color values are given in srgb space, vulkan expects
 	// them in linear space. We explicitly import argb8 render buffers
@@ -820,21 +835,36 @@ static void vulkan_clear(struct wlr_renderer *wlr_renderer,
 	// srgb first.
 	// But in other parts of wlroots we just always assume
 	// srgb so that's why we have to convert here.
-	att.clearValue.color.float32[0] = color_to_linear(color[0]);
-	att.clearValue.color.float32[1] = color_to_linear(color[1]);
-	att.clearValue.color.float32[2] = color_to_linear(color[2]);
-	att.clearValue.color.float32[3] = color[3]; // no conversion for alpha
+	clear_color.color.float32[0] = color_to_linear(color[0]);
+	clear_color.color.float32[1] = color_to_linear(color[1]);
+	clear_color.color.float32[2] = color_to_linear(color[2]);
+	clear_color.color.float32[3] = color[3]; // no conversion for alpha
 
-	VkClearRect rect = {0};
-	rect.rect = renderer->scissor;
-	rect.layerCount = 1;
-	vkCmdClearAttachments(cb, 1, &att, 1, &rect);
+	if (!renderer->in_render_pass) {
+		/* Setting the scissor rect will start a renderpass
+		 * so we will fall into the path below for partial clears */
+		renderer->render_pass_clear_color = clear_color;
+		renderer->pending_render_pass_clear = true;
+	} else {
+		vulkan_begin_renderpass(renderer, cb);
+
+		VkClearAttachment att = {0};
+		att.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		att.colorAttachment = 0u;
+		att.clearValue = clear_color;
+
+		VkClearRect rect = {0};
+		rect.rect = renderer->scissor;
+		rect.layerCount = 1;
+		vkCmdClearAttachments(cb, 1, &att, 1, &rect);
+	}
 }
 
 static void vulkan_scissor(struct wlr_renderer *wlr_renderer,
 		struct wlr_box *box) {
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
 	VkCommandBuffer cb = renderer->cb;
+	vulkan_begin_renderpass(renderer, cb);
 
 	uint32_t w = renderer->render_width;
 	uint32_t h = renderer->render_height;
@@ -859,6 +889,7 @@ static void vulkan_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 		const float color[static 4], const float matrix[static 9]) {
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
 	VkCommandBuffer cb = renderer->cb;
+	vulkan_begin_renderpass(renderer, cb);
 
 	VkPipeline pipe = renderer->current_render_buffer->render_setup->quad_pipe;
 	if (pipe != renderer->bound_pipe) {
@@ -1299,14 +1330,23 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 	rp_info.dependencyCount = 2u;
 	rp_info.pDependencies = deps;
 
-	res = vkCreateRenderPass(dev, &rp_info, NULL, &setup->render_pass);
+	res = vkCreateRenderPass(dev, &rp_info, NULL, &setup->render_pass_load);
 	if (res != VK_SUCCESS) {
 		wlr_vk_error("Failed to create render pass", res);
 		free(setup);
 		return NULL;
 	}
 
-	if (!init_tex_pipeline(renderer, setup->render_pass, renderer->pipe_layout,
+	attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	res = vkCreateRenderPass(dev, &rp_info, NULL, &setup->render_pass_clear);
+	if (res != VK_SUCCESS) {
+		wlr_vk_error("Failed to create render pass", res);
+		free(setup);
+		return NULL;
+	}
+
+	/* Only need one pipeline because of renderpass compatibility rules */
+	if (!init_tex_pipeline(renderer, setup->render_pass_load, renderer->pipe_layout,
 			&setup->tex_pipe)) {
 		goto error;
 	}
@@ -1378,7 +1418,7 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 	VkGraphicsPipelineCreateInfo pinfo = {0};
 	pinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	pinfo.layout = renderer->pipe_layout;
-	pinfo.renderPass = setup->render_pass;
+	pinfo.renderPass = setup->render_pass_load;
 	pinfo.subpass = 0;
 	pinfo.stageCount = 2;
 	pinfo.pStages = quad_stages;

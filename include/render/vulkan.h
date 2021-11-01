@@ -129,7 +129,8 @@ void vulkan_format_props_finish(struct wlr_vk_format_props *props);
 struct wlr_vk_render_format_setup {
 	struct wl_list link;
 	VkFormat render_format; // used in renderpass
-	VkRenderPass render_pass;
+	VkRenderPass render_pass_load;
+	VkRenderPass render_pass_clear;
 
 	VkPipeline tex_pipe;
 	VkPipeline quad_pipe;
@@ -193,6 +194,10 @@ struct wlr_vk_renderer {
 	struct wl_list foreign_textures; // wlr_vk_texture to return to foreign queue
 
 	struct wl_list render_buffers; // wlr_vk_render_buffer
+
+	bool in_render_pass;
+	bool pending_render_pass_clear;
+	VkClearValue render_pass_clear_color;
 
 	struct {
 		VkCommandBuffer cb;
