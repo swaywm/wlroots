@@ -194,6 +194,8 @@ static struct wlr_output_layout_output *output_layout_output_create(
 
 	wlr_addon_init(&l_output->addon, &output->addons, layout, &addon_impl);
 
+	wlr_signal_emit_safe(&layout->events.add, l_output);
+
 	return l_output;
 }
 
@@ -201,7 +203,6 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 		struct wlr_output *output, int lx, int ly) {
 	struct wlr_output_layout_output *l_output =
 		wlr_output_layout_get(layout, output);
-	bool is_new = l_output == NULL;
 	if (!l_output) {
 		l_output = output_layout_output_create(layout, output);
 		if (!l_output) {
@@ -215,10 +216,6 @@ void wlr_output_layout_add(struct wlr_output_layout *layout,
 	l_output->state->auto_configured = false;
 	output_layout_reconfigure(layout);
 	output_update_global(output);
-
-	if (is_new) {
-		wlr_signal_emit_safe(&layout->events.add, l_output);
-	}
 }
 
 struct wlr_output_layout_output *wlr_output_layout_get(
@@ -413,7 +410,6 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 		struct wlr_output *output) {
 	struct wlr_output_layout_output *l_output =
 		wlr_output_layout_get(layout, output);
-	bool is_new = l_output == NULL;
 	if (!l_output) {
 		l_output = output_layout_output_create(layout, output);
 		if (!l_output) {
@@ -425,10 +421,6 @@ void wlr_output_layout_add_auto(struct wlr_output_layout *layout,
 	l_output->state->auto_configured = true;
 	output_layout_reconfigure(layout);
 	output_update_global(output);
-
-	if (is_new) {
-		wlr_signal_emit_safe(&layout->events.add, l_output);
-	}
 }
 
 struct wlr_output *wlr_output_layout_get_center_output(
