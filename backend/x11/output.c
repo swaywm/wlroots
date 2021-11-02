@@ -531,7 +531,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 		XCB_CW_COLORMAP | XCB_CW_CURSOR;
 	uint32_t values[] = {
 		0,
-		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY,
+		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY |
+			XCB_EVENT_MASK_PROPERTY_CHANGE,
 		x11->colormap,
 		x11->transparent_cursor,
 	};
@@ -570,6 +571,8 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 	xcb_map_window(x11->xcb, output->win);
 	xcb_flush(x11->xcb);
+
+	output->mapped = true;
 
 	wl_list_insert(&x11->outputs, &output->link);
 
@@ -701,7 +704,8 @@ void handle_x11_present_event(struct wlr_x11_backend *x11,
 		};
 		wlr_output_send_present(&output->wlr_output, &present_event);
 
-		wlr_output_send_frame(&output->wlr_output);
+		if (output->mapped && !output->hidden)
+			wlr_output_send_frame(&output->wlr_output);
 		break;
 	default:
 		wlr_log(WLR_DEBUG, "Unhandled Present event %"PRIu16, event->event_type);
