@@ -62,6 +62,7 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_TRANSFORM = 1 << 5,
 	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED = 1 << 6,
 	WLR_OUTPUT_STATE_GAMMA_LUT = 1 << 7,
+	WLR_OUTPUT_STATE_PREFERRED_FORMAT = 1 << 8,
 };
 
 enum wlr_output_state_mode_type {
@@ -79,6 +80,7 @@ struct wlr_output_state {
 	float scale;
 	enum wl_output_transform transform;
 	bool adaptive_sync_enabled;
+	const uint32_t *render_format_preference_order;
 
 	// only valid if WLR_OUTPUT_STATE_BUFFER
 	struct wlr_buffer *buffer;
@@ -135,6 +137,7 @@ struct wlr_output {
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;
 	enum wlr_output_adaptive_sync_status adaptive_sync_status;
+	const uint32_t *render_format_preference_order;
 
 	bool needs_frame;
 	// damage for cursors and fullscreen surface, in output-local coordinates
@@ -295,6 +298,30 @@ void wlr_output_set_transform(struct wlr_output *output,
  * Adaptive sync is double-buffered state, see `wlr_output_commit`.
  */
 void wlr_output_enable_adaptive_sync(struct wlr_output *output, bool enabled);
+/**
+ * Set the list of buffer formats to try for the output buffer, in order.
+ *
+ * While high bit depth render formats are necessary for a monitor to receive
+ * useful high bit data, they do not guarantee it; a DRM_FORMAT_ABGR2101010
+ * buffer will only lead to sending 10-bpc image data to the monitor if
+ * hardware and software permit this.
+ *
+ * `format_order` should be a 0-terminated array of DRM fourcc formats, sorted
+ * in the order that the formats should be tried.
+ *
+ * `format_order` must point to valid memory until this function has been
+ * called again and there has been a sucessful commit.
+ *
+ * The default format preference for an output is to check for ARGB8888 support
+ * first, and fall back to XRGB8888 if this fails. In other words,
+ * default format order = {DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB8888, 0}.
+ *
+ * This only affects the output buffer format, not the cursor buffer format.
+ *
+ * This format order is double-buffered state, see `wlr_output_commit`.
+ */
+void wlr_output_set_render_format_preference_order(struct wlr_output *output,
+	const uint32_t *format_order);
 /**
  * Sets a scale for the output.
  *

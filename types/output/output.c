@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <drm_fourcc.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/types/wlr_matrix.h>
@@ -296,6 +297,17 @@ void wlr_output_enable_adaptive_sync(struct wlr_output *output, bool enabled) {
 	output->pending.adaptive_sync_enabled = enabled;
 }
 
+void wlr_output_set_render_format_preference_order(struct wlr_output *output,
+		const uint32_t *format_order) {
+	output->pending.render_format_preference_order = format_order;
+
+	if (output->render_format_preference_order == format_order) {
+		output->pending.committed &= ~WLR_OUTPUT_STATE_PREFERRED_FORMAT;
+	} else {
+		output->pending.committed |= WLR_OUTPUT_STATE_PREFERRED_FORMAT;
+	}
+}
+
 void wlr_output_set_subpixel(struct wlr_output *output,
 		enum wl_output_subpixel subpixel) {
 	if (output->subpixel == subpixel) {
@@ -333,6 +345,10 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	wlr_output_destroy_global(output);
 }
 
+static const uint32_t default_render_format_order[] = {
+	DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB8888, 0
+};
+
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl, struct wl_display *display) {
 	assert(impl->commit);
@@ -343,6 +359,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	output->impl = impl;
 	output->display = display;
 	wl_list_init(&output->modes);
+	output->render_format_preference_order = default_render_format_order;
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
 	output->commit_seq = 0;
@@ -360,6 +377,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.description);
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->pending.damage);
+	output->pending.render_format_preference_order = default_render_format_order;
 
 	const char *no_hardware_cursors = getenv("WLR_NO_HARDWARE_CURSORS");
 	if (no_hardware_cursors != NULL && strcmp(no_hardware_cursors, "1") == 0) {
@@ -569,6 +587,10 @@ static bool output_basic_test(struct wlr_output *output) {
 		wlr_log(WLR_DEBUG, "Tried to enable adaptive sync on a disabled output");
 		return false;
 	}
+	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_PREFERRED_FORMAT) {
+		wlr_log(WLR_DEBUG, "Tried to set preferred render bit depth on a disabled output");
+		return false;
+	}
 	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
 		wlr_log(WLR_DEBUG, "Tried to set the gamma lut on a disabled output");
 		return false;
@@ -640,6 +662,11 @@ bool wlr_output_commit(struct wlr_output *output) {
 			}
 			wlr_surface_send_frame_done(cursor->surface, &now);
 		}
+	}
+
+	if (output->pending.committed & WLR_OUTPUT_STATE_PREFERRED_FORMAT) {
+		output->render_format_preference_order =
+			output->pending.render_format_preference_order;
 	}
 
 	output->commit_seq++;
