@@ -136,7 +136,7 @@ void wlr_keyboard_destroy(struct wlr_keyboard *kb) {
 	wlr_signal_emit_safe(&kb->events.destroy, kb);
 	xkb_state_unref(kb->xkb_state);
 	xkb_keymap_unref(kb->keymap);
-	free(kb->keymap_string);
+	free(kb->keymap_data);
 	if (kb->keymap_fd >= 0) {
 		close(kb->keymap_fd);
 	}
@@ -190,15 +190,16 @@ bool wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 		kb->mod_indexes[i] = xkb_map_mod_get_index(kb->keymap, mod_names[i]);
 	}
 
-	char *tmp_keymap_string = xkb_keymap_get_as_string(kb->keymap,
+	char *keymap_data = xkb_keymap_get_as_string(kb->keymap,
 		XKB_KEYMAP_FORMAT_TEXT_V1);
-	if (tmp_keymap_string == NULL) {
+	if (keymap_data == NULL) {
 		wlr_log(WLR_ERROR, "Failed to get string version of keymap");
 		goto err;
 	}
-	free(kb->keymap_string);
-	kb->keymap_string = tmp_keymap_string;
-	kb->keymap_size = strlen(kb->keymap_string) + 1;
+	free(kb->keymap_data);
+	kb->keymap_format = XKB_KEYMAP_FORMAT_TEXT_V1;
+	kb->keymap_data = keymap_data;
+	kb->keymap_size = strlen(kb->keymap_data) + 1;
 
 	int rw_fd = -1, ro_fd = -1;
 	if (!allocate_shm_file_pair(kb->keymap_size, &rw_fd, &ro_fd)) {
@@ -215,7 +216,7 @@ bool wlr_keyboard_set_keymap(struct wlr_keyboard *kb,
 		goto err;
 	}
 
-	memcpy(dst, kb->keymap_string, kb->keymap_size);
+	memcpy(dst, kb->keymap_data, kb->keymap_size);
 	munmap(dst, kb->keymap_size);
 	close(rw_fd);
 
@@ -239,8 +240,8 @@ err:
 	kb->xkb_state = NULL;
 	xkb_keymap_unref(keymap);
 	kb->keymap = NULL;
-	free(kb->keymap_string);
-	kb->keymap_string = NULL;
+	free(kb->keymap_data);
+	kb->keymap_data = NULL;
 	return false;
 }
 

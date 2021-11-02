@@ -315,7 +315,7 @@ static bool keyboard_grab_send_keymap(
 		return false;
 	}
 
-	memcpy(ptr, keyboard->keymap_string, keyboard->keymap_size);
+	memcpy(ptr, keyboard->keymap_data, keyboard->keymap_size);
 	munmap(ptr, keyboard->keymap_size);
 
 	zwp_input_method_keyboard_grab_v2_send_keymap(keyboard_grab->resource,
@@ -369,8 +369,9 @@ void wlr_input_method_keyboard_grab_v2_set_keyboard(
 
 	if (keyboard) {
 		if (keyboard_grab->keyboard == NULL ||
-				strcmp(keyboard_grab->keyboard->keymap_string,
-				keyboard->keymap_string) != 0) {
+				keyboard_grab->keyboard->keymap_size != keyboard->keymap_size ||
+				memcpy(keyboard_grab->keyboard->keymap_data,
+				keyboard->keymap_data, keyboard->keymap_size) != 0) {
 			// send keymap only if it is changed, or if input method is not
 			// aware that it did not change and blindly send it back with
 			// virtual keyboard, it may cause an infinite recursion.

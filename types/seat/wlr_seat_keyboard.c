@@ -360,7 +360,13 @@ static void seat_client_send_keymap(struct wlr_seat_client *client,
 			continue;
 		}
 
-		wl_keyboard_send_keymap(resource, WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1,
+		enum wl_keyboard_keymap_format format = WL_KEYBOARD_KEYMAP_FORMAT_NO_KEYMAP;
+		if (keyboard->keymap != NULL) {
+			assert(keyboard->keymap_format == XKB_KEYMAP_FORMAT_TEXT_V1);
+			format = WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1;
+		}
+
+		wl_keyboard_send_keymap(resource, format,
 			keyboard->keymap_fd, keyboard->keymap_size);
 	}
 }
