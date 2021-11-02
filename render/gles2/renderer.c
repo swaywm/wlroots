@@ -41,7 +41,7 @@ struct wlr_gles2_renderer *gles2_get_renderer(
 static struct wlr_gles2_renderer *gles2_get_renderer_in_context(
 		struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
-	assert(wlr_egl_is_current(renderer->egl));
+	assert(wlr_egl_context_is_current(&renderer->egl->ctx));
 	assert(renderer->current_buffer != NULL);
 	return renderer;
 }
@@ -51,8 +51,8 @@ static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
 	wlr_addon_finish(&buffer->addon);
 
 	struct wlr_egl_context prev_ctx;
-	wlr_egl_save_context(&prev_ctx);
-	wlr_egl_make_current(buffer->renderer->egl);
+	wlr_egl_context_save(&prev_ctx);
+	wlr_egl_context_set_current(&buffer->renderer->egl->ctx);
 
 	push_gles2_debug(buffer->renderer);
 
@@ -63,7 +63,7 @@ static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
 
 	wlr_egl_destroy_image(buffer->renderer->egl, buffer->image);
 
-	wlr_egl_restore_context(&prev_ctx);
+	wlr_egl_context_restore(&prev_ctx);
 
 	free(buffer);
 }
@@ -156,7 +156,7 @@ static bool gles2_bind_buffer(struct wlr_renderer *wlr_renderer,
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
 	if (renderer->current_buffer != NULL) {
-		assert(wlr_egl_is_current(renderer->egl));
+		assert(wlr_egl_context_is_current(&renderer->egl->ctx));
 
 		push_gles2_debug(renderer);
 		glFlush();
@@ -168,11 +168,11 @@ static bool gles2_bind_buffer(struct wlr_renderer *wlr_renderer,
 	}
 
 	if (wlr_buffer == NULL) {
-		wlr_egl_unset_current(renderer->egl);
+		wlr_egl_context_unset_current(&renderer->egl->ctx);
 		return true;
 	}
 
-	wlr_egl_make_current(renderer->egl);
+	wlr_egl_context_set_current(&renderer->egl->ctx);
 
 	struct wlr_gles2_buffer *buffer = get_buffer(renderer, wlr_buffer);
 	if (buffer == NULL) {
@@ -494,16 +494,16 @@ static uint32_t gles2_get_render_buffer_caps(struct wlr_renderer *wlr_renderer) 
 	return WLR_BUFFER_CAP_DMABUF;
 }
 
-struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *wlr_renderer) {
-	struct wlr_gles2_renderer *renderer =
-		gles2_get_renderer(wlr_renderer);
-	return renderer->egl;
+struct wlr_egl_context *wlr_gles2_renderer_get_egl_context(
+		struct wlr_renderer *wlr_renderer) {
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	return &renderer->egl->ctx;
 }
 
 static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
 
-	wlr_egl_make_current(renderer->egl);
+	wlr_egl_context_set_current(&renderer->egl->ctx);
 
 	struct wlr_gles2_buffer *buffer, *buffer_tmp;
 	wl_list_for_each_safe(buffer, buffer_tmp, &renderer->buffers, link) {
@@ -527,7 +527,7 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 		renderer->procs.glDebugMessageCallbackKHR(NULL, NULL);
 	}
 
-	wlr_egl_unset_current(renderer->egl);
+	wlr_egl_context_unset_current(&renderer->egl->ctx);
 	wlr_egl_destroy(renderer->egl);
 
 	if (renderer->drm_fd >= 0) {
@@ -694,7 +694,7 @@ struct wlr_renderer *wlr_gles2_renderer_create_with_drm_fd(int drm_fd) {
 		return NULL;
 	}
 
-	struct wlr_renderer *renderer = wlr_gles2_renderer_create(egl);
+	struct wlr_renderer *renderer = gles2_renderer_create(egl);
 	if (!renderer) {
 		wlr_log(WLR_ERROR, "Failed to create GLES2 renderer");
 		wlr_egl_destroy(egl);
@@ -704,8 +704,8 @@ struct wlr_renderer *wlr_gles2_renderer_create_with_drm_fd(int drm_fd) {
 	return renderer;
 }
 
-struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
-	if (!wlr_egl_make_current(egl)) {
+struct wlr_renderer *gles2_renderer_create(struct wlr_egl *egl) {
+	if (!wlr_egl_context_set_current(&egl->ctx)) {
 		return NULL;
 	}
 
@@ -844,7 +844,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 
 	pop_gles2_debug(renderer);
 
-	wlr_egl_unset_current(renderer->egl);
+	wlr_egl_context_unset_current(&renderer->egl->ctx);
 
 	return &renderer->wlr_renderer;
 
@@ -861,7 +861,7 @@ error:
 		renderer->procs.glDebugMessageCallbackKHR(NULL, NULL);
 	}
 
-	wlr_egl_unset_current(renderer->egl);
+	wlr_egl_context_unset_current(&renderer->egl->ctx);
 
 	free(renderer);
 	return NULL;

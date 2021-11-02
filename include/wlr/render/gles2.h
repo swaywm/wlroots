@@ -13,12 +13,17 @@
 #include <wlr/backend.h>
 #include <wlr/render/wlr_renderer.h>
 
-struct wlr_egl;
+struct wlr_egl_context;
 
 struct wlr_renderer *wlr_gles2_renderer_create_with_drm_fd(int drm_fd);
-struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl);
 
-struct wlr_egl *wlr_gles2_renderer_get_egl(struct wlr_renderer *renderer);
+/**
+ * Returns the current EGL context
+ * The pointer returned is not owned by the caller
+ */
+struct wlr_egl_context *wlr_gles2_renderer_get_egl_context(
+	struct wlr_renderer *wlr_renderer);
+
 bool wlr_gles2_renderer_check_ext(struct wlr_renderer *renderer,
 	const char *ext);
 /**
