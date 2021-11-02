@@ -142,6 +142,16 @@ static bool backend_init(struct wlr_headless_backend *backend,
 }
 
 static int open_drm_render_node(void) {
+	const char *name = getenv("WLR_HEADLESS_DEVICE");
+	if (name != NULL) {
+		wlr_log(WLR_DEBUG, "Opening '%s' due to WLR_HEADLESS_DEVICE", name);
+		int fd = open(name, O_RDWR | O_CLOEXEC);
+		if (fd < 0) {
+			wlr_log_errno(WLR_ERROR, "Failed to open '%s'", name);
+		}
+		return fd;
+	}
+
 	uint32_t flags = 0;
 	int devices_len = drmGetDevices2(flags, NULL, 0);
 	if (devices_len < 0) {

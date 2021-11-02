@@ -26,6 +26,8 @@ wlroots reads these environment variables
 
 * *WLR_HEADLESS_OUTPUTS*: when using the headless backend specifies the number
   of outputs
+* *WLR_HEADLESS_DEVICE*: specifies the DRM device instead of using the first
+  available one
 
 ## libinput backend
 
