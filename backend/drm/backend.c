@@ -133,11 +133,14 @@ static void handle_dev_change(struct wl_listener *listener, void *data) {
 		return;
 	}
 
-	// TODO: add and handle lease uevents
 	switch (change->type) {
-	case WLR_DEVICE_HOTPLUG:;
+	case WLR_DEVICE_HOTPLUG:
 		wlr_log(WLR_DEBUG, "Received hotplug event for %s", drm->name);
 		scan_drm_connectors(drm, &change->hotplug);
+		break;
+	case WLR_DEVICE_LEASE:
+		wlr_log(WLR_DEBUG, "Received lease event for %s", drm->name);
+		scan_drm_leases(drm);
 		break;
 	default:
 		wlr_log(WLR_DEBUG, "Received unknown change event for %s", drm->name);

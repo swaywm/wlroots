@@ -1425,6 +1425,36 @@ void scan_drm_connectors(struct wlr_drm_backend *drm,
 	}
 }
 
+void scan_drm_leases(struct wlr_drm_backend *drm) {
+	drmModeLesseeListRes *list = drmModeListLessees(drm->fd);
+	if (list == NULL) {
+		wlr_log_errno(WLR_ERROR, "drmModeListLessees failed");
+		return;
+	}
+
+	struct wlr_drm_connector *conn;
+	wl_list_for_each(conn, &drm->outputs, link) {
+		if (conn->lease == NULL) {
+			continue;
+		}
+
+		bool found = false;
+		for (size_t i = 0; i < list->count; i++) {
+			if (list->lessees[i] == conn->lease->lessee_id) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			wlr_log(WLR_DEBUG, "DRM lease %"PRIu32" has been terminated",
+				conn->lease->lessee_id);
+			drm_lease_destroy(conn->lease);
+		}
+	}
+
+	drmFree(list);
+}
+
 static int mhz_to_nsec(int mhz) {
 	return 1000000000000LL / mhz;
 }
