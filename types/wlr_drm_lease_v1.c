@@ -47,28 +47,6 @@ static struct wlr_drm_lease_v1 *drm_lease_v1_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-static void drm_lease_v1_destroy(struct wlr_drm_lease_v1 *lease) {
-	if (!lease) {
-		return;
-	}
-
-	wlr_log(WLR_DEBUG, "Destroying lease %"PRIu32, lease->drm_lease->lessee_id);
-
-	wp_drm_lease_v1_send_finished(lease->resource);
-
-	wlr_drm_lease_terminate(lease->drm_lease);
-
-	for (size_t i = 0; i < lease->n_connectors; ++i) {
-		lease->connectors[i]->active_lease = NULL;
-	}
-
-	wl_list_remove(&lease->link);
-	wl_resource_set_user_data(lease->resource, NULL);
-
-	free(lease->connectors);
-	free(lease);
-}
-
 static void drm_lease_request_v1_destroy(
 		struct wlr_drm_lease_request_v1 *request) {
 	if (!request) {
@@ -93,7 +71,7 @@ static void drm_lease_connector_v1_destroy(
 	wlr_log(WLR_DEBUG, "Destroying connector %s", connector->output->name);
 
 	if (connector->active_lease) {
-		drm_lease_v1_destroy(connector->active_lease);
+		wlr_drm_lease_terminate(connector->active_lease->drm_lease);
 	}
 
 	struct wl_resource *resource, *tmp;
@@ -140,7 +118,7 @@ static void drm_lease_device_v1_destroy(
 
 	struct wlr_drm_lease_v1 *lease, *tmp_lease;
 	wl_list_for_each_safe(lease, tmp_lease, &device->leases, link) {
-		drm_lease_v1_destroy(lease);
+		wlr_drm_lease_terminate(lease->drm_lease);
 	}
 
 	struct wlr_drm_lease_connector_v1 *connector, *tmp_connector;
@@ -152,6 +130,26 @@ static void drm_lease_device_v1_destroy(
 	wlr_global_destroy_safe(device->global, device->manager->display);
 
 	free(device);
+}
+
+static void lease_handle_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_drm_lease_v1 *lease = wl_container_of(listener, lease, destroy);
+
+	wlr_log(WLR_DEBUG, "Destroying lease %"PRIu32, lease->drm_lease->lessee_id);
+
+	wp_drm_lease_v1_send_finished(lease->resource);
+
+	wl_list_remove(&lease->destroy.link);
+
+	for (size_t i = 0; i < lease->n_connectors; ++i) {
+		lease->connectors[i]->active_lease = NULL;
+	}
+
+	wl_list_remove(&lease->link);
+	wl_resource_set_user_data(lease->resource, NULL);
+
+	free(lease->connectors);
+	free(lease);
 }
 
 struct wlr_drm_lease_v1 *wlr_drm_lease_request_v1_grant(
@@ -191,6 +189,9 @@ struct wlr_drm_lease_v1 *wlr_drm_lease_request_v1_grant(
 		lease->connectors[i]->active_lease = lease;
 	}
 
+	lease->destroy.notify = lease_handle_destroy;
+	wl_signal_add(&lease->drm_lease->events.destroy, &lease->destroy);
+
 	wlr_log(WLR_DEBUG, "Granting request %p", request);
 
 	wp_drm_lease_v1_send_lease_fd(lease->resource, fd);
@@ -212,13 +213,12 @@ void wlr_drm_lease_request_v1_reject(
 void wlr_drm_lease_v1_revoke(struct wlr_drm_lease_v1 *lease) {
 	assert(lease);
 	wlr_log(WLR_DEBUG, "Revoking lease %"PRIu32, lease->drm_lease->lessee_id);
-
-	drm_lease_v1_destroy(lease);
+	wlr_drm_lease_terminate(lease->drm_lease);
 }
 
 static void drm_lease_v1_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_drm_lease_v1 *lease = drm_lease_v1_from_resource(resource);
-	drm_lease_v1_destroy(lease);
+	wlr_drm_lease_terminate(lease->drm_lease);
 }
 
 static void drm_lease_v1_handle_destroy(

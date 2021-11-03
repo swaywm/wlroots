@@ -90,6 +90,8 @@ struct wlr_drm_lease_v1 {
 
 	struct wl_list link; // wlr_drm_lease_device_v1::leases
 
+	struct wl_listener destroy;
+
 	void *data;
 };
 
