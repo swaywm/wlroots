@@ -157,6 +157,14 @@ static void read_udev_change_event(struct wlr_device_change_event *event,
 		if (prop != NULL) {
 			hotplug->prop_id = strtoul(prop, NULL, 10);
 		}
+
+		return;
+	}
+
+	const char *lease = udev_device_get_property_value(udev_dev, "LEASE");
+	if (lease != NULL && strcmp(lease, "1") == 0) {
+		event->type = WLR_DEVICE_LEASE;
+		return;
 	}
 }
 

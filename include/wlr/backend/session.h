@@ -59,6 +59,7 @@ struct wlr_session_add_event {
 
 enum wlr_device_change_type {
 	WLR_DEVICE_HOTPLUG = 1,
+	WLR_DEVICE_LEASE,
 };
 
 struct wlr_device_hotplug_event {
