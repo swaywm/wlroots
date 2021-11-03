@@ -36,7 +36,7 @@ struct wlr_drm_plane {
 
 struct wlr_drm_crtc {
 	uint32_t id;
-	uint32_t lessee_id;
+	struct wlr_drm_lease *lease;
 
 	// Atomic modesetting only
 	uint32_t mode_id;
@@ -118,7 +118,7 @@ struct wlr_drm_connector {
 	enum wlr_drm_connector_status status;
 	bool desired_enabled;
 	uint32_t id;
-	uint32_t lessee_id;
+	struct wlr_drm_lease *lease;
 
 	struct wlr_drm_crtc *crtc;
 	uint32_t possible_crtcs;
@@ -157,6 +157,7 @@ bool drm_connector_is_cursor_visible(struct wlr_drm_connector *conn);
 bool drm_connector_supports_vrr(struct wlr_drm_connector *conn);
 size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc);
+void drm_lease_destroy(struct wlr_drm_lease *lease);
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane);
 

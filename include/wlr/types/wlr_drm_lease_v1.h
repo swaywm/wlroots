@@ -81,13 +81,12 @@ struct wlr_drm_lease_request_v1 {
 
 struct wlr_drm_lease_v1 {
 	struct wl_resource *resource;
+	struct wlr_drm_lease *drm_lease;
 
 	struct wlr_drm_lease_device_v1 *device;
 
 	struct wlr_drm_lease_connector_v1 **connectors;
 	size_t n_connectors;
-
-	uint32_t lessee_id;
 
 	struct wl_list link; // wlr_drm_lease_device_v1::leases
 

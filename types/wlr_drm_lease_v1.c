@@ -52,13 +52,11 @@ static void drm_lease_v1_destroy(struct wlr_drm_lease_v1 *lease) {
 		return;
 	}
 
-	wlr_log(WLR_DEBUG, "Destroying lease %"PRIu32, lease->lessee_id);
+	wlr_log(WLR_DEBUG, "Destroying lease %"PRIu32, lease->drm_lease->lessee_id);
 
 	wp_drm_lease_v1_send_finished(lease->resource);
 
-	struct wlr_drm_lease_device_v1 *device = lease->device;
-	wlr_drm_backend_terminate_lease(device->backend, lease->lessee_id);
-	lease->lessee_id = 0;
+	wlr_drm_lease_terminate(lease->drm_lease);
 
 	for (size_t i = 0; i < lease->n_connectors; ++i) {
 		lease->connectors[i]->active_lease = NULL;
@@ -171,10 +169,10 @@ struct wlr_drm_lease_v1 *wlr_drm_lease_request_v1_grant(
 		outputs[i] = request->connectors[i]->output;
 	}
 
-	int fd = wlr_drm_create_lease(outputs, request->n_connectors,
-			&lease->lessee_id);
-	if (fd < 0) {
-		wlr_log_errno(WLR_ERROR, "drm_create_lease failed");
+	int fd;
+	lease->drm_lease = wlr_drm_create_lease(outputs, request->n_connectors, &fd);
+	if (!lease->drm_lease) {
+		wlr_log(WLR_ERROR, "wlr_drm_create_lease failed");
 		wp_drm_lease_v1_send_finished(lease->resource);
 		return NULL;
 	}
@@ -183,6 +181,7 @@ struct wlr_drm_lease_v1 *wlr_drm_lease_request_v1_grant(
 			sizeof(struct wlr_drm_lease_connector_v1 *));
 	if (!lease->connectors) {
 		wlr_log(WLR_ERROR, "Failed to allocate lease connectors list");
+		close(fd);
 		wp_drm_lease_v1_send_finished(lease->resource);
 		return NULL;
 	}
@@ -212,7 +211,7 @@ void wlr_drm_lease_request_v1_reject(
 
 void wlr_drm_lease_v1_revoke(struct wlr_drm_lease_v1 *lease) {
 	assert(lease);
-	wlr_log(WLR_DEBUG, "Revoking lease %"PRIu32, lease->lessee_id);
+	wlr_log(WLR_DEBUG, "Revoking lease %"PRIu32, lease->drm_lease->lessee_id);
 
 	drm_lease_v1_destroy(lease);
 }

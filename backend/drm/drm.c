@@ -1554,17 +1554,13 @@ int wlr_drm_backend_get_non_master_fd(struct wlr_backend *backend) {
 	return fd;
 }
 
-/* TODO: make the function return a `wlr_drm_lease` to provide a destroy event
- * that can be fired when the kernel notifies us through uevent that the lease
- * has been destroyed
- */
-int wlr_drm_create_lease(struct wlr_output **outputs, size_t n_outputs,
-		uint32_t *lessee_id) {
+struct wlr_drm_lease *wlr_drm_create_lease(struct wlr_output **outputs,
+		size_t n_outputs, int *lease_fd_ptr) {
 	assert(outputs);
 
 	if (n_outputs == 0) {
 		wlr_log(WLR_ERROR, "Can't lease 0 outputs");
-		return -1;
+		return NULL;
 	}
 
 	struct wlr_drm_backend *drm =
@@ -1575,11 +1571,11 @@ int wlr_drm_create_lease(struct wlr_output **outputs, size_t n_outputs,
 	for (size_t i = 0; i < n_outputs; ++i) {
 		struct wlr_drm_connector *conn =
 				get_drm_connector_from_output(outputs[i]);
-		assert(conn->lessee_id == 0);
+		assert(conn->lease == NULL);
 
 		if (conn->backend != drm) {
 			wlr_log(WLR_ERROR, "Can't lease output from different backends");
-			return -1;
+			return NULL;
 		}
 
 		objects[n_objects++] = conn->id;
@@ -1587,7 +1583,7 @@ int wlr_drm_create_lease(struct wlr_output **outputs, size_t n_outputs,
 
 		if (!conn->crtc) {
 			wlr_log(WLR_ERROR, "Connector has no CRTC");
-			return -1;
+			return NULL;
 		}
 
 		objects[n_objects++] = conn->crtc->id;
@@ -1604,50 +1600,63 @@ int wlr_drm_create_lease(struct wlr_output **outputs, size_t n_outputs,
 
 	assert(n_objects != 0);
 
-	wlr_log(WLR_DEBUG, "Issuing DRM lease with the %d objects", n_objects);
-	int lease_fd = drmModeCreateLease(drm->fd, objects, n_objects, 0,
-			lessee_id);
-	if (lease_fd < 0) {
-		return lease_fd;
+	struct wlr_drm_lease *lease = calloc(1, sizeof(*lease));
+	if (lease == NULL) {
+		return NULL;
 	}
 
-	wlr_log(WLR_DEBUG, "Issued DRM lease %"PRIu32, *lessee_id);
+	lease->backend = drm;
+	wl_signal_init(&lease->events.destroy);
+
+	wlr_log(WLR_DEBUG, "Issuing DRM lease with %d objects", n_objects);
+	int lease_fd = drmModeCreateLease(drm->fd, objects, n_objects, 0,
+			&lease->lessee_id);
+	if (lease_fd < 0) {
+		free(lease);
+		return NULL;
+	}
+	*lease_fd_ptr = lease_fd;
+
+	wlr_log(WLR_DEBUG, "Issued DRM lease %"PRIu32, lease->lessee_id);
 	for (size_t i = 0; i < n_outputs; ++i) {
 		struct wlr_drm_connector *conn =
 				get_drm_connector_from_output(outputs[i]);
-		conn->lessee_id = *lessee_id;
-		conn->crtc->lessee_id = *lessee_id;
+		conn->lease = lease;
+		conn->crtc->lease = lease;
 	}
 
-	return lease_fd;
+	return lease;
 }
 
-bool wlr_drm_backend_terminate_lease(struct wlr_backend *backend,
-		uint32_t lessee_id) {
-	wlr_log(WLR_DEBUG, "Terminating DRM lease %d", lessee_id);
+void wlr_drm_lease_terminate(struct wlr_drm_lease *lease) {
+	struct wlr_drm_backend *drm = lease->backend;
 
-	assert(backend);
-	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
-
-	int r = drmModeRevokeLease(drm->fd, lessee_id);
-	if (r < 0) {
-		wlr_log_errno(WLR_DEBUG, "Failed to terminate lease");
+	wlr_log(WLR_DEBUG, "Terminating DRM lease %d", lease->lessee_id);
+	int ret = drmModeRevokeLease(drm->fd, lease->lessee_id);
+	if (ret < 0) {
+		wlr_log_errno(WLR_ERROR, "Failed to terminate lease");
 	}
+
+	drm_lease_destroy(lease);
+}
+
+void drm_lease_destroy(struct wlr_drm_lease *lease) {
+	struct wlr_drm_backend *drm = lease->backend;
+
+	wlr_signal_emit_safe(&lease->events.destroy, NULL);
 
 	struct wlr_drm_connector *conn;
 	wl_list_for_each(conn, &drm->outputs, link) {
-		if (conn->lessee_id == lessee_id) {
-			conn->lessee_id = 0;
-			/* Will be re-initialized in scan_drm_connectors */
+		if (conn->lease == lease) {
+			conn->lease = NULL;
 		}
 	}
 
 	for (size_t i = 0; i < drm->num_crtcs; ++i) {
-		if (drm->crtcs[i].lessee_id == lessee_id) {
-			drm->crtcs[i].lessee_id = 0;
+		if (drm->crtcs[i].lease == lease) {
+			drm->crtcs[i].lease = NULL;
 		}
 	}
 
-	return r >= 0;
+	free(lease);
 }
-
