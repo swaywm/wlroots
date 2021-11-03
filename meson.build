@@ -104,7 +104,7 @@ wayland_server = dependency('wayland-server',
 	default_options: wayland_project_options,
 )
 
-drm = dependency('libdrm', version: '>=2.4.105')
+drm = dependency('libdrm', version: '>=2.4.108')
 gbm = dependency('gbm', version: '>=17.1.0')
 xkbcommon = dependency('xkbcommon')
 udev = dependency('libudev')

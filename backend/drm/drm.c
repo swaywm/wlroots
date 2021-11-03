@@ -142,17 +142,9 @@ static bool add_plane(struct wlr_drm_backend *drm,
 			goto error;
 		}
 
-		struct drm_format_modifier_blob *data = blob->data;
-		uint32_t *fmts = (uint32_t *)((char *)data + data->formats_offset);
-		struct drm_format_modifier *mods = (struct drm_format_modifier *)
-			((char *)data + data->modifiers_offset);
-		for (uint32_t i = 0; i < data->count_modifiers; ++i) {
-			for (int j = 0; j < 64; ++j) {
-				if (mods[i].formats & ((uint64_t)1 << j)) {
-					wlr_drm_format_set_add(&p->formats,
-						fmts[j + mods[i].offset], mods[i].modifier);
-				}
-			}
+		drmModeFormatModifierIterator iter = {0};
+		while (drmModeFormatModifierBlobIterNext(blob, &iter)) {
+			wlr_drm_format_set_add(&p->formats, iter.fmt, iter.mod);
 		}
 
 		drmModeFreePropertyBlob(blob);
