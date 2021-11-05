@@ -14,7 +14,6 @@
 #include <time.h>
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
-#include <wlr/render/dmabuf.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/util/addon.h>
 
@@ -401,13 +400,6 @@ size_t wlr_output_get_gamma_size(struct wlr_output *output);
  */
 void wlr_output_set_gamma(struct wlr_output *output, size_t size,
 	const uint16_t *r, const uint16_t *g, const uint16_t *b);
-/**
- * Exports the last committed buffer as a DMA-BUF.
- *
- * The caller is responsible for cleaning up the DMA-BUF attributes.
- */
-bool wlr_output_export_dmabuf(struct wlr_output *output,
-	struct wlr_dmabuf_attributes *attribs);
 /**
  * Returns the wlr_output matching the provided wl_output resource. If the
  * resource isn't a wl_output, it aborts. If the resource is inert (because the
