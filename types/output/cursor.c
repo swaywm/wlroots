@@ -6,7 +6,6 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
-#include "backend/backend.h"
 #include "render/allocator/allocator.h"
 #include "render/swapchain.h"
 #include "types/wlr_output.h"
@@ -38,7 +37,7 @@ void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock) {
 }
 
 static void output_scissor(struct wlr_output *output, pixman_box32_t *rect) {
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 	assert(renderer);
 
 	struct wlr_box box = {
@@ -71,8 +70,7 @@ static void output_cursor_get_box(struct wlr_output_cursor *cursor,
 
 static void output_cursor_render(struct wlr_output_cursor *cursor,
 		pixman_region32_t *damage) {
-	struct wlr_renderer *renderer =
-		wlr_backend_get_renderer(cursor->output->backend);
+	struct wlr_renderer *renderer = cursor->output->renderer;
 	assert(renderer);
 
 	struct wlr_texture *texture = cursor->texture;
@@ -195,7 +193,7 @@ static void output_cursor_update_visible(struct wlr_output_cursor *cursor) {
 }
 
 static struct wlr_drm_format *output_pick_cursor_format(struct wlr_output *output) {
-	struct wlr_allocator *allocator = backend_get_allocator(output->backend);
+	struct wlr_allocator *allocator = output->allocator;
 	assert(allocator != NULL);
 
 	const struct wlr_drm_format_set *display_formats = NULL;
@@ -226,17 +224,9 @@ static struct wlr_buffer *render_cursor_buffer(struct wlr_output_cursor *cursor)
 		return NULL;
 	}
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
-	if (renderer == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get backend renderer");
-		return NULL;
-	}
-
-	struct wlr_allocator *allocator = backend_get_allocator(output->backend);
-	if (allocator == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get backend allocator");
-		return NULL;
-	}
+	struct wlr_allocator *allocator = output->allocator;
+	struct wlr_renderer *renderer = output->renderer;
+	assert(allocator != NULL && renderer != NULL);
 
 	int width = texture->width;
 	int height = texture->height;
@@ -370,8 +360,7 @@ static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
 bool wlr_output_cursor_set_image(struct wlr_output_cursor *cursor,
 		const uint8_t *pixels, int32_t stride, uint32_t width, uint32_t height,
 		int32_t hotspot_x, int32_t hotspot_y) {
-	struct wlr_renderer *renderer =
-		wlr_backend_get_renderer(cursor->output->backend);
+	struct wlr_renderer *renderer = cursor->output->renderer;
 	if (!renderer) {
 		// if the backend has no renderer, we can't draw a cursor, but this is
 		// actually okay, for ex. with the noop backend

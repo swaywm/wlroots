@@ -182,6 +182,8 @@ struct wlr_output {
 	struct wlr_buffer *cursor_front_buffer;
 	int software_cursor_locks; // number of locks forcing software cursors
 
+	struct wlr_allocator *allocator;
+	struct wlr_renderer *renderer;
 	struct wlr_swapchain *swapchain;
 	struct wlr_buffer *back_buffer, *front_buffer;
 
@@ -256,6 +258,18 @@ struct wlr_surface;
 void wlr_output_enable(struct wlr_output *output, bool enable);
 void wlr_output_create_global(struct wlr_output *output);
 void wlr_output_destroy_global(struct wlr_output *output);
+/**
+ * Initialize the output's rendering subsystem with the provided allocator and
+ * renderer. Can only be called once.
+ *
+ * Call this function prior to any call to wlr_output_attach_render,
+ * wlr_output_commit or wlr_output_cursor_create.
+ *
+ * The buffer capabilities of the provided must match the capabilities of the
+ * output's backend. Returns false otherwise.
+ */
+bool wlr_output_init_render(struct wlr_output *output,
+	struct wlr_allocator *allocator, struct wlr_renderer *renderer);
 /**
  * Returns the preferred mode for this output. If the output doesn't support
  * modes, returns NULL.

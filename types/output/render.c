@@ -11,6 +11,30 @@
 #include "render/wlr_renderer.h"
 #include "types/wlr_output.h"
 
+bool wlr_output_init_render(struct wlr_output *output,
+		struct wlr_allocator *allocator, struct wlr_renderer *renderer) {
+	assert(output->allocator == NULL && allocator != NULL);
+	assert(output->renderer == NULL && renderer != NULL);
+
+	uint32_t backend_caps = backend_get_buffer_caps(output->backend);
+	uint32_t renderer_caps = renderer_get_render_buffer_caps(renderer);
+
+	if (!(backend_caps & allocator->buffer_caps)) {
+		wlr_log(WLR_ERROR, "output backend and allocator buffer capabilities "
+			"don't match");
+		return false;
+	} else if (!(backend_caps & renderer_caps)) {
+		wlr_log(WLR_ERROR, "output backend and renderer buffer capabilities "
+			"don't match");
+		return false;
+	}
+
+	output->allocator = allocator;
+	output->renderer = renderer;
+
+	return true;
+}
+
 /**
  * Ensure the output has a suitable swapchain. The swapchain is re-created if
  * necessary.
@@ -29,11 +53,8 @@ static bool output_create_swapchain(struct wlr_output *output,
 		return true;
 	}
 
-	struct wlr_allocator *allocator = backend_get_allocator(output->backend);
-	if (allocator == NULL) {
-		wlr_log(WLR_ERROR, "Failed to get backend allocator");
-		return false;
-	}
+	struct wlr_allocator *allocator = output->allocator;
+	assert(allocator != NULL);
 
 	const struct wlr_drm_format_set *display_formats = NULL;
 	if (output->impl->get_primary_formats) {
@@ -80,7 +101,7 @@ static bool output_attach_back_buffer(struct wlr_output *output,
 		return false;
 	}
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 	assert(renderer != NULL);
 
 	struct wlr_buffer *buffer =
@@ -103,7 +124,7 @@ void output_clear_back_buffer(struct wlr_output *output) {
 		return;
 	}
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 	assert(renderer != NULL);
 
 	renderer_bind_buffer(renderer, NULL);
@@ -130,7 +151,7 @@ static bool output_attach_empty_buffer(struct wlr_output *output) {
 	int width, height;
 	output_pending_resolution(output, &width, &height);
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 	wlr_renderer_begin(renderer, width, height);
 	wlr_renderer_clear(renderer, (float[]){0, 0, 0, 0});
 	wlr_renderer_end(renderer);
@@ -211,8 +232,8 @@ void wlr_output_lock_attach_render(struct wlr_output *output, bool lock) {
 
 struct wlr_drm_format *output_pick_format(struct wlr_output *output,
 		const struct wlr_drm_format_set *display_formats) {
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
-	struct wlr_allocator *allocator = backend_get_allocator(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
+	struct wlr_allocator *allocator = output->allocator;
 	assert(renderer != NULL && allocator != NULL);
 
 	const struct wlr_drm_format_set *render_formats =
@@ -264,7 +285,9 @@ struct wlr_drm_format *output_pick_format(struct wlr_output *output,
 }
 
 uint32_t wlr_output_preferred_read_format(struct wlr_output *output) {
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
+	assert(renderer != NULL);
+
 	if (!renderer->impl->preferred_read_format || !renderer->impl->read_pixels) {
 		return DRM_FORMAT_INVALID;
 	}
