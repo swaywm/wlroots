@@ -113,6 +113,13 @@ process is:
 4. **Merge** the merge request when all reviewers approve.
 5. **File** follow-up tickets if appropriate.
 
+## Code of Conduct
+
+Note that as a project hosted on freedesktop.org, wlroots follows its
+[Code of Conduct], based on the Contributor Covenant. Please conduct yourself
+in a respectful and civilized manner when communicating with community members
+on IRC and bug tracker.
+
 ## Style Reference
 
 wlroots is written in C with a style similar to the [kernel style], but with a
@@ -397,5 +404,6 @@ static void subsurface_handle_surface_destroy(struct wl_listener *listener,
 [linear, "recipe" style]: https://www.bitsnbites.eu/git-history-work-log-vs-recipe/
 [git-rebase.io]: https://git-rebase.io/
 [reference issues]: https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically
+[Code of Conduct]: https://www.freedesktop.org/wiki/CodeOfConduct/
 [How to Write a Git Commit Message]: https://chris.beams.io/posts/git-commit/
 [kernel style]: https://www.kernel.org/doc/Documentation/process/coding-style.rst
