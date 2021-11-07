@@ -171,6 +171,10 @@ static void text_input_commit(struct wl_client *client,
 	if (text_input->pending.surrounding.text) {
 		text_input->current.surrounding.text =
 			strdup(text_input->pending.surrounding.text);
+		if (text_input->current.surrounding.text == NULL) {
+			wl_client_post_no_memory(client);
+			return;
+		}
 	}
 
 	bool old_enabled = text_input->current_enabled;
