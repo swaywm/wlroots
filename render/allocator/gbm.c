@@ -4,8 +4,11 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <wlr/render/allocator.h>
+#include <wlr/render/drm_format_set.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
+
 #include "render/allocator/gbm.h"
 
 static const struct wlr_buffer_impl buffer_impl;
