@@ -790,19 +790,6 @@ size_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	return output->impl->get_gamma_size(output);
 }
 
-bool wlr_output_export_dmabuf(struct wlr_output *output,
-		struct wlr_dmabuf_attributes *attribs) {
-	if (output->front_buffer == NULL) {
-		return false;
-	}
-
-	struct wlr_dmabuf_attributes buf_attribs = {0};
-	if (!wlr_buffer_get_dmabuf(output->front_buffer, &buf_attribs)) {
-		return false;
-	}
-	return wlr_dmabuf_attributes_copy(attribs, &buf_attribs);
-}
-
 void wlr_output_update_needs_frame(struct wlr_output *output) {
 	if (output->needs_frame) {
 		return;

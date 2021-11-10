@@ -189,11 +189,11 @@ static struct wlr_egl *egl_create(void) {
 	egl->exts.EXT_platform_device = check_egl_ext(client_exts_str,
 			"EGL_EXT_platform_device");
 
-	if (check_egl_ext(client_exts_str, "EGL_EXT_device_enumeration")) {
+	if (check_egl_ext(client_exts_str, "EGL_EXT_device_base") || check_egl_ext(client_exts_str, "EGL_EXT_device_enumeration")) {
 		load_egl_proc(&egl->procs.eglQueryDevicesEXT, "eglQueryDevicesEXT");
 	}
 
-	if (check_egl_ext(client_exts_str, "EGL_EXT_device_query")) {
+	if (check_egl_ext(client_exts_str, "EGL_EXT_device_base") || check_egl_ext(client_exts_str, "EGL_EXT_device_query")) {
 		egl->exts.EXT_device_query = true;
 		load_egl_proc(&egl->procs.eglQueryDeviceStringEXT,
 			"eglQueryDeviceStringEXT");

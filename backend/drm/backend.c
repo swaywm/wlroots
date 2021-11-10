@@ -22,7 +22,7 @@ struct wlr_drm_backend *get_drm_backend_from_backend(
 
 static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
-	scan_drm_connectors(drm);
+	scan_drm_connectors(drm, NULL);
 	return true;
 }
 
@@ -102,7 +102,7 @@ static void handle_session_active(struct wl_listener *listener, void *data) {
 
 	if (session->active) {
 		wlr_log(WLR_INFO, "DRM fd resumed");
-		scan_drm_connectors(drm);
+		scan_drm_connectors(drm, NULL);
 
 		struct wlr_drm_connector *conn;
 		wl_list_for_each(conn, &drm->outputs, link) {
@@ -127,13 +127,21 @@ static void handle_session_active(struct wl_listener *listener, void *data) {
 
 static void handle_dev_change(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *drm = wl_container_of(listener, drm, dev_change);
+	struct wlr_device_change_event *change = data;
 
 	if (!drm->session->active) {
 		return;
 	}
 
-	wlr_log(WLR_DEBUG, "%s invalidated", drm->name);
-	scan_drm_connectors(drm);
+	// TODO: add and handle lease uevents
+	switch (change->type) {
+	case WLR_DEVICE_HOTPLUG:;
+		wlr_log(WLR_DEBUG, "Received hotplug event for %s", drm->name);
+		scan_drm_connectors(drm, &change->hotplug);
+		break;
+	default:
+		wlr_log(WLR_DEBUG, "Received unknown change event for %s", drm->name);
+	}
 }
 
 static void handle_dev_remove(struct wl_listener *listener, void *data) {

@@ -798,7 +798,7 @@ static const struct wlr_addon_interface output_addon_impl = {
 
 struct wlr_scene_output *wlr_scene_output_create(struct wlr_scene *scene,
 		struct wlr_output *output) {
-	struct wlr_scene_output *scene_output = calloc(1, sizeof(*output));
+	struct wlr_scene_output *scene_output = calloc(1, sizeof(*scene_output));
 	if (scene_output == NULL) {
 		return NULL;
 	}

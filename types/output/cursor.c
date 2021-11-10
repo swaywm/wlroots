@@ -264,6 +264,7 @@ static struct wlr_buffer *render_cursor_buffer(struct wlr_output_cursor *cursor)
 		wlr_swapchain_destroy(output->cursor_swapchain);
 		output->cursor_swapchain = wlr_swapchain_create(allocator,
 			width, height, format);
+		free(format);
 		if (output->cursor_swapchain == NULL) {
 			wlr_log(WLR_ERROR, "Failed to create cursor swapchain");
 			return NULL;

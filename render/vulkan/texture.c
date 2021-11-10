@@ -378,7 +378,7 @@ static bool is_dmabuf_disjoint(const struct wlr_dmabuf_attributes *attribs) {
 VkImage vulkan_import_dmabuf(struct wlr_vk_renderer *renderer,
 		const struct wlr_dmabuf_attributes *attribs,
 		VkDeviceMemory mems[static WLR_DMABUF_MAX_PLANES], uint32_t *n_mems,
-		bool for_render) {
+		enum wlr_vk_image_usage usage) {
 	VkResult res;
 	VkDevice dev = renderer->dev->dev;
 	*n_mems = 0u;
@@ -398,7 +398,7 @@ VkImage vulkan_import_dmabuf(struct wlr_vk_renderer *renderer,
 	uint32_t plane_count = attribs->n_planes;
 	assert(plane_count < WLR_DMABUF_MAX_PLANES);
 	struct wlr_vk_format_modifier_props *mod =
-		vulkan_format_props_find_modifier(fmt, attribs->modifier, for_render);
+		vulkan_format_props_find_modifier(fmt, attribs->modifier, usage);
 	if (!mod || !(mod->dmabuf_flags & VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT)) {
 		wlr_log(WLR_ERROR, "Format %"PRIx32" (%.4s) can't be used with modifier "
 			"%"PRIx64, attribs->format, (const char*) &attribs->format,
@@ -440,9 +440,7 @@ VkImage vulkan_import_dmabuf(struct wlr_vk_renderer *renderer,
 	img_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	img_info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 	img_info.extent = (VkExtent3D) { attribs->width, attribs->height, 1 };
-	img_info.usage = for_render ?
-		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT :
-		VK_IMAGE_USAGE_SAMPLED_BIT;
+	img_info.usage = wlr_vk_image_usage_to_vk(usage);
 	if (disjoint) {
 		img_info.flags = VK_IMAGE_CREATE_DISJOINT_BIT;
 	}
@@ -600,7 +598,7 @@ static struct wlr_texture *vulkan_texture_from_dmabuf(struct wlr_renderer *wlr_r
 
 	texture->format = &fmt->format;
 	texture->image = vulkan_import_dmabuf(renderer, attribs,
-		texture->memories, &texture->mem_count, false);
+		texture->memories, &texture->mem_count, WLR_VK_IMAGE_USAGE_SAMPLED);
 	if (!texture->image) {
 		goto error;
 	}

@@ -489,13 +489,12 @@ static struct wlr_screencopy_v1_client *client_from_resource(
 }
 
 static uint32_t get_output_fourcc(struct wlr_output *output) {
-	struct wlr_dmabuf_attributes attr = { 0 };
-	if (!wlr_output_export_dmabuf(output, &attr)) {
+	struct wlr_dmabuf_attributes attr = {0};
+	if (!output->front_buffer ||
+			!wlr_buffer_get_dmabuf(output->front_buffer, &attr)) {
 		return DRM_FORMAT_INVALID;
 	}
-	uint32_t format = attr.format;
-	wlr_dmabuf_attributes_finish(&attr);
-	return format;
+	return attr.format;
 }
 
 static void capture_output(struct wl_client *wl_client,

@@ -443,7 +443,7 @@ static struct wlr_vk_render_buffer *create_render_buffer(
 	}
 
 	buffer->image = vulkan_import_dmabuf(renderer, &dmabuf,
-		buffer->memories, &buffer->mem_count, true);
+		buffer->memories, &buffer->mem_count, WLR_VK_IMAGE_USAGE_RENDER);
 	if (!buffer->image) {
 		goto error_buffer;
 	}

@@ -38,13 +38,9 @@ const struct wlr_vk_format *vulkan_get_format_from_drm(uint32_t drm_format) {
 	return NULL;
 }
 
-static const VkImageUsageFlags render_usage =
-	VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 static const VkImageUsageFlags tex_usage =
 	VK_IMAGE_USAGE_SAMPLED_BIT |
 	VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-static const VkImageUsageFlags dma_tex_usage =
-	VK_IMAGE_USAGE_SAMPLED_BIT;
 
 static const VkFormatFeatureFlags tex_features =
 	VK_FORMAT_FEATURE_TRANSFER_SRC_BIT |
@@ -53,14 +49,31 @@ static const VkFormatFeatureFlags tex_features =
 	// NOTE: we don't strictly require this, we could create a NEAREST
 	// sampler for formats that need it, in case this ever makes problems.
 	VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
-static const VkFormatFeatureFlags render_features =
-	VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT |
-	VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT;
-static const VkFormatFeatureFlags dma_tex_features =
-	VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
-	// NOTE: we don't strictly require this, we could create a NEAREST
-	// sampler for formats that need it, in case this ever makes problems.
-	VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
+
+static const VkImageUsageFlags mod_set_usage[WLR_VK_IMAGE_USAGE_COUNT] = {
+	[WLR_VK_IMAGE_USAGE_RENDER] = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+	[WLR_VK_IMAGE_USAGE_SAMPLED] = VK_IMAGE_USAGE_SAMPLED_BIT,
+};
+
+static const VkFormatFeatureFlags mod_set_features[WLR_VK_IMAGE_USAGE_COUNT] = {
+	[WLR_VK_IMAGE_USAGE_RENDER] = VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT |
+		VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT,
+
+	[WLR_VK_IMAGE_USAGE_SAMPLED] = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
+		VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT,
+};
+
+VkImageUsageFlags wlr_vk_image_usage_to_vk(enum wlr_vk_image_usage usage) {
+	return mod_set_usage[usage];
+}
+
+static const char *wlr_vk_image_usage_to_str(enum wlr_vk_image_usage usage) {
+	switch (usage) {
+		case WLR_VK_IMAGE_USAGE_RENDER:  return "render";
+		case WLR_VK_IMAGE_USAGE_SAMPLED: return "sampled";
+		default:                         return "unknown";
+	}
+}
 
 static bool query_modifier_support(struct wlr_vk_device *dev,
 		struct wlr_vk_format_props *props, size_t modifier_count,
@@ -88,21 +101,17 @@ static bool query_modifier_support(struct wlr_vk_device *dev,
 	vkGetPhysicalDeviceFormatProperties2(dev->phdev,
 		props->format.vk_format, &fmtp);
 
-	props->render_mods = calloc(modp.drmFormatModifierCount,
-		sizeof(*props->render_mods));
-	if (!props->render_mods) {
-		wlr_log_errno(WLR_ERROR, "Allocation failed");
-		free(modp.pDrmFormatModifierProperties);
-		return false;
-	}
-
-	props->texture_mods = calloc(modp.drmFormatModifierCount,
-		sizeof(*props->texture_mods));
-	if (!props->texture_mods) {
-		wlr_log_errno(WLR_ERROR, "Allocation failed");
-		free(modp.pDrmFormatModifierProperties);
-		free(props->render_mods);
-		return false;
+	for (int i = 0; i < WLR_VK_IMAGE_USAGE_COUNT; i++) {
+		props->mods[i] = calloc(modp.drmFormatModifierCount,
+			sizeof(*props->mods[i]));
+		if (!props->mods[i]) {
+			wlr_log_errno(WLR_ERROR, "Allocation failed");
+			for (int j = 0; j < i; j++) {
+				free(props->mods[j]);
+			}
+			free(modp.pDrmFormatModifierProperties);
+			return false;
+		}
 	}
 
 	// detailed check
@@ -131,6 +140,11 @@ static bool query_modifier_support(struct wlr_vk_device *dev,
 
 	bool found = false;
 
+	struct wlr_drm_format_set *dmabuf_formats[WLR_VK_IMAGE_USAGE_COUNT] = {
+		[WLR_VK_IMAGE_USAGE_RENDER] = &dev->dmabuf_render_formats,
+		[WLR_VK_IMAGE_USAGE_SAMPLED] = &dev->dmabuf_texture_formats,
+	};
+
 	for (unsigned i = 0u; i < modp.drmFormatModifierCount; ++i) {
 		VkDrmFormatModifierPropertiesEXT m =
 			modp.pDrmFormatModifierProperties[i];
@@ -138,84 +152,48 @@ static bool query_modifier_support(struct wlr_vk_device *dev,
 			m.drmFormatModifier, m.drmFormatModifierTilingFeatures,
 			m.drmFormatModifierPlaneCount);
 
-		// check that specific modifier for render usage
-		if ((m.drmFormatModifierTilingFeatures & render_features) == render_features) {
-			fmti.usage = render_usage;
+		for (int i = 0; i < WLR_VK_IMAGE_USAGE_COUNT; i++) {
+			// check that specific modifier for render usage
+			if ((m.drmFormatModifierTilingFeatures & mod_set_features[i]) == mod_set_features[i]) {
+				fmti.usage = mod_set_usage[i];
 
-			modi.drmFormatModifier = m.drmFormatModifier;
-			res = vkGetPhysicalDeviceImageFormatProperties2(
-				dev->phdev, &fmti, &ifmtp);
-			if (res != VK_SUCCESS) {
-				if (res != VK_ERROR_FORMAT_NOT_SUPPORTED) {
-					wlr_vk_error("vkGetPhysicalDeviceImageFormatProperties2",
-						res);
+				modi.drmFormatModifier = m.drmFormatModifier;
+				res = vkGetPhysicalDeviceImageFormatProperties2(
+					dev->phdev, &fmti, &ifmtp);
+				if (res != VK_SUCCESS) {
+					if (res != VK_ERROR_FORMAT_NOT_SUPPORTED) {
+						wlr_vk_error("vkGetPhysicalDeviceImageFormatProperties2",
+							res);
+					}
+
+					wlr_log(WLR_DEBUG, "    >> %s: format not supported", wlr_vk_image_usage_to_str(i));
+				} else if (emp->externalMemoryFeatures &
+						VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT) {
+					unsigned c = props->mod_count[i];
+					VkExtent3D me = ifmtp.imageFormatProperties.maxExtent;
+					VkExternalMemoryProperties emp = efmtp.externalMemoryProperties;
+					props->mods[i][c].props = m;
+					props->mods[i][c].max_extent.width = me.width;
+					props->mods[i][c].max_extent.height = me.height;
+					props->mods[i][c].dmabuf_flags = emp.externalMemoryFeatures;
+					props->mods[i][c].export_imported =
+						(emp.exportFromImportedHandleTypes &
+						VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
+					++props->mod_count[i];
+
+					found = true;
+					if (dmabuf_formats[i]) {
+						wlr_drm_format_set_add(dmabuf_formats[i],
+							props->format.drm_format, m.drmFormatModifier);
+					}
+
+					wlr_log(WLR_DEBUG, "    >> %s: supported", wlr_vk_image_usage_to_str(i));
+				} else {
+					wlr_log(WLR_DEBUG, "    >> %s: importing not supported", wlr_vk_image_usage_to_str(i));
 				}
-
-				wlr_log(WLR_DEBUG, "    >> rendering: format not supported");
-			} else if (emp->externalMemoryFeatures &
-					VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT) {
-				unsigned c = props->render_mod_count;
-				VkExtent3D me = ifmtp.imageFormatProperties.maxExtent;
-				VkExternalMemoryProperties emp = efmtp.externalMemoryProperties;
-				props->render_mods[c].props = m;
-				props->render_mods[c].max_extent.width = me.width;
-				props->render_mods[c].max_extent.height = me.height;
-				props->render_mods[c].dmabuf_flags = emp.externalMemoryFeatures;
-				props->render_mods[c].export_imported =
-					(emp.exportFromImportedHandleTypes &
-					 VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
-				++props->render_mod_count;
-
-				found = true;
-				wlr_drm_format_set_add(&dev->dmabuf_render_formats,
-					props->format.drm_format, m.drmFormatModifier);
-
-				wlr_log(WLR_DEBUG, "    >> rendering: supported");
 			} else {
-				wlr_log(WLR_DEBUG, "    >> rendering: importing not supported");
+				wlr_log(WLR_DEBUG, "    >> %s: format features not supported", wlr_vk_image_usage_to_str(i));
 			}
-		} else {
-			wlr_log(WLR_DEBUG, "    >> rendering: format features not supported");
-		}
-
-		// check that specific modifier for texture usage
-		if ((m.drmFormatModifierTilingFeatures & dma_tex_features) == dma_tex_features) {
-			fmti.usage = dma_tex_usage;
-
-			modi.drmFormatModifier = m.drmFormatModifier;
-			res = vkGetPhysicalDeviceImageFormatProperties2(
-				dev->phdev, &fmti, &ifmtp);
-			if (res != VK_SUCCESS) {
-				if (res != VK_ERROR_FORMAT_NOT_SUPPORTED) {
-					wlr_vk_error("vkGetPhysicalDeviceImageFormatProperties2",
-						res);
-				}
-
-				wlr_log(WLR_DEBUG, "    >> dmatex: format not supported");
-			} else if (emp->externalMemoryFeatures &
-					VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT) {
-				unsigned c = props->texture_mod_count;
-				VkExtent3D me = ifmtp.imageFormatProperties.maxExtent;
-				VkExternalMemoryProperties emp = efmtp.externalMemoryProperties;
-				props->texture_mods[c].props = m;
-				props->texture_mods[c].max_extent.width = me.width;
-				props->texture_mods[c].max_extent.height = me.height;
-				props->texture_mods[c].dmabuf_flags = emp.externalMemoryFeatures;
-				props->texture_mods[c].export_imported =
-					(emp.exportFromImportedHandleTypes &
-					 VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
-				++props->texture_mod_count;
-
-				found = true;
-				wlr_drm_format_set_add(&dev->dmabuf_texture_formats,
-					props->format.drm_format, m.drmFormatModifier);
-
-				wlr_log(WLR_DEBUG, "    >> dmatex: supported");
-			} else {
-				wlr_log(WLR_DEBUG, "    >> dmatex: importing not supported");
-			}
-		} else {
-			wlr_log(WLR_DEBUG, "    >> dmatex: format features not supported");
 		}
 	}
 
@@ -300,23 +278,16 @@ void vulkan_format_props_query(struct wlr_vk_device *dev,
 }
 
 void vulkan_format_props_finish(struct wlr_vk_format_props *props) {
-	free(props->texture_mods);
-	free(props->render_mods);
+	for (int i = 0; i < WLR_VK_IMAGE_USAGE_COUNT; i++) {
+		free(props->mods[i]);
+	}
 }
 
 struct wlr_vk_format_modifier_props *vulkan_format_props_find_modifier(
-		struct wlr_vk_format_props *props, uint64_t mod, bool render) {
-	if (render) {
-		for (unsigned i = 0u; i < props->render_mod_count; ++i) {
-			if (props->render_mods[i].props.drmFormatModifier == mod) {
-				return &props->render_mods[i];
-			}
-		}
-	} else {
-		for (unsigned i = 0u; i < props->texture_mod_count; ++i) {
-			if (props->texture_mods[i].props.drmFormatModifier == mod) {
-				return &props->texture_mods[i];
-			}
+		struct wlr_vk_format_props *props, uint64_t mod, enum wlr_vk_image_usage usage) {
+	for (unsigned i = 0u; i < props->mod_count[usage]; ++i) {
+		if (props->mods[usage][i].props.drmFormatModifier == mod) {
+			return &props->mods[usage][i];
 		}
 	}
 

@@ -15,7 +15,7 @@ struct wlr_device {
 	struct wl_list link;
 
 	struct {
-		struct wl_signal change;
+		struct wl_signal change; // struct wlr_device_change_event
 		struct wl_signal remove;
 	} events;
 };
@@ -55,6 +55,22 @@ struct wlr_session {
 
 struct wlr_session_add_event {
 	const char *path;
+};
+
+enum wlr_device_change_type {
+	WLR_DEVICE_HOTPLUG = 1,
+};
+
+struct wlr_device_hotplug_event {
+	uint32_t connector_id;
+	uint32_t prop_id;
+};
+
+struct wlr_device_change_event {
+	enum wlr_device_change_type type;
+	union {
+		struct wlr_device_hotplug_event hotplug;
+	};
 };
 
 /*

@@ -79,9 +79,9 @@ Install like so:
 See [CONTRIBUTING.md].
 
 [Wayland]: https://wayland.freedesktop.org/
-[wiki]: https://github.com/swaywm/wlroots/wiki/Getting-started
+[wiki]: https://gitlab.freedesktop.org/wlroots/wlroots/-/wikis/Getting-started
 [#sway-devel on Libera Chat]: https://web.libera.chat/gamja/?channels=#sway-devel
 [Sway]: https://github.com/swaywm/sway
 [wrapper libraries]: https://github.com/search?q=topic%3Abindings+org%3Aswaywm&type=Repositories
 [libseat]: https://git.sr.ht/~kennylevinsen/seatd
-[CONTRIBUTING.md]: https://github.com/swaywm/wlroots/blob/master/CONTRIBUTING.md
+[CONTRIBUTING.md]: https://gitlab.freedesktop.org/wlroots/wlroots/-/blob/master/CONTRIBUTING.md
