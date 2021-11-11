@@ -407,3 +407,23 @@ const char *wlr_xdg_activation_token_v1_get_name(
 		struct wlr_xdg_activation_token_v1 *token) {
 	return token->token;
 }
+
+struct wlr_xdg_activation_token_v1 *wlr_xdg_activation_v1_add_token(
+		struct wlr_xdg_activation_v1 *activation, const char *token_str) {
+	assert(token_str);
+
+	struct wlr_xdg_activation_token_v1 *token = calloc(1, sizeof(*token));
+	if (token == NULL) {
+		return NULL;
+	}
+	wl_list_init(&token->link);
+	wl_list_init(&token->seat_destroy.link);
+	wl_list_init(&token->surface_destroy.link);
+
+	token->activation = activation;
+	token->token = strdup(token_str);
+
+	wl_list_insert(&activation->tokens, &token->link);
+
+	return token;
+}

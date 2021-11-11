@@ -81,4 +81,8 @@ struct wlr_xdg_activation_token_v1 *wlr_xdg_activation_v1_find_token(
 const char *wlr_xdg_activation_token_v1_get_name(
 		struct wlr_xdg_activation_token_v1 *token);
 
+// Add a token to the pool of known tokens
+struct wlr_xdg_activation_token_v1 *wlr_xdg_activation_v1_add_token(
+		struct wlr_xdg_activation_v1 *activation, const char *token_str);
+
 #endif
