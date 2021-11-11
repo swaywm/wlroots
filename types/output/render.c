@@ -9,6 +9,7 @@
 #include "render/drm_format_set.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
+#include "render/pixel_format.h"
 #include "types/wlr_output.h"
 
 bool wlr_output_init_render(struct wlr_output *output,
@@ -47,12 +48,6 @@ static bool output_create_swapchain(struct wlr_output *output,
 	int width, height;
 	output_pending_resolution(output, &width, &height);
 
-	if (output->swapchain != NULL && output->swapchain->width == width &&
-			output->swapchain->height == height &&
-			(allow_modifiers || output->swapchain->format->len == 0)) {
-		return true;
-	}
-
 	struct wlr_allocator *allocator = output->allocator;
 	assert(allocator != NULL);
 
@@ -67,12 +62,22 @@ static bool output_create_swapchain(struct wlr_output *output,
 	}
 
 	struct wlr_drm_format *format = output_pick_format(output, display_formats,
-		DRM_FORMAT_XRGB8888);
+		output->render_format);
 	if (format == NULL) {
 		wlr_log(WLR_ERROR, "Failed to pick primary buffer format for output '%s'",
 			output->name);
 		return false;
 	}
+
+	if (output->swapchain != NULL && output->swapchain->width == width &&
+			output->swapchain->height == height &&
+			output->swapchain->format->format == format->format &&
+			(allow_modifiers || output->swapchain->format->len == 0)) {
+		// no change, keep existing swapchain
+		free(format);
+		return true;
+	}
+
 	wlr_log(WLR_DEBUG, "Choosing primary buffer format 0x%"PRIX32" for output '%s'",
 		format->format, output->name);
 
@@ -169,6 +174,9 @@ bool output_ensure_buffer(struct wlr_output *output) {
 		needs_new_buffer = true;
 	}
 	if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
+		needs_new_buffer = true;
+	}
+	if (output->pending.committed & WLR_OUTPUT_STATE_RENDER_FORMAT) {
 		needs_new_buffer = true;
 	}
 	if (!needs_new_buffer ||

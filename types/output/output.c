@@ -1,10 +1,13 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <backend/backend.h>
+#include <drm_fourcc.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
+#include "render/allocator/allocator.h"
 #include "render/swapchain.h"
 #include "types/wlr_output.h"
 #include "util/global.h"
@@ -296,6 +299,16 @@ void wlr_output_enable_adaptive_sync(struct wlr_output *output, bool enabled) {
 	output->pending.adaptive_sync_enabled = enabled;
 }
 
+void wlr_output_set_render_format(struct wlr_output *output, uint32_t format) {
+	if (output->render_format == format) {
+		output->pending.committed &= ~WLR_OUTPUT_STATE_RENDER_FORMAT;
+		return;
+	}
+
+	output->pending.committed |= WLR_OUTPUT_STATE_RENDER_FORMAT;
+	output->pending.render_format = format;
+}
+
 void wlr_output_set_subpixel(struct wlr_output *output,
 		enum wl_output_subpixel subpixel) {
 	if (output->subpixel == subpixel) {
@@ -343,6 +356,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	output->impl = impl;
 	output->display = display;
 	wl_list_init(&output->modes);
+	output->render_format = DRM_FORMAT_XRGB8888;
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
 	output->commit_seq = 0;
@@ -542,6 +556,30 @@ static bool output_basic_test(struct wlr_output *output) {
 		}
 	}
 
+	if (output->pending.committed & WLR_OUTPUT_STATE_RENDER_FORMAT) {
+		struct wlr_allocator *allocator = output->allocator;
+		assert(allocator != NULL);
+
+		const struct wlr_drm_format_set *display_formats = NULL;
+		if (output->impl->get_primary_formats) {
+			display_formats =
+				output->impl->get_primary_formats(output, allocator->buffer_caps);
+			if (display_formats == NULL) {
+				wlr_log(WLR_ERROR, "Failed to get primary display formats");
+				return false;
+			}
+		}
+
+		struct wlr_drm_format *format = output_pick_format(output, display_formats,
+			output->pending.render_format);
+		if (format == NULL) {
+			wlr_log(WLR_ERROR, "Failed to pick primary buffer format for output");
+			return false;
+		}
+
+		free(format);
+	}
+
 	bool enabled = output->enabled;
 	if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
 		enabled = output->pending.enabled;
@@ -567,6 +605,10 @@ static bool output_basic_test(struct wlr_output *output) {
 	}
 	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) {
 		wlr_log(WLR_DEBUG, "Tried to enable adaptive sync on a disabled output");
+		return false;
+	}
+	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_RENDER_FORMAT) {
+		wlr_log(WLR_DEBUG, "Tried to set format for a disabled output");
 		return false;
 	}
 	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
@@ -640,6 +682,10 @@ bool wlr_output_commit(struct wlr_output *output) {
 			}
 			wlr_surface_send_frame_done(cursor->surface, &now);
 		}
+	}
+
+	if (output->pending.committed & WLR_OUTPUT_STATE_RENDER_FORMAT) {
+		output->render_format = output->pending.render_format;
 	}
 
 	output->commit_seq++;

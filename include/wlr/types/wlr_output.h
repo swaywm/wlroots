@@ -61,6 +61,7 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_TRANSFORM = 1 << 5,
 	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED = 1 << 6,
 	WLR_OUTPUT_STATE_GAMMA_LUT = 1 << 7,
+	WLR_OUTPUT_STATE_RENDER_FORMAT = 1 << 8,
 };
 
 enum wlr_output_state_mode_type {
@@ -78,6 +79,7 @@ struct wlr_output_state {
 	float scale;
 	enum wl_output_transform transform;
 	bool adaptive_sync_enabled;
+	uint32_t render_format;
 
 	// only valid if WLR_OUTPUT_STATE_BUFFER
 	struct wlr_buffer *buffer;
@@ -134,6 +136,7 @@ struct wlr_output {
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;
 	enum wlr_output_adaptive_sync_status adaptive_sync_status;
+	uint32_t render_format;
 
 	bool needs_frame;
 	// damage for cursors and fullscreen surface, in output-local coordinates
@@ -308,6 +311,22 @@ void wlr_output_set_transform(struct wlr_output *output,
  * Adaptive sync is double-buffered state, see `wlr_output_commit`.
  */
 void wlr_output_enable_adaptive_sync(struct wlr_output *output, bool enabled);
+/**
+ * Set the output buffer render format. Default value: DRM_FORMAT_XRGB8888
+ *
+ * While high bit depth render formats are necessary for a monitor to receive
+ * useful high bit data, they do not guarantee it; a DRM_FORMAT_XBGR2101010
+ * buffer will only lead to sending 10-bpc image data to the monitor if
+ * hardware and software permit this.
+ *
+ * This only affects the format of the output buffer used when rendering,
+ * as with `wlr_output_attach_render`. It has no impact on the cursor buffer
+ * format, or on the formats supported for direct scan-out (see also
+ * `wlr_output_attach_buffer`).
+ *
+ * This format is double-buffered state, see `wlr_output_commit`.
+ */
+void wlr_output_set_render_format(struct wlr_output *output, uint32_t format);
 /**
  * Sets a scale for the output.
  *
