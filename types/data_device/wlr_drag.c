@@ -492,6 +492,7 @@ void wlr_seat_start_drag(struct wlr_seat *seat, struct wlr_drag *drag,
 	assert(!drag->started);
 	drag->started = true;
 
+	wlr_seat_keyboard_clear_focus(seat);
 	wlr_seat_keyboard_start_grab(seat, &drag->keyboard_grab);
 
 	seat->drag = drag;
