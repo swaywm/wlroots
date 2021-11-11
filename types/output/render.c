@@ -67,11 +67,7 @@ static bool output_create_swapchain(struct wlr_output *output,
 	}
 
 	struct wlr_drm_format *format = output_pick_format(output, display_formats,
-		DRM_FORMAT_ARGB8888);
-	if (format == NULL) {
-		format = output_pick_format(output, display_formats,
-			DRM_FORMAT_XRGB8888);
-	}
+		DRM_FORMAT_XRGB8888);
 	if (format == NULL) {
 		wlr_log(WLR_ERROR, "Failed to pick primary buffer format for output '%s'",
 			output->name);
