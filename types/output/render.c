@@ -66,7 +66,12 @@ static bool output_create_swapchain(struct wlr_output *output,
 		}
 	}
 
-	struct wlr_drm_format *format = output_pick_format(output, display_formats);
+	struct wlr_drm_format *format = output_pick_format(output, display_formats,
+		DRM_FORMAT_ARGB8888);
+	if (format == NULL) {
+		format = output_pick_format(output, display_formats,
+			DRM_FORMAT_XRGB8888);
+	}
 	if (format == NULL) {
 		wlr_log(WLR_ERROR, "Failed to pick primary buffer format for output '%s'",
 			output->name);
@@ -231,7 +236,8 @@ void wlr_output_lock_attach_render(struct wlr_output *output, bool lock) {
 }
 
 struct wlr_drm_format *output_pick_format(struct wlr_output *output,
-		const struct wlr_drm_format_set *display_formats) {
+		const struct wlr_drm_format_set *display_formats,
+		uint32_t fmt) {
 	struct wlr_renderer *renderer = output->renderer;
 	struct wlr_allocator *allocator = output->allocator;
 	assert(renderer != NULL && allocator != NULL);
@@ -243,41 +249,31 @@ struct wlr_drm_format *output_pick_format(struct wlr_output *output,
 		return NULL;
 	}
 
-	struct wlr_drm_format *format = NULL;
-	const uint32_t candidates[] = { DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB8888 };
-	for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
-		uint32_t fmt = candidates[i];
-
-		const struct wlr_drm_format *render_format =
-			wlr_drm_format_set_get(render_formats, fmt);
-		if (render_format == NULL) {
-			wlr_log(WLR_DEBUG, "Renderer doesn't support format 0x%"PRIX32, fmt);
-			continue;
-		}
-
-		if (display_formats != NULL) {
-			const struct wlr_drm_format *display_format =
-				wlr_drm_format_set_get(display_formats, fmt);
-			if (display_format == NULL) {
-				wlr_log(WLR_DEBUG, "Output doesn't support format 0x%"PRIX32, fmt);
-				continue;
-			}
-			format = wlr_drm_format_intersect(display_format, render_format);
-		} else {
-			// The output can display any format
-			format = wlr_drm_format_dup(render_format);
-		}
-
-		if (format == NULL) {
-			wlr_log(WLR_DEBUG, "Failed to intersect display and render "
-				"modifiers for format 0x%"PRIX32, fmt);
-		} else {
-			break;
-		}
+	const struct wlr_drm_format *render_format =
+		wlr_drm_format_set_get(render_formats, fmt);
+	if (render_format == NULL) {
+		wlr_log(WLR_DEBUG, "Renderer doesn't support format 0x%"PRIX32, fmt);
+		return NULL;
 	}
+
+	struct wlr_drm_format *format = NULL;
+	if (display_formats != NULL) {
+		const struct wlr_drm_format *display_format =
+			wlr_drm_format_set_get(display_formats, fmt);
+		if (display_format == NULL) {
+			wlr_log(WLR_DEBUG, "Output doesn't support format 0x%"PRIX32, fmt);
+			return NULL;
+		}
+		format = wlr_drm_format_intersect(display_format, render_format);
+	} else {
+		// The output can display any format
+		format = wlr_drm_format_dup(render_format);
+	}
+
 	if (format == NULL) {
-		wlr_log(WLR_ERROR, "Failed to choose a format for output '%s'",
-			output->name);
+		wlr_log(WLR_DEBUG, "Failed to intersect display and render "
+			"modifiers for format 0x%"PRIX32 " on output '%s",
+			fmt, output->name);
 		return NULL;
 	}
 

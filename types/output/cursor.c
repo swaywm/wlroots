@@ -206,7 +206,13 @@ static struct wlr_drm_format *output_pick_cursor_format(struct wlr_output *outpu
 		}
 	}
 
-	return output_pick_format(output, display_formats);
+	struct wlr_drm_format *format = output_pick_format(output, display_formats,
+		DRM_FORMAT_ARGB8888);
+	if (format == NULL) {
+		format = output_pick_format(output, display_formats,
+			DRM_FORMAT_XRGB8888);
+	}
+	return format;
 }
 
 static struct wlr_buffer *render_cursor_buffer(struct wlr_output_cursor *cursor) {
