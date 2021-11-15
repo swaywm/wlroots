@@ -64,20 +64,6 @@ static void multi_backend_destroy(struct wlr_backend *wlr_backend) {
 	free(backend);
 }
 
-static struct wlr_renderer *multi_backend_get_renderer(
-		struct wlr_backend *backend) {
-	struct wlr_multi_backend *multi = multi_backend_from_backend(backend);
-
-	struct subbackend_state *sub;
-	wl_list_for_each(sub, &multi->backends, link) {
-		struct wlr_renderer *rend = wlr_backend_get_renderer(sub->backend);
-		if (rend != NULL) {
-			return rend;
-		}
-	}
-	return NULL;
-}
-
 static struct wlr_session *multi_backend_get_session(
 		struct wlr_backend *_backend) {
 	struct wlr_multi_backend *backend = multi_backend_from_backend(_backend);
@@ -136,7 +122,6 @@ static uint32_t multi_backend_get_buffer_caps(struct wlr_backend *backend) {
 static const struct wlr_backend_impl backend_impl = {
 	.start = multi_backend_start,
 	.destroy = multi_backend_destroy,
-	.get_renderer = multi_backend_get_renderer,
 	.get_session = multi_backend_get_session,
 	.get_presentation_clock = multi_backend_get_presentation_clock,
 	.get_drm_fd = multi_backend_get_drm_fd,
@@ -209,15 +194,6 @@ bool wlr_multi_backend_add(struct wlr_backend *_multi,
 	if (multi_backend_get_subbackend(multi, backend)) {
 		// already added
 		return true;
-	}
-
-	struct wlr_renderer *multi_renderer =
-		multi_backend_get_renderer(&multi->backend);
-	struct wlr_renderer *backend_renderer = wlr_backend_get_renderer(backend);
-	if (multi_renderer != NULL && backend_renderer != NULL && multi_renderer != backend_renderer) {
-		wlr_log(WLR_ERROR, "Could not add backend: multiple renderers at the "
-			"same time aren't supported");
-		return false;
 	}
 
 	struct subbackend_state *sub = calloc(1, sizeof(struct subbackend_state));
