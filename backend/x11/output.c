@@ -376,7 +376,7 @@ static void update_x11_output_cursor(struct wlr_x11_output *output,
 static bool output_cursor_to_picture(struct wlr_x11_output *output,
 		struct wlr_buffer *buffer) {
 	struct wlr_x11_backend *x11 = output->x11;
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(&x11->backend);
+	struct wlr_renderer *renderer = output->wlr_output.renderer;
 
 	if (output->cursor.pic != XCB_NONE) {
 		xcb_render_free_picture(x11->xcb, output->cursor.pic);
