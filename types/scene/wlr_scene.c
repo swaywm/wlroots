@@ -605,7 +605,7 @@ struct wlr_scene_node *wlr_scene_node_at(struct wlr_scene_node *node,
 }
 
 static void scissor_output(struct wlr_output *output, pixman_box32_t *rect) {
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 	assert(renderer);
 
 	struct wlr_box box = {
@@ -628,7 +628,7 @@ static void scissor_output(struct wlr_output *output, pixman_box32_t *rect) {
 static void render_rect(struct wlr_output *output,
 		pixman_region32_t *output_damage, const float color[static 4],
 		const struct wlr_box *box, const float matrix[static 9]) {
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 	assert(renderer);
 
 	pixman_region32_t damage;
@@ -650,7 +650,7 @@ static void render_texture(struct wlr_output *output,
 		pixman_region32_t *output_damage, struct wlr_texture *texture,
 		const struct wlr_fbox *src_box, const struct wlr_box *dst_box,
 		const float matrix[static 9]) {
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 	assert(renderer);
 
 	struct wlr_fbox default_src_box = {0};
@@ -726,7 +726,7 @@ static void render_node_iterator(struct wlr_scene_node *node,
 	case WLR_SCENE_NODE_BUFFER:;
 		struct wlr_scene_buffer *scene_buffer = scene_buffer_from_node(node);
 
-		struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+		struct wlr_renderer *renderer = output->renderer;
 		texture = scene_buffer_get_texture(scene_buffer, renderer);
 		if (texture == NULL) {
 			return;
@@ -768,8 +768,7 @@ void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
 		damage = &full_region;
 	}
 
-	struct wlr_renderer *renderer =
-		wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 	assert(renderer);
 
 	if (output->enabled && pixman_region32_not_empty(damage)) {
@@ -919,7 +918,7 @@ static bool scene_output_scanout(struct wlr_scene_output *scene_output) {
 bool wlr_scene_output_commit(struct wlr_scene_output *scene_output) {
 	struct wlr_output *output = scene_output->output;
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 	assert(renderer != NULL);
 
 	bool scanout = scene_output_scanout(scene_output);
