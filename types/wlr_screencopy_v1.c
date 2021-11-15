@@ -192,7 +192,7 @@ static bool frame_shm_copy(struct wlr_screencopy_frame_v1 *frame,
 		uint32_t *flags) {
 	struct wl_shm_buffer *shm_buffer = frame->shm_buffer;
 	struct wlr_output *output = frame->output;
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 	assert(renderer);
 
 	int x = frame->box.x;
@@ -257,7 +257,7 @@ error_src_tex:
 static bool frame_dma_copy(struct wlr_screencopy_frame_v1 *frame) {
 	struct wlr_dmabuf_v1_buffer *dma_buffer = frame->dma_buffer;
 	struct wlr_output *output = frame->output;
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 	assert(renderer);
 
 	// TODO: add support for copying regions with DMA-BUFs
@@ -276,7 +276,7 @@ static void frame_handle_output_commit(struct wl_listener *listener,
 		wl_container_of(listener, frame, output_commit);
 	struct wlr_output_event_commit *event = data;
 	struct wlr_output *output = frame->output;
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 	assert(renderer);
 
 	if (!(event->committed & WLR_OUTPUT_STATE_BUFFER)) {
@@ -538,7 +538,7 @@ static void capture_output(struct wl_client *wl_client,
 		goto error;
 	}
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 	assert(renderer);
 
 	uint32_t drm_format = wlr_output_preferred_read_format(frame->output);
