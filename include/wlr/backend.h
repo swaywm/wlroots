@@ -30,7 +30,6 @@ struct wlr_backend {
 
 	bool has_own_renderer;
 	struct wlr_renderer *renderer;
-	struct wlr_allocator *allocator;
 };
 
 /**

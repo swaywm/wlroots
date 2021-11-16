@@ -45,7 +45,6 @@ void wlr_backend_init(struct wlr_backend *backend,
 
 void wlr_backend_finish(struct wlr_backend *backend) {
 	wlr_signal_emit_safe(&backend->events.destroy, backend);
-	wlr_allocator_destroy(backend->allocator);
 	if (backend->has_own_renderer) {
 		wlr_renderer_destroy(backend->renderer);
 	}
@@ -173,23 +172,6 @@ uint32_t backend_get_buffer_caps(struct wlr_backend *backend) {
 	}
 
 	return backend->impl->get_buffer_caps(backend);
-}
-
-struct wlr_allocator *backend_get_allocator(struct wlr_backend *backend) {
-	if (backend->allocator != NULL) {
-		return backend->allocator;
-	}
-
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(backend);
-	if (renderer == NULL) {
-		return NULL;
-	}
-
-	backend->allocator = wlr_allocator_autocreate(backend, renderer);
-	if (backend->allocator == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create backend allocator");
-	}
-	return backend->allocator;
 }
 
 static size_t parse_outputs_env(const char *name) {
