@@ -309,7 +309,6 @@ static bool gles2_render_subtexture_with_matrix(
 	glUseProgram(shader->program);
 
 	glUniformMatrix3fv(shader->proj, 1, GL_FALSE, gl_matrix);
-	glUniform1i(shader->invert_y, texture->inverted_y);
 	glUniform1i(shader->tex, 0);
 	glUniform1f(shader->alpha, alpha);
 
@@ -810,7 +809,6 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 		goto error;
 	}
 	renderer->shaders.tex_rgba.proj = glGetUniformLocation(prog, "proj");
-	renderer->shaders.tex_rgba.invert_y = glGetUniformLocation(prog, "invert_y");
 	renderer->shaders.tex_rgba.tex = glGetUniformLocation(prog, "tex");
 	renderer->shaders.tex_rgba.alpha = glGetUniformLocation(prog, "alpha");
 	renderer->shaders.tex_rgba.pos_attrib = glGetAttribLocation(prog, "pos");
@@ -822,7 +820,6 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 		goto error;
 	}
 	renderer->shaders.tex_rgbx.proj = glGetUniformLocation(prog, "proj");
-	renderer->shaders.tex_rgbx.invert_y = glGetUniformLocation(prog, "invert_y");
 	renderer->shaders.tex_rgbx.tex = glGetUniformLocation(prog, "tex");
 	renderer->shaders.tex_rgbx.alpha = glGetUniformLocation(prog, "alpha");
 	renderer->shaders.tex_rgbx.pos_attrib = glGetAttribLocation(prog, "pos");
@@ -835,7 +832,6 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 			goto error;
 		}
 		renderer->shaders.tex_ext.proj = glGetUniformLocation(prog, "proj");
-		renderer->shaders.tex_ext.invert_y = glGetUniformLocation(prog, "invert_y");
 		renderer->shaders.tex_ext.tex = glGetUniformLocation(prog, "tex");
 		renderer->shaders.tex_ext.alpha = glGetUniformLocation(prog, "alpha");
 		renderer->shaders.tex_ext.pos_attrib = glGetAttribLocation(prog, "pos");

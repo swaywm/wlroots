@@ -77,7 +77,7 @@ static void frame_output_handle_commit(struct wl_listener *listener,
 	uint32_t mod_high = attribs.modifier >> 32;
 	uint32_t mod_low = attribs.modifier & 0xFFFFFFFF;
 	zwlr_export_dmabuf_frame_v1_send_frame(frame->resource,
-		attribs.width, attribs.height, 0, 0, attribs.flags, frame_flags,
+		attribs.width, attribs.height, 0, 0, 0, frame_flags,
 		attribs.format, mod_high, mod_low, attribs.n_planes);
 
 	for (int i = 0; i < attribs.n_planes; ++i) {

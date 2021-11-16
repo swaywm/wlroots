@@ -166,18 +166,8 @@ static struct wl_buffer *import_dmabuf(struct wlr_wl_backend *wl,
 			dmabuf->offset[i], dmabuf->stride[i], modifier_hi, modifier_lo);
 	}
 
-	uint32_t flags = 0;
-	if (dmabuf->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) {
-		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT;
-	}
-	if (dmabuf->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_INTERLACED) {
-		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_INTERLACED;
-	}
-	if (dmabuf->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_BOTTOM_FIRST) {
-		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_BOTTOM_FIRST;
-	}
 	struct wl_buffer *wl_buffer = zwp_linux_buffer_params_v1_create_immed(
-		params, dmabuf->width, dmabuf->height, dmabuf->format, flags);
+		params, dmabuf->width, dmabuf->height, dmabuf->format, 0);
 	// TODO: handle create() errors
 	return wl_buffer;
 }

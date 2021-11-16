@@ -254,8 +254,7 @@ error_src_tex:
 	return false;
 }
 
-static bool frame_dma_copy(struct wlr_screencopy_frame_v1 *frame,
-		uint32_t *flags) {
+static bool frame_dma_copy(struct wlr_screencopy_frame_v1 *frame) {
 	struct wlr_dmabuf_v1_buffer *dma_buffer = frame->dma_buffer;
 	struct wlr_output *output = frame->output;
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
@@ -268,11 +267,7 @@ static bool frame_dma_copy(struct wlr_screencopy_frame_v1 *frame,
 		return false;
 	}
 
-	bool ok = blit_dmabuf(renderer, dma_buffer, output->front_buffer);
-	*flags = dma_buffer->attributes.flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT ?
-		ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT : 0;
-
-	return ok;
+	return blit_dmabuf(renderer, dma_buffer, output->front_buffer);
 }
 
 static void frame_handle_output_commit(struct wl_listener *listener,
@@ -282,7 +277,6 @@ static void frame_handle_output_commit(struct wl_listener *listener,
 	struct wlr_output_event_commit *event = data;
 	struct wlr_output *output = frame->output;
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
-	uint32_t flags;
 	assert(renderer);
 
 	if (!(event->committed & WLR_OUTPUT_STATE_BUFFER)) {
@@ -304,8 +298,9 @@ static void frame_handle_output_commit(struct wl_listener *listener,
 	wl_list_remove(&frame->output_commit.link);
 	wl_list_init(&frame->output_commit.link);
 
+	uint32_t flags = 0;
 	bool ok = frame->shm_buffer ?
-		frame_shm_copy(frame, &flags) : frame_dma_copy(frame, &flags);
+		frame_shm_copy(frame, &flags) : frame_dma_copy(frame);
 	if (!ok) {
 		zwlr_screencopy_frame_v1_send_failed(frame->resource);
 		frame_destroy(frame);

@@ -215,10 +215,14 @@ static void params_create_common(struct wl_resource *params_resource,
 		goto err_out;
 	}
 
+	if (flags != 0) {
+		wlr_log(WLR_ERROR, "dmabuf flags aren't supported");
+		goto err_failed;
+	}
+
 	attribs.width = width;
 	attribs.height = height;
 	attribs.format = format;
-	attribs.flags = flags;
 
 	if (width < 1 || height < 1) {
 		wl_resource_post_error(params_resource,

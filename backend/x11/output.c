@@ -140,10 +140,6 @@ static xcb_pixmap_t import_dmabuf(struct wlr_x11_output *output,
 		return XCB_PIXMAP_NONE;
 	}
 
-	if (dmabuf->flags != 0) {
-		return XCB_PIXMAP_NONE;
-	}
-
 	// xcb closes the FDs after sending them, so we need to dup them here
 	struct wlr_dmabuf_attributes dup_attrs = {0};
 	if (!wlr_dmabuf_attributes_copy(&dup_attrs, dmabuf)) {

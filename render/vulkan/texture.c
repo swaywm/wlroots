@@ -605,19 +605,6 @@ static struct wlr_texture *vulkan_texture_from_dmabuf(struct wlr_renderer *wlr_r
 		goto error;
 	}
 
-	uint32_t flags = attribs->flags;
-	if (flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) {
-		texture->invert_y = true;
-		flags &= ~WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT;
-	}
-
-	if (flags != 0) {
-		wlr_log(WLR_ERROR, "dmabuf flags %x not supported/implemented on vulkan",
-			attribs->flags);
-		// NOTE: should probably make this a critical error in future
-		// return VK_NULL_HANDLE;
-	}
-
 	const struct wlr_pixel_format_info *format_info = drm_get_pixel_format_info(attribs->format);
 	assert(format_info);
 
