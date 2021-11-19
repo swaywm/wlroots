@@ -189,6 +189,9 @@ static struct subbackend_state *multi_backend_get_subbackend(struct wlr_multi_ba
 
 bool wlr_multi_backend_add(struct wlr_backend *_multi,
 		struct wlr_backend *backend) {
+	assert(_multi && backend);
+	assert(_multi != backend);
+
 	struct wlr_multi_backend *multi = multi_backend_from_backend(_multi);
 
 	if (multi_backend_get_subbackend(multi, backend)) {
