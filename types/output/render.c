@@ -23,8 +23,8 @@ bool wlr_output_init_render(struct wlr_output *output,
 		wlr_log(WLR_ERROR, "output backend and allocator buffer capabilities "
 			"don't match");
 		return false;
-	} else if (!(backend_caps & renderer_caps)) {
-		wlr_log(WLR_ERROR, "output backend and renderer buffer capabilities "
+	} else if (!(renderer_caps & allocator->buffer_caps)) {
+		wlr_log(WLR_ERROR, "renderer and allocator buffer capabilities "
 			"don't match");
 		return false;
 	}
