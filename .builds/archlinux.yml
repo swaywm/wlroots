@@ -23,14 +23,14 @@ sources:
 tasks:
   - setup: |
       cd wlroots
-      CC=gcc meson build-gcc --fatal-meson-warnings --default-library=both -Dauto_features=enabled --prefix /usr
+      CC=gcc meson build-gcc --fatal-meson-warnings --default-library=both -Dauto_features=enabled --prefix /usr -Db_sanitize=address,undefined
       CC=clang meson build-clang --fatal-meson-warnings -Dauto_features=enabled
   - gcc: |
       cd wlroots/build-gcc
       ninja
       sudo ninja install
       cd ../tinywl
-      make
+      CFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" make
   - clang: |
       cd wlroots/build-clang
       ninja
