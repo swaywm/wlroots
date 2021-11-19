@@ -10,7 +10,7 @@ wlroots reads these environment variables
 * *WLR_XWAYLAND*: specifies the path to an Xwayland binary to be used (instead
   of following shell search semantics for "Xwayland")
 * *WLR_RENDERER*: forces the creation of a specified renderer (available
-  renderers: gles2, pixman)
+  renderers: gles2, pixman, vulkan)
 
 ## DRM backend
 
