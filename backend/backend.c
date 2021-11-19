@@ -258,46 +258,46 @@ static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 }
 #endif
 
-static struct wlr_backend *attempt_backend_by_name(struct wl_display *display,
-		struct wlr_backend *backend, struct wlr_session **session,
-		const char *name) {
+static bool attempt_backend_by_name(struct wl_display *display,
+		struct wlr_multi_backend *multi, char *name) {
+	struct wlr_backend *backend = NULL;
 	if (strcmp(name, "wayland") == 0) {
-		return attempt_wl_backend(display);
+		backend = attempt_wl_backend(display);
 #if WLR_HAS_X11_BACKEND
 	} else if (strcmp(name, "x11") == 0) {
-		return attempt_x11_backend(display, NULL);
+		backend = attempt_x11_backend(display, NULL);
 #endif
 	} else if (strcmp(name, "headless") == 0) {
-		return attempt_headless_backend(display);
+		backend = attempt_headless_backend(display);
 	} else if (strcmp(name, "noop") == 0) {
-		return attempt_noop_backend(display);
+		backend = attempt_noop_backend(display);
 	} else if (strcmp(name, "drm") == 0 || strcmp(name, "libinput") == 0) {
 		// DRM and libinput need a session
-		if (!*session) {
-			*session = session_create_and_wait(display);
-			if (!*session) {
+		if (multi->session == NULL) {
+			multi->session = session_create_and_wait(display);
+			if (multi->session == NULL) {
 				wlr_log(WLR_ERROR, "failed to start a session");
-				return NULL;
+				return false;
 			}
 		}
 
 		if (strcmp(name, "libinput") == 0) {
 #if WLR_HAS_LIBINPUT_BACKEND
-			return wlr_libinput_backend_create(display, *session);
-#else
-			return NULL;
+			backend = wlr_libinput_backend_create(display, multi->session);
 #endif
 		} else {
 #if WLR_HAS_DRM_BACKEND
-			return attempt_drm_backend(display, backend, *session);
-#else
-			return NULL;
+			// attempt_drm_backend adds the multi drm backends itself
+			return attempt_drm_backend(display, &multi->backend,
+					multi->session) != NULL;
 #endif
 		}
+	} else {
+		wlr_log(WLR_ERROR, "unrecognized backend '%s'", name);
+		return false;
 	}
 
-	wlr_log(WLR_ERROR, "unrecognized backend '%s'", name);
-	return NULL;
+	return wlr_multi_backend_add(&multi->backend, backend);
 }
 
 struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
@@ -323,17 +323,7 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 		char *saveptr;
 		char *name = strtok_r(names, ",", &saveptr);
 		while (name != NULL) {
-			struct wlr_backend *subbackend = attempt_backend_by_name(display,
-				backend, &multi->session, name);
-			if (subbackend == NULL) {
-				wlr_log(WLR_ERROR, "failed to start backend '%s'", name);
-				wlr_session_destroy(multi->session);
-				wlr_backend_destroy(backend);
-				free(names);
-				return NULL;
-			}
-
-			if (!wlr_multi_backend_add(backend, subbackend)) {
+			if (!attempt_backend_by_name(display, multi, name)) {
 				wlr_log(WLR_ERROR, "failed to add backend '%s'", name);
 				wlr_session_destroy(multi->session);
 				wlr_backend_destroy(backend);
