@@ -14,7 +14,7 @@ wlroots reads these environment variables
 
 ## DRM backend
 
-* *WLR_DRM_DEVICES*: specifies the DRM devices (as a colon separated list)
+* *WLR_DRM_DEVICES*: specifies the DRM devices (as a comma separated list)
   instead of auto probing them. The first existing device in this list is
   considered the primary DRM device.
 * *WLR_DRM_NO_ATOMIC*: set to 1 to use legacy DRM interface instead of atomic
