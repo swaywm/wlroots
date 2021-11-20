@@ -123,6 +123,19 @@ static void surface_handle_set_input_region(struct wl_client *client,
 	}
 }
 
+static void surface_state_transformed_buffer_size(struct wlr_surface_state *state,
+		int *out_width, int *out_height) {
+	int width = state->buffer_width;
+	int height = state->buffer_height;
+	if ((state->transform & WL_OUTPUT_TRANSFORM_90) != 0) {
+		int tmp = width;
+		width = height;
+		height = tmp;
+	}
+	*out_width = width;
+	*out_height = height;
+}
+
 /**
  * Computes the surface viewport source size, ie. the size after applying the
  * surface's scale, transform and cropping (via the viewport's source
@@ -140,15 +153,10 @@ static void surface_state_viewport_src_size(struct wlr_surface_state *state,
 		*out_width = state->viewport.src.width;
 		*out_height = state->viewport.src.height;
 	} else {
-		int width = state->buffer_width / state->scale;
-		int height = state->buffer_height / state->scale;
-		if ((state->transform & WL_OUTPUT_TRANSFORM_90) != 0) {
-			int tmp = width;
-			width = height;
-			height = tmp;
-		}
-		*out_width = width;
-		*out_height = height;
+		surface_state_transformed_buffer_size(state,
+			out_width, out_height);
+		*out_width /= state->scale;
+		*out_height /= state->scale;
 	}
 }
 
@@ -225,10 +233,13 @@ static void surface_update_damage(pixman_region32_t *buffer_damage,
 				floor(pending->viewport.src.y));
 		}
 
+		wlr_region_scale(&surface_damage, &surface_damage, pending->scale);
+
+		int width, height;
+		surface_state_transformed_buffer_size(pending, &width, &height);
 		wlr_region_transform(&surface_damage, &surface_damage,
 			wlr_output_transform_invert(pending->transform),
-			pending->width, pending->height);
-		wlr_region_scale(&surface_damage, &surface_damage, pending->scale);
+			width, height);
 
 		pixman_region32_union(buffer_damage,
 			&pending->buffer_damage, &surface_damage);
@@ -1472,7 +1483,11 @@ void wlr_surface_get_buffer_source_box(struct wlr_surface *surface,
 		box->y = surface->current.viewport.src.y * surface->current.scale;
 		box->width = surface->current.viewport.src.width * surface->current.scale;
 		box->height = surface->current.viewport.src.height * surface->current.scale;
-		wlr_fbox_transform(box, box, surface->current.transform,
-			surface->current.buffer_width, surface->current.buffer_height);
+
+		int width, height;
+		surface_state_transformed_buffer_size(&surface->current, &width, &height);
+		wlr_fbox_transform(box, box,
+			wlr_output_transform_invert(surface->current.transform),
+			width, height);
 	}
 }
