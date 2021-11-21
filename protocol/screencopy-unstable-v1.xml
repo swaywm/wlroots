@@ -51,12 +51,12 @@
       <arg name="output" type="object" interface="wl_output"/>
     </request>
 
-    <request name="capture_output_cursor">
-      <description summary="capture an output's cursor">
-        Create a capturing surface for an output's cursor
+    <request name="capture_cursor">
+      <description summary="capture a cursor">
+        Create a capturing surface for a cursor
       </description>
       <arg name="surface" type="new_id" interface="zext_screencopy_surface_v1"/>
-      <arg name="output" type="object" interface="wl_output"/>
+      <arg name="output" type="object" interface="wl_seat"/>
     </request>
   </interface>
 
@@ -94,8 +94,8 @@
 
     <enum name="options" bitfield="true">
       <entry name="none" value="0"/>
-      <entry name="wait_for_damage" value="1"/>
-      <entry name="schedule_frame" value="2"/>
+      <entry name="immediate" value="1"/>
+      <entry name="with_cursors" value="2"/>
     </enum>
 
     <enum name="buffer_type">
@@ -108,9 +108,7 @@
       <description summary="buffer information">
         Provides information about buffer parameters that need to be used for
         this surface. This event is sent for every supported buffer type after
-        the surface is created. After all supported buffers have been
-        enumerated, an event with type = none is sent. All other parameters
-        should be set to 0.
+        the surface is created.
 
         The stride parameter is invalid for dmabuf and may be set to 0.
       </description>
@@ -119,6 +117,12 @@
       <arg name="width" type="uint" summary="buffer width"/>
       <arg name="height" type="uint" summary="buffer height"/>
       <arg name="stride" type="uint" summary="buffer stride"/>
+    </event>
+
+    <event name="init_done">
+      <description summary="surface initialisation done">
+        This event is sent once when all buffer info events have been sent.
+      </description>
     </event>
 
     <request name="attach_buffer">
@@ -137,6 +141,8 @@
 
         The client must submit damage if it's using multiple buffers. Otherwise,
         the server might not copy into damaged regions of the buffer.
+
+        These coordinates originate in the upper left corner of the buffer.
       </description>
       <arg name="x" type="uint" summary="region x coordinates"/>
       <arg name="y" type="uint" summary="region y coordinates"/>
@@ -146,11 +152,23 @@
 
     <request name="commit">
       <description summary="commit surface">
-        Commit the screencopy surface. The frame will be copied to the surface
-        on next frame commit.
+        Commit the screencopy surface.
 
-        If the "copy_on_damage" flag is set, no copies are carried out until the
-        source surface is damaged.
+        For output surfaces, the frame will be copied to the surface on next
+        output commit. A ready event is generated when the buffer is ready.
+
+        For cursor surfaces, the cursor will be copied to the surface the moment
+        at which the cursor is applied to the output, whether it be software or
+        hardware composited. A ready event is generated when the buffer is ready
+        and that ready event should always happen before any pending output
+        surface ready event.
+
+        If the "immediate" flag is set, the compositor must present a frame to
+        the client as soon as possible.
+
+        If the "with_cursors" flag is set, cursors shall be composited onto the
+        surface. Otherwise, the compositor should try to leave them out, if
+        possible.
       </description>
       <arg name="options" type="uint" enum="options"/>
     </request>
@@ -177,6 +195,8 @@
 
         The arguments describe a box around an area that has changed since the
         last ready event.
+
+        These coordinates originate in the upper left corner of the buffer.
       </description>
       <arg name="x" type="uint" summary="damaged x coordinates"/>
       <arg name="y" type="uint" summary="damaged y coordinates"/>
@@ -186,9 +206,11 @@
 
     <event name="cursor_info">
       <description summary="cursor specific information">
-        This event is only relevant when a cursor is being captured. It may be
-        generated at any time, but it should at least be generated once before
-        the first ready event of the surface.
+        This event is only relevant for cursor capturing surfaces. It is
+        generated on cursor surfaces to report the position of the cursor in
+        global coordinates.
+
+        The hotspot position is relative to the cursor buffer.
       </description>
       <arg name="position_x" type="int" summary="position x coordinates"/>
       <arg name="position_y" type="int" summary="position y coordinates"/>
