@@ -20,6 +20,8 @@ struct wlr_dmabuf_v1_buffer {
 	struct wl_resource *resource; // can be NULL if the client destroyed it
 	struct wlr_dmabuf_attributes attributes;
 
+	// private state
+
 	struct wl_listener release;
 };
 
@@ -36,13 +38,6 @@ bool wlr_dmabuf_v1_resource_is_buffer(struct wl_resource *buffer_resource);
 struct wlr_dmabuf_v1_buffer *wlr_dmabuf_v1_buffer_from_buffer_resource(
 	struct wl_resource *buffer_resource);
 
-struct wlr_linux_buffer_params_v1 {
-	struct wl_resource *resource;
-	struct wlr_linux_dmabuf_v1 *linux_dmabuf;
-	struct wlr_dmabuf_attributes attributes;
-	bool has_modifier;
-};
-
 /* the protocol interface */
 struct wlr_linux_dmabuf_v1 {
 	struct wl_global *global;
@@ -51,6 +46,8 @@ struct wlr_linux_dmabuf_v1 {
 	struct {
 		struct wl_signal destroy;
 	} events;
+
+	// private state
 
 	struct wl_listener display_destroy;
 	struct wl_listener renderer_destroy;

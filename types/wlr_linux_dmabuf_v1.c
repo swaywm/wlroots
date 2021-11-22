@@ -13,6 +13,13 @@
 
 #define LINUX_DMABUF_VERSION 3
 
+struct wlr_linux_buffer_params_v1 {
+	struct wl_resource *resource;
+	struct wlr_linux_dmabuf_v1 *linux_dmabuf;
+	struct wlr_dmabuf_attributes attributes;
+	bool has_modifier;
+};
+
 static void buffer_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
