@@ -33,8 +33,7 @@ static bool backend_start(struct wlr_backend *wlr_backend) {
 	}
 
 	struct wlr_headless_input_device *input_device;
-	wl_list_for_each(input_device, &backend->input_devices,
-			wlr_input_device.link) {
+	wl_list_for_each(input_device, &backend->input_devices, link) {
 		wlr_signal_emit_safe(&backend->backend.events.new_input,
 			&input_device->wlr_input_device);
 	}
@@ -59,7 +58,7 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 
 	struct wlr_headless_input_device *input_device, *input_device_tmp;
 	wl_list_for_each_safe(input_device, input_device_tmp,
-			&backend->input_devices, wlr_input_device.link) {
+			&backend->input_devices, link) {
 		wlr_input_device_destroy(&input_device->wlr_input_device);
 	}
 

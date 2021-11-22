@@ -87,6 +87,7 @@ struct wlr_wl_output {
 
 struct wlr_wl_input_device {
 	struct wlr_input_device wlr_input_device;
+	struct wl_list link;
 	uint32_t fingers;
 
 	struct wlr_wl_backend *backend;

@@ -314,9 +314,9 @@ static void backend_destroy(struct wlr_backend *backend) {
 		wlr_output_destroy(&output->wlr_output);
 	}
 
-	struct wlr_input_device *input_device, *tmp_input_device;
+	struct wlr_wl_input_device *input_device, *tmp_input_device;
 	wl_list_for_each_safe(input_device, tmp_input_device, &wl->devices, link) {
-		wlr_input_device_destroy(input_device);
+		wlr_input_device_destroy(&input_device->wlr_input_device);
 	}
 
 	struct wlr_wl_buffer *buffer, *tmp_buffer;
