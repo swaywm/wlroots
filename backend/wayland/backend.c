@@ -75,6 +75,16 @@ static const struct xdg_wm_base_listener xdg_wm_base_listener = {
 	xdg_wm_base_handle_ping,
 };
 
+static void presentation_handle_clock_id(void *data,
+		struct wp_presentation *presentation, uint32_t clock) {
+	struct wlr_wl_backend *wl = data;
+	wl->presentation_clock = clock;
+}
+
+static const struct wp_presentation_listener presentation_listener = {
+	.clock_id = presentation_handle_clock_id,
+};
+
 static void linux_dmabuf_v1_handle_format(void *data,
 		struct zwp_linux_dmabuf_v1 *linux_dmabuf_v1, uint32_t format) {
 	// Note, this event is deprecated
@@ -227,6 +237,8 @@ static void registry_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(iface, wp_presentation_interface.name) == 0) {
 		wl->presentation = wl_registry_bind(registry, name,
 			&wp_presentation_interface, 1);
+		wp_presentation_add_listener(wl->presentation,
+			&presentation_listener, wl);
 	} else if (strcmp(iface, zwp_tablet_manager_v2_interface.name) == 0) {
 		wl->tablet_manager = wl_registry_bind(registry, name,
 			&zwp_tablet_manager_v2_interface, 1);
@@ -352,6 +364,11 @@ static void backend_destroy(struct wlr_backend *backend) {
 	free(wl);
 }
 
+static clockid_t backend_get_presentation_clock(struct wlr_backend *backend) {
+	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
+	return wl->presentation_clock;
+}
+
 static int backend_get_drm_fd(struct wlr_backend *backend) {
 	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
 	return wl->drm_fd;
@@ -366,6 +383,7 @@ static uint32_t get_buffer_caps(struct wlr_backend *backend) {
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
+	.get_presentation_clock = backend_get_presentation_clock,
 	.get_drm_fd = backend_get_drm_fd,
 	.get_buffer_caps = get_buffer_caps,
 };
@@ -397,6 +415,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	wl_list_init(&wl->outputs);
 	wl_list_init(&wl->seats);
 	wl_list_init(&wl->buffers);
+	wl->presentation_clock = CLOCK_MONOTONIC;
 
 	wl->remote_display = wl_display_connect(remote);
 	if (!wl->remote_display) {

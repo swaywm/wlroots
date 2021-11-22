@@ -40,6 +40,7 @@ struct wlr_wl_backend {
 	struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1;
 	struct wl_list seats; // wlr_wl_seat.link
 	struct zwp_tablet_manager_v2 *tablet_manager;
+	clockid_t presentation_clock;
 	struct wlr_drm_format_set shm_formats;
 	struct wlr_drm_format_set linux_dmabuf_v1_formats;
 	struct wl_drm *legacy_drm;
