@@ -10,6 +10,8 @@ wlroots reads these environment variables
   of following shell search semantics for "Xwayland")
 * *WLR_RENDERER*: forces the creation of a specified renderer (available
   renderers: gles2, pixman, vulkan)
+* *WLR_RENDER_DRM_DEVICE*: specifies the DRM node to use for
+  hardware-accelerated renderers.
 
 ## DRM backend
 

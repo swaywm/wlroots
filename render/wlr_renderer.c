@@ -348,18 +348,41 @@ out:
 }
 
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
-	// Note, drm_fd may be negative if unavailable
-	int drm_fd = wlr_backend_get_drm_fd(backend);
+	int drm_fd = -1;
+	int render_drm_fd = -1;
+
+	// Allow the user to override the render node
+	const char *render_name = getenv("WLR_RENDER_DRM_DEVICE");
+	if (render_name != NULL) {
+		wlr_log(WLR_INFO,
+			"Opening DRM render node '%s' from WLR_RENDER_DRM_DEVICE",
+			render_name);
+		render_drm_fd = open(render_name, O_RDWR | O_CLOEXEC);
+		if (render_drm_fd < 0) {
+			wlr_log_errno(WLR_ERROR, "Failed to open '%s'", render_name);
+			return NULL;
+		}
+		if (drmGetNodeTypeFromFd(render_drm_fd) != DRM_NODE_RENDER) {
+			wlr_log(WLR_ERROR, "'%s' is not a DRM render node", render_name);
+			close(render_drm_fd);
+			return NULL;
+		}
+		drm_fd = render_drm_fd;
+	}
+
+	if (drm_fd < 0) {
+		drm_fd = wlr_backend_get_drm_fd(backend);
+	}
 
 	// If the backend hasn't picked a DRM FD, but accepts DMA-BUFs, pick an
 	// arbitrary render node
-	int render_drm_fd = -1;
 	uint32_t backend_caps = backend_get_buffer_caps(backend);
 	if (drm_fd < 0 && (backend_caps & WLR_BUFFER_CAP_DMABUF) != 0) {
 		render_drm_fd = open_drm_render_node();
 		drm_fd = render_drm_fd;
 	}
 
+	// Note, drm_fd may be negative if unavailable
 	struct wlr_renderer *renderer = renderer_autocreate_with_drm_fd(drm_fd);
 
 	if (render_drm_fd >= 0) {
