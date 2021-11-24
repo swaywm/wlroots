@@ -139,6 +139,9 @@ struct wlr_allocator *wlr_allocator_autocreate(struct wlr_backend *backend,
 		struct wlr_renderer *renderer) {
 	// Note, drm_fd may be negative if unavailable
 	int drm_fd = wlr_backend_get_drm_fd(backend);
+	if (drm_fd < 0) {
+		drm_fd = wlr_renderer_get_drm_fd(renderer);
+	}
 	return allocator_autocreate_with_drm_fd(backend, renderer, drm_fd);
 }
 
