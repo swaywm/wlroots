@@ -51,6 +51,18 @@ void wlr_allocator_destroy(struct wlr_allocator *alloc);
  *
  * When the caller is done with it, they must unreference it by calling
  * wlr_buffer_drop.
+ *
+ * The `format` passed in indicates the format to use and the list of
+ * acceptable modifiers. The order in which modifiers are listed is not
+ * significant.
+ *
+ * When running with legacy drivers which don't support explicit modifiers, the
+ * allocator must recognize two modifiers: INVALID (for implicit tiling and/or
+ * compression) and LINEAR.
+ *
+ * The allocator must return a buffer using one of the modifiers listed. In
+ * particular, allocators must not return a buffer with an implicit modifier
+ * unless the user has allowed it by passing INVALID in the modifier list.
  */
 struct wlr_buffer *wlr_allocator_create_buffer(struct wlr_allocator *alloc,
 	int width, int height, const struct wlr_drm_format *format);
