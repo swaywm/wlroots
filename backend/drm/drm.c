@@ -121,11 +121,12 @@ static bool add_plane(struct wlr_drm_backend *drm,
 	for (size_t i = 0; i < drm_plane->count_formats; ++i) {
 		// Force a LINEAR layout for the cursor if the driver doesn't support
 		// modifiers
-		uint64_t mod = DRM_FORMAT_MOD_INVALID;
-		if (type == DRM_PLANE_TYPE_CURSOR) {
-			mod = DRM_FORMAT_MOD_LINEAR;
+		wlr_drm_format_set_add(&p->formats, drm_plane->formats[i],
+			DRM_FORMAT_MOD_LINEAR);
+		if (type != DRM_PLANE_TYPE_CURSOR) {
+			wlr_drm_format_set_add(&p->formats, drm_plane->formats[i],
+				DRM_FORMAT_MOD_INVALID);
 		}
-		wlr_drm_format_set_add(&p->formats, drm_plane->formats[i], mod);
 	}
 
 	if (p->props.in_formats && drm->addfb2_modifiers) {
