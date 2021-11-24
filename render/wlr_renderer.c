@@ -1,6 +1,9 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/pixman.h>
 #include <wlr/render/wlr_renderer.h>
@@ -9,6 +12,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/util/box.h>
 #include <wlr/util/log.h>
+#include <xf86drm.h>
 
 #include <wlr/config.h>
 
@@ -21,6 +25,7 @@
 #include <wlr/render/vulkan.h>
 #endif // WLR_HAS_VULKAN_RENDERER
 
+#include "backend/backend.h"
 #include "util/signal.h"
 #include "render/pixel_format.h"
 #include "render/wlr_renderer.h"
@@ -296,10 +301,72 @@ struct wlr_renderer *renderer_autocreate_with_drm_fd(int drm_fd) {
 	return NULL;
 }
 
+static int open_drm_render_node(void) {
+	uint32_t flags = 0;
+	int devices_len = drmGetDevices2(flags, NULL, 0);
+	if (devices_len < 0) {
+		wlr_log(WLR_ERROR, "drmGetDevices2 failed: %s", strerror(-devices_len));
+		return -1;
+	}
+	drmDevice **devices = calloc(devices_len, sizeof(drmDevice *));
+	if (devices == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return -1;
+	}
+	devices_len = drmGetDevices2(flags, devices, devices_len);
+	if (devices_len < 0) {
+		free(devices);
+		wlr_log(WLR_ERROR, "drmGetDevices2 failed: %s", strerror(-devices_len));
+		return -1;
+	}
+
+	int fd = -1;
+	for (int i = 0; i < devices_len; i++) {
+		drmDevice *dev = devices[i];
+		if (dev->available_nodes & (1 << DRM_NODE_RENDER)) {
+			const char *name = dev->nodes[DRM_NODE_RENDER];
+			wlr_log(WLR_DEBUG, "Opening DRM render node '%s'", name);
+			fd = open(name, O_RDWR | O_CLOEXEC);
+			if (fd < 0) {
+				wlr_log_errno(WLR_ERROR, "Failed to open '%s'", name);
+				goto out;
+			}
+			break;
+		}
+	}
+	if (fd < 0) {
+		wlr_log(WLR_ERROR, "Failed to find any DRM render node");
+	}
+
+out:
+	for (int i = 0; i < devices_len; i++) {
+		drmFreeDevice(&devices[i]);
+	}
+	free(devices);
+
+	return fd;
+}
+
 struct wlr_renderer *wlr_renderer_autocreate(struct wlr_backend *backend) {
 	// Note, drm_fd may be negative if unavailable
 	int drm_fd = wlr_backend_get_drm_fd(backend);
-	return renderer_autocreate_with_drm_fd(drm_fd);
+
+	// If the backend hasn't picked a DRM FD, but accepts DMA-BUFs, pick an
+	// arbitrary render node
+	int render_drm_fd = -1;
+	uint32_t backend_caps = backend_get_buffer_caps(backend);
+	if (drm_fd < 0 && (backend_caps & WLR_BUFFER_CAP_DMABUF) != 0) {
+		render_drm_fd = open_drm_render_node();
+		drm_fd = render_drm_fd;
+	}
+
+	struct wlr_renderer *renderer = renderer_autocreate_with_drm_fd(drm_fd);
+
+	if (render_drm_fd >= 0) {
+		close(render_drm_fd);
+	}
+
+	return renderer;
 }
 
 int wlr_renderer_get_drm_fd(struct wlr_renderer *r) {
