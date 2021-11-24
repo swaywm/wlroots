@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <wlr/interfaces/wlr_output.h>
-#include <wlr/render/wlr_renderer.h>
 #include <wlr/util/log.h>
 #include "backend/headless.h"
 #include "util/signal.h"

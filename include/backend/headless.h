@@ -8,7 +8,6 @@
 
 struct wlr_headless_backend {
 	struct wlr_backend backend;
-	int drm_fd;
 	struct wl_display *display;
 	struct wl_list outputs;
 	size_t last_output_num;
