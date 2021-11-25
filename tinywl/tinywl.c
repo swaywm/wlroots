@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
+#include <assert.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -14,10 +15,10 @@
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
-#include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_pointer.h>
+#include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell.h>
@@ -36,6 +37,7 @@ struct tinywl_server {
 	struct wlr_backend *backend;
 	struct wlr_renderer *renderer;
 	struct wlr_allocator *allocator;
+	struct wlr_scene *scene;
 
 	struct wlr_xdg_shell *xdg_shell;
 	struct wl_listener new_xdg_surface;
@@ -76,12 +78,12 @@ struct tinywl_view {
 	struct wl_list link;
 	struct tinywl_server *server;
 	struct wlr_xdg_surface *xdg_surface;
+	struct wlr_scene_node *scene_node;
 	struct wl_listener map;
 	struct wl_listener unmap;
 	struct wl_listener destroy;
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
-	bool mapped;
 	int x, y;
 };
 
@@ -118,6 +120,7 @@ static void focus_view(struct tinywl_view *view, struct wlr_surface *surface) {
 	}
 	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
 	/* Move the view to the front */
+	wlr_scene_node_raise_to_top(view->scene_node);
 	wl_list_remove(&view->link);
 	wl_list_insert(&server->views, &view->link);
 	/* Activate the new surface */
@@ -166,14 +169,9 @@ static bool handle_keybinding(struct tinywl_server *server, xkb_keysym_t sym) {
 		if (wl_list_length(&server->views) < 2) {
 			break;
 		}
-		struct tinywl_view *current_view = wl_container_of(
-			server->views.next, current_view, link);
 		struct tinywl_view *next_view = wl_container_of(
-			current_view->link.next, next_view, link);
+			server->views.prev, next_view, link);
 		focus_view(next_view, next_view->xdg_surface->surface);
-		/* Move the previous view to the end of the list */
-		wl_list_remove(&current_view->link);
-		wl_list_insert(server->views.prev, &current_view->link);
 		break;
 	default:
 		return false;
@@ -199,7 +197,8 @@ static void keyboard_handle_key(
 
 	bool handled = false;
 	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
-	if ((modifiers & WLR_MODIFIER_ALT) && event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+	if ((modifiers & WLR_MODIFIER_ALT) &&
+			event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
 		/* If alt is held down and this button was _pressed_, we attempt to
 		 * process it as a compositor keybinding. */
 		for (int i = 0; i < nsyms; i++) {
@@ -310,52 +309,32 @@ static void seat_request_set_selection(struct wl_listener *listener, void *data)
 	wlr_seat_set_selection(server->seat, event->source, event->serial);
 }
 
-static bool view_at(struct tinywl_view *view,
-		double lx, double ly, struct wlr_surface **surface,
-		double *sx, double *sy) {
-	/*
-	 * XDG toplevels may have nested surfaces, such as popup windows for context
-	 * menus or tooltips. This function tests if any of those are underneath the
-	 * coordinates lx and ly (in output Layout Coordinates). If so, it sets the
-	 * surface pointer to that wlr_surface and the sx and sy coordinates to the
-	 * coordinates relative to that surface's top-left corner.
-	 */
-	double view_sx = lx - view->x;
-	double view_sy = ly - view->y;
-
-	double _sx, _sy;
-	struct wlr_surface *_surface = NULL;
-	_surface = wlr_xdg_surface_surface_at(
-			view->xdg_surface, view_sx, view_sy, &_sx, &_sy);
-
-	if (_surface != NULL) {
-		*sx = _sx;
-		*sy = _sy;
-		*surface = _surface;
-		return true;
-	}
-
-	return false;
-}
-
 static struct tinywl_view *desktop_view_at(
 		struct tinywl_server *server, double lx, double ly,
 		struct wlr_surface **surface, double *sx, double *sy) {
-	/* This iterates over all of our surfaces and attempts to find one under the
-	 * cursor. This relies on server->views being ordered from top-to-bottom. */
-	struct tinywl_view *view;
-	wl_list_for_each(view, &server->views, link) {
-		if (view_at(view, lx, ly, surface, sx, sy)) {
-			return view;
-		}
+	/* This returns the topmost node in the scene at the given layout coords.
+	 * we only care about surface nodes as we are specifically looking for a
+	 * surface in the surface tree of a tinywl_view. */
+	struct wlr_scene_node *node = wlr_scene_node_at(
+		&server->scene->node, lx, ly, sx, sy);
+	if (node == NULL || node->type != WLR_SCENE_NODE_SURFACE) {
+		return NULL;
 	}
-	return NULL;
+	*surface = wlr_scene_surface_from_node(node)->surface;
+	/* Find the node corresponding to the tinywl_view at the root of this
+	 * surface tree, it is the only one for which we set the data field. */
+	while (node != NULL && node->data == NULL) {
+		node = node->parent;
+	}
+	return node->data;
 }
 
 static void process_cursor_move(struct tinywl_server *server, uint32_t time) {
 	/* Move the grabbed view to the new position. */
-	server->grabbed_view->x = server->cursor->x - server->grab_x;
-	server->grabbed_view->y = server->cursor->y - server->grab_y;
+	struct tinywl_view *view = server->grabbed_view;
+	view->x = server->cursor->x - server->grab_x;
+	view->y = server->cursor->y - server->grab_y;
+	wlr_scene_node_set_position(view->scene_node, view->x, view->y);
 }
 
 static void process_cursor_resize(struct tinywl_server *server, uint32_t time) {
@@ -404,6 +383,7 @@ static void process_cursor_resize(struct tinywl_server *server, uint32_t time) {
 	wlr_xdg_surface_get_geometry(view->xdg_surface, &geo_box);
 	view->x = new_left - geo_box.x;
 	view->y = new_top - geo_box.y;
+	wlr_scene_node_set_position(view->scene_node, view->x, view->y);
 
 	int new_width = new_right - new_left;
 	int new_height = new_bottom - new_top;
@@ -530,74 +510,12 @@ static void server_cursor_frame(struct wl_listener *listener, void *data) {
 	wlr_seat_pointer_notify_frame(server->seat);
 }
 
-/* Used to move all of the data necessary to render a surface from the top-level
- * frame handler to the per-surface render function. */
-struct render_data {
-	struct wlr_output *output;
-	struct wlr_renderer *renderer;
-	struct tinywl_view *view;
-	struct timespec *when;
-};
-
-static void render_surface(struct wlr_surface *surface,
+// TODO: We should avoid sending the frame done event twice if a surface
+// appears on multiple outputs.
+// https://github.com/swaywm/wlroots/issues/3210
+static void send_frame_done(struct wlr_surface *surface,
 		int sx, int sy, void *data) {
-	/* This function is called for every surface that needs to be rendered. */
-	struct render_data *rdata = data;
-	struct tinywl_view *view = rdata->view;
-	struct wlr_output *output = rdata->output;
-
-	/* We first obtain a wlr_texture, which is a GPU resource. wlroots
-	 * automatically handles negotiating these with the client. The underlying
-	 * resource could be an opaque handle passed from the client, or the client
-	 * could have sent a pixel buffer which we copied to the GPU, or a few other
-	 * means. You don't have to worry about this, wlroots takes care of it. */
-	struct wlr_texture *texture = wlr_surface_get_texture(surface);
-	if (texture == NULL) {
-		return;
-	}
-
-	/* The view has a position in layout coordinates. If you have two displays,
-	 * one next to the other, both 1080p, a view on the rightmost display might
-	 * have layout coordinates of 2000,100. We need to translate that to
-	 * output-local coordinates, or (2000 - 1920). */
-	double ox = 0, oy = 0;
-	wlr_output_layout_output_coords(
-			view->server->output_layout, output, &ox, &oy);
-	ox += view->x + sx, oy += view->y + sy;
-
-	/* We also have to apply the scale factor for HiDPI outputs. This is only
-	 * part of the puzzle, TinyWL does not fully support HiDPI. */
-	struct wlr_box box = {
-		.x = ox * output->scale,
-		.y = oy * output->scale,
-		.width = surface->current.width * output->scale,
-		.height = surface->current.height * output->scale,
-	};
-
-	/*
-	 * Those familiar with OpenGL are also familiar with the role of matricies
-	 * in graphics programming. We need to prepare a matrix to render the view
-	 * with. wlr_matrix_project_box is a helper which takes a box with a desired
-	 * x, y coordinates, width and height, and an output geometry, then
-	 * prepares an orthographic projection and multiplies the necessary
-	 * transforms to produce a model-view-projection matrix.
-	 *
-	 * Naturally you can do this any way you like, for example to make a 3D
-	 * compositor.
-	 */
-	float matrix[9];
-	enum wl_output_transform transform =
-		wlr_output_transform_invert(surface->current.transform);
-	wlr_matrix_project_box(matrix, &box, transform, 0,
-		output->transform_matrix);
-
-	/* This takes our matrix, the texture, and an alpha, and performs the actual
-	 * rendering on the GPU. */
-	wlr_render_texture_with_matrix(rdata->renderer, texture, matrix, 1);
-
-	/* This lets the client know that we've displayed that frame and it can
-	 * prepare another one now if it likes. */
-	wlr_surface_send_frame_done(surface, rdata->when);
+	wlr_surface_send_frame_done(surface, data);
 }
 
 static void output_frame(struct wl_listener *listener, void *data) {
@@ -605,56 +523,16 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	 * generally at the output's refresh rate (e.g. 60Hz). */
 	struct tinywl_output *output =
 		wl_container_of(listener, output, frame);
-	struct wlr_renderer *renderer = output->server->renderer;
+
+	struct wlr_scene_output *scene_output = wlr_scene_get_scene_output(
+		output->server->scene, output->wlr_output);
+
+	/* Render the scene if needed and commit the output */
+	wlr_scene_output_commit(scene_output);
 
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
-
-	/* wlr_output_attach_render makes the OpenGL context current. */
-	if (!wlr_output_attach_render(output->wlr_output, NULL)) {
-		return;
-	}
-	/* The "effective" resolution can change if you rotate your outputs. */
-	int width, height;
-	wlr_output_effective_resolution(output->wlr_output, &width, &height);
-	/* Begin the renderer (calls glViewport and some other GL sanity checks) */
-	wlr_renderer_begin(renderer, width, height);
-
-	float color[4] = {0.3, 0.3, 0.3, 1.0};
-	wlr_renderer_clear(renderer, color);
-
-	/* Each subsequent window we render is rendered on top of the last. Because
-	 * our view list is ordered front-to-back, we iterate over it backwards. */
-	struct tinywl_view *view;
-	wl_list_for_each_reverse(view, &output->server->views, link) {
-		if (!view->mapped) {
-			/* An unmapped view should not be rendered. */
-			continue;
-		}
-		struct render_data rdata = {
-			.output = output->wlr_output,
-			.view = view,
-			.renderer = renderer,
-			.when = &now,
-		};
-		/* This calls our render_surface function for each surface among the
-		 * xdg_surface's toplevel and popups. */
-		wlr_xdg_surface_for_each_surface(view->xdg_surface,
-				render_surface, &rdata);
-	}
-
-	/* Hardware cursors are rendered by the GPU on a separate plane, and can be
-	 * moved around without re-rendering what's beneath them - which is more
-	 * efficient. However, not all hardware supports hardware cursors. For this
-	 * reason, wlroots provides a software fallback, which we ask it to render
-	 * here. wlr_cursor handles configuring hardware vs software cursors for you,
-	 * and this function is a no-op when hardware cursors are in use. */
-	wlr_output_render_software_cursors(output->wlr_output, NULL);
-
-	/* Conclude rendering and swap the buffers, showing the final frame
-	 * on-screen. */
-	wlr_renderer_end(renderer);
-	wlr_output_commit(output->wlr_output);
+	wlr_scene_output_for_each_surface(scene_output, send_frame_done, &now);
 }
 
 static void server_new_output(struct wl_listener *listener, void *data) {
@@ -704,23 +582,32 @@ static void server_new_output(struct wl_listener *listener, void *data) {
 	wlr_output_layout_add_auto(server->output_layout, wlr_output);
 }
 
-static void xdg_surface_map(struct wl_listener *listener, void *data) {
+static void xdg_toplevel_map(struct wl_listener *listener, void *data) {
 	/* Called when the surface is mapped, or ready to display on-screen. */
 	struct tinywl_view *view = wl_container_of(listener, view, map);
-	view->mapped = true;
+
+	wl_list_insert(&view->server->views, &view->link);
+
 	focus_view(view, view->xdg_surface->surface);
 }
 
-static void xdg_surface_unmap(struct wl_listener *listener, void *data) {
+static void xdg_toplevel_unmap(struct wl_listener *listener, void *data) {
 	/* Called when the surface is unmapped, and should no longer be shown. */
 	struct tinywl_view *view = wl_container_of(listener, view, unmap);
-	view->mapped = false;
+
+	wl_list_remove(&view->link);
 }
 
-static void xdg_surface_destroy(struct wl_listener *listener, void *data) {
+static void xdg_toplevel_destroy(struct wl_listener *listener, void *data) {
 	/* Called when the surface is destroyed and should never be shown again. */
 	struct tinywl_view *view = wl_container_of(listener, view, destroy);
-	wl_list_remove(&view->link);
+
+	wl_list_remove(&view->map.link);
+	wl_list_remove(&view->unmap.link);
+	wl_list_remove(&view->destroy.link);
+	wl_list_remove(&view->request_move.link);
+	wl_list_remove(&view->request_resize.link);
+
 	free(view);
 }
 
@@ -746,8 +633,10 @@ static void begin_interactive(struct tinywl_view *view,
 		struct wlr_box geo_box;
 		wlr_xdg_surface_get_geometry(view->xdg_surface, &geo_box);
 
-		double border_x = (view->x + geo_box.x) + ((edges & WLR_EDGE_RIGHT) ? geo_box.width : 0);
-		double border_y = (view->y + geo_box.y) + ((edges & WLR_EDGE_BOTTOM) ? geo_box.height : 0);
+		double border_x = (view->x + geo_box.x) +
+			((edges & WLR_EDGE_RIGHT) ? geo_box.width : 0);
+		double border_y = (view->y + geo_box.y) +
+			((edges & WLR_EDGE_BOTTOM) ? geo_box.height : 0);
 		server->grab_x = server->cursor->x - border_x;
 		server->grab_y = server->cursor->y - border_y;
 
@@ -788,22 +677,38 @@ static void server_new_xdg_surface(struct wl_listener *listener, void *data) {
 	struct tinywl_server *server =
 		wl_container_of(listener, server, new_xdg_surface);
 	struct wlr_xdg_surface *xdg_surface = data;
-	if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
+
+	/* We must add xdg popups to the scene graph so they get rendered. The
+	 * wlroots scene graph provides a helper for this, but to use it we must
+	 * provide the proper parent scene node of the xdg popup. To enable this,
+	 * we always set the user data field of xdg_surfaces to the corresponding
+	 * scene node. */
+	if (xdg_surface->role == WLR_XDG_SURFACE_ROLE_POPUP) {
+		struct wlr_xdg_surface *parent = wlr_xdg_surface_from_wlr_surface(
+			xdg_surface->popup->parent);
+		struct wlr_scene_node *parent_node = parent->data;
+		xdg_surface->data = wlr_scene_xdg_surface_create(
+			parent_node, xdg_surface);
 		return;
 	}
+	assert(xdg_surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
 
 	/* Allocate a tinywl_view for this surface */
 	struct tinywl_view *view =
 		calloc(1, sizeof(struct tinywl_view));
 	view->server = server;
 	view->xdg_surface = xdg_surface;
+	view->scene_node = wlr_scene_xdg_surface_create(
+			&view->server->scene->node, view->xdg_surface);
+	view->scene_node->data = view;
+	xdg_surface->data = view->scene_node;
 
 	/* Listen to the various events it can emit */
-	view->map.notify = xdg_surface_map;
+	view->map.notify = xdg_toplevel_map;
 	wl_signal_add(&xdg_surface->events.map, &view->map);
-	view->unmap.notify = xdg_surface_unmap;
+	view->unmap.notify = xdg_toplevel_unmap;
 	wl_signal_add(&xdg_surface->events.unmap, &view->unmap);
-	view->destroy.notify = xdg_surface_destroy;
+	view->destroy.notify = xdg_toplevel_destroy;
 	wl_signal_add(&xdg_surface->events.destroy, &view->destroy);
 
 	/* cotd */
@@ -812,9 +717,6 @@ static void server_new_xdg_surface(struct wl_listener *listener, void *data) {
 	wl_signal_add(&toplevel->events.request_move, &view->request_move);
 	view->request_resize.notify = xdg_toplevel_request_resize;
 	wl_signal_add(&toplevel->events.request_resize, &view->request_resize);
-
-	/* Add it to the list of views. */
-	wl_list_insert(&server->views, &view->link);
 }
 
 int main(int argc, char *argv[]) {
@@ -880,9 +782,17 @@ int main(int argc, char *argv[]) {
 	server.new_output.notify = server_new_output;
 	wl_signal_add(&server.backend->events.new_output, &server.new_output);
 
-	/* Set up our list of views and the xdg-shell. The xdg-shell is a Wayland
-	 * protocol which is used for application windows. For more detail on
-	 * shells, refer to my article:
+	/* Create a scene graph. This is a wlroots abstraction that handles all
+	 * rendering and damage tracking. All the compositor author needs to do
+	 * is add things that should be rendered to the scene graph at the proper
+	 * positions and then call wlr_scene_output_commit() to render a frame if
+	 * necessary.
+	 */
+	server.scene = wlr_scene_create();
+	wlr_scene_attach_output_layout(server.scene, server.output_layout);
+
+	/* Set up the xdg-shell. The xdg-shell is a Wayland protocol which is used
+	 * for application windows. For more detail on shells, refer to my article:
 	 *
 	 * https://drewdevault.com/2018/07/29/Wayland-shells.html
 	 */
