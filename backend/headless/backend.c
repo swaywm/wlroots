@@ -78,20 +78,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	backend_destroy(&backend->backend);
 }
 
-static bool backend_init(struct wlr_headless_backend *backend,
-		struct wl_display *display) {
-	wlr_backend_init(&backend->backend, &backend_impl);
-
-	backend->display = display;
-	wl_list_init(&backend->outputs);
-	wl_list_init(&backend->input_devices);
-
-	backend->display_destroy.notify = handle_display_destroy;
-	wl_display_add_destroy_listener(display, &backend->display_destroy);
-
-	return true;
-}
-
 struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 	wlr_log(WLR_INFO, "Creating headless backend");
 
@@ -102,29 +88,14 @@ struct wlr_backend *wlr_headless_backend_create(struct wl_display *display) {
 		return NULL;
 	}
 
-	if (!backend_init(backend, display)) {
-		free(backend);
-		return NULL;
-	}
+	wlr_backend_init(&backend->backend, &backend_impl);
 
-	return &backend->backend;
-}
+	backend->display = display;
+	wl_list_init(&backend->outputs);
+	wl_list_init(&backend->input_devices);
 
-struct wlr_backend *wlr_headless_backend_create_with_renderer(
-		struct wl_display *display, struct wlr_renderer *renderer) {
-	wlr_log(WLR_INFO, "Creating headless backend with parent renderer");
-
-	struct wlr_headless_backend *backend =
-		calloc(1, sizeof(struct wlr_headless_backend));
-	if (!backend) {
-		wlr_log(WLR_ERROR, "Failed to allocate wlr_headless_backend");
-		return NULL;
-	}
-
-	if (!backend_init(backend, display)) {
-		free(backend);
-		return NULL;
-	}
+	backend->display_destroy.notify = handle_display_destroy;
+	wl_display_add_destroy_listener(display, &backend->display_destroy);
 
 	return &backend->backend;
 }

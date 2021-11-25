@@ -19,11 +19,6 @@
  */
 struct wlr_backend *wlr_headless_backend_create(struct wl_display *display);
 /**
- * Creates a headless backend with an existing renderer.
- */
-struct wlr_backend *wlr_headless_backend_create_with_renderer(
-	struct wl_display *display, struct wlr_renderer *renderer);
-/**
  * Create a new headless output backed by an in-memory EGL framebuffer. You can
  * read pixels from this framebuffer via wlr_renderer_read_pixels but it is
  * otherwise not displayed.
