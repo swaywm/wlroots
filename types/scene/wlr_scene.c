@@ -715,7 +715,11 @@ static void render_node_iterator(struct wlr_scene_node *node,
 		wlr_matrix_project_box(matrix, &dst_box, transform, 0.0,
 			output->transform_matrix);
 
-		render_texture(output, output_damage, texture, NULL, &dst_box, matrix);
+		struct wlr_fbox src_box = {0};
+		wlr_surface_get_buffer_source_box(surface, &src_box);
+
+		render_texture(output, output_damage, texture,
+			&src_box, &dst_box, matrix);
 		break;
 	case WLR_SCENE_NODE_RECT:;
 		struct wlr_scene_rect *scene_rect = scene_rect_from_node(node);
