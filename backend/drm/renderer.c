@@ -275,18 +275,54 @@ static void close_all_bo_handles(struct wlr_drm_backend *drm,
 	}
 }
 
+static void drm_poisoned_fb_handle_destroy(struct wlr_addon *addon) {
+	wlr_addon_finish(addon);
+	free(addon);
+}
+
+static const struct wlr_addon_interface poisoned_fb_addon_impl = {
+	.name = "wlr_drm_poisoned_fb",
+	.destroy = drm_poisoned_fb_handle_destroy,
+};
+
+static bool is_buffer_poisoned(struct wlr_drm_backend *drm,
+		struct wlr_buffer *buf) {
+	return wlr_addon_find(&buf->addons, drm, &poisoned_fb_addon_impl) != NULL;
+}
+
+/**
+ * Mark the buffer as "poisoned", ie. it cannot be imported into KMS. This
+ * allows us to avoid repeatedly trying to import it when it's not
+ * scanout-capable.
+ */
+static void poison_buffer(struct wlr_drm_backend *drm,
+		struct wlr_buffer *buf) {
+	struct wlr_addon *addon = calloc(1, sizeof(*addon));
+	if (addon == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return;
+	}
+	wlr_addon_init(addon, &buf->addons, drm, &poisoned_fb_addon_impl);
+	wlr_log(WLR_DEBUG, "Poisoning buffer");
+}
+
 static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 		struct wlr_buffer *buf, const struct wlr_drm_format_set *formats) {
+	struct wlr_dmabuf_attributes attribs;
+	if (!wlr_buffer_get_dmabuf(buf, &attribs)) {
+		wlr_log(WLR_DEBUG, "Failed to get DMA-BUF from buffer");
+		return NULL;
+	}
+
+	if (is_buffer_poisoned(drm, buf)) {
+		wlr_log(WLR_DEBUG, "Buffer is poisoned");
+		return NULL;
+	}
+
 	struct wlr_drm_fb *fb = calloc(1, sizeof(*fb));
 	if (!fb) {
 		wlr_log_errno(WLR_ERROR, "Allocation failed");
 		return NULL;
-	}
-
-	struct wlr_dmabuf_attributes attribs;
-	if (!wlr_buffer_get_dmabuf(buf, &attribs)) {
-		wlr_log(WLR_DEBUG, "Failed to get DMA-BUF from buffer");
-		goto error_get_dmabuf;
 	}
 
 	if (formats && !wlr_drm_format_set_has(formats, attribs.format,
@@ -302,7 +338,7 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 			wlr_log(WLR_DEBUG, "Buffer format 0x%"PRIX32" with modifier "
 				"0x%"PRIX64" cannot be scanned out",
 				attribs.format, attribs.modifier);
-			goto error_get_dmabuf;
+			goto error_fb;
 		}
 	}
 
@@ -318,6 +354,7 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 	fb->id = get_fb_for_bo(drm, &attribs, handles);
 	if (!fb->id) {
 		wlr_log(WLR_DEBUG, "Failed to import BO in KMS");
+		poison_buffer(drm, buf);
 		goto error_bo_handle;
 	}
 
@@ -333,7 +370,7 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 
 error_bo_handle:
 	close_all_bo_handles(drm, handles);
-error_get_dmabuf:
+error_fb:
 	free(fb);
 	return NULL;
 }
