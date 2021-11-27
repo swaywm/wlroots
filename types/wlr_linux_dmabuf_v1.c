@@ -434,6 +434,16 @@ static void linux_dmabuf_send_modifiers(struct wl_resource *resource,
 		return;
 	}
 
+	// In case only INVALID and LINEAR are advertised, send INVALID only due to XWayland:
+	// https://gitlab.freedesktop.org/xorg/xserver/-/issues/1166
+	if (fmt->len == 2 && wlr_drm_format_has(fmt, DRM_FORMAT_MOD_INVALID)
+			&& wlr_drm_format_has(fmt, DRM_FORMAT_MOD_INVALID)) {
+		uint64_t mod = DRM_FORMAT_MOD_INVALID;
+		zwp_linux_dmabuf_v1_send_modifier(resource, fmt->format,
+			mod >> 32, mod & 0xFFFFFFFF);
+		return;
+	}
+
 	for (size_t i = 0; i < fmt->len; i++) {
 		uint64_t mod = fmt->modifiers[i];
 		zwp_linux_dmabuf_v1_send_modifier(resource, fmt->format,
