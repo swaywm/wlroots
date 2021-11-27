@@ -232,14 +232,8 @@ static struct wlr_egl *egl_create(void) {
 	return egl;
 }
 
-static bool egl_init(struct wlr_egl *egl, EGLenum platform,
-		void *remote_display) {
-	egl->display = egl->procs.eglGetPlatformDisplayEXT(platform,
-		remote_display, NULL);
-	if (egl->display == EGL_NO_DISPLAY) {
-		wlr_log(WLR_ERROR, "Failed to create EGL display");
-		return false;
-	}
+static bool egl_init_display(struct wlr_egl *egl, EGLDisplay *display) {
+	egl->display = display;
 
 	EGLint major, minor;
 	if (eglInitialize(egl->display, &major, &minor) == EGL_FALSE) {
@@ -327,17 +321,34 @@ static bool egl_init(struct wlr_egl *egl, EGLenum platform,
 	egl->exts.IMG_context_priority =
 		check_egl_ext(display_exts_str, "EGL_IMG_context_priority");
 
+	wlr_log(WLR_INFO, "Using EGL %d.%d", (int)major, (int)minor);
 	wlr_log(WLR_INFO, "Supported EGL display extensions: %s", display_exts_str);
 	if (device_exts_str != NULL) {
 		wlr_log(WLR_INFO, "Supported EGL device extensions: %s", device_exts_str);
 	}
-	wlr_log(WLR_INFO, "Using EGL %d.%d", (int)major, (int)minor);
 	wlr_log(WLR_INFO, "EGL vendor: %s", eglQueryString(egl->display, EGL_VENDOR));
 	if (driver_name != NULL) {
 		wlr_log(WLR_INFO, "EGL driver name: %s", driver_name);
 	}
 
 	init_dmabuf_formats(egl);
+
+	return true;
+}
+
+static bool egl_init(struct wlr_egl *egl, EGLenum platform,
+		void *remote_display) {
+	EGLDisplay display = egl->procs.eglGetPlatformDisplayEXT(platform,
+		remote_display, NULL);
+	if (display == EGL_NO_DISPLAY) {
+		wlr_log(WLR_ERROR, "Failed to create EGL display");
+		return false;
+	}
+
+	if (!egl_init_display(egl, display)) {
+		eglTerminate(display);
+		return false;
+	}
 
 	size_t atti = 0;
 	EGLint attribs[5];
@@ -514,6 +525,36 @@ error:
 	free(egl);
 	eglReleaseThread();
 	return NULL;
+}
+
+struct wlr_egl *wlr_egl_create_with_context(EGLDisplay display,
+		EGLContext context) {
+	EGLint client_type;
+	if (!eglQueryContext(display, context, EGL_CONTEXT_CLIENT_TYPE, &client_type) ||
+			client_type != EGL_OPENGL_ES_API) {
+		wlr_log(WLR_ERROR, "Unsupported EGL context client type (need OpenGL ES)");
+		return NULL;
+	}
+
+	EGLint client_version;
+	if (!eglQueryContext(display, context, EGL_CONTEXT_CLIENT_VERSION, &client_version) ||
+			client_version < 2) {
+		wlr_log(WLR_ERROR, "Unsupported EGL context client version (need OpenGL ES >= 2)");
+		return NULL;
+	}
+
+	struct wlr_egl *egl = egl_create();
+	if (egl == NULL) {
+		return NULL;
+	}
+
+	if (!egl_init_display(egl, display)) {
+		return NULL;
+	}
+
+	egl->context = context;
+
+	return egl;
 }
 
 void wlr_egl_destroy(struct wlr_egl *egl) {

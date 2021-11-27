@@ -69,6 +69,9 @@ struct wlr_egl {
 	struct wlr_drm_format_set dmabuf_render_formats;
 };
 
+struct wlr_egl *wlr_egl_create_with_context(EGLDisplay display,
+	EGLContext context);
+
 /**
  * Make the EGL context current.
  *
