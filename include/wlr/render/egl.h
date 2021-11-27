@@ -65,6 +65,7 @@ struct wlr_egl {
 		PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT;
 	} procs;
 
+	bool has_modifiers;
 	struct wlr_drm_format_set dmabuf_texture_formats;
 	struct wlr_drm_format_set dmabuf_render_formats;
 };

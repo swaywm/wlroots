@@ -160,6 +160,8 @@ static void init_dmabuf_formats(struct wlr_egl *egl) {
 		has_modifiers ? "supported" : "unsupported");
 	free(str_formats);
 
+	egl->has_modifiers = has_modifiers;
+
 out:
 	free(formats);
 }
@@ -644,19 +646,11 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		return NULL;
 	}
 
-	bool has_modifier = false;
-
-	// we assume the same way we assumed formats without the import_modifiers
-	// extension that mod_linear is supported. The special mod mod_invalid
-	// is sometimes used to signal modifier unawareness which is what we
-	// have here
 	if (attributes->modifier != DRM_FORMAT_MOD_INVALID &&
-			attributes->modifier != DRM_FORMAT_MOD_LINEAR) {
-		if (!egl->exts.EXT_image_dma_buf_import_modifiers) {
-			wlr_log(WLR_ERROR, "dmabuf modifiers extension not present");
-			return NULL;
-		}
-		has_modifier = true;
+			attributes->modifier != DRM_FORMAT_MOD_LINEAR &&
+			!egl->has_modifiers) {
+		wlr_log(WLR_ERROR, "EGL implementation doesn't support modifiers");
+		return NULL;
 	}
 
 	unsigned int atti = 0;
@@ -702,14 +696,15 @@ EGLImageKHR wlr_egl_create_image_from_dmabuf(struct wlr_egl *egl,
 		}
 	};
 
-	for (int i=0; i < attributes->n_planes; i++) {
+	for (int i = 0; i < attributes->n_planes; i++) {
 		attribs[atti++] = attr_names[i].fd;
 		attribs[atti++] = attributes->fd[i];
 		attribs[atti++] = attr_names[i].offset;
 		attribs[atti++] = attributes->offset[i];
 		attribs[atti++] = attr_names[i].pitch;
 		attribs[atti++] = attributes->stride[i];
-		if (has_modifier) {
+		if (egl->has_modifiers &&
+				attributes->modifier != DRM_FORMAT_MOD_INVALID) {
 			attribs[atti++] = attr_names[i].mod_lo;
 			attribs[atti++] = attributes->modifier & 0xFFFFFFFF;
 			attribs[atti++] = attr_names[i].mod_hi;
