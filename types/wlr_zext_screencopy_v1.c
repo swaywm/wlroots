@@ -93,6 +93,22 @@ static void surface_handle_committed_buffer_destroy(struct wl_listener *listener
 	wl_list_remove(&surface->current_buffer.destroy.link);
 }
 
+static void surface_handle_staged_cursor_buffer_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_zext_screencopy_surface_v1 *surface =
+		wl_container_of(listener, surface, staged_cursor_buffer.destroy);
+	surface->staged_cursor_buffer.resource = NULL;
+	wl_list_remove(&surface->staged_cursor_buffer.destroy.link);
+}
+
+static void surface_handle_committed_cursor_buffer_destroy(
+		struct wl_listener *listener, void *data) {
+	struct wlr_zext_screencopy_surface_v1 *surface =
+		wl_container_of(listener, surface, current_cursor_buffer.destroy);
+	surface->current_cursor_buffer.resource = NULL;
+	wl_list_remove(&surface->current_cursor_buffer.destroy.link);
+}
+
 static void surface_attach_buffer(struct wl_client *client,
 		struct wl_resource *surface_resource,
 		struct wl_resource *buffer_resource) {
@@ -112,6 +128,31 @@ static void surface_attach_buffer(struct wl_client *client,
 				&surface->staged_buffer.destroy);
 		surface->staged_buffer.destroy.notify =
 			surface_handle_staged_buffer_destroy;
+	}
+}
+
+static void surface_attach_cursor_buffer(struct wl_client *client,
+		struct wl_resource *surface_resource,
+		struct wl_resource *buffer_resource,
+		const char *seat_name) {
+	struct wlr_zext_screencopy_surface_v1 *surface =
+		surface_from_resource(surface_resource);
+	if (!surface) {
+		return;
+	}
+
+	// TODO: Do something with "seat_name"
+
+	if (surface->staged_cursor_buffer.resource) {
+		wl_list_remove(&surface->staged_cursor_buffer.destroy.link);
+	}
+
+	surface->staged_cursor_buffer.resource = buffer_resource;
+	if (buffer_resource) {
+		wl_resource_add_destroy_listener(buffer_resource,
+				&surface->staged_cursor_buffer.destroy);
+		surface->staged_cursor_buffer.destroy.notify =
+			surface_handle_staged_cursor_buffer_destroy;
 	}
 }
 
@@ -141,6 +182,7 @@ static void surface_commit(struct wl_client *client,
 		return;
 	}
 
+	// Main buffer
 	surface->current_buffer.resource = surface->staged_buffer.resource;
 	surface->staged_buffer.resource = NULL;
 
@@ -156,6 +198,24 @@ static void surface_commit(struct wl_client *client,
 	pixman_region32_intersect_rect(&surface->current_buffer.damage,
 			&surface->current_buffer.damage, 0, 0, output->width,
 			output->height);
+
+	// Cursor buffer
+	surface->current_cursor_buffer.resource =
+		surface->staged_cursor_buffer.resource;
+	surface->staged_cursor_buffer.resource = NULL;
+
+	wl_list_remove(&surface->staged_cursor_buffer.destroy.link);
+	wl_resource_add_destroy_listener(surface->current_cursor_buffer.resource,
+			&surface->current_cursor_buffer.destroy);
+	surface->current_cursor_buffer.destroy.notify =
+		surface_handle_committed_cursor_buffer_destroy;
+
+	pixman_region32_copy(&surface->current_cursor_buffer.damage,
+			&surface->staged_cursor_buffer.damage);
+	pixman_region32_clear(&surface->staged_cursor_buffer.damage);
+	pixman_region32_intersect_rect(&surface->current_cursor_buffer.damage,
+			&surface->current_cursor_buffer.damage, 0, 0,
+			output->width, output->height);
 
 	surface->options = options;
 
@@ -173,6 +233,7 @@ static void surface_handle_destroy(struct wl_client *client,
 
 static const struct zext_screencopy_surface_v1_interface surface_impl = {
 	.attach_buffer = surface_attach_buffer,
+	.attach_cursor_buffer = surface_attach_cursor_buffer,
 	.damage_buffer = surface_damage_buffer,
 	.commit = surface_commit,
 	.destroy = surface_handle_destroy,
@@ -323,11 +384,40 @@ static void surface_handle_output_commit_formats(
 				output->height, 0);
 	}
 
+	// TODO: Is the hardware cursor buffer always available?
+	struct wlr_buffer *cursor_buffer = output->cursor_front_buffer;
+	if (cursor_buffer) {
+		surface->cursor_wl_shm_format =
+			get_buffer_preferred_read_format(cursor_buffer, renderer);
+		surface->cursor_wl_shm_stride =
+			cursor_buffer->width * 4; // TODO: This assumes things...
+
+		surface->cursor_dmabuf_format = get_dmabuf_format(cursor_buffer);
+	}
+
+	if (surface->cursor_wl_shm_format != DRM_FORMAT_INVALID) {
+		assert(surface->cursor_wl_shm_stride);
+
+		zext_screencopy_surface_v1_send_cursor_buffer_info(
+				surface->resource, "default",
+				ZEXT_SCREENCOPY_SURFACE_V1_BUFFER_TYPE_WL_SHM,
+				surface->cursor_wl_shm_format,
+				cursor_buffer->width, cursor_buffer->height,
+				surface->cursor_wl_shm_stride);
+	}
+
+	if (surface->cursor_dmabuf_format != DRM_FORMAT_INVALID) {
+		zext_screencopy_surface_v1_send_cursor_buffer_info(
+				surface->resource, "default",
+				ZEXT_SCREENCOPY_SURFACE_V1_BUFFER_TYPE_DMABUF,
+				surface->cursor_dmabuf_format,
+				cursor_buffer->width, cursor_buffer->height, 0);
+	}
+
 	zext_screencopy_surface_v1_send_init_done(surface->resource);
 	surface->state = WLR_ZEXT_SCREENCOPY_SURFACE_V1_STATE_READY;
 }
 
-#if 0
 static void surface_send_cursor_info(
 		struct wlr_zext_screencopy_surface_v1 *surface) {
 	struct wlr_output *output = surface->output;
@@ -337,7 +427,6 @@ static void surface_send_cursor_info(
 			"default", 1, cursor->x, cursor->y, cursor->hotspot_x,
 			cursor->hotspot_y);
 }
-#endif
 
 static void surface_send_transform(struct wlr_zext_screencopy_surface_v1 *surface) {
 	enum wl_output_transform transform = surface->output->transform;
@@ -346,7 +435,7 @@ static void surface_send_transform(struct wlr_zext_screencopy_surface_v1 *surfac
 
 static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 		struct wlr_buffer *dst_buffer, struct wlr_shm_attributes *attr,
-		struct wlr_buffer *src_buffer) {
+		struct wlr_buffer *src_buffer, uint32_t wl_shm_format) {
 	struct wlr_output *output = surface->output;
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 
@@ -357,7 +446,7 @@ static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 
 	uint32_t preferred_format = get_buffer_preferred_read_format(src_buffer,
 			renderer);
-	if (preferred_format != surface->wl_shm_format) {
+	if (preferred_format != wl_shm_format) {
 		return false;
 	}
 
@@ -418,7 +507,7 @@ error_renderer_begin:
 
 static bool surface_copy_dmabuf(struct wlr_zext_screencopy_surface_v1 *surface,
 		struct wlr_buffer *dst_buffer, struct wlr_dmabuf_attributes *attr,
-		struct wlr_buffer *src_buffer) {
+		struct wlr_buffer *src_buffer, uint32_t format) {
 	struct wlr_output *output = surface->output;
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 
@@ -427,16 +516,18 @@ static bool surface_copy_dmabuf(struct wlr_zext_screencopy_surface_v1 *surface,
 		return false;
 	}
 
-	if (attr->format != surface->dmabuf_format)
+	if (attr->format != format)
 		return false;
 
 	return blit_dmabuf(renderer, dst_buffer, src_buffer);
 }
 
 static bool surface_copy(struct wlr_zext_screencopy_surface_v1 *surface,
-		struct wlr_buffer *src_buffer) {
+		struct wlr_zext_screencopy_surface_v1_buffer *surface_buffer,
+		struct wlr_buffer *src_buffer, uint32_t wl_shm_format,
+		uint32_t dmabuf_format) {
 	struct wlr_buffer *dst_buffer =
-		wlr_buffer_from_resource(surface->current_buffer.resource);
+		wlr_buffer_from_resource(surface_buffer->resource);
 	if (!dst_buffer) {
 		goto failure;
 	}
@@ -444,7 +535,7 @@ static bool surface_copy(struct wlr_zext_screencopy_surface_v1 *surface,
 	struct wlr_shm_attributes shm_attr = { 0 };
 	if (wlr_buffer_get_shm(dst_buffer, &shm_attr)) {
 		if (!surface_copy_wl_shm(surface, dst_buffer, &shm_attr,
-					src_buffer)) {
+					src_buffer, wl_shm_format)) {
 			goto failure;
 		}
 	}
@@ -452,7 +543,7 @@ static bool surface_copy(struct wlr_zext_screencopy_surface_v1 *surface,
 	struct wlr_dmabuf_attributes dmabuf_attr = { 0 };
 	if (wlr_buffer_get_dmabuf(dst_buffer, &dmabuf_attr)) {
 		if (!surface_copy_dmabuf(surface, dst_buffer, &dmabuf_attr,
-					src_buffer)) {
+					src_buffer, dmabuf_format)) {
 			goto failure;
 		}
 	}
@@ -499,6 +590,7 @@ static void surface_handle_output_commit_ready(
 		return;
 	}
 
+	// TODO: We might have cursor damage but no new main buffer...
 	if (!(event->committed & WLR_OUTPUT_STATE_BUFFER)) {
 		return;
 	}
@@ -507,23 +599,23 @@ static void surface_handle_output_commit_ready(
 		return;
 	}
 
-	if (!surface_copy(surface, event->buffer)) {
+	if (!surface_copy(surface, &surface->current_buffer, event->buffer,
+				surface->wl_shm_format, surface->dmabuf_format)) {
 		return;
 	}
 
-	// TODO
-	/*
-	if (output->cursor_buffer) {
-		if (!surface_copy_cursor(surface, output->cursor_front_buffer)) {
+	if (surface->current_cursor_buffer.resource) {
+		if (!surface_copy(surface, &surface->current_cursor_buffer,
+					output->cursor_front_buffer,
+					surface->cursor_wl_shm_format,
+					surface->cursor_dmabuf_format)) {
 			return;
 		}
-
-		surface_send_cursor_info(surface);
 	}
-	*/
 
 	surface_send_transform(surface);
 	surface_send_damage(surface);
+	surface_send_cursor_info(surface);
 	surface_send_commit_time(surface, event->when);
 	zext_screencopy_surface_v1_send_ready(surface->resource);
 
@@ -567,6 +659,8 @@ static void capture_output(struct wl_client *client, uint32_t version,
 
 	surface->wl_shm_format = DRM_FORMAT_INVALID;
 	surface->dmabuf_format = DRM_FORMAT_INVALID;
+	surface->cursor_wl_shm_format = DRM_FORMAT_INVALID;
+	surface->cursor_dmabuf_format = DRM_FORMAT_INVALID;
 
 	surface->resource = wl_resource_create(client,
 			&zext_screencopy_surface_v1_interface, version,
