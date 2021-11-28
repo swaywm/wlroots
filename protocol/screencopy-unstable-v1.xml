@@ -50,14 +50,6 @@
       <arg name="surface" type="new_id" interface="zext_screencopy_surface_v1"/>
       <arg name="output" type="object" interface="wl_output"/>
     </request>
-
-    <request name="capture_cursor">
-      <description summary="capture a cursor">
-        Create a capturing surface for a cursor
-      </description>
-      <arg name="surface" type="new_id" interface="zext_screencopy_surface_v1"/>
-      <arg name="output" type="object" interface="wl_seat"/>
-    </request>
   </interface>
 
   <interface name="zext_screencopy_surface_v1" version="1">
@@ -89,29 +81,47 @@
       <entry name="invalid_buffer" value="1"/>
       <entry name="output_missing" value="2"/>
       <entry name="output_disabled" value="3"/>
-      <entry name="cursor_missing" value="4"/>
+      <entry name="unknown_seat" value="4"/>
     </enum>
 
     <enum name="options" bitfield="true">
       <entry name="none" value="0"/>
       <entry name="immediate" value="1"/>
-      <entry name="with_cursors" value="2"/>
+      <entry name="render_cursors" value="2"/>
     </enum>
 
     <enum name="buffer_type">
-      <entry name="none" value="0"/>
-      <entry name="wl_shm" value="1"/>
-      <entry name="dmabuf" value="2"/>
+      <entry name="wl_shm" value="0"/>
+      <entry name="dmabuf" value="1"/>
     </enum>
 
     <event name="buffer_info">
       <description summary="buffer information">
         Provides information about buffer parameters that need to be used for
-        this surface. This event is sent for every supported buffer type after
-        the surface is created.
+        the main image. This event is sent for every supported buffer type
+        after the surface is created.
 
         The stride parameter is invalid for dmabuf and may be set to 0.
       </description>
+      <arg name="type" type="uint" enum="buffer_type" summary="buffer type"/>
+      <arg name="format" type="uint" summary="buffer drm format"/>
+      <arg name="width" type="uint" summary="buffer width"/>
+      <arg name="height" type="uint" summary="buffer height"/>
+      <arg name="stride" type="uint" summary="buffer stride"/>
+    </event>
+
+    <event name="cursor_buffer_info">
+      <description summary="cursor buffer information">
+        Provides information about buffer parameters that need to be used for
+        the cursor image. This event is sent for every supported buffer type
+        after the surface is created, and it may be different for each seat.
+
+        The default seat will be referred to as "default" within this protocol,
+        whether it be named so by the compositor or not.
+
+        The stride parameter is invalid for dmabuf and may be set to 0.
+      </description>
+      <arg name="seat_name" type="string" summary="seat name"/>
       <arg name="type" type="uint" enum="buffer_type" summary="buffer type"/>
       <arg name="format" type="uint" summary="buffer drm format"/>
       <arg name="width" type="uint" summary="buffer width"/>
@@ -133,7 +143,7 @@
     </request>
 
     <request name="damage_buffer">
-      <description summary="attach buffer to surface">
+      <description summary="damage buffer">
         Apply damage to the buffer which is to be committed next.
 
         This is for optimisation purposes. The compositor may use this
@@ -150,24 +160,35 @@
       <arg name="height" type="uint" summary="region height"/>
     </request>
 
+    <request name="attach_cursor_buffer">
+      <description summary="attach cursor buffer to surface">
+        Attach a named cursor buffer to the surface.
+      </description>
+      <arg name="buffer" type="object" interface="wl_buffer"/>
+      <arg name="seat_name" type="string"/>
+    </request>
+
+    <request name="damage_cursor_buffer">
+      <description summary="damage cursor buffer">
+        Apply damage to a named cursor buffer which is to be committed next.
+
+        The whole cursor buffer will be considered damaged.
+      </description>
+      <arg name="seat_name" type="string"/>
+    </request>
+
     <request name="commit">
       <description summary="commit surface">
         Commit the screencopy surface.
 
-        For output surfaces, the frame will be copied to the surface on next
-        output commit. A ready event is generated when the buffer is ready.
-
-        For cursor surfaces, the cursor will be copied to the surface the moment
-        at which the cursor is applied to the output, whether it be software or
-        hardware composited. A ready event is generated when the buffer is ready
-        and that ready event should always happen before any pending output
-        surface ready event.
+        The frame will be copied to the surface on next output commit. A ready
+        event is generated when the buffer is ready.
 
         If the "immediate" flag is set, the compositor must present a frame to
         the client as soon as possible.
 
-        If the "with_cursors" flag is set, cursors shall be composited onto the
-        surface. Otherwise, the compositor should try to leave them out, if
+        If the "render_cursors" flag is set, cursors shall be composited onto the
+        main surface. Otherwise, the compositor should try to leave them out, if
         possible.
       </description>
       <arg name="options" type="uint" enum="options"/>
@@ -206,12 +227,20 @@
 
     <event name="cursor_info">
       <description summary="cursor specific information">
-        This event is only relevant for cursor capturing surfaces. It is
-        generated on cursor surfaces to report the position of the cursor in
-        global coordinates.
+        This event is generated for each cursor buffer that was attached to the
+        surface and for which the cursor is currently focused on the surface.
+        It is generated once for each cursor buffer before the ready event.
+
+        Cursors outside the surface do not get captured and no event will be
+        generated for them.
+
+        If the cursor image has changed, the cursor buffer will have been
+        updated and the "has_damage" argument will be set to 1; otherwise 0.
 
         The hotspot position is relative to the cursor buffer.
       </description>
+      <arg name="seat_name" type="string" summary="seat name"/>
+      <arg name="has_damage" type="int" summary="buffer has changes"/>
       <arg name="position_x" type="int" summary="position x coordinates"/>
       <arg name="position_y" type="int" summary="position y coordinates"/>
       <arg name="hotspot_x" type="int" summary="hotspot x coordinates"/>
@@ -227,9 +256,10 @@
       <arg name="reason" type="uint" enum="failure_reason"/>
     </event>
 
-    <event name="presentation_time">
-      <description summary="indicates the presentation time of the frame">
-        This event indicates the presentation time of the frame when applicable.
+    <event name="commit_time">
+      <description summary="indicates the commit time of the frame">
+        This event indicates the time at which the frame is committed to be
+        scanned out.
 
         The timestamp is expressed as tv_sec_hi, tv_sec_lo, tv_nsec triples,
         each component being an unsigned 32-bit value. Whole seconds are in
