@@ -7,6 +7,7 @@
 
 #include "util/signal.h"
 #include "render/wlr_renderer.h"
+#include "render/swapchain.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -41,6 +42,8 @@ static void surface_destroy(struct wlr_zext_screencopy_surface_v1 *surface) {
 	pixman_region32_fini(&surface->frame_damage);
 	pixman_region32_fini(&surface->current_buffer.damage);
 	pixman_region32_fini(&surface->staged_buffer.damage);
+	pixman_region32_fini(&surface->staged_cursor_buffer.damage);
+	pixman_region32_fini(&surface->current_cursor_buffer.damage);
 
 	wl_list_remove(&surface->output_precommit.link);
 	wl_list_remove(&surface->output_commit.link);
@@ -52,6 +55,14 @@ static void surface_destroy(struct wlr_zext_screencopy_surface_v1 *surface) {
 
 	if (surface->current_buffer.resource) {
 		wl_list_remove(&surface->current_buffer.destroy.link);
+	}
+
+	if (surface->staged_cursor_buffer.resource) {
+		wl_list_remove(&surface->staged_cursor_buffer.destroy.link);
+	}
+
+	if (surface->current_cursor_buffer.resource) {
+		wl_list_remove(&surface->current_cursor_buffer.destroy.link);
 	}
 
 	wl_resource_set_user_data(surface->resource, NULL);
@@ -169,6 +180,21 @@ static void surface_damage_buffer(struct wl_client *client,
 			&surface->staged_buffer.damage, x, y, width, height);
 }
 
+static void surface_damage_cursor_buffer(struct wl_client *client,
+		struct wl_resource *surface_resource, const char *seat_name) {
+	struct wlr_zext_screencopy_surface_v1 *surface =
+		surface_from_resource(surface_resource);
+	if (!surface) {
+		return;
+	}
+
+	// TODO: Do something with "seat_name"
+
+	pixman_region32_union_rect(&surface->staged_buffer.damage,
+			&surface->staged_buffer.damage, 0, 0,
+			INT32_MAX, INT32_MAX);
+}
+
 static void surface_commit(struct wl_client *client,
 		struct wl_resource *surface_resource, uint32_t options) {
 	struct wlr_zext_screencopy_surface_v1 *surface =
@@ -213,9 +239,6 @@ static void surface_commit(struct wl_client *client,
 	pixman_region32_copy(&surface->current_cursor_buffer.damage,
 			&surface->staged_cursor_buffer.damage);
 	pixman_region32_clear(&surface->staged_cursor_buffer.damage);
-	pixman_region32_intersect_rect(&surface->current_cursor_buffer.damage,
-			&surface->current_cursor_buffer.damage, 0, 0,
-			output->width, output->height);
 
 	surface->options = options;
 
@@ -235,6 +258,7 @@ static const struct zext_screencopy_surface_v1_interface surface_impl = {
 	.attach_buffer = surface_attach_buffer,
 	.attach_cursor_buffer = surface_attach_cursor_buffer,
 	.damage_buffer = surface_damage_buffer,
+	.damage_cursor_buffer = surface_damage_cursor_buffer,
 	.commit = surface_commit,
 	.destroy = surface_handle_destroy,
 };
@@ -307,16 +331,6 @@ static void surface_accumulate_frame_damage(
 	}
 }
 
-#if 0
-static void surface_damage_whole(
-		struct wlr_zext_screencopy_surface_v1 *surface) {
-	struct pixman_region32 *region = &surface->frame_damage;
-	struct wlr_output *output = surface->output;
-	pixman_region32_union_rect(region, region, 0, 0, output->width,
-			output->height);
-}
-#endif
-
 static void surface_handle_output_precommit_ready(
 		struct wlr_zext_screencopy_surface_v1 *surface,
 		struct wlr_output_event_precommit *event) {
@@ -384,15 +398,27 @@ static void surface_handle_output_commit_formats(
 				output->height, 0);
 	}
 
-	// TODO: Is the hardware cursor buffer always available?
+	// TODO: If hardware cursors are not enabled, don't advertise cursor
+	// formats.
+	bool have_dummy_buffer = false;
 	struct wlr_buffer *cursor_buffer = output->cursor_front_buffer;
-	if (cursor_buffer) {
-		surface->cursor_wl_shm_format =
-			get_buffer_preferred_read_format(cursor_buffer, renderer);
-		surface->cursor_wl_shm_stride =
-			cursor_buffer->width * 4; // TODO: This assumes things...
+	if (!cursor_buffer) {
+		// This is a hack so that we can get a cursor buffer when no
+		// cursor is set.
+		cursor_buffer = wlr_swapchain_acquire(output->cursor_swapchain,
+				NULL);
+		have_dummy_buffer = true;
+	}
 
-		surface->cursor_dmabuf_format = get_dmabuf_format(cursor_buffer);
+	surface->cursor_wl_shm_format =
+		get_buffer_preferred_read_format(cursor_buffer, renderer);
+	surface->cursor_wl_shm_stride =
+		cursor_buffer->width * 4; // TODO: This assumes things...
+
+	surface->cursor_dmabuf_format = get_dmabuf_format(cursor_buffer);
+
+	if (have_dummy_buffer) {
+		wlr_buffer_unlock(cursor_buffer);
 	}
 
 	if (surface->cursor_wl_shm_format != DRM_FORMAT_INVALID) {
@@ -423,9 +449,18 @@ static void surface_send_cursor_info(
 	struct wlr_output *output = surface->output;
 	struct wlr_output_cursor *cursor = output->hardware_cursor;
 
+	if (!output->cursor_front_buffer ||
+			!surface->current_cursor_buffer.resource) {
+		return;
+	}
+
+	bool have_damage = true;
+	// TODO:
+//	bool have_damage = pixman_region32_not_empty(&surface->cursor_damage);
+
 	zext_screencopy_surface_v1_send_cursor_info(surface->resource,
-			"default", 1, cursor->x, cursor->y, cursor->hotspot_x,
-			cursor->hotspot_y);
+			"default", have_damage, cursor->x, cursor->y,
+			cursor->hotspot_x, cursor->hotspot_y);
 }
 
 static void surface_send_transform(struct wlr_zext_screencopy_surface_v1 *surface) {
@@ -604,7 +639,8 @@ static void surface_handle_output_commit_ready(
 		return;
 	}
 
-	if (surface->current_cursor_buffer.resource) {
+	if (surface->output->cursor_front_buffer &&
+			surface->current_cursor_buffer.resource) {
 		if (!surface_copy(surface, &surface->current_cursor_buffer,
 					output->cursor_front_buffer,
 					surface->cursor_wl_shm_format,
@@ -621,6 +657,7 @@ static void surface_handle_output_commit_ready(
 
 	pixman_region32_clear(&surface->frame_damage);
 	pixman_region32_clear(&surface->current_buffer.damage);
+	pixman_region32_clear(&surface->current_cursor_buffer.damage);
 
 	wl_list_remove(&surface->current_buffer.destroy.link);
 	surface->current_buffer.resource = NULL;
@@ -692,6 +729,8 @@ static void capture_output(struct wl_client *client, uint32_t version,
 
 	pixman_region32_init(&surface->current_buffer.damage);
 	pixman_region32_init(&surface->staged_buffer.damage);
+	pixman_region32_init(&surface->current_cursor_buffer.damage);
+	pixman_region32_init(&surface->staged_cursor_buffer.damage);
 	pixman_region32_init(&surface->frame_damage);
 
 	pixman_region32_union_rect(&surface->frame_damage,
