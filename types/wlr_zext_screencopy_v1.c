@@ -212,11 +212,14 @@ static void surface_commit(struct wl_client *client,
 	surface->current_buffer.resource = surface->staged_buffer.resource;
 	surface->staged_buffer.resource = NULL;
 
-	wl_list_remove(&surface->staged_buffer.destroy.link);
-	wl_resource_add_destroy_listener(surface->current_buffer.resource,
-			&surface->current_buffer.destroy);
-	surface->current_buffer.destroy.notify =
-		surface_handle_committed_buffer_destroy;
+	if (surface->current_buffer.resource) {
+		wl_list_remove(&surface->staged_buffer.destroy.link);
+		wl_resource_add_destroy_listener(
+				surface->current_buffer.resource,
+				&surface->current_buffer.destroy);
+		surface->current_buffer.destroy.notify =
+			surface_handle_committed_buffer_destroy;
+	}
 
 	pixman_region32_copy(&surface->current_buffer.damage,
 			&surface->staged_buffer.damage);
@@ -230,11 +233,14 @@ static void surface_commit(struct wl_client *client,
 		surface->staged_cursor_buffer.resource;
 	surface->staged_cursor_buffer.resource = NULL;
 
-	wl_list_remove(&surface->staged_cursor_buffer.destroy.link);
-	wl_resource_add_destroy_listener(surface->current_cursor_buffer.resource,
-			&surface->current_cursor_buffer.destroy);
-	surface->current_cursor_buffer.destroy.notify =
-		surface_handle_committed_cursor_buffer_destroy;
+	if (surface->current_cursor_buffer.resource) {
+		wl_list_remove(&surface->staged_cursor_buffer.destroy.link);
+		wl_resource_add_destroy_listener(
+				surface->current_cursor_buffer.resource,
+				&surface->current_cursor_buffer.destroy);
+		surface->current_cursor_buffer.destroy.notify =
+			surface_handle_committed_cursor_buffer_destroy;
+	}
 
 	pixman_region32_copy(&surface->current_cursor_buffer.damage,
 			&surface->staged_cursor_buffer.damage);
