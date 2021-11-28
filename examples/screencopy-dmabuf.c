@@ -108,7 +108,8 @@ static void dmabuf_created(void *data,
 	zext_screencopy_surface_v1_damage_buffer(surface, 0, 0, buffer.width,
 			buffer.height);
 	zext_screencopy_surface_v1_commit(surface,
-			ZEXT_SCREENCOPY_SURFACE_V1_OPTIONS_SCHEDULE_FRAME);
+			ZEXT_SCREENCOPY_SURFACE_V1_OPTIONS_IMMEDIATE |
+			ZEXT_SCREENCOPY_SURFACE_V1_OPTIONS_RENDER_CURSORS);
 }
 
 static void dmabuf_failed(void *data,
@@ -162,11 +163,6 @@ static void surface_handle_buffer_info(void *data,
 		uint32_t fourcc, uint32_t width, uint32_t height,
 		uint32_t stride) {
 
-	if (type == ZEXT_SCREENCOPY_SURFACE_V1_BUFFER_TYPE_NONE) {
-		surface_handle_buffer_done(surface);
-		return;
-	}
-
 	if (type != ZEXT_SCREENCOPY_SURFACE_V1_BUFFER_TYPE_DMABUF) {
 		return;
 	}
@@ -177,6 +173,17 @@ static void surface_handle_buffer_info(void *data,
 	have_linux_dmabuf = true;
 }
 
+static void surface_handle_cursor_buffer_info(void *data,
+		struct zext_screencopy_surface_v1 *surface, const char* name,
+		uint32_t type, uint32_t fourcc, uint32_t width, uint32_t height,
+		uint32_t stride) {
+}
+
+static void surface_handle_init_done(void *data,
+		struct zext_screencopy_surface_v1 *surface) {
+	surface_handle_buffer_done(surface);
+}
+
 static void surface_handle_damage(void *data,
 		struct zext_screencopy_surface_v1 *surface,
 		uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
@@ -184,7 +191,7 @@ static void surface_handle_damage(void *data,
 
 static void surface_handle_cursor_info(void *data,
 		struct zext_screencopy_surface_v1 *surface,
-		int32_t pos_x, int32_t pos_y,
+		const char *name, int damaged, int32_t pos_x, int32_t pos_y,
 		int32_t hotspot_x, int32_t hotspot_y) {
 }
 
@@ -193,7 +200,7 @@ static void surface_handle_transform(void *data,
 	buffer.y_invert = transform == WL_OUTPUT_TRANSFORM_FLIPPED_180;
 }
 
-static void surface_handle_presentation_time(void *data,
+static void surface_handle_commit_time(void *data,
 		struct zext_screencopy_surface_v1 *frame, uint32_t tv_sec_hi,
 		uint32_t tv_sec_lo, uint32_t tv_nsec) {
 }
@@ -212,9 +219,11 @@ static void surface_handle_failed(void *data,
 
 static const struct zext_screencopy_surface_v1_listener surface_listener = {
 	.buffer_info = surface_handle_buffer_info,
+	.cursor_buffer_info = surface_handle_cursor_buffer_info,
+	.init_done = surface_handle_init_done,
 	.damage = surface_handle_damage,
 	.cursor_info = surface_handle_cursor_info,
-	.presentation_time = surface_handle_presentation_time,
+	.commit_time = surface_handle_commit_time,
 	.transform = surface_handle_transform,
 	.ready = surface_handle_ready,
 	.failed = surface_handle_failed,
