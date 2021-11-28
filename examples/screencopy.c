@@ -48,7 +48,6 @@ struct format {
 static struct wl_shm *shm = NULL;
 static struct zext_screencopy_manager_v1 *screencopy_manager = NULL;
 static struct wl_output *output = NULL;
-static bool capture_cursor = false;
 
 static struct {
 	struct wl_buffer *wl_buffer;
@@ -282,11 +281,7 @@ static void write_image(char *filename, enum wl_shm_format wl_fmt, int width,
 }
 
 int main(int argc, char *argv[]) {
-	if (argc >= 2 && strcmp(argv[1], "cursor") == 0) {
-		capture_cursor = true;
-	}
-
-	struct wl_display *display = wl_display_connect(NULL);
+	struct wl_display * display = wl_display_connect(NULL);
 	if (display == NULL) {
 		perror("failed to create display");
 		return EXIT_FAILURE;
@@ -309,8 +304,7 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	struct zext_screencopy_surface_v1 *surface = capture_cursor ?
-		zext_screencopy_manager_v1_capture_output_cursor(screencopy_manager, output) :
+	struct zext_screencopy_surface_v1 *surface =
 		zext_screencopy_manager_v1_capture_output(screencopy_manager, output);
 	zext_screencopy_surface_v1_add_listener(surface, &frame_listener, NULL);
 
