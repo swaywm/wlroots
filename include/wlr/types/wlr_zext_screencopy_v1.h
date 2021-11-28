@@ -27,11 +27,6 @@ struct wlr_zext_screencopy_manager_v1 {
 	void *data;
 };
 
-enum wlr_zext_screencopy_surface_v1_type {
-	WLR_ZEXT_SCREENCOPY_SURFACE_V1_TYPE_OUTPUT,
-	WLR_ZEXT_SCREENCOPY_SURFACE_V1_TYPE_OUTPUT_CURSOR,
-};
-
 enum wlr_zext_screencopy_surface_v1_state {
 	WLR_ZEXT_SCREENCOPY_SURFACE_V1_STATE_WAITING_FOR_BUFFER_FORMATS,
 	WLR_ZEXT_SCREENCOPY_SURFACE_V1_STATE_READY,
@@ -40,7 +35,6 @@ enum wlr_zext_screencopy_surface_v1_state {
 struct wlr_zext_screencopy_surface_v1 {
 	struct wl_resource *resource;
 
-	enum wlr_zext_screencopy_surface_v1_type type;
 	enum wlr_zext_screencopy_surface_v1_state state;
 
 	uint32_t wl_shm_format;

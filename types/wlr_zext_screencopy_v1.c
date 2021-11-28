@@ -77,32 +77,6 @@ static struct wlr_output *surface_check_output(
 	return surface->output;
 }
 
-static bool surface_get_source_dimensions(
-		struct wlr_zext_screencopy_surface_v1 *surface,
-		uint32_t *width, uint32_t *height) {
-	struct wlr_output *output = surface->output;
-	struct wlr_output_cursor *cursor = output->hardware_cursor;
-
-	switch (surface->type) {
-	case WLR_ZEXT_SCREENCOPY_SURFACE_V1_TYPE_OUTPUT:
-		*width = output->width;
-		*height = output->height;
-		return true;
-	case WLR_ZEXT_SCREENCOPY_SURFACE_V1_TYPE_OUTPUT_CURSOR:
-		if (!cursor || !cursor->enabled)
-			return false;
-
-		*width = cursor->width;
-		*height = cursor->height;
-		return true;
-	default:
-		abort();
-		break;
-	}
-
-	return false;
-}
-
 static void surface_handle_staged_buffer_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_zext_screencopy_surface_v1 *surface =
@@ -167,14 +141,6 @@ static void surface_commit(struct wl_client *client,
 		return;
 	}
 
-	uint32_t src_width, src_height;
-	if (!surface_get_source_dimensions(surface, &src_width, &src_height)) {
-		zext_screencopy_surface_v1_send_failed(surface->resource,
-				ZEXT_SCREENCOPY_SURFACE_V1_FAILURE_REASON_CURSOR_MISSING);
-		surface_destroy(surface);
-		return;
-	}
-
 	surface->buffer_resource = surface->staged_buffer_resource;
 	surface->staged_buffer_resource = NULL;
 
@@ -187,11 +153,12 @@ static void surface_commit(struct wl_client *client,
 			&surface->staged_buffer_damage);
 	pixman_region32_clear(&surface->staged_buffer_damage);
 	pixman_region32_intersect_rect(&surface->buffer_damage,
-			&surface->buffer_damage, 0, 0, src_width, src_height);
+			&surface->buffer_damage, 0, 0, output->width,
+			output->height);
 
 	surface->options = options;
 
-	if (options & ZEXT_SCREENCOPY_SURFACE_V1_OPTIONS_SCHEDULE_FRAME) {
+	if (options & ZEXT_SCREENCOPY_SURFACE_V1_OPTIONS_IMMEDIATE) {
 		wlr_output_schedule_frame(output);
 	}
 }
@@ -278,18 +245,15 @@ static void surface_accumulate_frame_damage(
 	}
 }
 
+#if 0
 static void surface_damage_whole(
 		struct wlr_zext_screencopy_surface_v1 *surface) {
 	struct pixman_region32 *region = &surface->frame_damage;
-	uint32_t src_width, src_height;
-	if (!surface_get_source_dimensions(surface, &src_width, &src_height)) {
-		zext_screencopy_surface_v1_send_failed(surface->resource,
-				ZEXT_SCREENCOPY_SURFACE_V1_FAILURE_REASON_CURSOR_MISSING);
-		surface_destroy(surface);
-		return;
-	}
-	pixman_region32_union_rect(region, region, 0, 0, src_width, src_height);
+	struct wlr_output *output = surface->output;
+	pixman_region32_union_rect(region, region, 0, 0, output->width,
+			output->height);
 }
+#endif
 
 static void surface_handle_output_precommit_ready(
 		struct wlr_zext_screencopy_surface_v1 *surface,
@@ -299,14 +263,7 @@ static void surface_handle_output_precommit_ready(
 		return;
 	}
 
-	switch (surface->type) {
-	case WLR_ZEXT_SCREENCOPY_SURFACE_V1_TYPE_OUTPUT:
-		surface_accumulate_frame_damage(surface, output);
-		break;
-	case WLR_ZEXT_SCREENCOPY_SURFACE_V1_TYPE_OUTPUT_CURSOR:
-		surface_damage_whole(surface);
-		break;
-	}
+	surface_accumulate_frame_damage(surface, output);
 }
 
 static void surface_handle_output_precommit(struct wl_listener *listener,
@@ -340,15 +297,7 @@ static void surface_handle_output_commit_formats(
 
 	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
 
-	struct wlr_buffer *buffer = NULL;
-	switch (surface->type) {
-	case WLR_ZEXT_SCREENCOPY_SURFACE_V1_TYPE_OUTPUT:
-		buffer = event->buffer;
-		break;
-	case WLR_ZEXT_SCREENCOPY_SURFACE_V1_TYPE_OUTPUT_CURSOR:
-		buffer = output->cursor_front_buffer;
-		break;
-	}
+	struct wlr_buffer *buffer = event->buffer;
 	assert(buffer);
 
 	surface->wl_shm_format =
@@ -357,45 +306,37 @@ static void surface_handle_output_commit_formats(
 
 	surface->dmabuf_format = get_dmabuf_format(buffer);
 
-	uint32_t src_width, src_height;
-	if (!surface_get_source_dimensions(surface, &src_width, &src_height)) {
-		zext_screencopy_surface_v1_send_failed(surface->resource,
-				ZEXT_SCREENCOPY_SURFACE_V1_FAILURE_REASON_CURSOR_MISSING);
-		surface_destroy(surface);
-		return;
-	}
-
 	if (surface->wl_shm_format != DRM_FORMAT_INVALID) {
 		assert(surface->wl_shm_stride);
 
 		zext_screencopy_surface_v1_send_buffer_info(surface->resource,
 				ZEXT_SCREENCOPY_SURFACE_V1_BUFFER_TYPE_WL_SHM,
-				surface->wl_shm_format, src_width, src_height,
-				surface->wl_shm_stride);
+				surface->wl_shm_format, output->width,
+				output->height, surface->wl_shm_stride);
 	}
 
 	if (surface->dmabuf_format != DRM_FORMAT_INVALID) {
 		zext_screencopy_surface_v1_send_buffer_info(surface->resource,
 				ZEXT_SCREENCOPY_SURFACE_V1_BUFFER_TYPE_DMABUF,
-				surface->dmabuf_format, src_width, src_height,
-				0);
+				surface->dmabuf_format, output->width,
+				output->height, 0);
 	}
 
-	zext_screencopy_surface_v1_send_buffer_info(surface->resource,
-			ZEXT_SCREENCOPY_SURFACE_V1_BUFFER_TYPE_NONE, 0, 0, 0, 0);
-
+	zext_screencopy_surface_v1_send_init_done(surface->resource);
 	surface->state = WLR_ZEXT_SCREENCOPY_SURFACE_V1_STATE_READY;
 }
 
+#if 0
 static void surface_send_cursor_info(
 		struct wlr_zext_screencopy_surface_v1 *surface) {
 	struct wlr_output *output = surface->output;
 	struct wlr_output_cursor *cursor = output->hardware_cursor;
 
 	zext_screencopy_surface_v1_send_cursor_info(surface->resource,
-			cursor->x, cursor->y, cursor->hotspot_x,
+			"default", 1, cursor->x, cursor->y, cursor->hotspot_x,
 			cursor->hotspot_y);
 }
+#endif
 
 static void surface_send_transform(struct wlr_zext_screencopy_surface_v1 *surface) {
 	enum wl_output_transform transform = surface->output->transform;
@@ -538,14 +479,14 @@ static void surface_send_damage(struct wlr_zext_screencopy_surface_v1 *surface) 
 		damage_x, damage_y, damage_width, damage_height);
 }
 
-static void surface_send_presentation_time(
+static void surface_send_commit_time(
 		struct wlr_zext_screencopy_surface_v1 *surface,
 		struct timespec *when)
 {
 	time_t tv_sec = when->tv_sec;
 	uint32_t tv_sec_hi = (sizeof(tv_sec) > 4) ? tv_sec >> 32 : 0;
 	uint32_t tv_sec_lo = tv_sec & 0xFFFFFFFF;
-	zext_screencopy_surface_v1_send_presentation_time(surface->resource,
+	zext_screencopy_surface_v1_send_commit_time(surface->resource,
 			tv_sec_hi, tv_sec_lo, when->tv_nsec);
 }
 
@@ -565,33 +506,24 @@ static void surface_handle_output_commit_ready(
 		return;
 	}
 
-	if ((surface->options & ZEXT_SCREENCOPY_SURFACE_V1_OPTIONS_WAIT_FOR_DAMAGE) &&
-			!pixman_region32_not_empty(&surface->frame_damage)) {
+	if (!surface_copy(surface, event->buffer)) {
 		return;
 	}
 
-	switch (surface->type) {
-	case WLR_ZEXT_SCREENCOPY_SURFACE_V1_TYPE_OUTPUT:
-		if (!surface_copy(surface, event->buffer)) {
-			return;
-		}
-
-		break;
-	case WLR_ZEXT_SCREENCOPY_SURFACE_V1_TYPE_OUTPUT_CURSOR:
-		if (!surface_copy(surface, output->cursor_front_buffer)) {
+	// TODO
+	/*
+	if (output->cursor_buffer) {
+		if (!surface_copy_cursor(surface, output->cursor_front_buffer)) {
 			return;
 		}
 
 		surface_send_cursor_info(surface);
-		break;
-	default:
-		abort();
-		break;
 	}
+	*/
 
 	surface_send_transform(surface);
 	surface_send_damage(surface);
-	surface_send_presentation_time(surface, event->when);
+	surface_send_commit_time(surface, event->when);
 	zext_screencopy_surface_v1_send_ready(surface->resource);
 
 	pixman_region32_clear(&surface->frame_damage);
@@ -624,16 +556,13 @@ static void surface_handle_output_commit(struct wl_listener *listener,
 
 static void capture_output(struct wl_client *client, uint32_t version,
 		struct wlr_zext_screencopy_manager_v1 *manager,
-		uint32_t surface_id, struct wlr_output *output,
-		enum wlr_zext_screencopy_surface_v1_type type) {
+		uint32_t surface_id, struct wlr_output *output) {
 	struct wlr_zext_screencopy_surface_v1 *surface =
 		calloc(1, sizeof(struct wlr_zext_screencopy_surface_v1));
 	if (!surface) {
 		wl_client_post_no_memory(client);
 		return;
 	}
-
-	surface->type = type;
 
 	surface->wl_shm_format = DRM_FORMAT_INVALID;
 	surface->dmabuf_format = DRM_FORMAT_INVALID;
@@ -670,16 +599,9 @@ static void capture_output(struct wl_client *client, uint32_t version,
 	pixman_region32_init(&surface->staged_buffer_damage);
 	pixman_region32_init(&surface->frame_damage);
 
-	uint32_t src_width, src_height;
-	if (!surface_get_source_dimensions(surface, &src_width, &src_height)) {
-		zext_screencopy_surface_v1_send_failed(surface->resource,
-				ZEXT_SCREENCOPY_SURFACE_V1_FAILURE_REASON_CURSOR_MISSING);
-		surface_destroy(surface);
-		return;
-	}
-
 	pixman_region32_union_rect(&surface->frame_damage,
-			&surface->frame_damage, 0, 0, src_width, src_height);
+			&surface->frame_damage, 0, 0, output->width,
+			output->height);
 
 	// We need a new frame to check the buffer formats
 	wlr_output_schedule_frame(output);
@@ -693,25 +615,11 @@ static void manager_capture_output(struct wl_client *client,
 	uint32_t version = wl_resource_get_version(manager_resource);
 	struct wlr_output *output = wlr_output_from_resource(output_resource);
 
-	capture_output(client, version, manager, surface_id, output,
-			WLR_ZEXT_SCREENCOPY_SURFACE_V1_TYPE_OUTPUT);
-}
-
-static void manager_capture_output_cursor(struct wl_client *client,
-		struct wl_resource *manager_resource, uint32_t surface_id,
-		struct wl_resource *output_resource) {
-	struct wlr_zext_screencopy_manager_v1 *manager =
-		manager_from_resource(manager_resource);
-	uint32_t version = wl_resource_get_version(manager_resource);
-	struct wlr_output *output = wlr_output_from_resource(output_resource);
-
-	capture_output(client, version, manager, surface_id, output,
-			WLR_ZEXT_SCREENCOPY_SURFACE_V1_TYPE_OUTPUT_CURSOR);
+	capture_output(client, version, manager, surface_id, output);
 }
 
 static const struct zext_screencopy_manager_v1_interface manager_impl = {
 	.capture_output = manager_capture_output,
-	.capture_output_cursor = manager_capture_output_cursor,
 };
 
 static void manager_bind(struct wl_client *client, void *data,
