@@ -39,19 +39,19 @@ static void surface_destroy(struct wlr_zext_screencopy_surface_v1 *surface) {
 	}
 
 	pixman_region32_fini(&surface->frame_damage);
-	pixman_region32_fini(&surface->buffer_damage);
-	pixman_region32_fini(&surface->staged_buffer_damage);
+	pixman_region32_fini(&surface->current_buffer.damage);
+	pixman_region32_fini(&surface->staged_buffer.damage);
 
 	wl_list_remove(&surface->output_precommit.link);
 	wl_list_remove(&surface->output_commit.link);
 	wl_list_remove(&surface->output_destroy.link);
 
-	if (surface->staged_buffer_resource) {
-		wl_list_remove(&surface->staged_buffer_destroy.link);
+	if (surface->staged_buffer.resource) {
+		wl_list_remove(&surface->staged_buffer.destroy.link);
 	}
 
-	if (surface->buffer_resource) {
-		wl_list_remove(&surface->buffer_destroy.link);
+	if (surface->current_buffer.resource) {
+		wl_list_remove(&surface->current_buffer.destroy.link);
 	}
 
 	wl_resource_set_user_data(surface->resource, NULL);
@@ -80,17 +80,17 @@ static struct wlr_output *surface_check_output(
 static void surface_handle_staged_buffer_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_zext_screencopy_surface_v1 *surface =
-		wl_container_of(listener, surface, staged_buffer_destroy);
-	surface->staged_buffer_resource = NULL;
-	wl_list_remove(&surface->staged_buffer_destroy.link);
+		wl_container_of(listener, surface, staged_buffer.destroy);
+	surface->staged_buffer.resource = NULL;
+	wl_list_remove(&surface->staged_buffer.destroy.link);
 }
 
 static void surface_handle_committed_buffer_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_zext_screencopy_surface_v1 *surface =
-		wl_container_of(listener, surface, buffer_destroy);
-	surface->buffer_resource = NULL;
-	wl_list_remove(&surface->buffer_destroy.link);
+		wl_container_of(listener, surface, current_buffer.destroy);
+	surface->current_buffer.resource = NULL;
+	wl_list_remove(&surface->current_buffer.destroy.link);
 }
 
 static void surface_attach_buffer(struct wl_client *client,
@@ -102,15 +102,15 @@ static void surface_attach_buffer(struct wl_client *client,
 		return;
 	}
 
-	if (surface->staged_buffer_resource) {
-		wl_list_remove(&surface->staged_buffer_destroy.link);
+	if (surface->staged_buffer.resource) {
+		wl_list_remove(&surface->staged_buffer.destroy.link);
 	}
 
-	surface->staged_buffer_resource = buffer_resource;
+	surface->staged_buffer.resource = buffer_resource;
 	if (buffer_resource) {
 		wl_resource_add_destroy_listener(buffer_resource,
-				&surface->staged_buffer_destroy);
-		surface->staged_buffer_destroy.notify =
+				&surface->staged_buffer.destroy);
+		surface->staged_buffer.destroy.notify =
 			surface_handle_staged_buffer_destroy;
 	}
 }
@@ -124,8 +124,8 @@ static void surface_damage_buffer(struct wl_client *client,
 		return;
 	}
 
-	pixman_region32_union_rect(&surface->staged_buffer_damage,
-			&surface->staged_buffer_damage, x, y, width, height);
+	pixman_region32_union_rect(&surface->staged_buffer.damage,
+			&surface->staged_buffer.damage, x, y, width, height);
 }
 
 static void surface_commit(struct wl_client *client,
@@ -141,19 +141,20 @@ static void surface_commit(struct wl_client *client,
 		return;
 	}
 
-	surface->buffer_resource = surface->staged_buffer_resource;
-	surface->staged_buffer_resource = NULL;
+	surface->current_buffer.resource = surface->staged_buffer.resource;
+	surface->staged_buffer.resource = NULL;
 
-	wl_list_remove(&surface->staged_buffer_destroy.link);
-	wl_resource_add_destroy_listener(surface->buffer_resource,
-			&surface->buffer_destroy);
-	surface->buffer_destroy.notify = surface_handle_committed_buffer_destroy;
+	wl_list_remove(&surface->staged_buffer.destroy.link);
+	wl_resource_add_destroy_listener(surface->current_buffer.resource,
+			&surface->current_buffer.destroy);
+	surface->current_buffer.destroy.notify =
+		surface_handle_committed_buffer_destroy;
 
-	pixman_region32_copy(&surface->buffer_damage,
-			&surface->staged_buffer_damage);
-	pixman_region32_clear(&surface->staged_buffer_damage);
-	pixman_region32_intersect_rect(&surface->buffer_damage,
-			&surface->buffer_damage, 0, 0, output->width,
+	pixman_region32_copy(&surface->current_buffer.damage,
+			&surface->staged_buffer.damage);
+	pixman_region32_clear(&surface->staged_buffer.damage);
+	pixman_region32_intersect_rect(&surface->current_buffer.damage,
+			&surface->current_buffer.damage, 0, 0, output->width,
 			output->height);
 
 	surface->options = options;
@@ -435,7 +436,7 @@ static bool surface_copy_dmabuf(struct wlr_zext_screencopy_surface_v1 *surface,
 static bool surface_copy(struct wlr_zext_screencopy_surface_v1 *surface,
 		struct wlr_buffer *src_buffer) {
 	struct wlr_buffer *dst_buffer =
-		wlr_buffer_from_resource(surface->buffer_resource);
+		wlr_buffer_from_resource(surface->current_buffer.resource);
 	if (!dst_buffer) {
 		goto failure;
 	}
@@ -502,7 +503,7 @@ static void surface_handle_output_commit_ready(
 		return;
 	}
 
-	if (!surface->buffer_resource) {
+	if (!surface->current_buffer.resource) {
 		return;
 	}
 
@@ -527,10 +528,10 @@ static void surface_handle_output_commit_ready(
 	zext_screencopy_surface_v1_send_ready(surface->resource);
 
 	pixman_region32_clear(&surface->frame_damage);
-	pixman_region32_clear(&surface->buffer_damage);
+	pixman_region32_clear(&surface->current_buffer.damage);
 
-	wl_list_remove(&surface->buffer_destroy.link);
-	surface->buffer_resource = NULL;
+	wl_list_remove(&surface->current_buffer.destroy.link);
+	surface->current_buffer.resource = NULL;
 }
 
 static void surface_handle_output_commit(struct wl_listener *listener,
@@ -595,8 +596,8 @@ static void capture_output(struct wl_client *client, uint32_t version,
 			&surface->output_commit);
 	surface->output_commit.notify = surface_handle_output_commit;
 
-	pixman_region32_init(&surface->buffer_damage);
-	pixman_region32_init(&surface->staged_buffer_damage);
+	pixman_region32_init(&surface->current_buffer.damage);
+	pixman_region32_init(&surface->staged_buffer.damage);
 	pixman_region32_init(&surface->frame_damage);
 
 	pixman_region32_union_rect(&surface->frame_damage,

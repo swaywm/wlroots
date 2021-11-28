@@ -32,6 +32,12 @@ enum wlr_zext_screencopy_surface_v1_state {
 	WLR_ZEXT_SCREENCOPY_SURFACE_V1_STATE_READY,
 };
 
+struct wlr_zext_screencopy_surface_v1_buffer {
+	struct wl_resource *resource;
+	struct pixman_region32 damage;
+	struct wl_listener destroy;
+};
+
 struct wlr_zext_screencopy_surface_v1 {
 	struct wl_resource *resource;
 
@@ -42,17 +48,12 @@ struct wlr_zext_screencopy_surface_v1 {
 
 	uint32_t dmabuf_format;
 
-	/* Buffer and info staged for next commit */
-	struct wl_resource *staged_buffer_resource;
-	struct pixman_region32 staged_buffer_damage;
-	struct wl_listener staged_buffer_destroy;
-
 	uint32_t options;
+	struct wlr_zext_screencopy_surface_v1_buffer staged_buffer;
+	struct wlr_zext_screencopy_surface_v1_buffer current_buffer;
 
-	/* Currently attached buffer and info */
-	struct wl_resource *buffer_resource;
-	struct pixman_region32 buffer_damage;
-	struct wl_listener buffer_destroy;
+	struct wlr_zext_screencopy_surface_v1_buffer staged_cursor_buffer;
+	struct wlr_zext_screencopy_surface_v1_buffer current_cursor_buffer;
 
 	/* Accumulated frame damage for the surface */
 	struct pixman_region32 frame_damage;
