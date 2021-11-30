@@ -11,6 +11,26 @@
 #include "types/wlr_output.h"
 #include "util/signal.h"
 
+static bool output_set_hardware_cursor(struct wlr_output *output,
+		struct wlr_buffer *buffer, int hotspot_x, int hotspot_y) {
+	if (!output->impl->set_cursor) {
+		return false;
+	}
+
+	if (!output->impl->set_cursor(output, buffer, hotspot_x, hotspot_y)) {
+		return false;
+	}
+
+	wlr_buffer_unlock(output->cursor_front_buffer);
+	output->cursor_front_buffer = NULL;
+
+	if (buffer != NULL) {
+		output->cursor_front_buffer = wlr_buffer_lock(buffer);
+	}
+
+	return true;
+}
+
 static void output_cursor_damage_whole(struct wlr_output_cursor *cursor);
 
 void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock) {
@@ -25,8 +45,7 @@ void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock) {
 		output->software_cursor_locks);
 
 	if (output->software_cursor_locks > 0 && output->hardware_cursor != NULL) {
-		assert(output->impl->set_cursor);
-		output->impl->set_cursor(output, NULL, 0, 0);
+		output_set_hardware_cursor(output, NULL, 0, 0);
 		output_cursor_damage_whole(output->hardware_cursor);
 		output->hardware_cursor = NULL;
 	}
@@ -345,14 +364,10 @@ static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
 		wlr_output_transform_invert(output->transform),
 		buffer ? buffer->width : 0, buffer ? buffer->height : 0);
 
-	bool ok = output->impl->set_cursor(cursor->output, buffer,
-		hotspot.x, hotspot.y);
+	bool ok = output_set_hardware_cursor(output, buffer, hotspot.x, hotspot.y);
+	wlr_buffer_unlock(buffer);
 	if (ok) {
-		wlr_buffer_unlock(output->cursor_front_buffer);
-		output->cursor_front_buffer = buffer;
 		output->hardware_cursor = cursor;
-	} else {
-		wlr_buffer_unlock(buffer);
 	}
 	return ok;
 }
@@ -465,9 +480,8 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 				wlr_output_transform_invert(cursor->output->transform),
 				buffer ? buffer->width : 0, buffer ? buffer->height : 0);
 
-			assert(cursor->output->impl->set_cursor);
-			cursor->output->impl->set_cursor(cursor->output,
-				buffer, hotspot.x, hotspot.y);
+			output_set_hardware_cursor(cursor->output, buffer,
+				hotspot.x, hotspot.y);
 		}
 		return;
 	}
@@ -490,8 +504,7 @@ void wlr_output_cursor_set_surface(struct wlr_output_cursor *cursor,
 		cursor->height = 0;
 
 		if (cursor->output->hardware_cursor == cursor) {
-			assert(cursor->output->impl->set_cursor);
-			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0);
+			output_set_hardware_cursor(cursor->output, NULL, 0, 0);
 		}
 	}
 }
@@ -552,9 +565,7 @@ void wlr_output_cursor_destroy(struct wlr_output_cursor *cursor) {
 	wlr_signal_emit_safe(&cursor->events.destroy, cursor);
 	if (cursor->output->hardware_cursor == cursor) {
 		// If this cursor was the hardware cursor, disable it
-		if (cursor->output->impl->set_cursor) {
-			cursor->output->impl->set_cursor(cursor->output, NULL, 0, 0);
-		}
+		output_set_hardware_cursor(cursor->output, NULL, 0, 0);
 		cursor->output->hardware_cursor = NULL;
 	}
 	wlr_texture_destroy(cursor->texture);
