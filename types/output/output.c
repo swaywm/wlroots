@@ -715,6 +715,15 @@ bool wlr_output_commit(struct wlr_output *output) {
 		wlr_output_schedule_done(output);
 	}
 
+	// Destroy the swapchains when an output is disabled
+	if ((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) &&
+			!output->pending.enabled) {
+		wlr_swapchain_destroy(output->swapchain);
+		output->swapchain = NULL;
+		wlr_swapchain_destroy(output->cursor_swapchain);
+		output->cursor_swapchain = NULL;
+	}
+
 	// Unset the front-buffer when a new buffer will replace it or when the
 	// output is getting disabled
 	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) ||
