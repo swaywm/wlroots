@@ -828,6 +828,18 @@ void wlr_scene_output_destroy(struct wlr_scene_output *scene_output) {
 	free(scene_output);
 }
 
+struct wlr_scene_output *wlr_scene_get_scene_output(struct wlr_scene *scene,
+		struct wlr_output *output) {
+	struct wlr_addon *addon =
+		wlr_addon_find(&output->addons, scene, &output_addon_impl);
+	if (addon == NULL) {
+		return NULL;
+	}
+	struct wlr_scene_output *scene_output =
+		wl_container_of(addon, scene_output, addon);
+	return scene_output;
+}
+
 void wlr_scene_output_set_position(struct wlr_scene_output *scene_output,
 		int lx, int ly) {
 	if (scene_output->x == lx && scene_output->y == ly) {

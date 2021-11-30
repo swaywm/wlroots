@@ -282,6 +282,13 @@ bool wlr_scene_output_commit(struct wlr_scene_output *scene_output);
  */
 void wlr_scene_output_for_each_surface(struct wlr_scene_output *scene_output,
 	wlr_surface_iterator_func_t iterator, void *user_data);
+/**
+ * Get a scene-graph output from a wlr_output.
+ *
+ * If the output hasn't been added to the scene-graph, returns NULL.
+ */
+struct wlr_scene_output *wlr_scene_get_scene_output(struct wlr_scene *scene,
+	struct wlr_output *output);
 
 /**
  * Attach an output layout to a scene.
