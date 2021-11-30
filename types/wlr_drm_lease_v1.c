@@ -218,7 +218,9 @@ void wlr_drm_lease_v1_revoke(struct wlr_drm_lease_v1 *lease) {
 
 static void drm_lease_v1_handle_resource_destroy(struct wl_resource *resource) {
 	struct wlr_drm_lease_v1 *lease = drm_lease_v1_from_resource(resource);
-	wlr_drm_lease_terminate(lease->drm_lease);
+	if (lease != NULL) {
+		wlr_drm_lease_terminate(lease->drm_lease);
+	}
 }
 
 static void drm_lease_v1_handle_destroy(
