@@ -468,9 +468,32 @@ struct wlr_wl_input_device *create_wl_input_device(
 
 	unsigned int vendor = 0, product = 0;
 
-	size_t name_size = 8 + strlen(seat->name) + 1;
+	const char *type_name;
+
+	switch (type) {
+	case WLR_INPUT_DEVICE_KEYBOARD:
+		type_name = "keyboard";
+		break;
+	case WLR_INPUT_DEVICE_POINTER:
+		type_name = "pointer";
+		break;
+	case WLR_INPUT_DEVICE_TOUCH:
+		type_name = "touch";
+		break;
+	case WLR_INPUT_DEVICE_TABLET_TOOL:
+		type_name = "tablet-tool";
+		break;
+	case WLR_INPUT_DEVICE_TABLET_PAD:
+		type_name = "tablet-pad";
+		break;
+	case WLR_INPUT_DEVICE_SWITCH:
+		type_name = "switch";
+		break;
+	}
+
+	size_t name_size = 8 + strlen(type_name) + strlen(seat->name) + 1;
 	char name[name_size];
-	(void) snprintf(name, name_size, "wayland-%s", seat->name);
+	(void) snprintf(name, name_size, "wayland-%s-%s", type_name, seat->name);
 
 	wlr_input_device_init(wlr_dev, type, &input_device_impl, name, vendor,
 		product);
