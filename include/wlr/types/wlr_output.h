@@ -460,6 +460,16 @@ void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock);
  */
 void wlr_output_render_software_cursors(struct wlr_output *output,
 	pixman_region32_t *damage);
+/**
+ * Get the set of DRM formats suitable for the primary buffer, assuming a
+ * buffer with the specified capabilities.
+ *
+ * NULL is returned if the backend doesn't have any format constraint, ie. all
+ * formats are supported. An empty set is returned if the backend doesn't
+ * support any format.
+ */
+const struct wlr_drm_format_set *wlr_output_get_primary_formats(
+	struct wlr_output *output, uint32_t buffer_caps);
 
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);

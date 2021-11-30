@@ -560,16 +560,8 @@ static bool output_basic_test(struct wlr_output *output) {
 		struct wlr_allocator *allocator = output->allocator;
 		assert(allocator != NULL);
 
-		const struct wlr_drm_format_set *display_formats = NULL;
-		if (output->impl->get_primary_formats) {
-			display_formats =
-				output->impl->get_primary_formats(output, allocator->buffer_caps);
-			if (display_formats == NULL) {
-				wlr_log(WLR_ERROR, "Failed to get primary display formats");
-				return false;
-			}
-		}
-
+		const struct wlr_drm_format_set *display_formats =
+			wlr_output_get_primary_formats(output, allocator->buffer_caps);
 		struct wlr_drm_format *format = output_pick_format(output, display_formats,
 			output->pending.render_format);
 		if (format == NULL) {
@@ -867,4 +859,22 @@ void wlr_output_damage_whole(struct wlr_output *output) {
 	wlr_signal_emit_safe(&output->events.damage, &event);
 
 	pixman_region32_fini(&damage);
+}
+
+const struct wlr_drm_format_set *wlr_output_get_primary_formats(
+		struct wlr_output *output, uint32_t buffer_caps) {
+	if (!output->impl->get_primary_formats) {
+		return NULL;
+	}
+
+	const struct wlr_drm_format_set *formats =
+		output->impl->get_primary_formats(output, buffer_caps);
+	if (formats == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get primary display formats");
+
+		static const struct wlr_drm_format_set empty_format_set = {0};
+		return &empty_format_set;
+	}
+
+	return formats;
 }

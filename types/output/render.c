@@ -51,16 +51,8 @@ static bool output_create_swapchain(struct wlr_output *output,
 	struct wlr_allocator *allocator = output->allocator;
 	assert(allocator != NULL);
 
-	const struct wlr_drm_format_set *display_formats = NULL;
-	if (output->impl->get_primary_formats) {
-		display_formats =
-			output->impl->get_primary_formats(output, allocator->buffer_caps);
-		if (display_formats == NULL) {
-			wlr_log(WLR_ERROR, "Failed to get primary display formats");
-			return false;
-		}
-	}
-
+	const struct wlr_drm_format_set *display_formats =
+		wlr_output_get_primary_formats(output, allocator->buffer_caps);
 	struct wlr_drm_format *format = output_pick_format(output, display_formats,
 		output->render_format);
 	if (format == NULL) {
