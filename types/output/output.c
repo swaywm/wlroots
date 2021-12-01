@@ -393,9 +393,6 @@ void wlr_output_destroy(struct wlr_output *output) {
 		return;
 	}
 
-	wlr_buffer_unlock(output->front_buffer);
-	output->front_buffer = NULL;
-
 	wl_list_remove(&output->display_destroy.link);
 	wlr_output_destroy_global(output);
 	output_clear_back_buffer(output);
@@ -716,15 +713,6 @@ bool wlr_output_commit(struct wlr_output *output) {
 		output->cursor_swapchain = NULL;
 	}
 
-	// Unset the front-buffer when a new buffer will replace it or when the
-	// output is getting disabled
-	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) ||
-			((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) &&
-				!output->pending.enabled)) {
-		wlr_buffer_unlock(output->front_buffer);
-		output->front_buffer = NULL;
-	}
-
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		output->frame_pending = true;
 		output->needs_frame = false;
@@ -732,8 +720,6 @@ bool wlr_output_commit(struct wlr_output *output) {
 
 	if (back_buffer != NULL) {
 		wlr_swapchain_set_buffer_submitted(output->swapchain, back_buffer);
-		wlr_buffer_unlock(output->front_buffer);
-		output->front_buffer = back_buffer;
 	}
 
 	uint32_t committed = output->pending.committed;
@@ -746,6 +732,10 @@ bool wlr_output_commit(struct wlr_output *output) {
 		.buffer = back_buffer,
 	};
 	wlr_signal_emit_safe(&output->events.commit, &event);
+
+	if (back_buffer != NULL) {
+		wlr_buffer_unlock(back_buffer);
+	}
 
 	return true;
 }

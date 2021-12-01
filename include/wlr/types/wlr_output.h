@@ -188,7 +188,7 @@ struct wlr_output {
 	struct wlr_allocator *allocator;
 	struct wlr_renderer *renderer;
 	struct wlr_swapchain *swapchain;
-	struct wlr_buffer *back_buffer, *front_buffer;
+	struct wlr_buffer *back_buffer;
 
 	struct wl_listener display_destroy;
 
