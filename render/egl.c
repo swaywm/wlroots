@@ -324,6 +324,9 @@ static bool egl_init(struct wlr_egl *egl, EGLenum platform,
 		return false;
 	}
 
+	egl->exts.IMG_context_priority =
+		check_egl_ext(display_exts_str, "EGL_IMG_context_priority");
+
 	wlr_log(WLR_INFO, "Supported EGL display extensions: %s", display_exts_str);
 	if (device_exts_str != NULL) {
 		wlr_log(WLR_INFO, "Supported EGL device extensions: %s", device_exts_str);
@@ -336,9 +339,6 @@ static bool egl_init(struct wlr_egl *egl, EGLenum platform,
 
 	init_dmabuf_formats(egl);
 
-	bool ext_context_priority =
-		check_egl_ext(display_exts_str, "EGL_IMG_context_priority");
-
 	size_t atti = 0;
 	EGLint attribs[5];
 	attribs[atti++] = EGL_CONTEXT_CLIENT_VERSION;
@@ -346,7 +346,7 @@ static bool egl_init(struct wlr_egl *egl, EGLenum platform,
 
 	// Request a high priority context if possible
 	// TODO: only do this if we're running as the DRM master
-	bool request_high_priority = ext_context_priority;
+	bool request_high_priority = egl->exts.IMG_context_priority;
 
 	// Try to reschedule all of our rendering to be completed first. If it
 	// fails, it will fallback to the default priority (MEDIUM).

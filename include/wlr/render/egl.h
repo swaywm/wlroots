@@ -40,6 +40,7 @@ struct wlr_egl {
 		bool KHR_image_base;
 		bool EXT_image_dma_buf_import;
 		bool EXT_image_dma_buf_import_modifiers;
+		bool IMG_context_priority;
 
 		// Device extensions
 		bool EXT_device_drm;
