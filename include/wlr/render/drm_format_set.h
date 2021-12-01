@@ -63,4 +63,13 @@ bool wlr_drm_format_set_has(const struct wlr_drm_format_set *set,
 bool wlr_drm_format_set_add(struct wlr_drm_format_set *set, uint32_t format,
 	uint64_t modifier);
 
+/**
+ * Intersect two DRM format sets `a` and `b`, storing in the destination set
+ * `dst` the format + modifier pairs which are in both source sets.
+ *
+ * Returns false on failure or when the intersection is empty.
+ */
+bool wlr_drm_format_set_intersect(struct wlr_drm_format_set *dst,
+	const struct wlr_drm_format_set *a, const struct wlr_drm_format_set *b);
+
 #endif

@@ -175,3 +175,41 @@ struct wlr_drm_format *wlr_drm_format_intersect(
 
 	return format;
 }
+
+bool wlr_drm_format_set_intersect(struct wlr_drm_format_set *dst,
+		const struct wlr_drm_format_set *a, const struct wlr_drm_format_set *b) {
+	assert(dst != a && dst != b);
+
+	struct wlr_drm_format_set out = {0};
+	out.capacity = a->len < b->len ? a->len : b->len;
+	out.formats = calloc(out.capacity, sizeof(struct wlr_drm_format *));
+	if (out.formats == NULL) {
+		wlr_log_errno(WLR_ERROR, "Allocation failed");
+		return false;
+	}
+
+	for (size_t i = 0; i < a->len; i++) {
+		for (size_t j = 0; j < b->len; j++) {
+			if (a->formats[i]->format == b->formats[j]->format) {
+				// When the two formats have no common modifier, keep
+				// intersecting the rest of the formats: they may be compatible
+				// with each other
+				struct wlr_drm_format *format =
+					wlr_drm_format_intersect(a->formats[i], b->formats[j]);
+				if (format != NULL) {
+					out.formats[out.len] = format;
+					out.len++;
+				}
+				break;
+			}
+		}
+	}
+
+	if (out.len == 0) {
+		wlr_drm_format_set_finish(&out);
+		return false;
+	}
+
+	*dst = out;
+	return true;
+}
