@@ -468,7 +468,7 @@ struct wlr_wl_input_device *create_wl_input_device(
 
 	unsigned int vendor = 0, product = 0;
 
-	const char *type_name;
+	const char *type_name = "unknown";
 
 	switch (type) {
 	case WLR_INPUT_DEVICE_KEYBOARD:
