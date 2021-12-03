@@ -66,7 +66,7 @@ static void frame_output_handle_commit(struct wl_listener *listener,
 	wl_list_init(&frame->output_commit.link);
 
 	struct wlr_dmabuf_attributes attribs = {0};
-	if (!wlr_output_export_dmabuf(frame->output, &attribs)) {
+	if (!wlr_buffer_get_dmabuf(frame->output->front_buffer, &attribs)) {
 		zwlr_export_dmabuf_frame_v1_send_cancel(frame->resource,
 			ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_TEMPORARY);
 		frame_destroy(frame);
@@ -77,7 +77,7 @@ static void frame_output_handle_commit(struct wl_listener *listener,
 	uint32_t mod_high = attribs.modifier >> 32;
 	uint32_t mod_low = attribs.modifier & 0xFFFFFFFF;
 	zwlr_export_dmabuf_frame_v1_send_frame(frame->resource,
-		attribs.width, attribs.height, 0, 0, attribs.flags, frame_flags,
+		attribs.width, attribs.height, 0, 0, 0, frame_flags,
 		attribs.format, mod_high, mod_low, attribs.n_planes);
 
 	for (int i = 0; i < attribs.n_planes; ++i) {
@@ -85,8 +85,6 @@ static void frame_output_handle_commit(struct wl_listener *listener,
 		zwlr_export_dmabuf_frame_v1_send_object(frame->resource, i,
 			attribs.fd[i], size, attribs.offset[i], attribs.stride[i], i);
 	}
-
-	wlr_dmabuf_attributes_finish(&attribs);
 
 	time_t tv_sec = event->when->tv_sec;
 	uint32_t tv_sec_hi = (sizeof(tv_sec) > 4) ? tv_sec >> 32 : 0;

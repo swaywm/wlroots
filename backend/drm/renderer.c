@@ -282,12 +282,6 @@ static struct wlr_drm_fb *drm_fb_create(struct wlr_drm_backend *drm,
 		goto error_get_dmabuf;
 	}
 
-	if (attribs.flags != 0) {
-		wlr_log(WLR_DEBUG, "Buffer with DMA-BUF flags 0x%"PRIX32" cannot be "
-			"scanned out", attribs.flags);
-		goto error_get_dmabuf;
-	}
-
 	if (formats && !wlr_drm_format_set_has(formats, attribs.format,
 			attribs.modifier)) {
 		// The format isn't supported by the plane. Try stripping the alpha

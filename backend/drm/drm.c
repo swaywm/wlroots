@@ -1177,7 +1177,8 @@ static uint32_t get_possible_crtcs(int fd, const drmModeConnector *conn) {
 
 static void disconnect_drm_connector(struct wlr_drm_connector *conn);
 
-void scan_drm_connectors(struct wlr_drm_backend *drm) {
+void scan_drm_connectors(struct wlr_drm_backend *drm,
+		struct wlr_device_hotplug_event *event) {
 	/*
 	 * This GPU is not really a modesetting device.
 	 * It's just being used as a renderer.
@@ -1186,7 +1187,12 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 		return;
 	}
 
-	wlr_log(WLR_INFO, "Scanning DRM connectors on %s", drm->name);
+	if (event != NULL && event->connector_id != 0) {
+		wlr_log(WLR_INFO, "Scanning DRM connector %"PRIu32" on %s",
+			event->connector_id, drm->name);
+	} else {
+		wlr_log(WLR_INFO, "Scanning DRM connectors on %s", drm->name);
+	}
 
 	drmModeRes *res = drmModeGetResources(drm->fd);
 	if (!res) {
@@ -1203,24 +1209,35 @@ void scan_drm_connectors(struct wlr_drm_backend *drm) {
 	struct wlr_drm_connector *new_outputs[res->count_connectors + 1];
 
 	for (int i = 0; i < res->count_connectors; ++i) {
-		drmModeConnector *drm_conn = drmModeGetConnector(drm->fd,
-			res->connectors[i]);
+		uint32_t conn_id = res->connectors[i];
+
+		ssize_t index = -1;
+		struct wlr_drm_connector *c, *wlr_conn = NULL;
+		wl_list_for_each(c, &drm->outputs, link) {
+			index++;
+			if (c->id == conn_id) {
+				wlr_conn = c;
+				break;
+			}
+		}
+
+		// If the hotplug event contains a connector ID, ignore any other
+		// connector.
+		if (event != NULL && event->connector_id != 0 &&
+				event->connector_id != conn_id) {
+			if (wlr_conn != NULL) {
+				seen[index] = true;
+			}
+			continue;
+		}
+
+		drmModeConnector *drm_conn = drmModeGetConnector(drm->fd, conn_id);
 		if (!drm_conn) {
 			wlr_log_errno(WLR_ERROR, "Failed to get DRM connector");
 			continue;
 		}
 		drmModeEncoder *curr_enc = drmModeGetEncoder(drm->fd,
 			drm_conn->encoder_id);
-
-		ssize_t index = -1;
-		struct wlr_drm_connector *c, *wlr_conn = NULL;
-		wl_list_for_each(c, &drm->outputs, link) {
-			index++;
-			if (c->id == drm_conn->connector_id) {
-				wlr_conn = c;
-				break;
-			}
-		}
 
 		if (!wlr_conn) {
 			wlr_conn = calloc(1, sizeof(*wlr_conn));

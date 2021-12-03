@@ -14,7 +14,6 @@
 #include <time.h>
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
-#include <wlr/render/dmabuf.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/util/addon.h>
 
@@ -183,6 +182,8 @@ struct wlr_output {
 	struct wlr_buffer *cursor_front_buffer;
 	int software_cursor_locks; // number of locks forcing software cursors
 
+	struct wlr_allocator *allocator;
+	struct wlr_renderer *renderer;
 	struct wlr_swapchain *swapchain;
 	struct wlr_buffer *back_buffer, *front_buffer;
 
@@ -257,6 +258,18 @@ struct wlr_surface;
 void wlr_output_enable(struct wlr_output *output, bool enable);
 void wlr_output_create_global(struct wlr_output *output);
 void wlr_output_destroy_global(struct wlr_output *output);
+/**
+ * Initialize the output's rendering subsystem with the provided allocator and
+ * renderer. Can only be called once.
+ *
+ * Call this function prior to any call to wlr_output_attach_render,
+ * wlr_output_commit or wlr_output_cursor_create.
+ *
+ * The buffer capabilities of the provided must match the capabilities of the
+ * output's backend. Returns false otherwise.
+ */
+bool wlr_output_init_render(struct wlr_output *output,
+	struct wlr_allocator *allocator, struct wlr_renderer *renderer);
 /**
  * Returns the preferred mode for this output. If the output doesn't support
  * modes, returns NULL.
@@ -401,13 +414,6 @@ size_t wlr_output_get_gamma_size(struct wlr_output *output);
  */
 void wlr_output_set_gamma(struct wlr_output *output, size_t size,
 	const uint16_t *r, const uint16_t *g, const uint16_t *b);
-/**
- * Exports the last committed buffer as a DMA-BUF.
- *
- * The caller is responsible for cleaning up the DMA-BUF attributes.
- */
-bool wlr_output_export_dmabuf(struct wlr_output *output,
-	struct wlr_dmabuf_attributes *attribs);
 /**
  * Returns the wlr_output matching the provided wl_output resource. If the
  * resource isn't a wl_output, it aborts. If the resource is inert (because the

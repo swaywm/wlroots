@@ -14,8 +14,6 @@ struct wlr_headless_backend {
 	size_t last_output_num;
 	struct wl_list input_devices;
 	struct wl_listener display_destroy;
-	struct wlr_renderer *parent_renderer;
-	struct wl_listener parent_renderer_destroy;
 	bool started;
 };
 

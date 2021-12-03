@@ -45,10 +45,6 @@ void wlr_backend_init(struct wlr_backend *backend,
 
 void wlr_backend_finish(struct wlr_backend *backend) {
 	wlr_signal_emit_safe(&backend->events.destroy, backend);
-	wlr_allocator_destroy(backend->allocator);
-	if (backend->has_own_renderer) {
-		wlr_renderer_destroy(backend->renderer);
-	}
 }
 
 bool wlr_backend_start(struct wlr_backend *backend) {
@@ -68,36 +64,6 @@ void wlr_backend_destroy(struct wlr_backend *backend) {
 	} else {
 		free(backend);
 	}
-}
-
-static bool backend_create_renderer(struct wlr_backend *backend) {
-	if (backend->renderer != NULL) {
-		return true;
-	}
-
-	backend->renderer = wlr_renderer_autocreate(backend);
-	if (backend->renderer == NULL) {
-		return false;
-	}
-
-	backend->has_own_renderer = true;
-	return true;
-}
-
-struct wlr_renderer *wlr_backend_get_renderer(struct wlr_backend *backend) {
-	if (backend->impl->get_renderer) {
-		return backend->impl->get_renderer(backend);
-	}
-	if (backend_get_buffer_caps(backend) != 0) {
-		// If the backend is capable of presenting buffers, automatically create
-		// the renderer if necessary.
-		if (!backend_create_renderer(backend)) {
-			wlr_log(WLR_ERROR, "Failed to create backend renderer");
-			return NULL;
-		}
-		return backend->renderer;
-	}
-	return NULL;
 }
 
 struct wlr_session *wlr_backend_get_session(struct wlr_backend *backend) {
@@ -175,23 +141,6 @@ uint32_t backend_get_buffer_caps(struct wlr_backend *backend) {
 	return backend->impl->get_buffer_caps(backend);
 }
 
-struct wlr_allocator *backend_get_allocator(struct wlr_backend *backend) {
-	if (backend->allocator != NULL) {
-		return backend->allocator;
-	}
-
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(backend);
-	if (renderer == NULL) {
-		return NULL;
-	}
-
-	backend->allocator = wlr_allocator_autocreate(backend, renderer);
-	if (backend->allocator == NULL) {
-		wlr_log(WLR_ERROR, "Failed to create backend allocator");
-	}
-	return backend->allocator;
-}
-
 static size_t parse_outputs_env(const char *name) {
 	const char *outputs_str = getenv(name);
 	if (outputs_str == NULL) {
@@ -208,21 +157,6 @@ static size_t parse_outputs_env(const char *name) {
 	return outputs;
 }
 
-static struct wlr_backend *ensure_backend_renderer_and_allocator(
-		struct wlr_backend *backend) {
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(backend);
-	if (renderer == NULL) {
-		wlr_backend_destroy(backend);
-		return NULL;
-	}
-	struct wlr_allocator *allocator = backend_get_allocator(backend);
-	if (allocator == NULL) {
-		wlr_backend_destroy(backend);
-		return NULL;
-	}
-	return backend;
-}
-
 static struct wlr_backend *attempt_wl_backend(struct wl_display *display) {
 	struct wlr_backend *backend = wlr_wl_backend_create(display, NULL);
 	if (backend == NULL) {
@@ -234,7 +168,7 @@ static struct wlr_backend *attempt_wl_backend(struct wl_display *display) {
 		wlr_wl_output_create(backend);
 	}
 
-	return ensure_backend_renderer_and_allocator(backend);
+	return backend;
 }
 
 #if WLR_HAS_X11_BACKEND
@@ -250,7 +184,7 @@ static struct wlr_backend *attempt_x11_backend(struct wl_display *display,
 		wlr_x11_output_create(backend);
 	}
 
-	return ensure_backend_renderer_and_allocator(backend);
+	return backend;
 }
 #endif
 
@@ -266,7 +200,7 @@ static struct wlr_backend *attempt_headless_backend(
 		wlr_headless_add_output(backend, 1280, 720);
 	}
 
-	return ensure_backend_renderer_and_allocator(backend);
+	return backend;
 }
 
 static struct wlr_backend *attempt_noop_backend(struct wl_display *display) {
@@ -320,7 +254,7 @@ static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 		return NULL;
 	}
 
-	return ensure_backend_renderer_and_allocator(primary_drm);
+	return backend;
 }
 #endif
 

@@ -204,10 +204,25 @@ static void params_create_common(struct wl_resource *params_resource,
 		goto err_out;
 	}
 
+	/* reject unknown flags */
+	uint32_t all_flags = ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT |
+		ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_INTERLACED |
+		ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_BOTTOM_FIRST;
+	if (flags & ~all_flags) {
+		wl_resource_post_error(params_resource,
+			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_INVALID_FORMAT,
+			"Unknown dmabuf flags %"PRIu32, flags);
+		goto err_out;
+	}
+
+	if (flags != 0) {
+		wlr_log(WLR_ERROR, "dmabuf flags aren't supported");
+		goto err_failed;
+	}
+
 	attribs.width = width;
 	attribs.height = height;
 	attribs.format = format;
-	attribs.flags = flags;
 
 	if (width < 1 || height < 1) {
 		wl_resource_post_error(params_resource,
@@ -263,14 +278,6 @@ static void params_create_common(struct wl_resource *params_resource,
 				"invalid buffer stride or height for plane %d", i);
 			goto err_out;
 		}
-	}
-
-	/* reject unknown flags */
-	if (attribs.flags & ~ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT) {
-		wl_resource_post_error(params_resource,
-			ZWP_LINUX_BUFFER_PARAMS_V1_ERROR_INVALID_FORMAT,
-			"Unknown dmabuf flags %"PRIu32, attribs.flags);
-		goto err_out;
 	}
 
 	/* Check if dmabuf is usable */

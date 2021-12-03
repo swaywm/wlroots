@@ -88,6 +88,10 @@ static void im_commit_string(struct wl_client *client,
 	}
 	free(input_method->pending.commit_text);
 	input_method->pending.commit_text = strdup(text);
+	if (input_method->pending.commit_text == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
 }
 
 static void im_set_preedit_string(struct wl_client *client,
@@ -102,6 +106,10 @@ static void im_set_preedit_string(struct wl_client *client,
 	input_method->pending.preedit.cursor_end = cursor_end;
 	free(input_method->pending.preedit.text);
 	input_method->pending.preedit.text = strdup(text);
+	if (input_method->pending.preedit.text == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
 }
 
 static void im_delete_surrounding_text(struct wl_client *client,

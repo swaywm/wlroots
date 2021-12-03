@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
+#include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_compositor.h>
@@ -34,6 +35,7 @@ struct tinywl_server {
 	struct wl_display *wl_display;
 	struct wlr_backend *backend;
 	struct wlr_renderer *renderer;
+	struct wlr_allocator *allocator;
 
 	struct wlr_xdg_shell *xdg_shell;
 	struct wl_listener new_xdg_surface;
@@ -676,6 +678,10 @@ static void server_new_output(struct wl_listener *listener, void *data) {
 		}
 	}
 
+	/* Configures the output created by the backend to use our allocator
+	 * and our renderer */
+	wlr_output_init_render(wlr_output, server->allocator, server->renderer);
+
 	/* Allocates and configures our state for this output */
 	struct tinywl_output *output =
 		calloc(1, sizeof(struct tinywl_output));
@@ -841,11 +847,19 @@ int main(int argc, char *argv[]) {
 	 * if an X11 server is running. */
 	server.backend = wlr_backend_autocreate(server.wl_display);
 
-	/* If we don't provide a renderer, autocreate makes a GLES2 renderer for us.
+	/* Autocreates a renderer, either Pixman, GLES2 or Vulkan for us. The user
+	 * can also specify a renderer using the WLR_RENDERER env var.
 	 * The renderer is responsible for defining the various pixel formats it
 	 * supports for shared memory, this configures that for clients. */
-	server.renderer = wlr_backend_get_renderer(server.backend);
+	server.renderer = wlr_renderer_autocreate(server.backend);
 	wlr_renderer_init_wl_display(server.renderer, server.wl_display);
+
+	/* Autocreates an allocator for us.
+	 * The allocator is the bridge between the renderer and the backend. It
+	 * handles the buffer creation, allowing wlroots to render onto the
+	 * screen */
+	 server.allocator = wlr_allocator_autocreate(server.backend,
+		server.renderer);
 
 	/* This creates some hands-off wlroots interfaces. The compositor is
 	 * necessary for clients to allocate surfaces and the data device manager

@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
+#include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_output.h>
@@ -25,6 +26,8 @@ static const int border_width = 3;
 struct server {
 	struct wl_display *display;
 	struct wlr_backend *backend;
+	struct wlr_renderer *renderer;
+	struct wlr_allocator *allocator;
 	struct wlr_scene *scene;
 
 	struct wl_list outputs;
@@ -72,6 +75,8 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 static void server_handle_new_output(struct wl_listener *listener, void *data) {
 	struct server *server = wl_container_of(listener, server, new_output);
 	struct wlr_output *wlr_output = data;
+
+	wlr_output_init_render(wlr_output, server->allocator, server->renderer);
 
 	struct output *output =
 		calloc(1, sizeof(struct output));
@@ -161,11 +166,14 @@ int main(int argc, char *argv[]) {
 	server.backend = wlr_backend_autocreate(server.display);
 	server.scene = wlr_scene_create();
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(server.backend);
-	wlr_renderer_init_wl_display(renderer, server.display);
+	server.renderer = wlr_renderer_autocreate(server.backend);
+	wlr_renderer_init_wl_display(server.renderer, server.display);
+
+	server.allocator = wlr_allocator_autocreate(server.backend,
+		server.renderer);
 
 	struct wlr_compositor *compositor =
-		wlr_compositor_create(server.display, renderer);
+		wlr_compositor_create(server.display, server.renderer);
 
 	wlr_xdg_shell_create(server.display);
 

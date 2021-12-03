@@ -14,16 +14,9 @@
 
 #define WLR_DMABUF_MAX_PLANES 4
 
-enum wlr_dmabuf_attributes_flags {
-	WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT = 1 << 0,
-	WLR_DMABUF_ATTRIBUTES_FLAGS_INTERLACED = 1 << 1,
-	WLR_DMABUF_ATTRIBUTES_FLAGS_BOTTOM_FIRST = 1 << 2,
-};
-
 struct wlr_dmabuf_attributes {
 	int32_t width, height;
 	uint32_t format;
-	uint32_t flags; // enum wlr_dmabuf_attributes_flags
 	uint64_t modifier;
 
 	int n_planes;
