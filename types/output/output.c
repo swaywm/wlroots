@@ -743,6 +743,7 @@ bool wlr_output_commit(struct wlr_output *output) {
 		.output = output,
 		.committed = committed,
 		.when = &now,
+		.buffer = back_buffer,
 	};
 	wlr_signal_emit_safe(&output->events.commit, &event);
 
