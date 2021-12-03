@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <drm_fourcc.h>
+#include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output.h>
@@ -189,7 +190,7 @@ static void frame_send_ready(struct wlr_screencopy_frame_v1 *frame,
 }
 
 static bool frame_shm_copy(struct wlr_screencopy_frame_v1 *frame,
-		uint32_t *flags) {
+		struct wlr_buffer *src_buffer, uint32_t *flags) {
 	struct wl_shm_buffer *shm_buffer = frame->shm_buffer;
 	struct wlr_output *output = frame->output;
 	struct wlr_renderer *renderer = output->renderer;
@@ -208,7 +209,7 @@ static bool frame_shm_copy(struct wlr_screencopy_frame_v1 *frame,
 	void *data = wl_shm_buffer_get_data(shm_buffer);
 	uint32_t renderer_flags = 0;
 	bool ok;
-	ok = wlr_renderer_begin_with_buffer(renderer, output->front_buffer);
+	ok = wlr_renderer_begin_with_buffer(renderer, src_buffer);
 	ok = ok && wlr_renderer_read_pixels(renderer, drm_format,
 		&renderer_flags, stride, width, height, x, y, 0, 0, data);
 	wlr_renderer_end(renderer);
@@ -254,20 +255,21 @@ error_src_tex:
 	return false;
 }
 
-static bool frame_dma_copy(struct wlr_screencopy_frame_v1 *frame) {
-	struct wlr_dmabuf_v1_buffer *dma_buffer = frame->dma_buffer;
+static bool frame_dma_copy(struct wlr_screencopy_frame_v1 *frame,
+		struct wlr_buffer *src_buffer) {
+	struct wlr_dmabuf_v1_buffer *dst_buffer = frame->dma_buffer;
 	struct wlr_output *output = frame->output;
 	struct wlr_renderer *renderer = output->renderer;
 	assert(renderer);
 
 	// TODO: add support for copying regions with DMA-BUFs
 	if (frame->box.x != 0 || frame->box.y != 0 ||
-			output->width != frame->box.width ||
-			output->height != frame->box.height) {
+			src_buffer->width != frame->box.width ||
+			src_buffer->height != frame->box.height) {
 		return false;
 	}
 
-	return blit_dmabuf(renderer, dma_buffer, output->front_buffer);
+	return blit_dmabuf(renderer, dst_buffer, src_buffer);
 }
 
 static void frame_handle_output_commit(struct wl_listener *listener,
@@ -277,6 +279,7 @@ static void frame_handle_output_commit(struct wl_listener *listener,
 	struct wlr_output_event_commit *event = data;
 	struct wlr_output *output = frame->output;
 	struct wlr_renderer *renderer = output->renderer;
+	struct wlr_buffer *buffer = event->buffer;
 	assert(renderer);
 
 	if (!(event->committed & WLR_OUTPUT_STATE_BUFFER)) {
@@ -298,9 +301,10 @@ static void frame_handle_output_commit(struct wl_listener *listener,
 	wl_list_remove(&frame->output_commit.link);
 	wl_list_init(&frame->output_commit.link);
 
+
 	uint32_t flags = 0;
 	bool ok = frame->shm_buffer ?
-		frame_shm_copy(frame, &flags) : frame_dma_copy(frame);
+		frame_shm_copy(frame, buffer, &flags) : frame_dma_copy(frame, buffer);
 	if (!ok) {
 		zwlr_screencopy_frame_v1_send_failed(frame->resource);
 		frame_destroy(frame);
@@ -483,15 +487,6 @@ static struct wlr_screencopy_v1_client *client_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
-static uint32_t get_output_fourcc(struct wlr_output *output) {
-	struct wlr_dmabuf_attributes attr = {0};
-	if (!output->front_buffer ||
-			!wlr_buffer_get_dmabuf(output->front_buffer, &attr)) {
-		return DRM_FORMAT_INVALID;
-	}
-	return attr.format;
-}
-
 static void capture_output(struct wl_client *wl_client,
 		struct wlr_screencopy_v1_client *client, uint32_t version,
 		uint32_t id, int32_t overlay_cursor, struct wlr_output *output,
@@ -549,7 +544,12 @@ static void capture_output(struct wl_client *wl_client,
 	}
 
 	frame->format = convert_drm_format_to_wl_shm(drm_format);
-	frame->fourcc = get_output_fourcc(output);
+	if (output->allocator &&
+			(output->allocator->buffer_caps & WLR_BUFFER_CAP_DMABUF)) {
+		frame->fourcc = output->render_format;
+	} else {
+		frame->fourcc = DRM_FORMAT_INVALID;
+	}
 
 	struct wlr_box buffer_box = {0};
 	if (box == NULL) {
