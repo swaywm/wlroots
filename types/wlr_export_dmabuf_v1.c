@@ -66,7 +66,7 @@ static void frame_output_handle_commit(struct wl_listener *listener,
 	wl_list_init(&frame->output_commit.link);
 
 	struct wlr_dmabuf_attributes attribs = {0};
-	if (!wlr_buffer_get_dmabuf(frame->output->front_buffer, &attribs)) {
+	if (!wlr_buffer_get_dmabuf(event->buffer, &attribs)) {
 		zwlr_export_dmabuf_frame_v1_send_cancel(frame->resource,
 			ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_TEMPORARY);
 		frame_destroy(frame);
