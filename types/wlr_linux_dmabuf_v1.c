@@ -430,8 +430,8 @@ static void linux_dmabuf_send_modifiers(struct wl_resource *resource,
 
 static void linux_dmabuf_send_formats(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
 		struct wl_resource *resource) {
-	const struct wlr_drm_format_set *formats =
-		wlr_renderer_get_dmabuf_texture_formats(linux_dmabuf->renderer);
+	const struct wlr_drm_format_set *formats = wlr_renderer_get_texture_formats(
+		linux_dmabuf->renderer, WLR_BUFFER_CAP_DMABUF);
 	if (formats == NULL) {
 		return;
 	}

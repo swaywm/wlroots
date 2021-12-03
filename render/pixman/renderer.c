@@ -329,9 +329,14 @@ static void pixman_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 	pixman_image_unref(image);
 }
 
-static const uint32_t *pixman_get_shm_texture_formats(
-		struct wlr_renderer *wlr_renderer, size_t *len) {
-	return get_pixman_drm_formats(len);
+static const struct wlr_drm_format_set *pixman_get_texture_formats(
+		struct wlr_renderer *wlr_renderer, uint32_t buffer_caps) {
+	struct wlr_pixman_renderer *renderer = get_renderer(wlr_renderer);
+	if (buffer_caps & WLR_BUFFER_CAP_DATA_PTR) {
+		return &renderer->drm_formats;
+	} else {
+		return NULL;
+	}
 }
 
 static const struct wlr_drm_format_set *pixman_get_render_formats(
@@ -501,7 +506,7 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.scissor = pixman_scissor,
 	.render_subtexture_with_matrix = pixman_render_subtexture_with_matrix,
 	.render_quad_with_matrix = pixman_render_quad_with_matrix,
-	.get_shm_texture_formats = pixman_get_shm_texture_formats,
+	.get_texture_formats = pixman_get_texture_formats,
 	.get_render_formats = pixman_get_render_formats,
 	.texture_from_buffer = pixman_texture_from_buffer,
 	.bind_buffer = pixman_bind_buffer,
@@ -523,13 +528,7 @@ struct wlr_renderer *wlr_pixman_renderer_create(void) {
 	wl_list_init(&renderer->buffers);
 	wl_list_init(&renderer->textures);
 
-	size_t len = 0;
-	const uint32_t *formats = get_pixman_drm_formats(&len);
-
-	for (size_t i = 0; i < len; ++i) {
-		wlr_drm_format_set_add(&renderer->drm_formats, formats[i],
-				DRM_FORMAT_MOD_LINEAR);
-	}
+	init_pixman_formats(renderer);
 
 	return &renderer->wlr_renderer;
 }

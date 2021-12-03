@@ -32,10 +32,6 @@ struct wlr_renderer_impl {
 		const float matrix[static 9], float alpha);
 	void (*render_quad_with_matrix)(struct wlr_renderer *renderer,
 		const float color[static 4], const float matrix[static 9]);
-	const uint32_t *(*get_shm_texture_formats)(
-		struct wlr_renderer *renderer, size_t *len);
-	const struct wlr_drm_format_set *(*get_dmabuf_texture_formats)(
-		struct wlr_renderer *renderer);
 	const struct wlr_drm_format_set *(*get_render_formats)(
 		struct wlr_renderer *renderer);
 	uint32_t (*preferred_read_format)(struct wlr_renderer *renderer);
@@ -46,6 +42,8 @@ struct wlr_renderer_impl {
 	void (*destroy)(struct wlr_renderer *renderer);
 	int (*get_drm_fd)(struct wlr_renderer *renderer);
 	uint32_t (*get_render_buffer_caps)(struct wlr_renderer *renderer);
+	const struct wlr_drm_format_set *(*get_texture_formats)(
+		struct wlr_renderer *renderer, uint32_t buffer_caps);
 	struct wlr_texture *(*texture_from_buffer)(struct wlr_renderer *renderer,
 		struct wlr_buffer *buffer);
 };
