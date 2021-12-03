@@ -429,28 +429,31 @@ static void surface_commit_state(struct wlr_surface *surface,
 	surface_update_opaque_region(surface);
 	surface_update_input_region(surface);
 
-	// commit subsurface order
-	struct wlr_subsurface *subsurface;
-	wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_above,
-			pending.link) {
-		wl_list_remove(&subsurface->current.link);
-		wl_list_insert(&surface->current.subsurfaces_above,
-			&subsurface->current.link);
+	// TODO: use `next` instead of `surface->pending`
+	if (surface->pending.committed & WLR_SURFACE_STATE_SUBSURFACES) {
+		// commit subsurface order
+		struct wlr_subsurface *subsurface;
+		wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_above,
+				pending.link) {
+			wl_list_remove(&subsurface->current.link);
+			wl_list_insert(&surface->current.subsurfaces_above,
+				&subsurface->current.link);
 
-		if (subsurface->reordered) {
-			// TODO: damage all the subsurfaces
-			surface_damage_subsurfaces(subsurface);
+			if (subsurface->reordered) {
+				// TODO: damage all the subsurfaces
+				surface_damage_subsurfaces(subsurface);
+			}
 		}
-	}
-	wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_below,
-			pending.link) {
-		wl_list_remove(&subsurface->current.link);
-		wl_list_insert(&surface->current.subsurfaces_below,
-			&subsurface->current.link);
+		wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_below,
+				pending.link) {
+			wl_list_remove(&subsurface->current.link);
+			wl_list_insert(&surface->current.subsurfaces_below,
+				&subsurface->current.link);
 
-		if (subsurface->reordered) {
-			// TODO: damage all the subsurfaces
-			surface_damage_subsurfaces(subsurface);
+			if (subsurface->reordered) {
+				// TODO: damage all the subsurfaces
+				surface_damage_subsurfaces(subsurface);
+			}
 		}
 	}
 
@@ -668,6 +671,7 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 	wl_list_remove(&subsurface->surface_destroy.link);
 
 	if (subsurface->parent) {
+		subsurface->parent->pending.committed |= WLR_SURFACE_STATE_SUBSURFACES;
 		wl_list_remove(&subsurface->current.link);
 		wl_list_remove(&subsurface->pending.link);
 		wl_list_remove(&subsurface->parent_destroy.link);
@@ -920,6 +924,7 @@ static void subsurface_handle_place_above(struct wl_client *client,
 		node = &sibling->pending.link;
 	}
 
+	subsurface->parent->pending.committed |= WLR_SURFACE_STATE_SUBSURFACES;
 	wl_list_remove(&subsurface->pending.link);
 	wl_list_insert(node, &subsurface->pending.link);
 
@@ -952,6 +957,7 @@ static void subsurface_handle_place_below(struct wl_client *client,
 		node = &sibling->pending.link;
 	}
 
+	subsurface->parent->pending.committed |= WLR_SURFACE_STATE_SUBSURFACES;
 	wl_list_remove(&subsurface->pending.link);
 	wl_list_insert(node->prev, &subsurface->pending.link);
 
@@ -1163,6 +1169,7 @@ struct wlr_subsurface *subsurface_create(struct wlr_surface *surface,
 
 	// link parent
 	subsurface->parent = parent;
+	subsurface->parent->pending.committed |= WLR_SURFACE_STATE_SUBSURFACES;
 	wl_signal_add(&parent->events.destroy, &subsurface->parent_destroy);
 	subsurface->parent_destroy.notify = subsurface_handle_parent_destroy;
 	wl_list_insert(parent->current.subsurfaces_above.prev, &subsurface->current.link);
