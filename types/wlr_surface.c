@@ -400,6 +400,8 @@ static void surface_update_input_region(struct wlr_surface *surface) {
 
 static void surface_state_init(struct wlr_surface_state *state);
 
+static void subsurface_parent_commit(struct wlr_subsurface *subsurface);
+
 static void surface_cache_pending(struct wlr_surface *surface) {
 	struct wlr_surface_state *cached = calloc(1, sizeof(*cached));
 	if (!cached) {
@@ -452,6 +454,7 @@ static void surface_commit_state(struct wlr_surface *surface,
 			// TODO: damage all the subsurfaces
 			surface_damage_subsurfaces(subsurface);
 		}
+		subsurface_parent_commit(subsurface);
 	}
 	wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_below,
 			pending.link) {
@@ -463,6 +466,7 @@ static void surface_commit_state(struct wlr_surface *surface,
 			// TODO: damage all the subsurfaces
 			surface_damage_subsurfaces(subsurface);
 		}
+		subsurface_parent_commit(subsurface);
 	}
 
 	// If we're committing the pending state, bump the pending sequence number
@@ -497,28 +501,12 @@ static bool subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
 	return false;
 }
 
-/**
- * Recursive function to commit the effectively synchronized children.
- */
-static void subsurface_parent_commit(struct wlr_subsurface *subsurface,
-		bool synchronized) {
+static void subsurface_parent_commit(struct wlr_subsurface *subsurface) {
 	struct wlr_surface *surface = subsurface->surface;
-	if (synchronized || subsurface->synchronized) {
-		if (subsurface->has_cache) {
-			wlr_surface_unlock_cached(surface, subsurface->cached_seq);
-			subsurface->has_cache = false;
-			subsurface->cached_seq = 0;
-		}
 
-		struct wlr_subsurface *subsurface;
-		wl_list_for_each(subsurface, &surface->current.subsurfaces_below,
-				current.link) {
-			subsurface_parent_commit(subsurface, true);
-		}
-		wl_list_for_each(subsurface, &surface->current.subsurfaces_above,
-				current.link) {
-			subsurface_parent_commit(subsurface, true);
-		}
+	if (subsurface->synchronized && subsurface->has_cache) {
+		wlr_surface_unlock_cached(surface, subsurface->cached_seq);
+		subsurface->has_cache = false;
 	}
 }
 
@@ -556,13 +544,6 @@ static void surface_handle_commit(struct wl_client *client,
 		surface_cache_pending(surface);
 	} else {
 		surface_commit_state(surface, &surface->pending);
-	}
-
-	wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
-		subsurface_parent_commit(subsurface, false);
-	}
-	wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
-		subsurface_parent_commit(subsurface, false);
 	}
 }
 
@@ -989,15 +970,11 @@ static void subsurface_handle_set_desync(struct wl_client *client,
 	if (subsurface->synchronized) {
 		subsurface->synchronized = false;
 
-		if (!subsurface_is_synchronized(subsurface)) {
-			if (subsurface->has_cache) {
-				wlr_surface_unlock_cached(subsurface->surface,
-					subsurface->cached_seq);
-				subsurface->has_cache = false;
-				subsurface->cached_seq = 0;
-			}
-
-			subsurface_parent_commit(subsurface, true);
+		if (!subsurface_is_synchronized(subsurface) &&
+				subsurface->has_cache) {
+			wlr_surface_unlock_cached(subsurface->surface,
+				subsurface->cached_seq);
+			subsurface->has_cache = false;
 		}
 	}
 }
