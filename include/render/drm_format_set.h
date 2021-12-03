@@ -3,6 +3,9 @@
 
 #include <wlr/render/drm_format_set.h>
 
+bool wlr_drm_format_set_copy(struct wlr_drm_format_set *dst,
+	const struct wlr_drm_format_set *src);
+
 struct wlr_drm_format *wlr_drm_format_create(uint32_t format);
 bool wlr_drm_format_add(struct wlr_drm_format **fmt_ptr, uint64_t modifier);
 struct wlr_drm_format *wlr_drm_format_dup(const struct wlr_drm_format *format);
