@@ -508,6 +508,30 @@ static void subsurface_parent_commit(struct wlr_subsurface *subsurface) {
 		wlr_surface_unlock_cached(surface, subsurface->cached_seq);
 		subsurface->has_cache = false;
 	}
+
+	if (subsurface->current.x != subsurface->pending.x ||
+			subsurface->current.y != subsurface->pending.y) {
+		// Subsurface has moved
+		int dx = subsurface->current.x - subsurface->pending.x;
+		int dy = subsurface->current.y - subsurface->pending.y;
+
+		subsurface->current.x = subsurface->pending.x;
+		subsurface->current.y = subsurface->pending.y;
+
+		if ((surface->current.transform & WL_OUTPUT_TRANSFORM_90) != 0) {
+			int tmp = dx;
+			dx = dy;
+			dy = tmp;
+		}
+
+		pixman_region32_union_rect(&surface->buffer_damage,
+			&surface->buffer_damage,
+			dx * surface->previous.scale, dy * surface->previous.scale,
+			surface->previous.buffer_width, surface->previous.buffer_height);
+		pixman_region32_union_rect(&surface->buffer_damage,
+			&surface->buffer_damage, 0, 0,
+			surface->current.buffer_width, surface->current.buffer_height);
+	}
 }
 
 static void subsurface_commit(struct wlr_subsurface *subsurface) {
@@ -1053,30 +1077,6 @@ static void subsurface_role_commit(struct wlr_surface *surface) {
 		wlr_subsurface_from_wlr_surface(surface);
 	if (subsurface == NULL) {
 		return;
-	}
-
-	if (subsurface->current.x != subsurface->pending.x ||
-			subsurface->current.y != subsurface->pending.y) {
-		// Subsurface has moved
-		int dx = subsurface->current.x - subsurface->pending.x;
-		int dy = subsurface->current.y - subsurface->pending.y;
-
-		subsurface->current.x = subsurface->pending.x;
-		subsurface->current.y = subsurface->pending.y;
-
-		if ((surface->current.transform & WL_OUTPUT_TRANSFORM_90) != 0) {
-			int tmp = dx;
-			dx = dy;
-			dy = tmp;
-		}
-
-		pixman_region32_union_rect(&surface->buffer_damage,
-			&surface->buffer_damage,
-			dx * surface->previous.scale, dy * surface->previous.scale,
-			surface->previous.buffer_width, surface->previous.buffer_height);
-		pixman_region32_union_rect(&surface->buffer_damage,
-			&surface->buffer_damage, 0, 0,
-			surface->current.buffer_width, surface->current.buffer_height);
 	}
 
 	subsurface_consider_map(subsurface, true);
