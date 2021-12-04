@@ -315,29 +315,6 @@ static void surface_state_move(struct wlr_surface_state *state,
 	next->cached_state_locks = 0;
 }
 
-static void surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
-	// XXX: This is probably the wrong way to do it, because this damage should
-	// come from the client, but weston doesn't do it correctly either and it
-	// seems to work ok. See the comment on weston_surface_damage for more info
-	// about a better approach.
-	struct wlr_surface *surface = subsurface->surface;
-	pixman_region32_union_rect(&surface->buffer_damage,
-		&surface->buffer_damage, 0, 0,
-		surface->current.buffer_width, surface->current.buffer_height);
-
-	subsurface->reordered = false;
-
-	struct wlr_subsurface *child;
-	wl_list_for_each(child, &subsurface->surface->current.subsurfaces_below,
-			current.link) {
-		surface_damage_subsurfaces(child);
-	}
-	wl_list_for_each(child, &subsurface->surface->current.subsurfaces_above,
-			current.link) {
-		surface_damage_subsurfaces(child);
-	}
-}
-
 static void surface_apply_damage(struct wlr_surface *surface) {
 	if (surface->current.buffer == NULL) {
 		// NULL commit
@@ -427,6 +404,15 @@ static void surface_commit_state(struct wlr_surface *surface,
 	surface->sy += next->dy;
 	surface_update_damage(&surface->buffer_damage, &surface->current, next);
 
+	pixman_region32_clear(&surface->external_damage);
+	if (surface->current.width > next->width ||
+			surface->current.height > next->height ||
+			next->dx != 0 || next->dy != 0) {
+		pixman_region32_union_rect(&surface->external_damage,
+			&surface->external_damage, -next->dx, -next->dy,
+			surface->current.width, surface->current.height);
+	}
+
 	surface->previous.scale = surface->current.scale;
 	surface->previous.transform = surface->current.transform;
 	surface->previous.width = surface->current.width;
@@ -450,10 +436,6 @@ static void surface_commit_state(struct wlr_surface *surface,
 		wl_list_insert(&surface->current.subsurfaces_above,
 			&subsurface->current.link);
 
-		if (subsurface->reordered) {
-			// TODO: damage all the subsurfaces
-			surface_damage_subsurfaces(subsurface);
-		}
 		subsurface_parent_commit(subsurface);
 	}
 	wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_below,
@@ -462,10 +444,6 @@ static void surface_commit_state(struct wlr_surface *surface,
 		wl_list_insert(&surface->current.subsurfaces_below,
 			&subsurface->current.link);
 
-		if (subsurface->reordered) {
-			// TODO: damage all the subsurfaces
-			surface_damage_subsurfaces(subsurface);
-		}
 		subsurface_parent_commit(subsurface);
 	}
 
@@ -501,36 +479,37 @@ static bool subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
 	return false;
 }
 
+static void collect_subsurface_damage_iter(struct wlr_surface *surface,
+		int sx, int sy, void *data) {
+	struct wlr_subsurface *subsurface = data;
+	pixman_region32_t *damage = &subsurface->parent->external_damage;
+	pixman_region32_union_rect(damage, damage,
+		subsurface->current.x + sx,
+		subsurface->current.y + sy,
+		surface->current.width, surface->current.height);
+}
+
 static void subsurface_parent_commit(struct wlr_subsurface *subsurface) {
 	struct wlr_surface *surface = subsurface->surface;
+	
+	bool moved = subsurface->current.x != subsurface->pending.x ||
+		subsurface->current.y != subsurface->pending.y;
+	if (subsurface->mapped && moved) {
+		wlr_surface_for_each_surface(surface,
+			collect_subsurface_damage_iter, subsurface);
+	}
 
 	if (subsurface->synchronized && subsurface->has_cache) {
 		wlr_surface_unlock_cached(surface, subsurface->cached_seq);
 		subsurface->has_cache = false;
 	}
 
-	if (subsurface->current.x != subsurface->pending.x ||
-			subsurface->current.y != subsurface->pending.y) {
-		// Subsurface has moved
-		int dx = subsurface->current.x - subsurface->pending.x;
-		int dy = subsurface->current.y - subsurface->pending.y;
-
-		subsurface->current.x = subsurface->pending.x;
-		subsurface->current.y = subsurface->pending.y;
-
-		if ((surface->current.transform & WL_OUTPUT_TRANSFORM_90) != 0) {
-			int tmp = dx;
-			dx = dy;
-			dy = tmp;
-		}
-
-		pixman_region32_union_rect(&surface->buffer_damage,
-			&surface->buffer_damage,
-			dx * surface->previous.scale, dy * surface->previous.scale,
-			surface->previous.buffer_width, surface->previous.buffer_height);
-		pixman_region32_union_rect(&surface->buffer_damage,
-			&surface->buffer_damage, 0, 0,
-			surface->current.buffer_width, surface->current.buffer_height);
+	subsurface->current.x = subsurface->pending.x;
+	subsurface->current.y = subsurface->pending.y;
+	if (subsurface->mapped && (moved || subsurface->reordered)) {
+		subsurface->reordered = false;
+		wlr_surface_for_each_surface(surface,
+			collect_subsurface_damage_iter, subsurface);
 	}
 }
 
@@ -720,6 +699,7 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 	surface_state_finish(&surface->pending);
 	surface_state_finish(&surface->current);
 	pixman_region32_fini(&surface->buffer_damage);
+	pixman_region32_fini(&surface->external_damage);
 	pixman_region32_fini(&surface->opaque_region);
 	pixman_region32_fini(&surface->input_region);
 	if (surface->buffer != NULL) {
@@ -766,6 +746,7 @@ struct wlr_surface *surface_create(struct wl_client *client,
 	wl_list_init(&surface->current_outputs);
 	wl_list_init(&surface->cached);
 	pixman_region32_init(&surface->buffer_damage);
+	pixman_region32_init(&surface->external_damage);
 	pixman_region32_init(&surface->opaque_region);
 	pixman_region32_init(&surface->input_region);
 	wlr_addon_set_init(&surface->addons);
@@ -1427,26 +1408,7 @@ void wlr_surface_get_effective_damage(struct wlr_surface *surface,
 		wlr_region_scale_xy(damage, damage, scale_x, scale_y);
 	}
 
-	// On resize, damage the previous bounds of the surface. The current bounds
-	// have already been damaged in surface_update_damage.
-	if (surface->previous.width > surface->current.width ||
-			surface->previous.height > surface->current.height) {
-		pixman_region32_union_rect(damage, damage, 0, 0,
-			surface->previous.width, surface->previous.height);
-	}
-
-	// On move, damage where the surface was with its old dimensions.
-	if (surface->current.dx != 0 || surface->current.dy != 0) {
-		int prev_x = -surface->current.dx;
-		int prev_y = -surface->current.dy;
-		if ((surface->previous.transform & WL_OUTPUT_TRANSFORM_90) != 0) {
-			int temp = prev_x;
-			prev_x = prev_y;
-			prev_y = temp;
-		}
-		pixman_region32_union_rect(damage, damage, prev_x, prev_y,
-			surface->previous.width, surface->previous.height);
-	}
+	pixman_region32_union(damage, damage, &surface->external_damage);
 }
 
 void wlr_surface_get_buffer_source_box(struct wlr_surface *surface,
