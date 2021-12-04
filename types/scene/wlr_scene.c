@@ -483,7 +483,7 @@ void wlr_scene_node_raise_to_top(struct wlr_scene_node *node) {
 
 void wlr_scene_node_lower_to_bottom(struct wlr_scene_node *node) {
 	struct wlr_scene_node *current_bottom = wl_container_of(
-		node->parent->state.children.prev, current_bottom, state.link);
+		node->parent->state.children.next, current_bottom, state.link);
 	if (node == current_bottom) {
 		return;
 	}
