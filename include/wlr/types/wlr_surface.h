@@ -185,6 +185,7 @@ struct wlr_subsurface {
 	bool synchronized;
 	bool reordered;
 	bool mapped;
+	bool added;
 
 	struct wl_listener surface_destroy;
 	struct wl_listener parent_destroy;
