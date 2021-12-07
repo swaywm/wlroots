@@ -13,7 +13,7 @@
 #include "util/global.h"
 #include "util/signal.h"
 
-#define OUTPUT_VERSION 3
+#define OUTPUT_VERSION 4
 
 static void send_geometry(struct wl_resource *resource) {
 	struct wlr_output *output = wlr_output_from_resource(resource);
@@ -40,6 +40,23 @@ static void send_scale(struct wl_resource *resource) {
 	uint32_t version = wl_resource_get_version(resource);
 	if (version >= WL_OUTPUT_SCALE_SINCE_VERSION) {
 		wl_output_send_scale(resource, (uint32_t)ceil(output->scale));
+	}
+}
+
+static void send_name(struct wl_resource *resource) {
+	struct wlr_output *output = wlr_output_from_resource(resource);
+	uint32_t version = wl_resource_get_version(resource);
+	if (version >= WL_OUTPUT_NAME_SINCE_VERSION) {
+		wl_output_send_name(resource, output->name);
+	}
+}
+
+static void send_description(struct wl_resource *resource) {
+	struct wlr_output *output = wlr_output_from_resource(resource);
+	uint32_t version = wl_resource_get_version(resource);
+	if (output->description != NULL &&
+			version >= WL_OUTPUT_DESCRIPTION_SINCE_VERSION) {
+		wl_output_send_description(resource, output->description);
 	}
 }
 
@@ -87,6 +104,8 @@ static void output_bind(struct wl_client *wl_client, void *data,
 	send_geometry(resource);
 	send_current_mode(resource);
 	send_scale(resource);
+	send_name(resource);
+	send_description(resource);
 	send_done(resource);
 
 	struct wlr_output_event_bind evt = {
@@ -131,10 +150,7 @@ static void schedule_done_handle_idle_timer(void *data) {
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->resources) {
-		uint32_t version = wl_resource_get_version(resource);
-		if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
-			wl_output_send_done(resource);
-		}
+		send_done(resource);
 	}
 }
 
@@ -343,6 +359,12 @@ void wlr_output_set_description(struct wlr_output *output, const char *desc) {
 	} else {
 		output->description = NULL;
 	}
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->resources) {
+		send_description(resource);
+	}
+	wlr_output_schedule_done(output);
 
 	wlr_signal_emit_safe(&output->events.description, output);
 }
