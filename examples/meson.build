@@ -103,7 +103,7 @@ clients = {
 	},
 	'output-power-management': {
 		'src': 'output-power-management.c',
-		'dep': [wayland_client, wlroots],
+		'dep': [wayland_client],
 		'proto': ['wlr-output-power-management-unstable-v1'],
 	},
 	'pointer-constraints': {
@@ -174,12 +174,10 @@ clients = {
 	},
 	'foreign-toplevel': {
 		'src': 'foreign-toplevel.c',
-		'dep': [wlroots],
 		'proto': ['wlr-foreign-toplevel-management-unstable-v1'],
 	},
 	'virtual-pointer': {
 		'src': 'virtual-pointer.c',
-		'dep': wlroots,
 		'proto': ['wlr-virtual-pointer-unstable-v1'],
 	},
 	'input-method-keyboard-grab': {
@@ -216,7 +214,7 @@ foreach name, info : clients
 	executable(
 		name,
 		[info.get('src'), extra_src],
-		dependencies: [wayland_client, info.get('dep')],
+		dependencies: [wayland_client, info.get('dep', [])],
 		build_by_default: get_option('examples'),
 	)
 endforeach
