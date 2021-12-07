@@ -129,7 +129,7 @@ clients = {
 			libavcodec,
 			libavformat,
 			libavutil,
-			drm.partial_dependency(compile_args: true), # <drm_fourcc.h>
+			drm,
 			threads,
 		],
 		'proto': ['wlr-export-dmabuf-unstable-v1'],
