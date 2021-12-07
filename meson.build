@@ -103,10 +103,6 @@ wayland_server = dependency('wayland-server',
 	fallback: ['wayland', 'wayland_server_dep'],
 	default_options: wayland_project_options,
 )
-wayland_client = dependency('wayland-client',
-	fallback: ['wayland', 'wayland_client_dep'],
-	default_options: wayland_project_options,
-)
 
 drm = dependency('libdrm', version: '>=2.4.105')
 gbm = dependency('gbm', version: '>=17.1.0')
@@ -119,7 +115,6 @@ rt = cc.find_library('rt')
 wlr_files = []
 wlr_deps = [
 	wayland_server,
-	wayland_client,
 	drm,
 	gbm,
 	xkbcommon,

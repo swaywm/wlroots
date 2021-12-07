@@ -1,6 +1,7 @@
 threads = dependency('threads')
 wayland_egl = dependency('wayland-egl')
 wayland_cursor = dependency('wayland-cursor')
+wayland_client = dependency('wayland-client')
 libpng = dependency('libpng', required: false, disabler: true)
 egl = dependency('egl', required: false, disabler: true)
 glesv2 = dependency('glesv2', required: false, disabler: true)
