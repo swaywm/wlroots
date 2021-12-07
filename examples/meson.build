@@ -82,7 +82,7 @@ clients = {
 	},
 	'layer-shell': {
 		'src': ['layer-shell.c', 'egl_common.c'],
-		'dep': [wayland_egl, wayland_cursor, wlroots, egl, glesv2],
+		'dep': [wayland_egl, wayland_cursor, egl, glesv2],
 		'proto': [
 			'wlr-layer-shell-unstable-v1',
 			'xdg-shell',
