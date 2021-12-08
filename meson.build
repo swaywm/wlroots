@@ -105,7 +105,7 @@ wayland_server = dependency('wayland-server',
 )
 
 drm = dependency('libdrm',
-	version: '>=2.4.108',
+	version: '>=2.4.109',
 	fallback: ['libdrm', 'ext_libdrm'],
 	default_options: [
 		'libkms=false',
