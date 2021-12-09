@@ -324,6 +324,13 @@ void wlr_output_set_subpixel(struct wlr_output *output,
 	wlr_output_schedule_done(output);
 }
 
+void wlr_output_set_name(struct wlr_output *output, const char *name) {
+	assert(output->global == NULL);
+
+	free(output->name);
+	output->name = strdup(name);
+}
+
 void wlr_output_set_description(struct wlr_output *output, const char *desc) {
 	if (output->description != NULL && desc != NULL &&
 			strcmp(output->description, desc) == 0) {
@@ -420,6 +427,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 		wl_event_source_remove(output->idle_done);
 	}
 
+	free(output->name);
 	free(output->description);
 
 	pixman_region32_fini(&output->pending.damage);

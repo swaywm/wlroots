@@ -118,7 +118,7 @@ struct wlr_output {
 	struct wl_global *global;
 	struct wl_list resources;
 
-	char name[24];
+	char *name;
 	char *description; // may be NULL
 	char make[56];
 	char model[16];
@@ -336,6 +336,17 @@ void wlr_output_set_render_format(struct wlr_output *output, uint32_t format);
 void wlr_output_set_scale(struct wlr_output *output, float scale);
 void wlr_output_set_subpixel(struct wlr_output *output,
 	enum wl_output_subpixel subpixel);
+/**
+ * Set the output name.
+ *
+ * Output names are subject to the following rules:
+ *
+ * - Each output name must be unique.
+ * - The name cannot change after the output has been advertised to clients.
+ *
+ * For more details, see the protocol documentation for wl_output.name.
+ */
+void wlr_output_set_name(struct wlr_output *output, const char *name);
 void wlr_output_set_description(struct wlr_output *output, const char *desc);
 /**
  * Schedule a done event.

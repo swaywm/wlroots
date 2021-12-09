@@ -1299,8 +1299,7 @@ void scan_drm_connectors(struct wlr_drm_backend *drm,
 			wlr_output_init(&wlr_conn->output, &drm->backend, &output_impl,
 				drm->display);
 
-			memcpy(wlr_conn->output.name, wlr_conn->name,
-				sizeof(wlr_conn->output.name));
+			wlr_output_set_name(&wlr_conn->output, wlr_conn->name);
 
 			wlr_conn->output.phys_width = drm_conn->mmWidth;
 			wlr_conn->output.phys_height = drm_conn->mmHeight;

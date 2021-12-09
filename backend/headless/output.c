@@ -116,8 +116,10 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *wlr_backend,
 	output_set_custom_mode(output, width, height, 0);
 	strncpy(wlr_output->make, "headless", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "headless", sizeof(wlr_output->model));
-	snprintf(wlr_output->name, sizeof(wlr_output->name), "HEADLESS-%zd",
-		++backend->last_output_num);
+
+	char name[64];
+	snprintf(name, sizeof(name), "HEADLESS-%zd", ++backend->last_output_num);
+	wlr_output_set_name(wlr_output, name);
 
 	char description[128];
 	snprintf(description, sizeof(description),

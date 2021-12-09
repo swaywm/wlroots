@@ -512,8 +512,10 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 	wlr_output_update_custom_mode(wlr_output, 1024, 768, 0);
 
-	snprintf(wlr_output->name, sizeof(wlr_output->name), "X11-%zd",
-		++x11->last_output_num);
+	char name[64];
+	snprintf(name, sizeof(name), "X11-%zd", ++x11->last_output_num);
+	wlr_output_set_name(wlr_output, name);
+
 	parse_xcb_setup(wlr_output, x11->xcb);
 
 	char description[128];
