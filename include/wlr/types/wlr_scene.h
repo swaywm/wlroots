@@ -76,6 +76,8 @@ struct wlr_scene_surface {
 
 	// private state
 
+	int prev_width, prev_height;
+
 	struct wl_listener surface_destroy;
 	struct wl_listener surface_commit;
 };
@@ -201,6 +203,10 @@ struct wlr_scene_tree *wlr_scene_tree_create(struct wlr_scene_node *parent);
  * Add a node displaying a single surface to the scene-graph.
  *
  * The child sub-surfaces are ignored.
+ *
+ * wlr_surface_send_enter()/wlr_surface_send_leave() will be called
+ * automatically based on the position of the surface and outputs in
+ * the scene.
  */
 struct wlr_scene_surface *wlr_scene_surface_create(struct wlr_scene_node *parent,
 	struct wlr_surface *surface);

@@ -39,6 +39,13 @@ static struct wlr_scene_buffer *scene_buffer_from_node(
 	return (struct wlr_scene_buffer *)node;
 }
 
+static struct wlr_scene *scene_node_get_root(struct wlr_scene_node *node) {
+	while (node->parent != NULL) {
+		node = node->parent;
+	}
+	return scene_root_from_node(node);
+}
+
 static void scene_node_state_init(struct wlr_scene_node_state *state) {
 	wl_list_init(&state->children);
 	wl_list_init(&state->link);
@@ -85,11 +92,11 @@ void wlr_scene_node_destroy(struct wlr_scene_node *node) {
 	scene_node_damage_whole(node);
 	scene_node_finish(node);
 
+	struct wlr_scene *scene = scene_node_get_root(node);
+	struct wlr_scene_output *scene_output;
 	switch (node->type) {
 	case WLR_SCENE_NODE_ROOT:;
-		struct wlr_scene *scene = scene_root_from_node(node);
-
-		struct wlr_scene_output *scene_output, *scene_output_tmp;
+		struct wlr_scene_output *scene_output_tmp;
 		wl_list_for_each_safe(scene_output, scene_output_tmp, &scene->outputs, link) {
 			wlr_scene_output_destroy(scene_output);
 		}
@@ -102,8 +109,16 @@ void wlr_scene_node_destroy(struct wlr_scene_node *node) {
 		break;
 	case WLR_SCENE_NODE_SURFACE:;
 		struct wlr_scene_surface *scene_surface = wlr_scene_surface_from_node(node);
+
+		wl_list_for_each(scene_output, &scene->outputs, link) {
+			// This is a noop if wlr_surface_send_enter() wasn't previously called for
+			// the given output.
+			wlr_surface_send_leave(scene_surface->surface, scene_output->output);
+		}
+
 		wl_list_remove(&scene_surface->surface_commit.link);
 		wl_list_remove(&scene_surface->surface_destroy.link);
+
 		free(scene_surface);
 		break;
 	case WLR_SCENE_NODE_RECT:;
@@ -146,11 +161,60 @@ static void scene_surface_handle_surface_destroy(struct wl_listener *listener,
 	wlr_scene_node_destroy(&scene_surface->node);
 }
 
-static struct wlr_scene *scene_node_get_root(struct wlr_scene_node *node) {
-	while (node->parent != NULL) {
-		node = node->parent;
+// This function must be called whenever the coordinates/dimensions of a scene
+// surface or scene output change. It is not necessary to call when a scene
+// surface's node is enabled/disabled or obscured by other nodes. To quote the
+// protocol: "The surface might be hidden even if no leave event has been sent."
+static void scene_surface_update_outputs(
+		struct wlr_scene_surface *scene_surface,
+		int lx, int ly, struct wlr_scene *scene) {
+	struct wlr_box surface_box = {
+		.x = lx,
+		.y = ly,
+		.width = scene_surface->surface->current.width,
+		.height = scene_surface->surface->current.height,
+	};
+
+	struct wlr_scene_output *scene_output;
+	wl_list_for_each(scene_output, &scene->outputs, link) {
+		struct wlr_box output_box = {
+			.x = scene_output->x,
+			.y = scene_output->y,
+		};
+		wlr_output_effective_resolution(scene_output->output,
+			&output_box.width, &output_box.height);
+
+		// These enter/leave functions are a noop if the event has already been
+		// sent for the given output.
+		struct wlr_box intersection;
+		if (wlr_box_intersection(&intersection, &surface_box, &output_box)) {
+			wlr_surface_send_enter(scene_surface->surface, scene_output->output);
+		} else {
+			wlr_surface_send_leave(scene_surface->surface, scene_output->output);
+		}
 	}
-	return scene_root_from_node(node);
+}
+
+static void scene_node_update_surface_outputs_iterator(
+		struct wlr_scene_node *node, int lx, int ly, struct wlr_scene *scene) {
+	if (node->type == WLR_SCENE_NODE_SURFACE) {
+		struct wlr_scene_surface *scene_surface =
+			wlr_scene_surface_from_node(node);
+		scene_surface_update_outputs(scene_surface, lx, ly, scene);
+	}
+
+	struct wlr_scene_node *child;
+	wl_list_for_each(child, &node->state.children, state.link) {
+		scene_node_update_surface_outputs_iterator(child, lx + child->state.x,
+			ly + child->state.y, scene);
+	}
+}
+
+static void scene_node_update_surface_outputs(struct wlr_scene_node *node) {
+	struct wlr_scene *scene = scene_node_get_root(node);
+	int lx, ly;
+	wlr_scene_node_coords(node, &lx, &ly);
+	scene_node_update_surface_outputs_iterator(node, lx, ly, scene);
 }
 
 static void scene_surface_handle_surface_commit(struct wl_listener *listener,
@@ -163,12 +227,21 @@ static void scene_surface_handle_surface_commit(struct wl_listener *listener,
 		return;
 	}
 
+	struct wlr_scene *scene = scene_node_get_root(&scene_surface->node);
+
 	int lx, ly;
-	if (!wlr_scene_node_coords(&scene_surface->node, &lx, &ly)) {
-		return;
+	bool enabled = wlr_scene_node_coords(&scene_surface->node, &lx, &ly);
+
+	if (surface->current.width != scene_surface->prev_width ||
+			surface->current.height != scene_surface->prev_height) {
+		scene_surface_update_outputs(scene_surface, lx, ly, scene);
+		scene_surface->prev_width = surface->current.width;
+		scene_surface->prev_height = surface->current.height;
 	}
 
-	struct wlr_scene *scene = scene_node_get_root(&scene_surface->node);
+	if (!enabled) {
+		return;
+	}
 
 	struct wlr_scene_output *scene_output;
 	wl_list_for_each(scene_output, &scene->outputs, link) {
@@ -211,6 +284,8 @@ struct wlr_scene_surface *wlr_scene_surface_create(struct wlr_scene_node *parent
 	wl_signal_add(&surface->events.commit, &scene_surface->surface_commit);
 
 	scene_node_damage_whole(&scene_surface->node);
+
+	scene_node_update_surface_outputs(&scene_surface->node);
 
 	return scene_surface;
 }
@@ -438,6 +513,8 @@ void wlr_scene_node_set_position(struct wlr_scene_node *node, int x, int y) {
 	node->state.x = x;
 	node->state.y = y;
 	scene_node_damage_whole(node);
+
+	scene_node_update_surface_outputs(node);
 }
 
 void wlr_scene_node_place_above(struct wlr_scene_node *node,
@@ -511,6 +588,8 @@ void wlr_scene_node_reparent(struct wlr_scene_node *node,
 	wl_list_insert(new_parent->state.children.prev, &node->state.link);
 
 	scene_node_damage_whole(node);
+
+	scene_node_update_surface_outputs(node);
 }
 
 bool wlr_scene_node_coords(struct wlr_scene_node *node,
@@ -822,9 +901,19 @@ struct wlr_scene_output *wlr_scene_output_create(struct wlr_scene *scene,
 	return scene_output;
 }
 
+static void scene_output_send_leave_iterator(struct wlr_surface *surface,
+		int sx, int sy, void *data) {
+	struct wlr_output *output = data;
+	wlr_surface_send_leave(surface, output);
+}
+
 void wlr_scene_output_destroy(struct wlr_scene_output *scene_output) {
 	wlr_addon_finish(&scene_output->addon);
 	wl_list_remove(&scene_output->link);
+
+	wlr_scene_output_for_each_surface(scene_output,
+		scene_output_send_leave_iterator, scene_output->output);
+
 	free(scene_output);
 }
 
@@ -849,6 +938,8 @@ void wlr_scene_output_set_position(struct wlr_scene_output *scene_output,
 	scene_output->x = lx;
 	scene_output->y = ly;
 	wlr_output_damage_add_whole(scene_output->damage);
+
+	scene_node_update_surface_outputs(&scene_output->scene->node);
 }
 
 struct check_scanout_data {
