@@ -21,6 +21,7 @@
 
 #if WLR_HAS_DRM_BACKEND
 #include <wlr/backend/drm.h>
+#include "backend/drm/monitor.h"
 #endif
 
 #if WLR_HAS_LIBINPUT_BACKEND
@@ -374,6 +375,8 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 		wlr_backend_destroy(backend);
 		return NULL;
 	}
+
+	drm_backend_monitor_create(backend, primary_drm, multi->session);
 
 	return backend;
 #endif
