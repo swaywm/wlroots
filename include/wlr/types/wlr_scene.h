@@ -74,6 +74,14 @@ struct wlr_scene_surface {
 	struct wlr_scene_node node;
 	struct wlr_surface *surface;
 
+	/**
+	 * The output that the largest area of this surface is displayed on.
+	 * This may be NULL if the surface is not currently displayed on any
+	 * outputs. This is the output that should be used for frame callbacks,
+	 * presentation feedback, etc.
+	 */
+	struct wlr_output *primary_output;
+
 	// private state
 
 	int prev_width, prev_height;

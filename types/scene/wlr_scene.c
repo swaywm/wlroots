@@ -175,6 +175,9 @@ static void scene_surface_update_outputs(
 		.height = scene_surface->surface->current.height,
 	};
 
+	int largest_overlap = 0;
+	scene_surface->primary_output = NULL;
+
 	struct wlr_scene_output *scene_output;
 	wl_list_for_each(scene_output, &scene->outputs, link) {
 		struct wlr_box output_box = {
@@ -184,10 +187,16 @@ static void scene_surface_update_outputs(
 		wlr_output_effective_resolution(scene_output->output,
 			&output_box.width, &output_box.height);
 
-		// These enter/leave functions are a noop if the event has already been
-		// sent for the given output.
 		struct wlr_box intersection;
 		if (wlr_box_intersection(&intersection, &surface_box, &output_box)) {
+			int overlap = intersection.width * intersection.height;
+			if (overlap > largest_overlap) {
+				largest_overlap = overlap;
+				scene_surface->primary_output = scene_output->output;
+			}
+
+			// These enter/leave functions are a noop if the event has already been
+			// sent for the given output.
 			wlr_surface_send_enter(scene_surface->surface, scene_output->output);
 		} else {
 			wlr_surface_send_leave(scene_surface->surface, scene_output->output);
