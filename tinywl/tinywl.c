@@ -510,29 +510,21 @@ static void server_cursor_frame(struct wl_listener *listener, void *data) {
 	wlr_seat_pointer_notify_frame(server->seat);
 }
 
-// TODO: We should avoid sending the frame done event twice if a surface
-// appears on multiple outputs.
-// https://github.com/swaywm/wlroots/issues/3210
-static void send_frame_done(struct wlr_surface *surface,
-		int sx, int sy, void *data) {
-	wlr_surface_send_frame_done(surface, data);
-}
-
 static void output_frame(struct wl_listener *listener, void *data) {
 	/* This function is called every time an output is ready to display a frame,
 	 * generally at the output's refresh rate (e.g. 60Hz). */
-	struct tinywl_output *output =
-		wl_container_of(listener, output, frame);
+	struct tinywl_output *output = wl_container_of(listener, output, frame);
+	struct wlr_scene *scene = output->server->scene;
 
 	struct wlr_scene_output *scene_output = wlr_scene_get_scene_output(
-		output->server->scene, output->wlr_output);
+		scene, output->wlr_output);
 
 	/* Render the scene if needed and commit the output */
 	wlr_scene_output_commit(scene_output);
 
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
-	wlr_scene_output_for_each_surface(scene_output, send_frame_done, &now);
+	wlr_scene_send_frame_done(scene, output->wlr_output, &now);
 }
 
 static void server_new_output(struct wl_listener *listener, void *data) {
