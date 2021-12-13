@@ -876,6 +876,31 @@ void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
 	pixman_region32_fini(&full_region);
 }
 
+static void scene_send_frame_done_iterator(struct wlr_scene_node *node,
+		struct wlr_output *output, struct timespec *now) {
+	if (!node->state.enabled) {
+		return;
+	}
+
+	if (node->type == WLR_SCENE_NODE_SURFACE) {
+		struct wlr_scene_surface *scene_surface =
+			wlr_scene_surface_from_node(node);
+		if (scene_surface->primary_output == output) {
+			wlr_surface_send_frame_done(scene_surface->surface, now);
+		}
+	}
+
+	struct wlr_scene_node *child;
+	wl_list_for_each(child, &node->state.children, state.link) {
+		scene_send_frame_done_iterator(child, output, now);
+	}
+}
+
+void wlr_scene_send_frame_done(struct wlr_scene *scene,
+		struct wlr_output *output, struct timespec *now) {
+	scene_send_frame_done_iterator(&scene->node, output, now);
+}
+
 static void scene_output_handle_destroy(struct wlr_addon *addon) {
 	struct wlr_scene_output *scene_output =
 		wl_container_of(addon, scene_output, addon);

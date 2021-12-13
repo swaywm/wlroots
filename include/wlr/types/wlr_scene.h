@@ -201,6 +201,13 @@ struct wlr_scene *wlr_scene_create(void);
  */
 void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
 	int lx, int ly, pixman_region32_t *damage);
+/**
+ * Call wlr_surface_send_frame_done() on all surfaces in the scene rendered by
+ * wlr_scene_render_output() for which wlr_scene_surface->primary_output
+ * matches the given output.
+ */
+void wlr_scene_send_frame_done(struct wlr_scene *scene,
+	struct wlr_output *output, struct timespec *now);
 
 /**
  * Add a node displaying nothing but its children.
