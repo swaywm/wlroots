@@ -524,7 +524,7 @@ static void output_frame(struct wl_listener *listener, void *data) {
 
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
-	wlr_scene_send_frame_done(scene, output->wlr_output, &now);
+	wlr_scene_output_send_frame_done(scene_output, &now);
 }
 
 static void server_new_output(struct wl_listener *listener, void *data) {
