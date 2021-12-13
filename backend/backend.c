@@ -239,7 +239,7 @@ static struct wlr_backend *attempt_drm_backend(struct wl_display *display,
 		return NULL;
 	}
 
-	return backend;
+	return primary_drm;
 }
 #endif
 
