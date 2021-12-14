@@ -415,7 +415,7 @@ void seat_client_create_keyboard(struct wlr_seat_client *seat_client,
 		seat_client->seat->keyboard_state.focused_surface;
 
 	// Send an enter event if there is a focused client/surface stored
-	if (focused_client != NULL && focused_surface != NULL) {
+	if (focused_client == seat_client && focused_surface != NULL) {
 		uint32_t *keycodes = keyboard->keycodes;
 		size_t num_keycodes = keyboard->num_keycodes;
 
