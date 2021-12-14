@@ -103,7 +103,14 @@ static void layer_surface_handle_set_size(struct wl_client *client,
 	if (!surface) {
 		return;
 	}
-	surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_DESIRED_SIZE;
+
+	if (surface->current.desired_width == width
+			&& surface->current.desired_height == height) {
+		surface->pending.committed &= ~WLR_LAYER_SURFACE_V1_STATE_DESIRED_SIZE;
+	} else {
+		surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_DESIRED_SIZE;
+	}
+
 	surface->pending.desired_width = width;
 	surface->pending.desired_height = height;
 }
@@ -125,7 +132,13 @@ static void layer_surface_handle_set_anchor(struct wl_client *client,
 	if (!surface) {
 		return;
 	}
-	surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_ANCHOR;
+
+	if (surface->current.anchor == anchor) {
+		surface->pending.committed &= ~WLR_LAYER_SURFACE_V1_STATE_ANCHOR;
+	} else {
+		surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_ANCHOR;
+	}
+
 	surface->pending.anchor = anchor;
 }
 
@@ -136,7 +149,13 @@ static void layer_surface_handle_set_exclusive_zone(struct wl_client *client,
 	if (!surface) {
 		return;
 	}
-	surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_EXCLUSIVE_ZONE;
+
+	if (surface->current.exclusive_zone == zone) {
+		surface->pending.committed &= ~WLR_LAYER_SURFACE_V1_STATE_EXCLUSIVE_ZONE;
+	} else {
+		surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_EXCLUSIVE_ZONE;
+	}
+
 	surface->pending.exclusive_zone = zone;
 }
 
@@ -148,7 +167,16 @@ static void layer_surface_handle_set_margin(
 	if (!surface) {
 		return;
 	}
-	surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_MARGIN;
+
+	if (surface->current.margin.top == (uint32_t) top
+			&& surface->current.margin.right == (uint32_t) right
+			&& surface->current.margin.bottom == (uint32_t) bottom
+			&& surface->current.margin.left == (uint32_t) left) {
+		surface->pending.committed &= ~WLR_LAYER_SURFACE_V1_STATE_MARGIN;
+	} else {
+		surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_MARGIN;
+	}
+
 	surface->pending.margin.top = top;
 	surface->pending.margin.right = right;
 	surface->pending.margin.bottom = bottom;
@@ -209,7 +237,13 @@ static void layer_surface_set_layer(struct wl_client *client,
 				"Invalid layer %" PRIu32, layer);
 		return;
 	}
-	surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_LAYER;
+
+	if (surface->current.layer == layer) {
+		surface->pending.committed &= ~WLR_LAYER_SURFACE_V1_STATE_LAYER;
+	} else {
+		surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_LAYER;
+	}
+
 	surface->pending.layer = layer;
 }
 
