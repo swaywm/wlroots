@@ -62,6 +62,12 @@ struct wlr_scene {
 	struct wlr_scene_node node;
 
 	struct wl_list outputs; // wlr_scene_output.link
+
+	// private state
+
+	// May be NULL
+	struct wlr_presentation *presentation;
+	struct wl_listener presentation_destroy;
 };
 
 /** A sub-tree in the scene-graph. */
@@ -201,6 +207,14 @@ struct wlr_scene *wlr_scene_create(void);
  */
 void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
 	int lx, int ly, pixman_region32_t *damage);
+/**
+ * Handle presentation feedback for all surfaces in the scene, assuming that
+ * scene outputs and the scene rendering functions are used.
+ *
+ * Asserts that a wlr_presentation hasn't already been set for the scene.
+ */
+void wlr_scene_set_presentation(struct wlr_scene *scene,
+	struct wlr_presentation *presentation);
 
 /**
  * Add a node displaying nothing but its children.

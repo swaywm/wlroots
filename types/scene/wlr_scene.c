@@ -5,6 +5,7 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output_damage.h>
+#include <wlr/types/wlr_presentation_time.h>
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
@@ -101,6 +102,8 @@ void wlr_scene_node_destroy(struct wlr_scene_node *node) {
 			wlr_scene_output_destroy(scene_output);
 		}
 
+		wl_list_remove(&scene->presentation_destroy.link);
+
 		free(scene);
 		break;
 	case WLR_SCENE_NODE_TREE:;
@@ -141,6 +144,7 @@ struct wlr_scene *wlr_scene_create(void) {
 	}
 	scene_node_init(&scene->node, WLR_SCENE_NODE_ROOT, NULL);
 	wl_list_init(&scene->outputs);
+	wl_list_init(&scene->presentation_destroy.link);
 	return scene;
 }
 
@@ -767,6 +771,9 @@ static void render_texture(struct wlr_output *output,
 struct render_data {
 	struct wlr_output *output;
 	pixman_region32_t *damage;
+
+	// May be NULL
+	struct wlr_presentation *presentation;
 };
 
 static void render_node_iterator(struct wlr_scene_node *node,
@@ -808,6 +815,11 @@ static void render_node_iterator(struct wlr_scene_node *node,
 
 		render_texture(output, output_damage, texture,
 			&src_box, &dst_box, matrix);
+
+		if (data->presentation != NULL && scene_surface->primary_output == output) {
+			wlr_presentation_surface_sampled_on_output(data->presentation,
+				surface, output);
+		}
 		break;
 	case WLR_SCENE_NODE_RECT:;
 		struct wlr_scene_rect *scene_rect = scene_rect_from_node(node);
@@ -867,6 +879,7 @@ void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
 		struct render_data data = {
 			.output = output,
 			.damage = damage,
+			.presentation = scene->presentation,
 		};
 		scene_node_for_each_node(&scene->node, -lx, -ly,
 			render_node_iterator, &data);
@@ -874,6 +887,23 @@ void wlr_scene_render_output(struct wlr_scene *scene, struct wlr_output *output,
 	}
 
 	pixman_region32_fini(&full_region);
+}
+
+static void scene_handle_presentation_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_scene *scene =
+		wl_container_of(listener, scene, presentation_destroy);
+	wl_list_remove(&scene->presentation_destroy.link);
+	wl_list_init(&scene->presentation_destroy.link);
+	scene->presentation = NULL;
+}
+
+void wlr_scene_set_presentation(struct wlr_scene *scene,
+		struct wlr_presentation *presentation) {
+	assert(scene->presentation == NULL);
+	scene->presentation = presentation;
+	scene->presentation_destroy.notify = scene_handle_presentation_destroy;
+	wl_signal_add(&presentation->events.destroy, &scene->presentation_destroy);
 }
 
 static void scene_output_handle_destroy(struct wlr_addon *addon) {
@@ -1026,6 +1056,18 @@ static bool scene_output_scanout(struct wlr_scene_output *scene_output) {
 	if (!wlr_output_test(output)) {
 		wlr_output_rollback(output);
 		return false;
+	}
+
+	struct wlr_presentation *presentation = scene_output->scene->presentation;
+	if (presentation != NULL && node->type == WLR_SCENE_NODE_SURFACE) {
+		struct wlr_scene_surface *scene_surface =
+			wlr_scene_surface_from_node(node);
+		// Since outputs may overlap, we still need to check this even though
+		// we know that the surface size matches the size of this output.
+		if (scene_surface->primary_output == output) {
+			wlr_presentation_surface_sampled_on_output(presentation,
+				scene_surface->surface, output);
+		}
 	}
 
 	return wlr_output_commit(output);
