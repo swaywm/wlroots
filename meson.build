@@ -100,13 +100,13 @@ internal_features = {
 wayland_project_options = ['tests=false', 'documentation=false']
 wayland_server = dependency('wayland-server',
 	version: '>=1.20',
-	fallback: ['wayland', 'wayland_server_dep'],
+	fallback: 'wayland',
 	default_options: wayland_project_options,
 )
 
 drm = dependency('libdrm',
 	version: '>=2.4.109',
-	fallback: ['libdrm', 'ext_libdrm'],
+	fallback: 'libdrm',
 	default_options: [
 		'libkms=false',
 		'intel=false',

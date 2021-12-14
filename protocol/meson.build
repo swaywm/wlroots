@@ -1,6 +1,6 @@
 wayland_protos = dependency('wayland-protocols',
 	version: '>=1.24',
-	fallback: ['wayland-protocols', 'wayland_protocols'],
+	fallback: 'wayland-protocols',
 	default_options: ['tests=false'],
 )
 wl_protocol_dir = wayland_protos.get_variable('pkgdatadir')
