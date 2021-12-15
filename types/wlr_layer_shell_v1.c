@@ -168,10 +168,10 @@ static void layer_surface_handle_set_margin(
 		return;
 	}
 
-	if (surface->current.margin.top == (uint32_t) top
-			&& surface->current.margin.right == (uint32_t) right
-			&& surface->current.margin.bottom == (uint32_t) bottom
-			&& surface->current.margin.left == (uint32_t) left) {
+	if (surface->current.margin.top == top
+			&& surface->current.margin.right == right
+			&& surface->current.margin.bottom == bottom
+			&& surface->current.margin.left == left) {
 		surface->pending.committed &= ~WLR_LAYER_SURFACE_V1_STATE_MARGIN;
 	} else {
 		surface->pending.committed |= WLR_LAYER_SURFACE_V1_STATE_MARGIN;
