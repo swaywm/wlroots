@@ -364,6 +364,19 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_display *display) {
 		return NULL;
 	}
 	wlr_multi_backend_add(backend, libinput);
+#else
+	const char *no_devs = getenv("WLR_LIBINPUT_NO_DEVICES");
+	if (no_devs && strcmp(no_devs, "1") == 0) {
+		wlr_log(WLR_INFO, "WLR_LIBINPUT_NO_DEVICES is set, "
+			"starting without libinput backend");
+	} else {
+		wlr_log(WLR_ERROR, "libinput support is not compiled in, "
+			"refusing to start");
+		wlr_log(WLR_ERROR, "Set WLR_LIBINPUT_NO_DEVICES=1 to suppress this check");
+		wlr_session_destroy(multi->session);
+		wlr_backend_destroy(backend);
+		return NULL;
+	}
 #endif
 
 #if WLR_HAS_DRM_BACKEND
