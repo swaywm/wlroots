@@ -236,10 +236,6 @@ static void scene_surface_handle_surface_commit(struct wl_listener *listener,
 		wl_container_of(listener, scene_surface, surface_commit);
 	struct wlr_surface *surface = scene_surface->surface;
 
-	if (!pixman_region32_not_empty(&surface->buffer_damage)) {
-		return;
-	}
-
 	struct wlr_scene *scene = scene_node_get_root(&scene_surface->node);
 
 	int lx, ly;
@@ -253,6 +249,17 @@ static void scene_surface_handle_surface_commit(struct wl_listener *listener,
 	}
 
 	if (!enabled) {
+		return;
+	}
+
+	// Even if the surface hasn't submitted damage, schedule a new frame if
+	// the client has requested a wl_surface.frame callback.
+	if (!wl_list_empty(&surface->current.frame_callback_list) &&
+			scene_surface->primary_output != NULL) {
+		wlr_output_schedule_frame(scene_surface->primary_output);
+	}
+
+	if (!pixman_region32_not_empty(&surface->buffer_damage)) {
 		return;
 	}
 
