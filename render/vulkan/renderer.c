@@ -598,7 +598,7 @@ static void vulkan_end(struct wlr_renderer *wlr_renderer) {
 	wl_list_for_each_safe(texture, tmp_tex, &renderer->foreign_textures, foreign_link) {
 		VkImageLayout src_layout = VK_IMAGE_LAYOUT_GENERAL;
 		if (!texture->transitioned) {
-			src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+			src_layout = VK_IMAGE_LAYOUT_UNDEFINED;
 			texture->transitioned = true;
 		}
 
