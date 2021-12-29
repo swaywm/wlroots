@@ -9,7 +9,6 @@
  * Globals that are created and destroyed on the fly need special handling to
  * prevent race conditions with wl_registry. Use this function to destroy them.
  */
-void wlr_global_destroy_safe(struct wl_global *global,
-	struct wl_display *display);
+void wlr_global_destroy_safe(struct wl_global *global);
 
 #endif

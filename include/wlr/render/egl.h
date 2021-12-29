@@ -40,6 +40,7 @@ struct wlr_egl {
 		bool KHR_image_base;
 		bool EXT_image_dma_buf_import;
 		bool EXT_image_dma_buf_import_modifiers;
+		bool IMG_context_priority;
 
 		// Device extensions
 		bool EXT_device_drm;
@@ -64,9 +65,13 @@ struct wlr_egl {
 		PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT;
 	} procs;
 
+	bool has_modifiers;
 	struct wlr_drm_format_set dmabuf_texture_formats;
 	struct wlr_drm_format_set dmabuf_render_formats;
 };
+
+struct wlr_egl *wlr_egl_create_with_context(EGLDisplay display,
+	EGLContext context);
 
 /**
  * Make the EGL context current.

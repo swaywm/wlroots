@@ -29,7 +29,7 @@ static void toplevel_decoration_handle_set_mode(struct wl_client *client,
 	struct wlr_xdg_toplevel_decoration_v1 *decoration =
 		toplevel_decoration_from_resource(resource);
 
-	decoration->client_pending_mode =
+	decoration->requested_mode =
 		(enum wlr_xdg_toplevel_decoration_v1_mode)mode;
 	wlr_signal_emit_safe(&decoration->events.request_mode, decoration);
 }
@@ -39,7 +39,7 @@ static void toplevel_decoration_handle_unset_mode(struct wl_client *client,
 	struct wlr_xdg_toplevel_decoration_v1 *decoration =
 		toplevel_decoration_from_resource(resource);
 
-	decoration->client_pending_mode = WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_NONE;
+	decoration->requested_mode = WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_NONE;
 	wlr_signal_emit_safe(&decoration->events.request_mode, decoration);
 }
 
@@ -54,7 +54,7 @@ uint32_t wlr_xdg_toplevel_decoration_v1_set_mode(
 		struct wlr_xdg_toplevel_decoration_v1 *decoration,
 		enum wlr_xdg_toplevel_decoration_v1_mode mode) {
 	assert(mode != WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_NONE);
-	decoration->server_pending_mode = mode;
+	decoration->scheduled_mode = mode;
 	return wlr_xdg_surface_schedule_configure(decoration->surface);
 }
 
@@ -88,7 +88,7 @@ static void toplevel_decoration_handle_surface_configure(
 		wl_container_of(listener, decoration, surface_configure);
 	struct wlr_xdg_surface_configure *surface_configure = data;
 
-	if (decoration->current_mode == decoration->server_pending_mode) {
+	if (decoration->pending.mode == decoration->scheduled_mode) {
 		return;
 	}
 
@@ -98,7 +98,7 @@ static void toplevel_decoration_handle_surface_configure(
 		return;
 	}
 	configure->surface_configure = surface_configure;
-	configure->mode = decoration->server_pending_mode;
+	configure->mode = decoration->scheduled_mode;
 	wl_list_insert(decoration->configure_list.prev, &configure->link);
 
 	zxdg_toplevel_decoration_v1_send_configure(decoration->resource,
@@ -132,7 +132,7 @@ static void toplevel_decoration_handle_surface_ack_configure(
 		free(configure);
 	}
 
-	decoration->current_mode = configure->mode;
+	decoration->pending.mode = configure->mode;
 
 	wl_list_remove(&configure->link);
 	free(configure);
@@ -144,16 +144,14 @@ static void toplevel_decoration_handle_surface_commit(
 		wl_container_of(listener, decoration, surface_commit);
 	struct wlr_xdg_decoration_manager_v1 *manager = decoration->manager;
 
-	if (decoration->surface->added) {
-		wl_list_remove(&decoration->surface_commit.link);
-		wl_list_init(&decoration->surface_commit.link);
+	decoration->current = decoration->pending;
 
+	if (decoration->surface->added && !decoration->added) {
 		decoration->added = true;
 		wlr_signal_emit_safe(&manager->events.new_toplevel_decoration,
 			decoration);
 	}
 }
-
 
 static const struct zxdg_decoration_manager_v1_interface decoration_manager_impl;
 
@@ -224,7 +222,10 @@ static void decoration_manager_handle_get_toplevel_decoration(
 		&decoration->surface_ack_configure);
 	decoration->surface_ack_configure.notify =
 		toplevel_decoration_handle_surface_ack_configure;
-	wl_list_init(&decoration->surface_commit.link);
+	wl_signal_add(&surface->surface->events.commit,
+		&decoration->surface_commit);
+	decoration->surface_commit.notify =
+		toplevel_decoration_handle_surface_commit;
 
 	wl_list_insert(&manager->decorations, &decoration->link);
 
@@ -232,12 +233,6 @@ static void decoration_manager_handle_get_toplevel_decoration(
 		decoration->added = true;
 		wlr_signal_emit_safe(&manager->events.new_toplevel_decoration,
 			decoration);
-	} else {
-		wl_list_remove(&decoration->surface_commit.link);
-		wl_signal_add(&surface->surface->events.commit,
-			&decoration->surface_commit);
-		decoration->surface_commit.notify =
-			toplevel_decoration_handle_surface_commit;
 	}
 }
 

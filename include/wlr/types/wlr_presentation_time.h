@@ -14,12 +14,13 @@
 #include <time.h>
 #include <wayland-server-core.h>
 
+struct wlr_surface;
+
 struct wlr_output;
 struct wlr_output_event_present;
 
 struct wlr_presentation {
 	struct wl_global *global;
-	struct wl_list feedbacks; // wlr_presentation_feedback::link
 	clockid_t clock;
 
 	struct {
@@ -30,19 +31,7 @@ struct wlr_presentation {
 };
 
 struct wlr_presentation_feedback {
-	struct wlr_presentation *presentation;
-	struct wlr_surface *surface; // NULL if the surface has been destroyed
-	struct wl_list link; // wlr_presentation::feedbacks
-
 	struct wl_list resources; // wl_resource_get_link
-
-	// The surface contents were committed.
-	bool committed;
-	// The surface contents were sampled by the compositor and are to be
-	// presented on the next flip. Can become true only after committed becomes
-	// true.
-	bool sampled;
-	bool presented;
 
 	// Only when the wlr_presentation_surface_sampled_on_output helper has been
 	// called
@@ -50,8 +39,6 @@ struct wlr_presentation_feedback {
 	bool output_committed;
 	uint32_t output_commit_seq;
 
-	struct wl_listener surface_commit;
-	struct wl_listener surface_destroy;
 	struct wl_listener output_commit;
 	struct wl_listener output_present;
 	struct wl_listener output_destroy;

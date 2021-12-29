@@ -30,8 +30,8 @@ struct wlr_buffer_impl {
 		struct wlr_dmabuf_attributes *attribs);
 	bool (*get_shm)(struct wlr_buffer *buffer,
 		struct wlr_shm_attributes *attribs);
-	bool (*begin_data_ptr_access)(struct wlr_buffer *buffer, void **data,
-		uint32_t *format, size_t *stride);
+	bool (*begin_data_ptr_access)(struct wlr_buffer *buffer, uint32_t flags,
+		void **data, uint32_t *format, size_t *stride);
 	void (*end_data_ptr_access)(struct wlr_buffer *buffer);
 };
 
@@ -136,6 +136,33 @@ void wlr_buffer_register_resource_interface(
  * The provided wl_resource must be a wl_buffer.
  */
 struct wlr_buffer *wlr_buffer_from_resource(struct wl_resource *resource);
+
+/**
+ * Buffer data pointer access flags.
+ */
+enum wlr_buffer_data_ptr_access_flag {
+	/**
+	 * The buffer contents can be read back.
+	 */
+	WLR_BUFFER_DATA_PTR_ACCESS_READ = 1 << 0,
+	/**
+	 * The buffer contents can be written to.
+	 */
+	WLR_BUFFER_DATA_PTR_ACCESS_WRITE = 1 << 1,
+};
+
+/**
+ * Get a pointer to a region of memory referring to the buffer's underlying
+ * storage. The format and stride can be used to interpret the memory region
+ * contents.
+ *
+ * The returned pointer should be pointing to a valid memory region for the
+ * operations specified in the flags. The returned pointer is only valid up to
+ * the next buffer_end_data_ptr_access call.
+ */
+bool wlr_buffer_begin_data_ptr_access(struct wlr_buffer *buffer, uint32_t flags,
+	void **data, uint32_t *format, size_t *stride);
+void wlr_buffer_end_data_ptr_access(struct wlr_buffer *buffer);
 
 /**
  * A client buffer.

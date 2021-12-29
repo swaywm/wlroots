@@ -22,6 +22,7 @@ struct wlr_xwayland_cursor;
 struct wlr_xwayland_server_options {
 	bool lazy;
 	bool enable_wm;
+	bool no_touch_pointer_emulation;
 };
 
 struct wlr_xwayland_server {
@@ -72,6 +73,7 @@ struct wlr_xwayland {
 	struct {
 		struct wl_signal ready;
 		struct wl_signal new_surface;
+		struct wl_signal remove_startup_info;
 	} events;
 
 	/**
@@ -230,6 +232,11 @@ struct wlr_xwayland_surface_configure_event {
 // TODO: maybe add a seat to these
 struct wlr_xwayland_move_event {
 	struct wlr_xwayland_surface *surface;
+};
+
+struct wlr_xwayland_remove_startup_info_event  {
+	const char *id;
+	xcb_window_t window;
 };
 
 struct wlr_xwayland_resize_event {

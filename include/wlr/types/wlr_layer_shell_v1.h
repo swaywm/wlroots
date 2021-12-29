@@ -43,22 +43,36 @@ struct wlr_layer_shell_v1 {
 	void *data;
 };
 
+enum wlr_layer_surface_v1_state_field {
+	WLR_LAYER_SURFACE_V1_STATE_DESIRED_SIZE = 1 << 0,
+	WLR_LAYER_SURFACE_V1_STATE_ANCHOR = 1 << 1,
+	WLR_LAYER_SURFACE_V1_STATE_EXCLUSIVE_ZONE = 1 << 2,
+	WLR_LAYER_SURFACE_V1_STATE_MARGIN = 1 << 3,
+	WLR_LAYER_SURFACE_V1_STATE_KEYBOARD_INTERACTIVITY = 1 << 4,
+	WLR_LAYER_SURFACE_V1_STATE_LAYER = 1 << 5,
+};
+
 struct wlr_layer_surface_v1_state {
+	uint32_t committed; // enum wlr_layer_surface_v1_state_field
+
 	uint32_t anchor;
 	int32_t exclusive_zone;
 	struct {
-		uint32_t top, right, bottom, left;
+		int32_t top, right, bottom, left;
 	} margin;
 	enum zwlr_layer_surface_v1_keyboard_interactivity keyboard_interactive;
 	uint32_t desired_width, desired_height;
-	uint32_t actual_width, actual_height;
 	enum zwlr_layer_shell_v1_layer layer;
+
+	uint32_t configure_serial;
+	uint32_t actual_width, actual_height;
 };
 
 struct wlr_layer_surface_v1_configure {
 	struct wl_list link; // wlr_layer_surface_v1::configure_list
 	uint32_t serial;
-	struct wlr_layer_surface_v1_state state;
+
+	uint32_t width, height;
 };
 
 struct wlr_layer_surface_v1 {
@@ -71,15 +85,9 @@ struct wlr_layer_surface_v1 {
 	char *namespace;
 
 	bool added, configured, mapped;
-	uint32_t configure_serial;
-	uint32_t configure_next_serial;
 	struct wl_list configure_list;
 
-	struct wlr_layer_surface_v1_configure *acked_configure;
-
-	struct wlr_layer_surface_v1_state client_pending;
-	struct wlr_layer_surface_v1_state server_pending;
-	struct wlr_layer_surface_v1_state current;
+	struct wlr_layer_surface_v1_state current, pending;
 
 	struct wl_listener surface_destroy;
 
@@ -119,9 +127,9 @@ struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display)
 /**
  * Notifies the layer surface to configure itself with this width/height. The
  * layer_surface will signal its map event when the surface is ready to assume
- * this size.
+ * this size. Returns the associated configure serial.
  */
-void wlr_layer_surface_v1_configure(struct wlr_layer_surface_v1 *surface,
+uint32_t wlr_layer_surface_v1_configure(struct wlr_layer_surface_v1 *surface,
 		uint32_t width, uint32_t height);
 
 /**
@@ -135,7 +143,10 @@ bool wlr_surface_is_layer_surface(struct wlr_surface *surface);
 struct wlr_layer_surface_v1 *wlr_layer_surface_v1_from_wlr_surface(
 		struct wlr_surface *surface);
 
-/* Calls the iterator function for each sub-surface and popup of this surface */
+/**
+ * Calls the iterator function for each mapped sub-surface and popup of this
+ * surface (whether or not this surface is mapped).
+ */
 void wlr_layer_surface_v1_for_each_surface(struct wlr_layer_surface_v1 *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data);
 

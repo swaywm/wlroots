@@ -14,6 +14,20 @@
 #include <wlr/backend/session.h>
 #include <wlr/types/wlr_output.h>
 
+struct wlr_drm_backend;
+
+struct wlr_drm_lease {
+	int fd;
+	uint32_t lessee_id;
+	struct wlr_drm_backend *backend;
+
+	struct {
+		struct wl_signal destroy;
+	} events;
+
+	void *data;
+};
+
 /**
  * Creates a DRM backend using the specified GPU file descriptor (typically from
  * a device node in /dev/dri).
@@ -41,18 +55,20 @@ uint32_t wlr_drm_connector_get_id(struct wlr_output *output);
 int wlr_drm_backend_get_non_master_fd(struct wlr_backend *backend);
 
 /**
- * Leases a given output to the caller. The output must be from the associated
- * DRM backend.
- * Returns a valid opened DRM FD or -1 on error.
+ * Leases the given outputs to the caller. The outputs must be from the
+ * associated DRM backend.
+ *
+ * Returns NULL on error.
  */
-int wlr_drm_create_lease(struct wlr_output **outputs, size_t n_outputs,
-		uint32_t *lessee_id);
+struct wlr_drm_lease *wlr_drm_create_lease(struct wlr_output **outputs,
+	size_t n_outputs, int *lease_fd);
 
 /**
- * Terminates a given lease. The output will be owned again by the backend
+ * Terminates and destroys a given lease.
+ *
+ * The outputs will be owned again by the backend.
  */
-bool wlr_drm_backend_terminate_lease(struct wlr_backend *backend,
-	uint32_t lessee_id);
+void wlr_drm_lease_terminate(struct wlr_drm_lease *lease);
 
 /**
  * Add mode to the list of available modes
@@ -60,5 +76,16 @@ bool wlr_drm_backend_terminate_lease(struct wlr_backend *backend,
 typedef struct _drmModeModeInfo drmModeModeInfo;
 struct wlr_output_mode *wlr_drm_connector_add_mode(struct wlr_output *output,
 	const drmModeModeInfo *mode);
+
+/**
+ * Get the connector's panel orientation.
+ *
+ * On some devices the panel is mounted in the casing in such a way that the
+ * top side of the panel does not match with the top side of the device. This
+ * function returns the output transform which needs to be applied to compensate
+ * for this.
+ */
+enum wl_output_transform wlr_drm_connector_get_panel_orientation(
+	struct wlr_output *output);
 
 #endif

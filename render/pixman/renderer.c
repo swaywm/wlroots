@@ -96,17 +96,19 @@ static struct wlr_pixman_buffer *create_buffer(
 	void *data = NULL;
 	uint32_t drm_format;
 	size_t stride;
-	if (!buffer_begin_data_ptr_access(wlr_buffer, &data, &drm_format, &stride)) {
+	if (!wlr_buffer_begin_data_ptr_access(wlr_buffer,
+			WLR_BUFFER_DATA_PTR_ACCESS_READ | WLR_BUFFER_DATA_PTR_ACCESS_WRITE,
+			&data, &drm_format, &stride)) {
 		wlr_log(WLR_ERROR, "Failed to get buffer data");
 		goto error_buffer;
 	}
-	buffer_end_data_ptr_access(wlr_buffer);
+	wlr_buffer_end_data_ptr_access(wlr_buffer);
 
 	pixman_format_code_t format = get_pixman_format_from_drm(drm_format);
 	if (format == 0) {
 		wlr_log(WLR_ERROR, "Unsupported pixman drm format 0x%"PRIX32,
 				drm_format);
-		return NULL;
+		goto error_buffer;
 	}
 
 	buffer->image = pixman_image_create_bits(format, wlr_buffer->width,
@@ -143,7 +145,9 @@ static void pixman_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 	void *data = NULL;
 	uint32_t drm_format;
 	size_t stride;
-	buffer_begin_data_ptr_access(buffer->buffer, &data, &drm_format, &stride);
+	wlr_buffer_begin_data_ptr_access(buffer->buffer,
+		WLR_BUFFER_DATA_PTR_ACCESS_READ | WLR_BUFFER_DATA_PTR_ACCESS_WRITE,
+		&data, &drm_format, &stride);
 
 	// If the data pointer has changed, re-create the Pixman image. This can
 	// happen if it's a client buffer and the wl_shm_pool has been resized.
@@ -162,7 +166,7 @@ static void pixman_end(struct wlr_renderer *wlr_renderer) {
 
 	assert(renderer->current_buffer != NULL);
 
-	buffer_end_data_ptr_access(renderer->current_buffer->buffer);
+	wlr_buffer_end_data_ptr_access(renderer->current_buffer->buffer);
 }
 
 static void pixman_clear(struct wlr_renderer *wlr_renderer,
@@ -229,8 +233,8 @@ static bool pixman_render_subtexture_with_matrix(
 		void *data;
 		uint32_t drm_format;
 		size_t stride;
-		if (!buffer_begin_data_ptr_access(texture->buffer, &data, &drm_format,
-				&stride)) {
+		if (!wlr_buffer_begin_data_ptr_access(texture->buffer,
+				WLR_BUFFER_DATA_PTR_ACCESS_READ, &data, &drm_format, &stride)) {
 			return false;
 		}
 
@@ -268,7 +272,7 @@ static bool pixman_render_subtexture_with_matrix(
 			renderer->height);
 
 	if (texture->buffer != NULL) {
-		buffer_end_data_ptr_access(texture->buffer);
+		wlr_buffer_end_data_ptr_access(texture->buffer);
 	}
 
 	pixman_image_unref(mask);
@@ -376,10 +380,11 @@ static struct wlr_texture *pixman_texture_from_buffer(
 	void *data = NULL;
 	uint32_t drm_format;
 	size_t stride;
-	if (!buffer_begin_data_ptr_access(buffer, &data, &drm_format, &stride)) {
+	if (!wlr_buffer_begin_data_ptr_access(buffer, WLR_BUFFER_DATA_PTR_ACCESS_READ,
+			&data, &drm_format, &stride)) {
 		return NULL;
 	}
-	buffer_end_data_ptr_access(buffer);
+	wlr_buffer_end_data_ptr_access(buffer);
 
 	struct wlr_pixman_texture *texture = pixman_texture_create(renderer,
 		drm_format, buffer->width, buffer->height);
@@ -523,7 +528,7 @@ struct wlr_renderer *wlr_pixman_renderer_create(void) {
 
 	for (size_t i = 0; i < len; ++i) {
 		wlr_drm_format_set_add(&renderer->drm_formats, formats[i],
-				DRM_FORMAT_MOD_LINEAR);
+				DRM_FORMAT_MOD_INVALID);
 	}
 
 	return &renderer->wlr_renderer;

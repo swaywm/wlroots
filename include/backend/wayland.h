@@ -24,6 +24,7 @@ struct wlr_wl_backend {
 	size_t requested_outputs;
 	size_t last_output_num;
 	struct wl_listener local_display_destroy;
+	char *activation_token;
 
 	/* remote state */
 	struct wl_display *remote_display;
@@ -39,9 +40,11 @@ struct wlr_wl_backend {
 	struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1;
 	struct wl_list seats; // wlr_wl_seat.link
 	struct zwp_tablet_manager_v2 *tablet_manager;
+	clockid_t presentation_clock;
 	struct wlr_drm_format_set shm_formats;
 	struct wlr_drm_format_set linux_dmabuf_v1_formats;
 	struct wl_drm *legacy_drm;
+	struct xdg_activation_v1 *activation_v1;
 	char *drm_render_name;
 };
 
@@ -84,6 +87,7 @@ struct wlr_wl_output {
 
 struct wlr_wl_input_device {
 	struct wlr_input_device wlr_input_device;
+	struct wl_list link;
 	uint32_t fingers;
 
 	struct wlr_wl_backend *backend;
@@ -98,6 +102,7 @@ struct wlr_wl_pointer {
 	struct wl_pointer *wl_pointer;
 	struct zwp_pointer_gesture_swipe_v1 *gesture_swipe;
 	struct zwp_pointer_gesture_pinch_v1 *gesture_pinch;
+	struct zwp_pointer_gesture_hold_v1 *gesture_hold;
 	struct zwp_relative_pointer_v1 *relative_pointer;
 	enum wlr_axis_source axis_source;
 	int32_t axis_discrete;

@@ -69,17 +69,4 @@ struct wlr_dmabuf_buffer *dmabuf_buffer_create(
  */
 bool dmabuf_buffer_drop(struct wlr_dmabuf_buffer *buffer);
 
-/**
- * Get a pointer to a region of memory referring to the buffer's underlying
- * storage. The format and stride can be used to interpret the memory region
- * contents.
- *
- * The returned pointer should be pointing to a valid memory region for read
- * and write operations. The returned pointer is only valid up to the next
- * buffer_end_data_ptr_access call.
- */
-bool buffer_begin_data_ptr_access(struct wlr_buffer *buffer, void **data,
-	uint32_t *format, size_t *stride);
-void buffer_end_data_ptr_access(struct wlr_buffer *buffer);
-
 #endif

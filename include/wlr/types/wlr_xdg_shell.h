@@ -105,10 +105,16 @@ struct wlr_xdg_toplevel_state {
 	uint32_t width, height;
 	uint32_t max_width, max_height;
 	uint32_t min_width, min_height;
+};
 
-	// Since the fullscreen request may be made before the toplevel's surface
-	// is mapped, this is used to store the requested fullscreen output (if
-	// any) for wlr_xdg_toplevel::client_pending.
+struct wlr_xdg_toplevel_configure {
+	bool maximized, fullscreen, resizing, activated;
+	uint32_t tiled; // enum wlr_edges
+	uint32_t width, height;
+};
+
+struct wlr_xdg_toplevel_requested {
+	bool maximized, minimized, fullscreen;
 	struct wlr_output *fullscreen_output;
 	struct wl_listener fullscreen_output_destroy;
 };
@@ -121,10 +127,15 @@ struct wlr_xdg_toplevel {
 	struct wlr_xdg_surface *parent;
 	struct wl_listener parent_unmap;
 
-	struct wlr_xdg_toplevel_state client_pending;
-	struct wlr_xdg_toplevel_state server_pending;
-	struct wlr_xdg_toplevel_state last_acked;
-	struct wlr_xdg_toplevel_state current;
+	struct wlr_xdg_toplevel_state current, pending;
+
+	// Properties to be sent to the client in the next configure event.
+	struct wlr_xdg_toplevel_configure scheduled;
+
+	// Properties that the client has requested. Intended to be checked
+	// by the compositor on surface map and handled accordingly
+	// (e.g. a client might want to start already in a fullscreen state).
+	struct wlr_xdg_toplevel_requested requested;
 
 	char *title;
 	char *app_id;
@@ -147,7 +158,12 @@ struct wlr_xdg_surface_configure {
 	struct wl_list link; // wlr_xdg_surface::configure_list
 	uint32_t serial;
 
-	struct wlr_xdg_toplevel_state *toplevel_state;
+	struct wlr_xdg_toplevel_configure *toplevel_configure;
+};
+
+struct wlr_xdg_surface_state {
+	uint32_t configure_serial;
+	struct wlr_box geometry;
 };
 
 /**
@@ -175,14 +191,11 @@ struct wlr_xdg_surface {
 	struct wl_list popups; // wlr_xdg_popup::link
 
 	bool added, configured, mapped;
-	uint32_t configure_serial;
 	struct wl_event_source *configure_idle;
-	uint32_t configure_next_serial;
+	uint32_t scheduled_serial;
 	struct wl_list configure_list;
 
-	bool has_next_geometry;
-	struct wlr_box next_geometry;
-	struct wlr_box geometry;
+	struct wlr_xdg_surface_state current, pending;
 
 	struct wl_listener surface_destroy;
 	struct wl_listener surface_commit;
@@ -400,17 +413,19 @@ void wlr_xdg_surface_get_geometry(struct wlr_xdg_surface *surface,
 		struct wlr_box *box);
 
 /**
- * Call `iterator` on each surface and popup in the xdg-surface tree, with the
- * surface's position relative to the root xdg-surface. The function is called
- * from root to leaves (in rendering order).
+ * Call `iterator` on each mapped surface and popup in the xdg-surface tree
+ * (whether or not this xdg-surface is mapped), with the surface's position
+ * relative to the root xdg-surface. The function is called from root to leaves
+ * (in rendering order).
  */
 void wlr_xdg_surface_for_each_surface(struct wlr_xdg_surface *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data);
 
 /**
- * Call `iterator` on each popup's surface and popup's subsurface in the
- * xdg-surface tree, with the surfaces's position relative to the root
- * xdg-surface. The function is called from root to leaves (in rendering order).
+ * Call `iterator` on each mapped popup's surface and popup's subsurface in the
+ * xdg-surface tree (whether or not this xdg-surface is mapped), with the
+ * surfaces's position relative to the root xdg-surface. The function is called
+ * from root to leaves (in rendering order).
  */
 void wlr_xdg_surface_for_each_popup_surface(struct wlr_xdg_surface *surface,
 		wlr_surface_iterator_func_t iterator, void *user_data);

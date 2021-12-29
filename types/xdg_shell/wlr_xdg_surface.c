@@ -23,7 +23,7 @@ static void xdg_surface_configure_destroy(
 		return;
 	}
 	wl_list_remove(&configure->link);
-	free(configure->toplevel_state);
+	free(configure->toplevel_configure);
 	free(configure);
 }
 
@@ -81,18 +81,11 @@ void unmap_xdg_surface(struct wlr_xdg_surface *surface) {
 	}
 
 	surface->configured = surface->mapped = false;
-	surface->configure_serial = 0;
 	if (surface->configure_idle) {
 		wl_event_source_remove(surface->configure_idle);
 		surface->configure_idle = NULL;
 	}
-	surface->configure_next_serial = 0;
-
-	surface->has_next_geometry = false;
-	memset(&surface->geometry, 0, sizeof(struct wlr_box));
-	memset(&surface->next_geometry, 0, sizeof(struct wlr_box));
 }
-
 
 static void xdg_surface_handle_ack_configure(struct wl_client *client,
 		struct wl_resource *resource, uint32_t serial) {
@@ -144,7 +137,7 @@ static void xdg_surface_handle_ack_configure(struct wl_client *client,
 	}
 
 	surface->configured = true;
-	surface->configure_serial = serial;
+	surface->pending.configure_serial = serial;
 
 	wlr_signal_emit_safe(&surface->events.ack_configure, configure);
 	xdg_surface_configure_destroy(configure);
@@ -163,7 +156,7 @@ static void surface_send_configure(void *user_data) {
 	}
 
 	wl_list_insert(surface->configure_list.prev, &configure->link);
-	configure->serial = surface->configure_next_serial;
+	configure->serial = surface->scheduled_serial;
 	configure->surface = surface;
 
 	switch (surface->role) {
@@ -187,53 +180,19 @@ static void surface_send_configure(void *user_data) {
 	xdg_surface_send_configure(surface->resource, configure->serial);
 }
 
-static uint32_t schedule_configure(struct wlr_xdg_surface *surface,
-		bool pending_same) {
+uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface) {
 	struct wl_display *display = wl_client_get_display(surface->client->client);
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);
 
-	if (surface->configure_idle != NULL) {
-		if (!pending_same) {
-			// configure request already scheduled
-			return surface->configure_next_serial;
-		}
-
-		// configure request not necessary anymore
-		wl_event_source_remove(surface->configure_idle);
-		surface->configure_idle = NULL;
-		return 0;
-	} else {
-		if (pending_same) {
-			// configure request not necessary
-			return 0;
-		}
-
-		surface->configure_next_serial = wl_display_next_serial(display);
+	if (surface->configure_idle == NULL) {
+		surface->scheduled_serial = wl_display_next_serial(display);
 		surface->configure_idle = wl_event_loop_add_idle(loop,
 			surface_send_configure, surface);
-		return surface->configure_next_serial;
+		if (surface->configure_idle == NULL) {
+			wl_client_post_no_memory(surface->client->client);
+		}
 	}
-}
-
-uint32_t schedule_xdg_surface_configure(struct wlr_xdg_surface *surface) {
-	bool pending_same = false;
-
-	switch (surface->role) {
-	case WLR_XDG_SURFACE_ROLE_NONE:
-		assert(0 && "not reached");
-		break;
-	case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
-		pending_same = compare_xdg_surface_toplevel_state(surface->toplevel);
-		break;
-	case WLR_XDG_SURFACE_ROLE_POPUP:
-		break;
-	}
-
-	return schedule_configure(surface, pending_same);
-}
-
-uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface) {
-	return schedule_configure(surface, false);
+	return surface->scheduled_serial;
 }
 
 static void xdg_surface_handle_get_popup(struct wl_client *client,
@@ -286,11 +245,10 @@ static void xdg_surface_handle_set_window_geometry(struct wl_client *client,
 		return;
 	}
 
-	surface->has_next_geometry = true;
-	surface->next_geometry.height = height;
-	surface->next_geometry.width = width;
-	surface->next_geometry.x = x;
-	surface->next_geometry.y = y;
+	surface->pending.geometry.x = x;
+	surface->pending.geometry.y = y;
+	surface->pending.geometry.width = width;
+	surface->pending.geometry.height = height;
 }
 
 static void xdg_surface_handle_destroy(struct wl_client *client,
@@ -354,13 +312,7 @@ void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 		return;
 	}
 
-	if (surface->has_next_geometry) {
-		surface->has_next_geometry = false;
-		surface->geometry.x = surface->next_geometry.x;
-		surface->geometry.y = surface->next_geometry.y;
-		surface->geometry.width = surface->next_geometry.width;
-		surface->geometry.height = surface->next_geometry.height;
-	}
+	surface->current = surface->pending;
 
 	switch (surface->role) {
 	case WLR_XDG_SURFACE_ROLE_NONE:
@@ -383,10 +335,6 @@ void handle_xdg_surface_commit(struct wlr_surface *wlr_surface) {
 			!surface->mapped) {
 		surface->mapped = true;
 		wlr_signal_emit_safe(&surface->events.map, surface);
-	}
-	if (surface->configured && !wlr_surface_has_buffer(surface->surface) &&
-			surface->mapped) {
-		unmap_xdg_surface(surface);
 	}
 }
 
@@ -487,11 +435,10 @@ void reset_xdg_surface(struct wlr_xdg_surface *xdg_surface) {
 	case WLR_XDG_SURFACE_ROLE_TOPLEVEL:
 		wl_resource_set_user_data(xdg_surface->toplevel->resource, NULL);
 		xdg_surface->toplevel->resource = NULL;
-
-		if (xdg_surface->toplevel->client_pending.fullscreen_output) {
-			struct wlr_xdg_toplevel_state *client_pending =
-				&xdg_surface->toplevel->client_pending;
-			wl_list_remove(&client_pending->fullscreen_output_destroy.link);
+		struct wlr_xdg_toplevel_requested *req =
+			&xdg_surface->toplevel->requested;
+		if (req->fullscreen_output) {
+			wl_list_remove(&req->fullscreen_output_destroy.link);
 		}
 		free(xdg_surface->toplevel);
 		xdg_surface->toplevel = NULL;
@@ -576,9 +523,9 @@ void wlr_xdg_popup_get_position(struct wlr_xdg_popup *popup,
 	struct wlr_box parent_geo;
 	wlr_xdg_surface_get_geometry(parent, &parent_geo);
 	*popup_sx = parent_geo.x + popup->geometry.x -
-		popup->base->geometry.x;
+		popup->base->current.geometry.x;
 	*popup_sy = parent_geo.y + popup->geometry.y -
-		popup->base->geometry.y;
+		popup->base->current.geometry.y;
 }
 
 struct wlr_surface *wlr_xdg_surface_surface_at(
@@ -598,6 +545,9 @@ struct wlr_surface *wlr_xdg_surface_popup_surface_at(
 	struct wlr_xdg_popup *popup_state;
 	wl_list_for_each(popup_state, &surface->popups, link) {
 		struct wlr_xdg_surface *popup = popup_state->base;
+		if (!popup->mapped) {
+			continue;
+		}
 
 		double popup_sx, popup_sy;
 		wlr_xdg_popup_get_position(popup_state, &popup_sx, &popup_sy);
@@ -632,7 +582,7 @@ static void xdg_surface_for_each_popup_surface(struct wlr_xdg_surface *surface,
 	struct wlr_xdg_popup *popup_state;
 	wl_list_for_each(popup_state, &surface->popups, link) {
 		struct wlr_xdg_surface *popup = popup_state->base;
-		if (!popup->configured) {
+		if (!popup->configured || !popup->mapped) {
 			continue;
 		}
 
@@ -668,10 +618,11 @@ void wlr_xdg_surface_for_each_popup_surface(struct wlr_xdg_surface *surface,
 void wlr_xdg_surface_get_geometry(struct wlr_xdg_surface *surface,
 		struct wlr_box *box) {
 	wlr_surface_get_extends(surface->surface, box);
+
 	/* The client never set the geometry */
-	if (!surface->geometry.width) {
+	if (wlr_box_empty(&surface->current.geometry)) {
 		return;
 	}
 
-	wlr_box_intersection(box, &surface->geometry, box);
+	wlr_box_intersection(box, &surface->current.geometry, box);
 }

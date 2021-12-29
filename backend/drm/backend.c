@@ -11,7 +11,6 @@
 #include <wlr/interfaces/wlr_output.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
-#include "backend/backend.h"
 #include "backend/drm/drm.h"
 #include "util/signal.h"
 
@@ -23,7 +22,7 @@ struct wlr_drm_backend *get_drm_backend_from_backend(
 
 static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_drm_backend *drm = get_drm_backend_from_backend(backend);
-	scan_drm_connectors(drm);
+	scan_drm_connectors(drm, NULL);
 	return true;
 }
 
@@ -52,8 +51,6 @@ static void backend_destroy(struct wlr_backend *backend) {
 	wl_list_remove(&drm->parent_destroy.link);
 	wl_list_remove(&drm->dev_change.link);
 	wl_list_remove(&drm->dev_remove.link);
-
-	drm_bo_handle_table_finish(&drm->bo_handles);
 
 	if (drm->parent) {
 		finish_drm_renderer(&drm->mgpu_renderer);
@@ -105,7 +102,7 @@ static void handle_session_active(struct wl_listener *listener, void *data) {
 
 	if (session->active) {
 		wlr_log(WLR_INFO, "DRM fd resumed");
-		scan_drm_connectors(drm);
+		scan_drm_connectors(drm, NULL);
 
 		struct wlr_drm_connector *conn;
 		wl_list_for_each(conn, &drm->outputs, link) {
@@ -130,13 +127,24 @@ static void handle_session_active(struct wl_listener *listener, void *data) {
 
 static void handle_dev_change(struct wl_listener *listener, void *data) {
 	struct wlr_drm_backend *drm = wl_container_of(listener, drm, dev_change);
+	struct wlr_device_change_event *change = data;
 
 	if (!drm->session->active) {
 		return;
 	}
 
-	wlr_log(WLR_DEBUG, "%s invalidated", drm->name);
-	scan_drm_connectors(drm);
+	switch (change->type) {
+	case WLR_DEVICE_HOTPLUG:
+		wlr_log(WLR_DEBUG, "Received hotplug event for %s", drm->name);
+		scan_drm_connectors(drm, &change->hotplug);
+		break;
+	case WLR_DEVICE_LEASE:
+		wlr_log(WLR_DEBUG, "Received lease event for %s", drm->name);
+		scan_drm_leases(drm);
+		break;
+	default:
+		wlr_log(WLR_DEBUG, "Received unknown change event for %s", drm->name);
+	}
 }
 
 static void handle_dev_remove(struct wl_listener *listener, void *data) {
@@ -227,10 +235,6 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 	}
 
 	if (drm->parent) {
-		// Ensure we use the same renderer as the parent backend
-		drm->backend.renderer = wlr_backend_get_renderer(&drm->parent->backend);
-		assert(drm->backend.renderer != NULL);
-
 		if (!init_drm_renderer(drm, &drm->mgpu_renderer)) {
 			wlr_log(WLR_ERROR, "Failed to initialize renderer");
 			goto error_resources;
@@ -256,12 +260,6 @@ struct wlr_backend *wlr_drm_backend_create(struct wl_display *display,
 			wlr_drm_format_set_add(&drm->mgpu_formats, fmt->format,
 				DRM_FORMAT_MOD_LINEAR);
 		}
-	}
-
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(&drm->backend);
-	struct wlr_allocator *allocator = backend_get_allocator(&drm->backend);
-	if (renderer == NULL || allocator == NULL) {
-		goto error_mgpu_renderer;
 	}
 
 	drm->session_destroy.notify = handle_session_destroy;

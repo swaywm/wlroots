@@ -11,71 +11,35 @@ void handle_xdg_toplevel_ack_configure(
 		struct wlr_xdg_surface *surface,
 		struct wlr_xdg_surface_configure *configure) {
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
-	assert(configure->toplevel_state != NULL);
 
-	surface->toplevel->last_acked = *configure->toplevel_state;
-}
+	struct wlr_xdg_toplevel_configure *acked = configure->toplevel_configure;
+	assert(acked != NULL);
 
-bool compare_xdg_surface_toplevel_state(struct wlr_xdg_toplevel *state) {
-	// is pending state different from current state?
-	if (!state->base->configured) {
-		return false;
-	}
+	surface->toplevel->pending.maximized = acked->maximized;
+	surface->toplevel->pending.fullscreen = acked->fullscreen;
+	surface->toplevel->pending.resizing = acked->resizing;
+	surface->toplevel->pending.activated = acked->activated;
+	surface->toplevel->pending.tiled = acked->tiled;
 
-	struct wlr_xdg_toplevel_state *configured = NULL;
-	if (wl_list_empty(&state->base->configure_list)) {
-		// There are currently no pending configures, so check against the last
-		// state acked by the client.
-		configured = &state->last_acked;
-	} else {
-		struct wlr_xdg_surface_configure *configure =
-			wl_container_of(state->base->configure_list.prev, configure, link);
-		configured = configure->toplevel_state;
-	}
-
-	if (state->server_pending.activated != configured->activated) {
-		return false;
-	}
-	if (state->server_pending.fullscreen != configured->fullscreen) {
-		return false;
-	}
-	if (state->server_pending.maximized != configured->maximized) {
-		return false;
-	}
-	if (state->server_pending.resizing != configured->resizing) {
-		return false;
-	}
-	if (state->server_pending.tiled != configured->tiled) {
-		return false;
-	}
-
-	if (state->server_pending.width == configured->width &&
-			state->server_pending.height == configured->height) {
-		return true;
-	}
-
-	if (state->server_pending.width == 0 && state->server_pending.height == 0) {
-		return true;
-	}
-
-	return false;
+	surface->toplevel->pending.width = acked->width;
+	surface->toplevel->pending.height = acked->height;
 }
 
 void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 		struct wlr_xdg_surface_configure *configure) {
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
 
-	configure->toplevel_state = malloc(sizeof(*configure->toplevel_state));
-	if (configure->toplevel_state == NULL) {
+	configure->toplevel_configure = malloc(sizeof(*configure->toplevel_configure));
+	if (configure->toplevel_configure == NULL) {
 		wlr_log(WLR_ERROR, "Allocation failed");
 		wl_resource_post_no_memory(surface->toplevel->resource);
 		return;
 	}
-	*configure->toplevel_state = surface->toplevel->server_pending;
+	*configure->toplevel_configure = surface->toplevel->scheduled;
 
 	struct wl_array states;
 	wl_array_init(&states);
-	if (surface->toplevel->server_pending.maximized) {
+	if (surface->toplevel->scheduled.maximized) {
 		uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
 			wlr_log(WLR_ERROR, "Could not allocate state for maximized xdg_toplevel");
@@ -83,7 +47,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 		}
 		*s = XDG_TOPLEVEL_STATE_MAXIMIZED;
 	}
-	if (surface->toplevel->server_pending.fullscreen) {
+	if (surface->toplevel->scheduled.fullscreen) {
 		uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
 			wlr_log(WLR_ERROR, "Could not allocate state for fullscreen xdg_toplevel");
@@ -91,7 +55,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 		}
 		*s = XDG_TOPLEVEL_STATE_FULLSCREEN;
 	}
-	if (surface->toplevel->server_pending.resizing) {
+	if (surface->toplevel->scheduled.resizing) {
 		uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
 			wlr_log(WLR_ERROR, "Could not allocate state for resizing xdg_toplevel");
@@ -99,7 +63,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 		}
 		*s = XDG_TOPLEVEL_STATE_RESIZING;
 	}
-	if (surface->toplevel->server_pending.activated) {
+	if (surface->toplevel->scheduled.activated) {
 		uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
 		if (!s) {
 			wlr_log(WLR_ERROR, "Could not allocate state for activated xdg_toplevel");
@@ -107,7 +71,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 		}
 		*s = XDG_TOPLEVEL_STATE_ACTIVATED;
 	}
-	if (surface->toplevel->server_pending.tiled) {
+	if (surface->toplevel->scheduled.tiled) {
 		if (wl_resource_get_version(surface->resource) >=
 				XDG_TOPLEVEL_STATE_TILED_LEFT_SINCE_VERSION) {
 			const struct {
@@ -121,7 +85,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 			};
 
 			for (size_t i = 0; i < sizeof(tiled)/sizeof(tiled[0]); ++i) {
-				if ((surface->toplevel->server_pending.tiled &
+				if ((surface->toplevel->scheduled.tiled &
 						tiled[i].edge) == 0) {
 					continue;
 				}
@@ -134,7 +98,7 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 				}
 				*s = tiled[i].state;
 			}
-		} else if (!surface->toplevel->server_pending.maximized) {
+		} else if (!surface->toplevel->scheduled.maximized) {
 			// This version doesn't support tiling, best we can do is make the
 			// toplevel maximized
 			uint32_t *s = wl_array_add(&states, sizeof(uint32_t));
@@ -147,8 +111,8 @@ void send_xdg_toplevel_configure(struct wlr_xdg_surface *surface,
 		}
 	}
 
-	uint32_t width = surface->toplevel->server_pending.width;
-	uint32_t height = surface->toplevel->server_pending.height;
+	uint32_t width = surface->toplevel->scheduled.width;
+	uint32_t height = surface->toplevel->scheduled.height;
 	xdg_toplevel_send_configure(surface->toplevel->resource, width, height,
 		&states);
 
@@ -166,23 +130,12 @@ void handle_xdg_surface_toplevel_committed(struct wlr_xdg_surface *surface) {
 	if (!surface->toplevel->added) {
 		// on the first commit, send a configure request to tell the client it
 		// is added
-		schedule_xdg_surface_configure(surface);
+		wlr_xdg_surface_schedule_configure(surface);
 		surface->toplevel->added = true;
 		return;
 	}
 
-	// apply state from the last acked configure now that the client committed
-	surface->toplevel->current = surface->toplevel->last_acked;
-
-	// update state from the client that doesn't need compositor approval
-	surface->toplevel->current.max_width =
-		surface->toplevel->client_pending.max_width;
-	surface->toplevel->current.min_width =
-		surface->toplevel->client_pending.min_width;
-	surface->toplevel->current.max_height =
-		surface->toplevel->client_pending.max_height;
-	surface->toplevel->current.min_height =
-		surface->toplevel->client_pending.min_height;
+	surface->toplevel->current = surface->toplevel->pending;
 }
 
 static const struct xdg_toplevel_interface xdg_toplevel_implementation;
@@ -359,55 +312,57 @@ static void xdg_toplevel_handle_set_max_size(struct wl_client *client,
 		struct wl_resource *resource, int32_t width, int32_t height) {
 	struct wlr_xdg_surface *surface =
 		wlr_xdg_surface_from_toplevel_resource(resource);
-	surface->toplevel->client_pending.max_width = width;
-	surface->toplevel->client_pending.max_height = height;
+	surface->toplevel->pending.max_width = width;
+	surface->toplevel->pending.max_height = height;
 }
 
 static void xdg_toplevel_handle_set_min_size(struct wl_client *client,
 		struct wl_resource *resource, int32_t width, int32_t height) {
 	struct wlr_xdg_surface *surface =
 		wlr_xdg_surface_from_toplevel_resource(resource);
-	surface->toplevel->client_pending.min_width = width;
-	surface->toplevel->client_pending.min_height = height;
+	surface->toplevel->pending.min_width = width;
+	surface->toplevel->pending.min_height = height;
 }
 
 static void xdg_toplevel_handle_set_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface *surface =
 		wlr_xdg_surface_from_toplevel_resource(resource);
-	surface->toplevel->client_pending.maximized = true;
+	surface->toplevel->requested.maximized = true;
 	wlr_signal_emit_safe(&surface->toplevel->events.request_maximize, surface);
+	wlr_xdg_surface_schedule_configure(surface);
 }
 
 static void xdg_toplevel_handle_unset_maximized(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface *surface =
 		wlr_xdg_surface_from_toplevel_resource(resource);
-	surface->toplevel->client_pending.maximized = false;
+	surface->toplevel->requested.maximized = false;
 	wlr_signal_emit_safe(&surface->toplevel->events.request_maximize, surface);
+	wlr_xdg_surface_schedule_configure(surface);
 }
 
 static void handle_fullscreen_output_destroy(struct wl_listener *listener,
 		void *data) {
-	struct wlr_xdg_toplevel_state *state =
-		wl_container_of(listener, state, fullscreen_output_destroy);
-	state->fullscreen_output = NULL;
-	wl_list_remove(&state->fullscreen_output_destroy.link);
+	struct wlr_xdg_toplevel_requested *req =
+		wl_container_of(listener, req, fullscreen_output_destroy);
+	req->fullscreen_output = NULL;
+	wl_list_remove(&req->fullscreen_output_destroy.link);
 }
 
-static void store_fullscreen_pending(struct wlr_xdg_surface *surface,
+static void store_fullscreen_requested(struct wlr_xdg_surface *surface,
 		bool fullscreen, struct wlr_output *output) {
-	struct wlr_xdg_toplevel_state *state = &surface->toplevel->client_pending;
-	state->fullscreen = fullscreen;
-	if (state->fullscreen_output) {
-		wl_list_remove(&state->fullscreen_output_destroy.link);
+	struct wlr_xdg_toplevel_requested *req = &surface->toplevel->requested;
+	req->fullscreen = fullscreen;
+	if (req->fullscreen_output) {
+		wl_list_remove(&req->fullscreen_output_destroy.link);
 	}
-	state->fullscreen_output = output;
-	if (state->fullscreen_output) {
-		state->fullscreen_output_destroy.notify =
+	req->fullscreen_output = output;
+	if (req->fullscreen_output) {
+		req->fullscreen_output_destroy.notify =
 			handle_fullscreen_output_destroy;
-		wl_signal_add(&state->fullscreen_output->events.destroy,
-				&state->fullscreen_output_destroy);
+		wl_signal_add(&req->fullscreen_output->events.destroy,
+				&req->fullscreen_output_destroy);
 	}
 }
 
@@ -421,7 +376,7 @@ static void xdg_toplevel_handle_set_fullscreen(struct wl_client *client,
 		output = wlr_output_from_resource(output_resource);
 	}
 
-	store_fullscreen_pending(surface, true, output);
+	store_fullscreen_requested(surface, true, output);
 
 	struct wlr_xdg_toplevel_set_fullscreen_event event = {
 		.surface = surface,
@@ -430,6 +385,7 @@ static void xdg_toplevel_handle_set_fullscreen(struct wl_client *client,
 	};
 
 	wlr_signal_emit_safe(&surface->toplevel->events.request_fullscreen, &event);
+	wlr_xdg_surface_schedule_configure(surface);
 }
 
 static void xdg_toplevel_handle_unset_fullscreen(struct wl_client *client,
@@ -437,7 +393,7 @@ static void xdg_toplevel_handle_unset_fullscreen(struct wl_client *client,
 	struct wlr_xdg_surface *surface =
 		wlr_xdg_surface_from_toplevel_resource(resource);
 
-	store_fullscreen_pending(surface, false, NULL);
+	store_fullscreen_requested(surface, false, NULL);
 
 	struct wlr_xdg_toplevel_set_fullscreen_event event = {
 		.surface = surface,
@@ -446,12 +402,14 @@ static void xdg_toplevel_handle_unset_fullscreen(struct wl_client *client,
 	};
 
 	wlr_signal_emit_safe(&surface->toplevel->events.request_fullscreen, &event);
+	wlr_xdg_surface_schedule_configure(surface);
 }
 
 static void xdg_toplevel_handle_set_minimized(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_xdg_surface *surface =
 		wlr_xdg_surface_from_toplevel_resource(resource);
+	surface->toplevel->requested.minimized = true;
 	wlr_signal_emit_safe(&surface->toplevel->events.request_minimize, surface);
 }
 
@@ -547,48 +505,48 @@ void destroy_xdg_toplevel(struct wlr_xdg_surface *xdg_surface) {
 uint32_t wlr_xdg_toplevel_set_size(struct wlr_xdg_surface *surface,
 		uint32_t width, uint32_t height) {
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
-	surface->toplevel->server_pending.width = width;
-	surface->toplevel->server_pending.height = height;
+	surface->toplevel->scheduled.width = width;
+	surface->toplevel->scheduled.height = height;
 
-	return schedule_xdg_surface_configure(surface);
+	return wlr_xdg_surface_schedule_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_set_activated(struct wlr_xdg_surface *surface,
 		bool activated) {
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
-	surface->toplevel->server_pending.activated = activated;
+	surface->toplevel->scheduled.activated = activated;
 
-	return schedule_xdg_surface_configure(surface);
+	return wlr_xdg_surface_schedule_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_set_maximized(struct wlr_xdg_surface *surface,
 		bool maximized) {
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
-	surface->toplevel->server_pending.maximized = maximized;
+	surface->toplevel->scheduled.maximized = maximized;
 
-	return schedule_xdg_surface_configure(surface);
+	return wlr_xdg_surface_schedule_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_set_fullscreen(struct wlr_xdg_surface *surface,
 		bool fullscreen) {
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
-	surface->toplevel->server_pending.fullscreen = fullscreen;
+	surface->toplevel->scheduled.fullscreen = fullscreen;
 
-	return schedule_xdg_surface_configure(surface);
+	return wlr_xdg_surface_schedule_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_set_resizing(struct wlr_xdg_surface *surface,
 		bool resizing) {
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
-	surface->toplevel->server_pending.resizing = resizing;
+	surface->toplevel->scheduled.resizing = resizing;
 
-	return schedule_xdg_surface_configure(surface);
+	return wlr_xdg_surface_schedule_configure(surface);
 }
 
 uint32_t wlr_xdg_toplevel_set_tiled(struct wlr_xdg_surface *surface,
 		uint32_t tiled) {
 	assert(surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL);
-	surface->toplevel->server_pending.tiled = tiled;
+	surface->toplevel->scheduled.tiled = tiled;
 
-	return schedule_xdg_surface_configure(surface);
+	return wlr_xdg_surface_schedule_configure(surface);
 }

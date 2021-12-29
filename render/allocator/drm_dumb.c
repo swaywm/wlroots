@@ -7,11 +7,13 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <wlr/backend.h>
+#include <wlr/backend/session.h>
+#include <wlr/render/allocator.h>
+#include <wlr/render/drm_format_set.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include <wlr/backend.h>
-#include <wlr/backend/session.h>
 
 #include "render/allocator/drm_dumb.h"
 #include "render/pixel_format.h"
@@ -128,7 +130,7 @@ create_err:
 }
 
 static bool drm_dumb_buffer_begin_data_ptr_access(struct wlr_buffer *wlr_buffer,
-		void **data, uint32_t *format, size_t *stride) {
+		uint32_t flags, void **data, uint32_t *format, size_t *stride) {
 	struct wlr_drm_dumb_buffer *buf = drm_dumb_buffer_from_buffer(wlr_buffer);
 	*data = buf->data;
 	*stride = buf->stride;

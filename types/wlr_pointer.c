@@ -18,6 +18,8 @@ void wlr_pointer_init(struct wlr_pointer *pointer,
 	wl_signal_init(&pointer->events.pinch_begin);
 	wl_signal_init(&pointer->events.pinch_update);
 	wl_signal_init(&pointer->events.pinch_end);
+	wl_signal_init(&pointer->events.hold_begin);
+	wl_signal_init(&pointer->events.hold_end);
 }
 
 void wlr_pointer_destroy(struct wlr_pointer *pointer) {

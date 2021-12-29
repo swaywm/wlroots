@@ -42,7 +42,7 @@ void wlr_text_input_v3_send_leave(struct wlr_text_input_v3 *text_input) {
 }
 
 void wlr_text_input_v3_send_preedit_string(struct wlr_text_input_v3 *text_input,
-		const char *text, uint32_t cursor_begin, uint32_t cursor_end) {
+		const char *text, int32_t cursor_begin, int32_t cursor_end) {
 	zwp_text_input_v3_send_preedit_string(text_input->resource, text,
 		cursor_begin, cursor_end);
 }
@@ -171,6 +171,10 @@ static void text_input_commit(struct wl_client *client,
 	if (text_input->pending.surrounding.text) {
 		text_input->current.surrounding.text =
 			strdup(text_input->pending.surrounding.text);
+		if (text_input->current.surrounding.text == NULL) {
+			wl_client_post_no_memory(client);
+			return;
+		}
 	}
 
 	bool old_enabled = text_input->current_enabled;

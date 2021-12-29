@@ -9,6 +9,7 @@
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_keyboard.h>
@@ -22,6 +23,8 @@
 struct sample_state {
 	struct wl_display *display;
 	struct wlr_xcursor *xcursor;
+	struct wlr_renderer *renderer;
+	struct wlr_allocator *allocator;
 	float default_color[4];
 	float clear_color[4];
 	struct wlr_output_layout *layout;
@@ -90,7 +93,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct sample_output *output = wl_container_of(listener, output, frame);
 	struct sample_state *sample = output->sample;
 	struct wlr_output *wlr_output = output->output;
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
+	struct wlr_renderer *renderer = sample->renderer;
 
 	wlr_output_attach_render(wlr_output, NULL);
 
@@ -144,6 +147,9 @@ static void output_remove_notify(struct wl_listener *listener, void *data) {
 static void new_output_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct sample_state *sample = wl_container_of(listener, sample, new_output);
+
+	wlr_output_init_render(output, sample->allocator, sample->renderer);
+
 	struct sample_output *sample_output = calloc(1, sizeof(struct sample_output));
 	sample_output->output = output;
 	sample_output->sample = sample;
@@ -269,6 +275,10 @@ int main(int argc, char *argv[]) {
 	if (!wlr) {
 		exit(1);
 	}
+
+	state.renderer = wlr_renderer_autocreate(wlr);
+	state.allocator = wlr_allocator_autocreate(wlr, state.renderer);
+
 	wl_list_init(&state.cursors);
 	wl_list_init(&state.pointers);
 	wl_list_init(&state.outputs);

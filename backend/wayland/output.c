@@ -23,6 +23,7 @@
 
 #include "linux-dmabuf-unstable-v1-client-protocol.h"
 #include "presentation-time-client-protocol.h"
+#include "xdg-activation-v1-client-protocol.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
@@ -75,6 +76,7 @@ static void presentation_feedback_handle_presented(void *data,
 	};
 	struct wlr_output_event_present event = {
 		.commit_seq = feedback->commit_seq,
+		.presented = true,
 		.when = &t,
 		.seq = ((uint64_t)seq_hi << 32) | seq_lo,
 		.refresh = refresh_ns,
@@ -89,7 +91,11 @@ static void presentation_feedback_handle_discarded(void *data,
 		struct wp_presentation_feedback *wp_feedback) {
 	struct wlr_wl_presentation_feedback *feedback = data;
 
-	wlr_output_send_present(&feedback->output->wlr_output, NULL);
+	struct wlr_output_event_present event = {
+		.commit_seq = feedback->commit_seq,
+		.presented = false,
+	};
+	wlr_output_send_present(&feedback->output->wlr_output, &event);
 
 	presentation_feedback_destroy(feedback);
 }
@@ -160,18 +166,8 @@ static struct wl_buffer *import_dmabuf(struct wlr_wl_backend *wl,
 			dmabuf->offset[i], dmabuf->stride[i], modifier_hi, modifier_lo);
 	}
 
-	uint32_t flags = 0;
-	if (dmabuf->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) {
-		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT;
-	}
-	if (dmabuf->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_INTERLACED) {
-		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_INTERLACED;
-	}
-	if (dmabuf->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_BOTTOM_FIRST) {
-		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_BOTTOM_FIRST;
-	}
 	struct wl_buffer *wl_buffer = zwp_linux_buffer_params_v1_create_immed(
-		params, dmabuf->width, dmabuf->height, dmabuf->format, flags);
+		params, dmabuf->width, dmabuf->height, dmabuf->format, 0);
 	// TODO: handle create() errors
 	return wl_buffer;
 }
@@ -345,7 +341,11 @@ static bool output_commit(struct wlr_output *wlr_output) {
 			wp_presentation_feedback_add_listener(wp_feedback,
 				&presentation_feedback_listener, feedback);
 		} else {
-			wlr_output_send_present(wlr_output, NULL);
+			struct wlr_output_event_present present_event = {
+				.commit_seq = wlr_output->commit_seq + 1,
+				.presented = true,
+			};
+			wlr_output_send_present(wlr_output, &present_event);
 		}
 	}
 
@@ -520,12 +520,14 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 	wlr_output_update_custom_mode(wlr_output, 1280, 720, 0);
 	strncpy(wlr_output->make, "wayland", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "wayland", sizeof(wlr_output->model));
-	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%zd",
-		++backend->last_output_num);
+
+	char name[64];
+	snprintf(name, sizeof(name), "WL-%zu", ++backend->last_output_num);
+	wlr_output_set_name(wlr_output, name);
 
 	char description[128];
 	snprintf(description, sizeof(description),
-		"Wayland output %zd", backend->last_output_num);
+		"Wayland output %zu", backend->last_output_num);
 	wlr_output_set_description(wlr_output, description);
 
 	output->backend = backend;
@@ -583,6 +585,12 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 		if (seat->pointer) {
 			create_wl_pointer(seat, output);
 		}
+	}
+
+	// TODO: let the compositor do this bit
+	if (backend->activation_v1 && backend->activation_token) {
+		xdg_activation_v1_activate(backend->activation_v1,
+				backend->activation_token, output->surface);
 	}
 
 	// Start the rendering loop by requesting the compositor to render a frame

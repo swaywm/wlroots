@@ -30,7 +30,6 @@ struct wlr_gles2_texture_attribs {
 	GLenum target; /* either GL_TEXTURE_2D or GL_TEXTURE_EXTERNAL_OES */
 	GLuint tex;
 
-	bool inverted_y;
 	bool has_alpha;
 };
 

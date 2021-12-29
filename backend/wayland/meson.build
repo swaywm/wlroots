@@ -1,3 +1,9 @@
+wayland_client = dependency('wayland-client',
+	fallback: 'wayland',
+	default_options: wayland_project_options,
+)
+wlr_deps += wayland_client
+
 wlr_files += files(
 	'backend.c',
 	'output.c',
@@ -12,6 +18,7 @@ client_protos = [
 	'presentation-time',
 	'relative-pointer-unstable-v1',
 	'tablet-unstable-v2',
+	'xdg-activation-v1',
 	'xdg-decoration-unstable-v1',
 	'xdg-shell',
 ]

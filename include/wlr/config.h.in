@@ -7,6 +7,8 @@
 
 #mesondefine WLR_HAS_GLES2_RENDERER
 
+#mesondefine WLR_HAS_VULKAN_RENDERER
+
 #mesondefine WLR_HAS_XWAYLAND
 
 #endif

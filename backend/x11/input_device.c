@@ -106,8 +106,8 @@ static void send_touch_up_event(struct wlr_x11_output *output,
 	wlr_signal_emit_safe(&output->touch.events.frame, NULL);
 }
 
-static struct wlr_x11_touchpoint* get_touchpoint_from_x11_touch_id(struct wlr_x11_output *output,
-		uint32_t id) {
+static struct wlr_x11_touchpoint *get_touchpoint_from_x11_touch_id(
+		struct wlr_x11_output *output, uint32_t id) {
 	struct wlr_x11_touchpoint *touchpoint;
 	wl_list_for_each(touchpoint, &output->touchpoints, link) {
 		if (touchpoint->x11_id == id) {

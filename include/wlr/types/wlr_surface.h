@@ -15,6 +15,7 @@
 #include <time.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/util/addon.h>
 #include <wlr/util/box.h>
 
 enum wlr_surface_state_field {
@@ -111,6 +112,11 @@ struct wlr_surface {
 	 */
 	pixman_region32_t buffer_damage;
 	/**
+	 * The last commit's damage caused by surface and its subsurfaces'
+	 * movement, in surface-local coordinates.
+	 */
+	pixman_region32_t external_damage;
+	/**
 	 * The current opaque region, in surface-local coordinates. It is clipped to
 	 * the surface bounds. If the surface's buffer is using a fully opaque
 	 * format, this is set to the whole surface.
@@ -141,6 +147,7 @@ struct wlr_surface {
 
 	struct wl_list current_outputs; // wlr_surface_output::link
 
+	struct wlr_addon_set addons;
 	void *data;
 
 	// private state
@@ -178,6 +185,7 @@ struct wlr_subsurface {
 	bool synchronized;
 	bool reordered;
 	bool mapped;
+	bool added;
 
 	struct wl_listener surface_destroy;
 	struct wl_listener parent_destroy;
@@ -231,7 +239,8 @@ bool wlr_surface_point_accepts_input(struct wlr_surface *surface,
 		double sx, double sy);
 
 /**
- * Find a surface in this surface's tree that accepts input events at the given
+ * Find a surface in this surface's tree that accepts input events and has all
+ * parents mapped (except this surface, which can be unmapped) at the given
  * surface-local coordinates. Returns the surface and coordinates in the leaf
  * surface coordinate system or NULL if no surface is found at that location.
  */
@@ -262,17 +271,18 @@ void wlr_surface_get_extends(struct wlr_surface *surface, struct wlr_box *box);
 struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource);
 
 /**
- * Call `iterator` on each surface in the surface tree, with the surface's
- * position relative to the root surface. The function is called from root to
- * leaves (in rendering order).
+ * Call `iterator` on each mapped surface in the surface tree (whether or not
+ * this surface is mapped), with the surface's position relative to the root
+ * surface. The function is called from root to leaves (in rendering order).
  */
 void wlr_surface_for_each_surface(struct wlr_surface *surface,
 	wlr_surface_iterator_func_t iterator, void *user_data);
 
 /**
- * Get the effective damage to the surface in terms of surface local
- * coordinates. This includes damage induced by resizing and moving the
- * surface. The damage is not expected to be bounded by the surface itself.
+ * Get the effective surface damage in surface-local coordinate space. Besides
+ * buffer damage, this includes damage induced by resizing and moving the
+ * surface and its subsurfaces. The resulting damage is not expected to be
+ * bounded by the surface itself.
  */
 void wlr_surface_get_effective_damage(struct wlr_surface *surface,
 	pixman_region32_t *damage);

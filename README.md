@@ -1,7 +1,7 @@
 # wlroots
 
 Pluggable, composable, unopinionated modules for building a [Wayland]
-compositor; or about 50,000 lines of code you were going to write anyway.
+compositor; or about 60,000 lines of code you were going to write anyway.
 
 - wlroots provides backends that abstract the underlying display and input
   hardware, including KMS/DRM, libinput, Wayland, X11, and headless backends,
@@ -43,11 +43,11 @@ Install dependencies:
 * meson
 * wayland
 * wayland-protocols
-* EGL
-* GLESv2
+* EGL and GLESv2 (optional, for the GLES2 renderer)
+* Vulkan loader, headers and glslang (optional, for the Vulkan renderer)
 * libdrm
 * GBM
-* libinput
+* libinput (optional, for the libinput backend)
 * xkbcommon
 * udev
 * pixman
@@ -75,9 +75,9 @@ Install like so:
 See [CONTRIBUTING.md].
 
 [Wayland]: https://wayland.freedesktop.org/
-[wiki]: https://github.com/swaywm/wlroots/wiki/Getting-started
+[wiki]: https://gitlab.freedesktop.org/wlroots/wlroots/-/wikis/Getting-started
 [#sway-devel on Libera Chat]: https://web.libera.chat/gamja/?channels=#sway-devel
 [Sway]: https://github.com/swaywm/sway
-[wrapper libraries]: https://github.com/search?q=topic%3Abindings+org%3Aswaywm&type=Repositories
+[wrapper libraries]: https://gitlab.freedesktop.org/wlroots/wlroots/-/wikis/Projects-which-use-wlroots#wrapper-libraries
 [libseat]: https://git.sr.ht/~kennylevinsen/seatd
-[CONTRIBUTING.md]: https://github.com/swaywm/wlroots/blob/master/CONTRIBUTING.md
+[CONTRIBUTING.md]: https://gitlab.freedesktop.org/wlroots/wlroots/-/blob/master/CONTRIBUTING.md

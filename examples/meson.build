@@ -1,6 +1,7 @@
 threads = dependency('threads')
 wayland_egl = dependency('wayland-egl')
 wayland_cursor = dependency('wayland-cursor')
+wayland_client = dependency('wayland-client')
 libpng = dependency('libpng', required: false, disabler: true)
 egl = dependency('egl', required: false, disabler: true)
 glesv2 = dependency('glesv2', required: false, disabler: true)
@@ -81,7 +82,7 @@ clients = {
 	},
 	'layer-shell': {
 		'src': ['layer-shell.c', 'egl_common.c'],
-		'dep': [wayland_egl, wayland_cursor, wlroots, egl, glesv2],
+		'dep': [wayland_egl, wayland_cursor, egl, glesv2],
 		'proto': [
 			'wlr-layer-shell-unstable-v1',
 			'xdg-shell',
@@ -102,7 +103,7 @@ clients = {
 	},
 	'output-power-management': {
 		'src': 'output-power-management.c',
-		'dep': [wayland_client, wlroots],
+		'dep': [wayland_client],
 		'proto': ['wlr-output-power-management-unstable-v1'],
 	},
 	'pointer-constraints': {
@@ -128,7 +129,7 @@ clients = {
 			libavcodec,
 			libavformat,
 			libavutil,
-			drm.partial_dependency(compile_args: true), # <drm_fourcc.h>
+			drm,
 			threads,
 		],
 		'proto': ['wlr-export-dmabuf-unstable-v1'],
@@ -173,12 +174,10 @@ clients = {
 	},
 	'foreign-toplevel': {
 		'src': 'foreign-toplevel.c',
-		'dep': [wlroots],
 		'proto': ['wlr-foreign-toplevel-management-unstable-v1'],
 	},
 	'virtual-pointer': {
 		'src': 'virtual-pointer.c',
-		'dep': wlroots,
 		'proto': ['wlr-virtual-pointer-unstable-v1'],
 	},
 	'input-method-keyboard-grab': {
@@ -215,7 +214,7 @@ foreach name, info : clients
 	executable(
 		name,
 		[info.get('src'), extra_src],
-		dependencies: [wayland_client, info.get('dep')],
+		dependencies: [wayland_client, info.get('dep', [])],
 		build_by_default: get_option('examples'),
 	)
 endforeach
