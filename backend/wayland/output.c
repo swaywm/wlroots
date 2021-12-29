@@ -261,7 +261,6 @@ static bool output_test(struct wlr_output *wlr_output) {
 	}
 
 	if ((wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
-			wlr_output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT &&
 			!test_buffer(output->backend, wlr_output->pending.buffer)) {
 		return false;
 	}
@@ -287,9 +286,6 @@ static bool output_commit(struct wlr_output *wlr_output) {
 	}
 
 	if (wlr_output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
-		assert(wlr_output->pending.buffer_type ==
-			WLR_OUTPUT_STATE_BUFFER_SCANOUT);
-
 		struct wp_presentation_feedback *wp_feedback = NULL;
 		if (output->backend->presentation != NULL) {
 			wp_feedback = wp_presentation_feedback(output->backend->presentation,

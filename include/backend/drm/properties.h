@@ -19,6 +19,7 @@ union wlr_drm_connector_props {
 		uint32_t vrr_capable; // not guaranteed to exist
 		uint32_t broadcast_rgb; // not guaranteed to exist
 		uint32_t subconnector; // not guaranteed to exist
+		uint32_t non_desktop;
 
 		// atomic-modesetting only
 
@@ -60,8 +61,9 @@ union wlr_drm_plane_props {
 		uint32_t crtc_h;
 		uint32_t fb_id;
 		uint32_t crtc_id;
+		uint32_t fb_damage_clips;
 	};
-	uint32_t props[13];
+	uint32_t props[14];
 };
 
 bool get_drm_connector_props(int fd, uint32_t id,

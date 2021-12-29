@@ -16,15 +16,6 @@ static struct wlr_noop_output *noop_output_from_output(
 	return (struct wlr_noop_output *)wlr_output;
 }
 
-static bool output_attach_render(struct wlr_output *wlr_output,
-		int *buffer_age) {
-	return false;
-}
-
-static void output_rollback_render(struct wlr_output *wlr_output) {
-	// This space is intentionally left blank
-}
-
 static bool output_commit(struct wlr_output *wlr_output) {
 	uint32_t unsupported =
 		wlr_output->pending.committed & ~SUPPORTED_OUTPUT_STATE;
@@ -60,8 +51,6 @@ static void output_destroy(struct wlr_output *wlr_output) {
 
 static const struct wlr_output_impl output_impl = {
 	.destroy = output_destroy,
-	.attach_render = output_attach_render,
-	.rollback_render = output_rollback_render,
 	.commit = output_commit,
 };
 

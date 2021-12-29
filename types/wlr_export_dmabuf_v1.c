@@ -135,7 +135,7 @@ static void manager_handle_capture_output(struct wl_client *client,
 
 	wl_list_insert(&manager->frames, &frame->link);
 
-	if (output == NULL || !output->enabled || !output->impl->export_dmabuf) {
+	if (output == NULL || !output->enabled) {
 		zwlr_export_dmabuf_frame_v1_send_cancel(frame->resource,
 			ZWLR_EXPORT_DMABUF_FRAME_V1_CANCEL_REASON_PERMANENT);
 		frame_destroy(frame);

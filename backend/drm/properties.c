@@ -26,6 +26,7 @@ static const struct prop_info connector_info[] = {
 	{ "EDID", INDEX(edid) },
 	{ "PATH", INDEX(path) },
 	{ "link-status", INDEX(link_status) },
+	{ "non-desktop", INDEX(non_desktop) },
 	{ "subconnector", INDEX(subconnector) },
 	{ "vrr_capable", INDEX(vrr_capable) },
 #undef INDEX
@@ -48,6 +49,7 @@ static const struct prop_info plane_info[] = {
 	{ "CRTC_W", INDEX(crtc_w) },
 	{ "CRTC_X", INDEX(crtc_x) },
 	{ "CRTC_Y", INDEX(crtc_y) },
+	{ "FB_DAMAGE_CLIPS", INDEX(fb_damage_clips) },
 	{ "FB_ID", INDEX(fb_id) },
 	{ "IN_FORMATS", INDEX(in_formats) },
 	{ "SRC_H", INDEX(src_h) },

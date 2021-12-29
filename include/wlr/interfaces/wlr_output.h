@@ -52,19 +52,6 @@ struct wlr_output_impl {
 	 */
 	void (*destroy)(struct wlr_output *output);
 	/**
-	 * Make the output's back-buffer current for the renderer.
-	 *
-	 * buffer_age must be set to the buffer age in number of frames, or -1 if
-	 * unknown.
-	 */
-	bool (*attach_render)(struct wlr_output *output, int *buffer_age);
-	/**
-	 * Unset the current renderer's buffer.
-	 *
-	 * This is the opposite of attach_render.
-	 */
-	void (*rollback_render)(struct wlr_output *output);
-	/**
 	 * Check that the pending output state is a valid configuration.
 	 *
 	 * If this function returns true, commit can only fail due to a runtime
@@ -83,11 +70,6 @@ struct wlr_output_impl {
 	 * Zero can be returned if the output doesn't support gamma LUTs.
 	 */
 	size_t (*get_gamma_size)(struct wlr_output *output);
-	/**
-	 * Export the output's current back-buffer as a DMA-BUF.
-	 */
-	bool (*export_dmabuf)(struct wlr_output *output,
-		struct wlr_dmabuf_attributes *attribs);
 	/**
 	 * Get the list of formats suitable for the cursor, assuming a buffer with
 	 * the specified capabilities.

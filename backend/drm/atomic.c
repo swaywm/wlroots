@@ -1,4 +1,3 @@
-#include <gbm.h>
 #include <stdlib.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
@@ -60,16 +59,14 @@ static void atomic_add(struct atomic *atom, uint32_t id, uint32_t prop, uint64_t
 }
 
 static bool create_mode_blob(struct wlr_drm_backend *drm,
-		struct wlr_drm_connector *conn, const struct wlr_output_state *state,
-		uint32_t *blob_id) {
-	if (!drm_connector_state_active(conn, state)) {
+		struct wlr_drm_connector *conn,
+		const struct wlr_drm_connector_state *state, uint32_t *blob_id) {
+	if (!state->active) {
 		*blob_id = 0;
 		return true;
 	}
 
-	drmModeModeInfo mode = {0};
-	drm_connector_state_mode(conn, state, &mode);
-	if (drmModeCreatePropertyBlob(drm->fd, &mode,
+	if (drmModeCreatePropertyBlob(drm->fd, &state->mode,
 			sizeof(drmModeModeInfo), blob_id)) {
 		wlr_log_errno(WLR_ERROR, "Unable to create mode property blob");
 		return false;
@@ -149,8 +146,8 @@ static void set_plane_props(struct atomic *atom, struct wlr_drm_backend *drm,
 		goto error;
 	}
 
-	uint32_t width = gbm_bo_get_width(fb->bo);
-	uint32_t height = gbm_bo_get_height(fb->bo);
+	uint32_t width = fb->wlr_buf->width;
+	uint32_t height = fb->wlr_buf->height;
 
 	// The src_* properties are in 16.16 fixed point
 	atomic_add(atom, id, props->src_x, 0);
@@ -172,13 +169,14 @@ error:
 }
 
 static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
-		const struct wlr_output_state *state, uint32_t flags, bool test_only) {
+		const struct wlr_drm_connector_state *state, uint32_t flags,
+		bool test_only) {
 	struct wlr_drm_backend *drm = conn->backend;
 	struct wlr_output *output = &conn->output;
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
-	bool modeset = drm_connector_state_is_modeset(state);
-	bool active = drm_connector_state_active(conn, state);
+	bool modeset = state->modeset;
+	bool active = state->active;
 
 	uint32_t mode_id = crtc->mode_id;
 	if (modeset) {
@@ -188,30 +186,42 @@ static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
 	}
 
 	uint32_t gamma_lut = crtc->gamma_lut;
-	if (state->committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
+	if (state->base->committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
 		// Fallback to legacy gamma interface when gamma properties are not
 		// available (can happen on older Intel GPUs that support gamma but not
 		// degamma).
 		if (crtc->props.gamma_lut == 0) {
 			if (!drm_legacy_crtc_set_gamma(drm, crtc,
-					state->gamma_lut_size,
-					state->gamma_lut)) {
+					state->base->gamma_lut_size,
+					state->base->gamma_lut)) {
 				return false;
 			}
 		} else {
-			if (!create_gamma_lut_blob(drm, state->gamma_lut_size,
-					state->gamma_lut, &gamma_lut)) {
+			if (!create_gamma_lut_blob(drm, state->base->gamma_lut_size,
+					state->base->gamma_lut, &gamma_lut)) {
 				return false;
 			}
+		}
+	}
+
+	uint32_t fb_damage_clips = 0;
+	if ((state->base->committed & WLR_OUTPUT_STATE_DAMAGE) &&
+			crtc->primary->props.fb_damage_clips != 0) {
+		int rects_len;
+		const pixman_box32_t *rects = pixman_region32_rectangles(
+			(pixman_region32_t *)&state->base->damage, &rects_len);
+		if (drmModeCreatePropertyBlob(drm->fd, rects,
+				sizeof(*rects) * rects_len, &fb_damage_clips) != 0) {
+			wlr_log_errno(WLR_ERROR, "Failed to create FB_DAMAGE_CLIPS property blob");
 		}
 	}
 
 	bool prev_vrr_enabled =
 		output->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED;
 	bool vrr_enabled = prev_vrr_enabled;
-	if ((state->committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) &&
+	if ((state->base->committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) &&
 			drm_connector_supports_vrr(conn)) {
-		vrr_enabled = state->adaptive_sync_enabled;
+		vrr_enabled = state->base->adaptive_sync_enabled;
 	}
 
 	if (test_only) {
@@ -244,6 +254,10 @@ static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
 			atomic_add(&atom, crtc->id, crtc->props.vrr_enabled, vrr_enabled);
 		}
 		set_plane_props(&atom, drm, crtc->primary, crtc->id, 0, 0);
+		if (crtc->primary->props.fb_damage_clips != 0) {
+			atomic_add(&atom, crtc->primary->id,
+				crtc->primary->props.fb_damage_clips, fb_damage_clips);
+		}
 		if (crtc->cursor) {
 			if (drm_connector_is_cursor_visible(conn)) {
 				set_plane_props(&atom, drm, crtc->cursor, crtc->id,
@@ -276,6 +290,11 @@ static bool atomic_crtc_commit(struct wlr_drm_connector *conn,
 	} else {
 		rollback_blob(drm, &crtc->mode_id, mode_id);
 		rollback_blob(drm, &crtc->gamma_lut, gamma_lut);
+	}
+
+	if (fb_damage_clips != 0 &&
+			drmModeDestroyPropertyBlob(drm->fd, fb_damage_clips) != 0) {
+		wlr_log_errno(WLR_ERROR, "Failed to destroy FB_DAMAGE_CLIPS property blob");
 	}
 
 	return ok;

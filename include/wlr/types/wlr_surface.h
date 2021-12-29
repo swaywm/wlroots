@@ -36,7 +36,6 @@ struct wlr_surface_state {
 	uint32_t seq;
 
 	struct wlr_buffer *buffer;
-	struct wl_resource *buffer_resource;
 	int32_t dx, dy; // relative to previous position
 	pixman_region32_t surface_damage, buffer_damage; // clipped to bounds
 	pixman_region32_t opaque, input;
@@ -46,6 +45,9 @@ struct wlr_surface_state {
 
 	int width, height; // in surface-local coordinates
 	int buffer_width, buffer_height;
+
+	struct wl_list subsurfaces_below;
+	struct wl_list subsurfaces_above;
 
 	/**
 	 * The viewport is applied after the surface transform and scale.
@@ -61,8 +63,6 @@ struct wlr_surface_state {
 		struct wlr_fbox src;
 		int dst_width, dst_height; // in surface-local coordinates
 	} viewport;
-
-	struct wl_listener buffer_destroy;
 
 	// Number of locks that prevent this surface state from being committed.
 	size_t cached_state_locks;
@@ -124,10 +124,9 @@ struct wlr_surface {
 	/**
 	 * `current` contains the current, committed surface state. `pending`
 	 * accumulates state changes from the client between commits and shouldn't
-	 * be accessed by the compositor directly. `previous` contains the state of
-	 * the previous commit.
+	 * be accessed by the compositor directly.
 	 */
-	struct wlr_surface_state current, pending, previous;
+	struct wlr_surface_state current, pending;
 
 	struct wl_list cached; // wlr_surface_state.cached_link
 
@@ -140,23 +139,30 @@ struct wlr_surface {
 		struct wl_signal destroy;
 	} events;
 
-	// wlr_subsurface.parent_link
-	struct wl_list subsurfaces_below;
-	struct wl_list subsurfaces_above;
-
-	// wlr_subsurface.parent_pending_link
-	struct wl_list subsurfaces_pending_below;
-	struct wl_list subsurfaces_pending_above;
-
 	struct wl_list current_outputs; // wlr_surface_output::link
+
+	void *data;
+
+	// private state
 
 	struct wl_listener renderer_destroy;
 
-	void *data;
+	struct {
+		int32_t scale;
+		enum wl_output_transform transform;
+		int width, height;
+		int buffer_width, buffer_height;
+	} previous;
 };
 
-struct wlr_subsurface_state {
+/**
+ * The sub-surface state describing the sub-surface's relationship with its
+ * parent. Contrary to other states, this one is not applied on surface commit.
+ * Instead, it's applied on parent surface commit.
+ */
+struct wlr_subsurface_parent_state {
 	int32_t x, y;
+	struct wl_list link;
 };
 
 struct wlr_subsurface {
@@ -164,7 +170,7 @@ struct wlr_subsurface {
 	struct wlr_surface *surface;
 	struct wlr_surface *parent;
 
-	struct wlr_subsurface_state current, pending;
+	struct wlr_subsurface_parent_state current, pending;
 
 	uint32_t cached_seq;
 	bool has_cache;
@@ -172,9 +178,6 @@ struct wlr_subsurface {
 	bool synchronized;
 	bool reordered;
 	bool mapped;
-
-	struct wl_list parent_link;
-	struct wl_list parent_pending_link;
 
 	struct wl_listener surface_destroy;
 	struct wl_listener parent_destroy;

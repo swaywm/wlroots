@@ -1,7 +1,6 @@
 #ifndef BACKEND_DRM_DRM_H
 #define BACKEND_DRM_DRM_H
 
-#include <gbm.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -12,6 +11,7 @@
 #include <wlr/backend/session.h>
 #include <wlr/render/drm_format_set.h>
 #include <xf86drmMode.h>
+#include "backend/drm/bo_handle_table.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/properties.h"
 #include "backend/drm/renderer.h"
@@ -20,9 +20,7 @@ struct wlr_drm_plane {
 	uint32_t type;
 	uint32_t id;
 
-	/* Local if this isn't a multi-GPU setup, on the parent otherwise. */
-	struct wlr_drm_surface surf;
-	/* Local, only initialized on multi-GPU setups. */
+	/* Only initialized on multi-GPU setups */
 	struct wlr_drm_surface mgpu_surf;
 
 	/* Buffer to be submitted to the kernel on the next page-flip */
@@ -39,6 +37,7 @@ struct wlr_drm_plane {
 
 struct wlr_drm_crtc {
 	uint32_t id;
+	uint32_t lessee_id;
 
 	// Atomic modesetting only
 	uint32_t mode_id;
@@ -64,6 +63,7 @@ struct wlr_drm_backend {
 	int fd;
 	char *name;
 	struct wlr_device *dev;
+	struct wlr_drm_bo_handle_table bo_handles;
 
 	size_t num_crtcs;
 	struct wlr_drm_crtc *crtcs;
@@ -81,7 +81,9 @@ struct wlr_drm_backend {
 	struct wl_list fbs; // wlr_drm_fb.link
 	struct wl_list outputs;
 
-	struct wlr_drm_renderer renderer;
+	/* Only initialized on multi-GPU setups */
+	struct wlr_drm_renderer mgpu_renderer;
+
 	struct wlr_session *session;
 
 	uint64_t cursor_width, cursor_height;
@@ -89,7 +91,7 @@ struct wlr_drm_backend {
 	struct wlr_drm_format_set mgpu_formats;
 };
 
-enum wlr_drm_connector_state {
+enum wlr_drm_connector_status {
 	// Connector is available but no output is plugged in
 	WLR_DRM_CONN_DISCONNECTED,
 	// An output just has been plugged in and is waiting for a modeset
@@ -103,15 +105,22 @@ struct wlr_drm_mode {
 	drmModeModeInfo drm_mode;
 };
 
+struct wlr_drm_connector_state {
+	const struct wlr_output_state *base;
+	bool modeset;
+	bool active;
+	drmModeModeInfo mode;
+};
+
 struct wlr_drm_connector {
-	struct wlr_output output; // only valid if state != DISCONNECTED
+	struct wlr_output output; // only valid if status != DISCONNECTED
 
 	struct wlr_drm_backend *backend;
 	char name[24];
-	enum wlr_drm_connector_state state;
-	struct wlr_output_mode *desired_mode;
+	enum wlr_drm_connector_status status;
 	bool desired_enabled;
 	uint32_t id;
+	uint32_t lessee_id;
 
 	struct wlr_drm_crtc *crtc;
 	uint32_t possible_crtcs;
@@ -122,8 +131,6 @@ struct wlr_drm_connector {
 	int cursor_x, cursor_y;
 	int cursor_width, cursor_height;
 	int cursor_hotspot_x, cursor_hotspot_y;
-
-	drmModeCrtc *old_crtc;
 
 	struct wl_list link;
 
@@ -142,7 +149,6 @@ struct wlr_drm_backend *get_drm_backend_from_backend(
 bool check_drm_features(struct wlr_drm_backend *drm);
 bool init_drm_resources(struct wlr_drm_backend *drm);
 void finish_drm_resources(struct wlr_drm_backend *drm);
-void restore_drm_outputs(struct wlr_drm_backend *drm);
 void scan_drm_connectors(struct wlr_drm_backend *state);
 int handle_drm_event(int fd, uint32_t mask, void *data);
 void destroy_drm_connector(struct wlr_drm_connector *conn);
@@ -154,12 +160,6 @@ size_t drm_crtc_get_gamma_lut_size(struct wlr_drm_backend *drm,
 	struct wlr_drm_crtc *crtc);
 
 struct wlr_drm_fb *plane_get_next_fb(struct wlr_drm_plane *plane);
-
-bool drm_connector_state_is_modeset(const struct wlr_output_state *state);
-bool drm_connector_state_active(struct wlr_drm_connector *conn,
-	const struct wlr_output_state *state);
-void drm_connector_state_mode(struct wlr_drm_connector *conn,
-	const struct wlr_output_state *state, drmModeModeInfo *mode);
 
 #define wlr_drm_conn_log(conn, verb, fmt, ...) \
 	wlr_log(verb, "connector %s: " fmt, conn->name, ##__VA_ARGS__)

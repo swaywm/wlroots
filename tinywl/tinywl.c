@@ -432,21 +432,19 @@ static void process_cursor_motion(struct tinywl_server *server, uint32_t time) {
 				server->cursor_mgr, "left_ptr", server->cursor);
 	}
 	if (surface) {
-		bool focus_changed = seat->pointer_state.focused_surface != surface;
 		/*
-		 * "Enter" the surface if necessary. This lets the client know that the
-		 * cursor has entered one of its surfaces.
+		 * Send pointer enter and motion events.
 		 *
-		 * Note that this gives the surface "pointer focus", which is distinct
+		 * The enter event gives the surface "pointer focus", which is distinct
 		 * from keyboard focus. You get pointer focus by moving the pointer over
 		 * a window.
+		 *
+		 * Note that wlroots will avoid sending duplicate enter/motion events if
+		 * the surface has already has pointer focus or if the client is already
+		 * aware of the coordinates passed.
 		 */
 		wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
-		if (!focus_changed) {
-			/* The enter event contains coordinates, so we only need to notify
-			 * on motion if the focus did not change. */
-			wlr_seat_pointer_notify_motion(seat, time, sx, sy);
-		}
+		wlr_seat_pointer_notify_motion(seat, time, sx, sy);
 	} else {
 		/* Clear pointer focus so future button events and such are not sent to
 		 * the last client to have the cursor over it. */

@@ -32,49 +32,34 @@ static int max(int fst, int snd) {
 	}
 }
 
-static void surface_state_reset_buffer(struct wlr_surface_state *state) {
-	if (state->buffer_resource) {
-		wl_list_remove(&state->buffer_destroy.link);
-		state->buffer_resource = NULL;
-	}
-}
-
-static void surface_handle_buffer_destroy(struct wl_listener *listener,
-		void *data) {
-	struct wlr_surface_state *state =
-		wl_container_of(listener, state, buffer_destroy);
-	surface_state_reset_buffer(state);
-}
-
-static void surface_state_set_buffer(struct wlr_surface_state *state,
-		struct wl_resource *buffer_resource) {
-	surface_state_reset_buffer(state);
-
-	state->buffer_resource = buffer_resource;
-	if (buffer_resource != NULL) {
-		wl_resource_add_destroy_listener(buffer_resource,
-			&state->buffer_destroy);
-		state->buffer_destroy.notify = surface_handle_buffer_destroy;
-	}
-}
-
-static void surface_destroy(struct wl_client *client,
+static void surface_handle_destroy(struct wl_client *client,
 		struct wl_resource *resource) {
 	wl_resource_destroy(resource);
 }
 
-static void surface_attach(struct wl_client *client,
+static void surface_handle_attach(struct wl_client *client,
 		struct wl_resource *resource,
-		struct wl_resource *buffer, int32_t dx, int32_t dy) {
+		struct wl_resource *buffer_resource, int32_t dx, int32_t dy) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
+
+	struct wlr_buffer *buffer = NULL;
+	if (buffer_resource != NULL) {
+		buffer = wlr_buffer_from_resource(buffer_resource);
+		if (buffer == NULL) {
+			wl_resource_post_error(buffer_resource, 0, "unknown buffer type");
+			return;
+		}
+	}
 
 	surface->pending.committed |= WLR_SURFACE_STATE_BUFFER;
 	surface->pending.dx = dx;
 	surface->pending.dy = dy;
-	surface_state_set_buffer(&surface->pending, buffer);
+
+	wlr_buffer_unlock(surface->pending.buffer);
+	surface->pending.buffer = buffer;
 }
 
-static void surface_damage(struct wl_client *client,
+static void surface_handle_damage(struct wl_client *client,
 		struct wl_resource *resource,
 		int32_t x, int32_t y, int32_t width, int32_t height) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
@@ -91,7 +76,7 @@ static void callback_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(wl_resource_get_link(resource));
 }
 
-static void surface_frame(struct wl_client *client,
+static void surface_handle_frame(struct wl_client *client,
 		struct wl_resource *resource, uint32_t callback) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 
@@ -110,7 +95,7 @@ static void surface_frame(struct wl_client *client,
 	surface->pending.committed |= WLR_SURFACE_STATE_FRAME_CALLBACK_LIST;
 }
 
-static void surface_set_opaque_region(struct wl_client *client,
+static void surface_handle_set_opaque_region(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *region_resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
@@ -123,7 +108,7 @@ static void surface_set_opaque_region(struct wl_client *client,
 	}
 }
 
-static void surface_set_input_region(struct wl_client *client,
+static void surface_handle_set_input_region(struct wl_client *client,
 		struct wl_resource *resource,
 		struct wl_resource *region_resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
@@ -167,54 +152,46 @@ static void surface_state_viewport_src_size(struct wlr_surface_state *state,
 	}
 }
 
-static void surface_state_finalize(struct wlr_surface *surface,
-		struct wlr_surface_state *state) {
-	if ((state->committed & WLR_SURFACE_STATE_BUFFER)) {
-		if (state->buffer_resource) {
-			wlr_buffer_unlock(state->buffer);
-			state->buffer = wlr_buffer_from_resource(surface->renderer,
-					state->buffer_resource);
-			if (!state->buffer) {
-				wl_resource_post_error(state->buffer_resource, 0,
-						"unknown buffer type");
-				return;
-			}
+static void surface_finalize_pending(struct wlr_surface *surface) {
+	struct wlr_surface_state *pending = &surface->pending;
 
-			state->buffer_width = state->buffer->width;
-			state->buffer_height = state->buffer->height;
+	if ((pending->committed & WLR_SURFACE_STATE_BUFFER)) {
+		if (pending->buffer != NULL) {
+			pending->buffer_width = pending->buffer->width;
+			pending->buffer_height = pending->buffer->height;
 		} else {
-			state->buffer_width = state->buffer_height = 0;
+			pending->buffer_width = pending->buffer_height = 0;
 		}
 	}
 
-	if (!state->viewport.has_src &&
-			(state->buffer_width % state->scale != 0 ||
-			state->buffer_height % state->scale != 0)) {
+	if (!pending->viewport.has_src &&
+			(pending->buffer_width % pending->scale != 0 ||
+			pending->buffer_height % pending->scale != 0)) {
 		// TODO: send WL_SURFACE_ERROR_INVALID_SIZE error once this issue is
 		// resolved:
 		// https://gitlab.freedesktop.org/wayland/wayland/-/issues/194
 		wlr_log(WLR_DEBUG, "Client bug: submitted a buffer whose size (%dx%d) "
-			"is not divisible by scale (%d)", state->buffer_width,
-			state->buffer_height, state->scale);
+			"is not divisible by scale (%d)", pending->buffer_width,
+			pending->buffer_height, pending->scale);
 	}
 
-	if (state->viewport.has_dst) {
-		if (state->buffer_width == 0 && state->buffer_height == 0) {
-			state->width = state->height = 0;
+	if (pending->viewport.has_dst) {
+		if (pending->buffer_width == 0 && pending->buffer_height == 0) {
+			pending->width = pending->height = 0;
 		} else {
-			state->width = state->viewport.dst_width;
-			state->height = state->viewport.dst_height;
+			pending->width = pending->viewport.dst_width;
+			pending->height = pending->viewport.dst_height;
 		}
 	} else {
-		surface_state_viewport_src_size(state, &state->width, &state->height);
+		surface_state_viewport_src_size(pending, &pending->width, &pending->height);
 	}
 
-	pixman_region32_intersect_rect(&state->surface_damage,
-		&state->surface_damage, 0, 0, state->width, state->height);
+	pixman_region32_intersect_rect(&pending->surface_damage,
+		&pending->surface_damage, 0, 0, pending->width, pending->height);
 
-	pixman_region32_intersect_rect(&state->buffer_damage,
-		&state->buffer_damage, 0, 0, state->buffer_width,
-		state->buffer_height);
+	pixman_region32_intersect_rect(&pending->buffer_damage,
+		&pending->buffer_damage, 0, 0, pending->buffer_width,
+		pending->buffer_height);
 }
 
 static void surface_update_damage(pixman_region32_t *buffer_damage,
@@ -260,7 +237,10 @@ static void surface_update_damage(pixman_region32_t *buffer_damage,
 	}
 }
 
-static void surface_state_copy(struct wlr_surface_state *state,
+/**
+ * Append pending state to current state and clear pending state.
+ */
+static void surface_state_move(struct wlr_surface_state *state,
 		struct wlr_surface_state *next) {
 	state->width = next->width;
 	state->height = next->height;
@@ -276,16 +256,27 @@ static void surface_state_copy(struct wlr_surface_state *state,
 	if (next->committed & WLR_SURFACE_STATE_BUFFER) {
 		state->dx = next->dx;
 		state->dy = next->dy;
+		next->dx = next->dy = 0;
+
+		wlr_buffer_unlock(state->buffer);
+		state->buffer = NULL;
+		if (next->buffer) {
+			state->buffer = wlr_buffer_lock(next->buffer);
+		}
+		wlr_buffer_unlock(next->buffer);
+		next->buffer = NULL;
 	} else {
 		state->dx = state->dy = 0;
 	}
 	if (next->committed & WLR_SURFACE_STATE_SURFACE_DAMAGE) {
 		pixman_region32_copy(&state->surface_damage, &next->surface_damage);
+		pixman_region32_clear(&next->surface_damage);
 	} else {
 		pixman_region32_clear(&state->surface_damage);
 	}
 	if (next->committed & WLR_SURFACE_STATE_BUFFER_DAMAGE) {
 		pixman_region32_copy(&state->buffer_damage, &next->buffer_damage);
+		pixman_region32_clear(&next->buffer_damage);
 	} else {
 		pixman_region32_clear(&state->buffer_damage);
 	}
@@ -298,43 +289,18 @@ static void surface_state_copy(struct wlr_surface_state *state,
 	if (next->committed & WLR_SURFACE_STATE_VIEWPORT) {
 		memcpy(&state->viewport, &next->viewport, sizeof(state->viewport));
 	}
-
-	state->committed |= next->committed;
-	state->seq = next->seq;
-	state->cached_state_locks = next->cached_state_locks;
-}
-
-/**
- * Append pending state to current state and clear pending state.
- */
-static void surface_state_move(struct wlr_surface_state *state,
-		struct wlr_surface_state *next) {
-	surface_state_copy(state, next);
-
-	if (next->committed & WLR_SURFACE_STATE_BUFFER) {
-		if (next->buffer) {
-			wlr_buffer_unlock(state->buffer);
-			state->buffer = wlr_buffer_lock(next->buffer);
-		}
-		surface_state_set_buffer(state, next->buffer_resource);
-		surface_state_reset_buffer(next);
-		next->dx = next->dy = 0;
-		wlr_buffer_unlock(next->buffer);
-		next->buffer = NULL;
-	}
-	if (next->committed & WLR_SURFACE_STATE_SURFACE_DAMAGE) {
-		pixman_region32_clear(&next->surface_damage);
-	}
-	if (next->committed & WLR_SURFACE_STATE_BUFFER_DAMAGE) {
-		pixman_region32_clear(&next->buffer_damage);
-	}
 	if (next->committed & WLR_SURFACE_STATE_FRAME_CALLBACK_LIST) {
 		wl_list_insert_list(&state->frame_callback_list,
 			&next->frame_callback_list);
 		wl_list_init(&next->frame_callback_list);
 	}
 
+	state->committed |= next->committed;
 	next->committed = 0;
+
+	state->seq = next->seq;
+
+	state->cached_state_locks = next->cached_state_locks;
 	next->cached_state_locks = 0;
 }
 
@@ -351,17 +317,18 @@ static void surface_damage_subsurfaces(struct wlr_subsurface *subsurface) {
 	subsurface->reordered = false;
 
 	struct wlr_subsurface *child;
-	wl_list_for_each(child, &subsurface->surface->subsurfaces_below, parent_link) {
+	wl_list_for_each(child, &subsurface->surface->current.subsurfaces_below,
+			current.link) {
 		surface_damage_subsurfaces(child);
 	}
-	wl_list_for_each(child, &subsurface->surface->subsurfaces_above, parent_link) {
+	wl_list_for_each(child, &subsurface->surface->current.subsurfaces_above,
+			current.link) {
 		surface_damage_subsurfaces(child);
 	}
 }
 
 static void surface_apply_damage(struct wlr_surface *surface) {
-	struct wl_resource *resource = surface->current.buffer_resource;
-	if (resource == NULL) {
+	if (surface->current.buffer == NULL) {
 		// NULL commit
 		if (surface->buffer != NULL) {
 			wlr_buffer_unlock(&surface->buffer->base);
@@ -371,19 +338,16 @@ static void surface_apply_damage(struct wlr_surface *surface) {
 	}
 
 	if (surface->buffer != NULL) {
-		struct wlr_client_buffer *updated_buffer =
-			wlr_client_buffer_apply_damage(surface->buffer, resource,
-			&surface->buffer_damage);
-		if (updated_buffer != NULL) {
+		if (wlr_client_buffer_apply_damage(surface->buffer,
+				surface->current.buffer, &surface->buffer_damage)) {
 			wlr_buffer_unlock(surface->current.buffer);
 			surface->current.buffer = NULL;
-			surface->buffer = updated_buffer;
 			return;
 		}
 	}
 
 	struct wlr_client_buffer *buffer = wlr_client_buffer_create(
-			surface->current.buffer, surface->renderer, resource);
+			surface->current.buffer, surface->renderer);
 
 	wlr_buffer_unlock(surface->current.buffer);
 	surface->current.buffer = NULL;
@@ -450,7 +414,13 @@ static void surface_commit_state(struct wlr_surface *surface,
 	surface->sy += next->dy;
 	surface_update_damage(&surface->buffer_damage, &surface->current, next);
 
-	surface_state_copy(&surface->previous, &surface->current);
+	surface->previous.scale = surface->current.scale;
+	surface->previous.transform = surface->current.transform;
+	surface->previous.width = surface->current.width;
+	surface->previous.height = surface->current.height;
+	surface->previous.buffer_width = surface->current.buffer_width;
+	surface->previous.buffer_height = surface->current.buffer_height;
+
 	surface_state_move(&surface->current, next);
 
 	if (invalid_buffer) {
@@ -461,20 +431,22 @@ static void surface_commit_state(struct wlr_surface *surface,
 
 	// commit subsurface order
 	struct wlr_subsurface *subsurface;
-	wl_list_for_each_reverse(subsurface, &surface->subsurfaces_pending_above,
-			parent_pending_link) {
-		wl_list_remove(&subsurface->parent_link);
-		wl_list_insert(&surface->subsurfaces_above, &subsurface->parent_link);
+	wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_above,
+			pending.link) {
+		wl_list_remove(&subsurface->current.link);
+		wl_list_insert(&surface->current.subsurfaces_above,
+			&subsurface->current.link);
 
 		if (subsurface->reordered) {
 			// TODO: damage all the subsurfaces
 			surface_damage_subsurfaces(subsurface);
 		}
 	}
-	wl_list_for_each_reverse(subsurface, &surface->subsurfaces_pending_below,
-			parent_pending_link) {
-		wl_list_remove(&subsurface->parent_link);
-		wl_list_insert(&surface->subsurfaces_below, &subsurface->parent_link);
+	wl_list_for_each_reverse(subsurface, &surface->pending.subsurfaces_below,
+			pending.link) {
+		wl_list_remove(&subsurface->current.link);
+		wl_list_insert(&surface->current.subsurfaces_below,
+			&subsurface->current.link);
 
 		if (subsurface->reordered) {
 			// TODO: damage all the subsurfaces
@@ -493,20 +465,6 @@ static void surface_commit_state(struct wlr_surface *surface,
 	}
 
 	wlr_signal_emit_safe(&surface->events.commit, surface);
-}
-
-static void surface_commit_pending(struct wlr_surface *surface) {
-	surface_state_finalize(surface, &surface->pending);
-
-	if (surface->role && surface->role->precommit) {
-		surface->role->precommit(surface);
-	}
-
-	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
-		surface_cache_pending(surface);
-	} else {
-		surface_commit_state(surface, &surface->pending);
-	}
 }
 
 static bool subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
@@ -542,10 +500,12 @@ static void subsurface_parent_commit(struct wlr_subsurface *subsurface,
 		}
 
 		struct wlr_subsurface *subsurface;
-		wl_list_for_each(subsurface, &surface->subsurfaces_below, parent_link) {
+		wl_list_for_each(subsurface, &surface->current.subsurfaces_below,
+				current.link) {
 			subsurface_parent_commit(subsurface, true);
 		}
-		wl_list_for_each(subsurface, &surface->subsurfaces_above, parent_link) {
+		wl_list_for_each(subsurface, &surface->current.subsurfaces_above,
+				current.link) {
 			subsurface_parent_commit(subsurface, true);
 		}
 	}
@@ -565,7 +525,7 @@ static void subsurface_commit(struct wlr_subsurface *subsurface) {
 	}
 }
 
-static void surface_commit(struct wl_client *client,
+static void surface_handle_commit(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
 
@@ -575,17 +535,27 @@ static void surface_commit(struct wl_client *client,
 		subsurface_commit(subsurface);
 	}
 
-	surface_commit_pending(surface);
+	surface_finalize_pending(surface);
 
-	wl_list_for_each(subsurface, &surface->subsurfaces_below, parent_link) {
+	if (surface->role && surface->role->precommit) {
+		surface->role->precommit(surface);
+	}
+
+	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
+		surface_cache_pending(surface);
+	} else {
+		surface_commit_state(surface, &surface->pending);
+	}
+
+	wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
 		subsurface_parent_commit(subsurface, false);
 	}
-	wl_list_for_each(subsurface, &surface->subsurfaces_above, parent_link) {
+	wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
 		subsurface_parent_commit(subsurface, false);
 	}
 }
 
-static void surface_set_buffer_transform(struct wl_client *client,
+static void surface_handle_set_buffer_transform(struct wl_client *client,
 		struct wl_resource *resource, int32_t transform) {
 	if (transform < WL_OUTPUT_TRANSFORM_NORMAL ||
 			transform > WL_OUTPUT_TRANSFORM_FLIPPED_270) {
@@ -598,7 +568,7 @@ static void surface_set_buffer_transform(struct wl_client *client,
 	surface->pending.transform = transform;
 }
 
-static void surface_set_buffer_scale(struct wl_client *client,
+static void surface_handle_set_buffer_scale(struct wl_client *client,
 		struct wl_resource *resource, int32_t scale) {
 	if (scale <= 0) {
 		wl_resource_post_error(resource, WL_SURFACE_ERROR_INVALID_SCALE,
@@ -610,7 +580,7 @@ static void surface_set_buffer_scale(struct wl_client *client,
 	surface->pending.scale = scale;
 }
 
-static void surface_damage_buffer(struct wl_client *client,
+static void surface_handle_damage_buffer(struct wl_client *client,
 		struct wl_resource *resource,
 		int32_t x, int32_t y, int32_t width,
 		int32_t height) {
@@ -624,28 +594,31 @@ static void surface_damage_buffer(struct wl_client *client,
 		x, y, width, height);
 }
 
-static const struct wl_surface_interface surface_interface = {
-	.destroy = surface_destroy,
-	.attach = surface_attach,
-	.damage = surface_damage,
-	.frame = surface_frame,
-	.set_opaque_region = surface_set_opaque_region,
-	.set_input_region = surface_set_input_region,
-	.commit = surface_commit,
-	.set_buffer_transform = surface_set_buffer_transform,
-	.set_buffer_scale = surface_set_buffer_scale,
-	.damage_buffer = surface_damage_buffer
+static const struct wl_surface_interface surface_implementation = {
+	.destroy = surface_handle_destroy,
+	.attach = surface_handle_attach,
+	.damage = surface_handle_damage,
+	.frame = surface_handle_frame,
+	.set_opaque_region = surface_handle_set_opaque_region,
+	.set_input_region = surface_handle_set_input_region,
+	.commit = surface_handle_commit,
+	.set_buffer_transform = surface_handle_set_buffer_transform,
+	.set_buffer_scale = surface_handle_set_buffer_scale,
+	.damage_buffer = surface_handle_damage_buffer
 };
 
 struct wlr_surface *wlr_surface_from_resource(struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_surface_interface,
-		&surface_interface));
+		&surface_implementation));
 	return wl_resource_get_user_data(resource);
 }
 
 static void surface_state_init(struct wlr_surface_state *state) {
 	state->scale = 1;
 	state->transform = WL_OUTPUT_TRANSFORM_NORMAL;
+
+	wl_list_init(&state->subsurfaces_above);
+	wl_list_init(&state->subsurfaces_below);
 
 	wl_list_init(&state->frame_callback_list);
 
@@ -657,7 +630,6 @@ static void surface_state_init(struct wlr_surface_state *state) {
 }
 
 static void surface_state_finish(struct wlr_surface_state *state) {
-	surface_state_reset_buffer(state);
 	wlr_buffer_unlock(state->buffer);
 
 	struct wl_resource *resource, *tmp;
@@ -684,6 +656,11 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 		return;
 	}
 
+	if (subsurface->has_cache) {
+		wlr_surface_unlock_cached(subsurface->surface,
+			subsurface->cached_seq);
+	}
+
 	subsurface_unmap(subsurface);
 
 	wlr_signal_emit_safe(&subsurface->events.destroy, subsurface);
@@ -691,8 +668,8 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 	wl_list_remove(&subsurface->surface_destroy.link);
 
 	if (subsurface->parent) {
-		wl_list_remove(&subsurface->parent_link);
-		wl_list_remove(&subsurface->parent_pending_link);
+		wl_list_remove(&subsurface->current.link);
+		wl_list_remove(&subsurface->pending.link);
 		wl_list_remove(&subsurface->parent_destroy.link);
 	}
 
@@ -724,7 +701,6 @@ static void surface_handle_resource_destroy(struct wl_resource *resource) {
 	wl_list_remove(&surface->renderer_destroy.link);
 	surface_state_finish(&surface->pending);
 	surface_state_finish(&surface->current);
-	surface_state_finish(&surface->previous);
 	pixman_region32_fini(&surface->buffer_damage);
 	pixman_region32_fini(&surface->opaque_region);
 	pixman_region32_fini(&surface->input_region);
@@ -755,7 +731,7 @@ struct wlr_surface *surface_create(struct wl_client *client,
 		wl_client_post_no_memory(client);
 		return NULL;
 	}
-	wl_resource_set_implementation(surface->resource, &surface_interface,
+	wl_resource_set_implementation(surface->resource, &surface_implementation,
 		surface, surface_handle_resource_destroy);
 
 	wlr_log(WLR_DEBUG, "New wlr_surface %p (res %p)", surface, surface->resource);
@@ -764,16 +740,11 @@ struct wlr_surface *surface_create(struct wl_client *client,
 
 	surface_state_init(&surface->current);
 	surface_state_init(&surface->pending);
-	surface_state_init(&surface->previous);
 	surface->pending.seq = 1;
 
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.new_subsurface);
-	wl_list_init(&surface->subsurfaces_above);
-	wl_list_init(&surface->subsurfaces_below);
-	wl_list_init(&surface->subsurfaces_pending_above);
-	wl_list_init(&surface->subsurfaces_pending_below);
 	wl_list_init(&surface->current_outputs);
 	wl_list_init(&surface->cached);
 	pixman_region32_init(&surface->buffer_damage);
@@ -906,12 +877,12 @@ static struct wlr_subsurface *subsurface_find_sibling(
 	struct wlr_surface *parent = subsurface->parent;
 
 	struct wlr_subsurface *sibling;
-	wl_list_for_each(sibling, &parent->subsurfaces_below, parent_link) {
+	wl_list_for_each(sibling, &parent->current.subsurfaces_below, current.link) {
 		if (sibling->surface == surface && sibling != subsurface) {
 			return sibling;
 		}
 	}
-	wl_list_for_each(sibling, &parent->subsurfaces_above, parent_link) {
+	wl_list_for_each(sibling, &parent->current.subsurfaces_above, current.link) {
 		if (sibling->surface == surface && sibling != subsurface) {
 			return sibling;
 		}
@@ -932,7 +903,7 @@ static void subsurface_handle_place_above(struct wl_client *client,
 
 	struct wl_list *node;
 	if (sibling_surface == subsurface->parent) {
-		node = &subsurface->parent->subsurfaces_pending_above;
+		node = &subsurface->parent->pending.subsurfaces_above;
 	} else {
 		struct wlr_subsurface *sibling =
 			subsurface_find_sibling(subsurface, sibling_surface);
@@ -943,11 +914,11 @@ static void subsurface_handle_place_above(struct wl_client *client,
 				"place_above", wl_resource_get_id(sibling_resource));
 			return;
 		}
-		node = &sibling->parent_pending_link;
+		node = &sibling->pending.link;
 	}
 
-	wl_list_remove(&subsurface->parent_pending_link);
-	wl_list_insert(node, &subsurface->parent_pending_link);
+	wl_list_remove(&subsurface->pending.link);
+	wl_list_insert(node, &subsurface->pending.link);
 
 	subsurface->reordered = true;
 }
@@ -964,7 +935,7 @@ static void subsurface_handle_place_below(struct wl_client *client,
 
 	struct wl_list *node;
 	if (sibling_surface == subsurface->parent) {
-		node = subsurface->parent->subsurfaces_pending_below.prev;
+		node = &subsurface->parent->pending.subsurfaces_below;
 	} else {
 		struct wlr_subsurface *sibling =
 			subsurface_find_sibling(subsurface, sibling_surface);
@@ -975,11 +946,11 @@ static void subsurface_handle_place_below(struct wl_client *client,
 				"place_below", wl_resource_get_id(sibling_resource));
 			return;
 		}
-		node = sibling->parent_pending_link.prev;
+		node = &sibling->pending.link;
 	}
 
-	wl_list_remove(&subsurface->parent_pending_link);
-	wl_list_insert(node, &subsurface->parent_pending_link);
+	wl_list_remove(&subsurface->pending.link);
+	wl_list_insert(node->prev, &subsurface->pending.link);
 
 	subsurface->reordered = true;
 }
@@ -1056,10 +1027,12 @@ static void subsurface_consider_map(struct wlr_subsurface *subsurface,
 
 	// Try mapping all children too
 	struct wlr_subsurface *child;
-	wl_list_for_each(child, &subsurface->surface->subsurfaces_below, parent_link) {
+	wl_list_for_each(child, &subsurface->surface->current.subsurfaces_below,
+			current.link) {
 		subsurface_consider_map(child, false);
 	}
-	wl_list_for_each(child, &subsurface->surface->subsurfaces_above, parent_link) {
+	wl_list_for_each(child, &subsurface->surface->current.subsurfaces_above,
+			current.link) {
 		subsurface_consider_map(child, false);
 	}
 }
@@ -1074,10 +1047,12 @@ static void subsurface_unmap(struct wlr_subsurface *subsurface) {
 
 	// Unmap all children
 	struct wlr_subsurface *child;
-	wl_list_for_each(child, &subsurface->surface->subsurfaces_below, parent_link) {
+	wl_list_for_each(child, &subsurface->surface->current.subsurfaces_below,
+			current.link) {
 		subsurface_unmap(child);
 	}
-	wl_list_for_each(child, &subsurface->surface->subsurfaces_above, parent_link) {
+	wl_list_for_each(child, &subsurface->surface->current.subsurfaces_above,
+			current.link) {
 		subsurface_unmap(child);
 	}
 }
@@ -1124,7 +1099,7 @@ static void subsurface_role_precommit(struct wlr_surface *surface) {
 	}
 
 	if (surface->pending.committed & WLR_SURFACE_STATE_BUFFER &&
-			surface->pending.buffer_resource == NULL) {
+			surface->pending.buffer == NULL) {
 		// This is a NULL commit
 		subsurface_unmap(subsurface);
 	}
@@ -1141,8 +1116,8 @@ static void subsurface_handle_parent_destroy(struct wl_listener *listener,
 	struct wlr_subsurface *subsurface =
 		wl_container_of(listener, subsurface, parent_destroy);
 	subsurface_unmap(subsurface);
-	wl_list_remove(&subsurface->parent_link);
-	wl_list_remove(&subsurface->parent_pending_link);
+	wl_list_remove(&subsurface->current.link);
+	wl_list_remove(&subsurface->pending.link);
 	wl_list_remove(&subsurface->parent_destroy.link);
 	subsurface->parent = NULL;
 }
@@ -1187,9 +1162,9 @@ struct wlr_subsurface *subsurface_create(struct wlr_surface *surface,
 	subsurface->parent = parent;
 	wl_signal_add(&parent->events.destroy, &subsurface->parent_destroy);
 	subsurface->parent_destroy.notify = subsurface_handle_parent_destroy;
-	wl_list_insert(parent->subsurfaces_above.prev, &subsurface->parent_link);
-	wl_list_insert(parent->subsurfaces_pending_above.prev,
-		&subsurface->parent_pending_link);
+	wl_list_insert(parent->current.subsurfaces_above.prev, &subsurface->current.link);
+	wl_list_insert(parent->pending.subsurfaces_above.prev,
+		&subsurface->pending.link);
 
 	surface->role_data = subsurface;
 
@@ -1224,7 +1199,8 @@ bool wlr_surface_point_accepts_input(struct wlr_surface *surface,
 struct wlr_surface *wlr_surface_surface_at(struct wlr_surface *surface,
 		double sx, double sy, double *sub_x, double *sub_y) {
 	struct wlr_subsurface *subsurface;
-	wl_list_for_each_reverse(subsurface, &surface->subsurfaces_above, parent_link) {
+	wl_list_for_each_reverse(subsurface, &surface->current.subsurfaces_above,
+			current.link) {
 		double _sub_x = subsurface->current.x;
 		double _sub_y = subsurface->current.y;
 		struct wlr_surface *sub = wlr_surface_surface_at(subsurface->surface,
@@ -1244,7 +1220,8 @@ struct wlr_surface *wlr_surface_surface_at(struct wlr_surface *surface,
 		return surface;
 	}
 
-	wl_list_for_each_reverse(subsurface, &surface->subsurfaces_below, parent_link) {
+	wl_list_for_each_reverse(subsurface, &surface->current.subsurfaces_below,
+			current.link) {
 		double _sub_x = subsurface->current.x;
 		double _sub_y = subsurface->current.y;
 		struct wlr_surface *sub = wlr_surface_surface_at(subsurface->surface,
@@ -1350,8 +1327,8 @@ void wlr_surface_send_frame_done(struct wlr_surface *surface,
 static void surface_for_each_surface(struct wlr_surface *surface, int x, int y,
 		wlr_surface_iterator_func_t iterator, void *user_data) {
 	struct wlr_subsurface *subsurface;
-	wl_list_for_each(subsurface, &surface->subsurfaces_below, parent_link) {
-		struct wlr_subsurface_state *state = &subsurface->current;
+	wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
+		struct wlr_subsurface_parent_state *state = &subsurface->current;
 		int sx = state->x;
 		int sy = state->y;
 
@@ -1361,8 +1338,8 @@ static void surface_for_each_surface(struct wlr_surface *surface, int x, int y,
 
 	iterator(surface, x, y, user_data);
 
-	wl_list_for_each(subsurface, &surface->subsurfaces_above, parent_link) {
-		struct wlr_subsurface_state *state = &subsurface->current;
+	wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
+		struct wlr_subsurface_parent_state *state = &subsurface->current;
 		int sx = state->x;
 		int sy = state->y;
 
@@ -1476,14 +1453,7 @@ void wlr_surface_get_buffer_source_box(struct wlr_surface *surface,
 		box->y = surface->current.viewport.src.y * surface->current.scale;
 		box->width = surface->current.viewport.src.width * surface->current.scale;
 		box->height = surface->current.viewport.src.height * surface->current.scale;
-		if ((surface->current.transform & WL_OUTPUT_TRANSFORM_90) != 0) {
-			double tmp = box->x;
-			box->x = box->y;
-			box->y = tmp;
-
-			tmp = box->width;
-			box->width = box->height;
-			box->height = tmp;
-		}
+		wlr_fbox_transform(box, box, surface->current.transform,
+			surface->current.buffer_width, surface->current.buffer_height);
 	}
 }

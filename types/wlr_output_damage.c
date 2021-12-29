@@ -52,11 +52,7 @@ static void output_handle_precommit(struct wl_listener *listener, void *data) {
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		// TODO: find a better way to access this info without a precommit
 		// handler
-		if (output->back_buffer != NULL) {
-			output_damage->pending_buffer_type = WLR_OUTPUT_STATE_BUFFER_RENDER;
-		} else {
-			output_damage->pending_buffer_type = output->pending.buffer_type;
-		}
+		output_damage->pending_attach_render = output->back_buffer != NULL;
 	}
 }
 
@@ -65,34 +61,30 @@ static void output_handle_commit(struct wl_listener *listener, void *data) {
 		wl_container_of(listener, output_damage, output_commit);
 	struct wlr_output_event_commit *event = data;
 
-	if (event->committed & (WLR_OUTPUT_STATE_SCALE | WLR_OUTPUT_STATE_TRANSFORM)) {
+	if (event->committed & WLR_OUTPUT_STATE_BUFFER) {
+		pixman_region32_t *prev;
+		if (output_damage->pending_attach_render) {
+			// render-buffers have been swapped, rotate the damage
+
+			// same as decrementing, but works on unsigned integers
+			output_damage->previous_idx += WLR_OUTPUT_DAMAGE_PREVIOUS_LEN - 1;
+			output_damage->previous_idx %= WLR_OUTPUT_DAMAGE_PREVIOUS_LEN;
+
+			prev = &output_damage->previous[output_damage->previous_idx];
+			pixman_region32_copy(prev, &output_damage->current);
+		} else {
+			// accumulate render-buffer damage
+			prev = &output_damage->previous[output_damage->previous_idx];
+			pixman_region32_union(prev, prev, &output_damage->current);
+		}
+
+		pixman_region32_clear(&output_damage->current);
+	}
+
+	if (event->committed & (WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_SCALE |
+			WLR_OUTPUT_STATE_TRANSFORM)) {
 		wlr_output_damage_add_whole(output_damage);
 	}
-
-	if (!(event->committed & WLR_OUTPUT_STATE_BUFFER)) {
-		return;
-	}
-
-	pixman_region32_t *prev;
-	switch (output_damage->pending_buffer_type) {
-	case WLR_OUTPUT_STATE_BUFFER_RENDER:
-		// render-buffers have been swapped, rotate the damage
-
-		// same as decrementing, but works on unsigned integers
-		output_damage->previous_idx += WLR_OUTPUT_DAMAGE_PREVIOUS_LEN - 1;
-		output_damage->previous_idx %= WLR_OUTPUT_DAMAGE_PREVIOUS_LEN;
-
-		prev = &output_damage->previous[output_damage->previous_idx];
-		pixman_region32_copy(prev, &output_damage->current);
-		break;
-	case WLR_OUTPUT_STATE_BUFFER_SCANOUT:
-		// accumulate render-buffer damage
-		prev = &output_damage->previous[output_damage->previous_idx];
-		pixman_region32_union(prev, prev, &output_damage->current);
-		break;
-	}
-
-	pixman_region32_clear(&output_damage->current);
 }
 
 struct wlr_output_damage *wlr_output_damage_create(struct wlr_output *output) {

@@ -16,6 +16,7 @@
 #include <wayland-util.h>
 #include <wlr/render/dmabuf.h>
 #include <wlr/types/wlr_buffer.h>
+#include <wlr/util/addon.h>
 
 struct wlr_output_mode {
 	int32_t width, height;
@@ -63,11 +64,6 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_GAMMA_LUT = 1 << 7,
 };
 
-enum wlr_output_state_buffer_type {
-	WLR_OUTPUT_STATE_BUFFER_RENDER,
-	WLR_OUTPUT_STATE_BUFFER_SCANOUT,
-};
-
 enum wlr_output_state_mode_type {
 	WLR_OUTPUT_STATE_MODE_FIXED,
 	WLR_OUTPUT_STATE_MODE_CUSTOM,
@@ -85,8 +81,7 @@ struct wlr_output_state {
 	bool adaptive_sync_enabled;
 
 	// only valid if WLR_OUTPUT_STATE_BUFFER
-	enum wlr_output_state_buffer_type buffer_type;
-	struct wlr_buffer *buffer; // if WLR_OUTPUT_STATE_BUFFER_SCANOUT
+	struct wlr_buffer *buffer;
 
 	// only valid if WLR_OUTPUT_STATE_MODE
 	enum wlr_output_state_mode_type mode_type;
@@ -146,6 +141,9 @@ struct wlr_output {
 	bool frame_pending;
 	float transform_matrix[9];
 
+	// true for example with VR headsets
+	bool non_desktop;
+
 	struct wlr_output_state pending;
 
 	// Commit sequence number. Incremented on each commit, may overflow.
@@ -186,9 +184,11 @@ struct wlr_output {
 	int software_cursor_locks; // number of locks forcing software cursors
 
 	struct wlr_swapchain *swapchain;
-	struct wlr_buffer *back_buffer;
+	struct wlr_buffer *back_buffer, *front_buffer;
 
 	struct wl_listener display_destroy;
+
+	struct wlr_addon_set addons;
 
 	void *data;
 };

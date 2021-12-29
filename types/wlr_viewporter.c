@@ -8,6 +8,14 @@
 
 #define VIEWPORTER_VERSION 1
 
+struct wlr_viewport {
+	struct wl_resource *resource;
+	struct wlr_surface *surface;
+
+	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit;
+};
+
 static const struct wp_viewport_interface viewport_impl;
 
 // Returns NULL if the viewport is inert
@@ -95,6 +103,12 @@ static void viewport_destroy(struct wlr_viewport *viewport) {
 	if (viewport == NULL) {
 		return;
 	}
+
+	struct wlr_surface_state *pending = &viewport->surface->pending;
+	pending->viewport.has_src = false;
+	pending->viewport.has_dst = false;
+	pending->committed |= WLR_SURFACE_STATE_VIEWPORT;
+
 	wl_resource_set_user_data(viewport->resource, NULL);
 	wl_list_remove(&viewport->surface_destroy.link);
 	wl_list_remove(&viewport->surface_commit.link);
@@ -129,7 +143,7 @@ static void viewport_handle_surface_commit(struct wl_listener *listener,
 		return;
 	}
 
-	if (current->viewport.has_src && current->buffer_resource != NULL &&
+	if (current->viewport.has_src && current->buffer != NULL &&
 			(current->viewport.src.x + current->viewport.src.width >
 				current->buffer_width ||
 			current->viewport.src.y + current->viewport.src.height >

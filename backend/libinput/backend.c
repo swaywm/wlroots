@@ -84,7 +84,7 @@ static void log_libinput(struct libinput *libinput_context,
 static bool backend_start(struct wlr_backend *wlr_backend) {
 	struct wlr_libinput_backend *backend =
 		get_libinput_backend_from_backend(wlr_backend);
-	wlr_log(WLR_DEBUG, "Initializing libinput");
+	wlr_log(WLR_DEBUG, "Starting libinput backend");
 
 	backend->libinput_context = libinput_udev_create_context(&libinput_impl,
 		backend, backend->session->udev);

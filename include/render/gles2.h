@@ -12,6 +12,7 @@
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/wlr_texture.h>
+#include <wlr/util/addon.h>
 #include <wlr/util/log.h>
 
 struct wlr_gles2_pixel_format {
@@ -39,10 +40,12 @@ struct wlr_gles2_renderer {
 
 	const char *exts_str;
 	struct {
-		bool read_format_bgra_ext;
-		bool debug_khr;
-		bool egl_image_external_oes;
-		bool egl_image_oes;
+		bool EXT_read_format_bgra;
+		bool KHR_debug;
+		bool OES_egl_image_external;
+		bool OES_egl_image;
+		bool EXT_texture_type_2_10_10_10_REV;
+		bool OES_texture_half_float_linear;
 	} exts;
 
 	struct {
@@ -82,7 +85,7 @@ struct wlr_gles2_buffer {
 	GLuint rbo;
 	GLuint fbo;
 
-	struct wl_listener buffer_destroy;
+	struct wlr_addon addon;
 };
 
 struct wlr_gles2_texture {
@@ -105,14 +108,17 @@ struct wlr_gles2_texture {
 	uint32_t drm_format; // used to interpret upload data
 	// If imported from a wlr_buffer
 	struct wlr_buffer *buffer;
-
-	struct wl_listener buffer_destroy;
+	struct wlr_addon buffer_addon;
 };
 
+
+bool is_gles2_pixel_format_supported(const struct wlr_gles2_renderer *renderer,
+	const struct wlr_gles2_pixel_format *format);
 const struct wlr_gles2_pixel_format *get_gles2_format_from_drm(uint32_t fmt);
 const struct wlr_gles2_pixel_format *get_gles2_format_from_gl(
 	GLint gl_format, GLint gl_type, bool alpha);
-const uint32_t *get_gles2_shm_formats(size_t *len);
+const uint32_t *get_gles2_shm_formats(const struct wlr_gles2_renderer *renderer,
+	size_t *len);
 
 struct wlr_gles2_renderer *gles2_get_renderer(
 	struct wlr_renderer *wlr_renderer);

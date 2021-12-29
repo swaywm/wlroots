@@ -11,6 +11,17 @@
 
 #include <wayland-server-core.h>
 
+/**
+ * Implementation for the viewporter protocol.
+ *
+ * When enabling viewporter, compositors need to update their rendering logic:
+ *
+ * - The size of the surface texture may not match the surface size anymore.
+ *   Compositors must use the surface size only.
+ * - Compositors must call wlr_render_subtexture_with_matrix when rendering a
+ *   surface texture with the source box returned by
+ *   wlr_surface_get_buffer_source_box.
+ */
 struct wlr_viewporter {
 	struct wl_global *global;
 
@@ -19,14 +30,6 @@ struct wlr_viewporter {
 	} events;
 
 	struct wl_listener display_destroy;
-};
-
-struct wlr_viewport {
-	struct wl_resource *resource;
-	struct wlr_surface *surface;
-
-	struct wl_listener surface_destroy;
-	struct wl_listener surface_commit;
 };
 
 struct wlr_viewporter *wlr_viewporter_create(struct wl_display *display);

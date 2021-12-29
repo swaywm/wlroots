@@ -7,7 +7,6 @@
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/log.h>
 #include "render/pixel_format.h"
-#include "render/wlr_texture.h"
 #include "types/wlr_buffer.h"
 #include "util/signal.h"
 
@@ -22,6 +21,7 @@ void wlr_buffer_init(struct wlr_buffer *buffer,
 	buffer->height = height;
 	wl_signal_init(&buffer->events.destroy);
 	wl_signal_init(&buffer->events.release);
+	wlr_addon_set_init(&buffer->addons);
 }
 
 static void buffer_consider_destroy(struct wlr_buffer *buffer) {
@@ -32,6 +32,7 @@ static void buffer_consider_destroy(struct wlr_buffer *buffer) {
 	assert(!buffer->accessing_data_ptr);
 
 	wlr_signal_emit_safe(&buffer->events.destroy, NULL);
+	wlr_addon_set_finish(&buffer->addons);
 
 	buffer->impl->destroy(buffer);
 }
@@ -153,26 +154,58 @@ static void client_buffer_handle_source_destroy(struct wl_listener *listener,
 	client_buffer->source = NULL;
 }
 
+static struct wlr_shm_client_buffer *shm_client_buffer_get_or_create(
+	struct wl_resource *resource);
 static bool buffer_is_shm_client_buffer(struct wlr_buffer *buffer);
 static struct wlr_shm_client_buffer *shm_client_buffer_from_buffer(
 	struct wlr_buffer *buffer);
 
-struct wlr_buffer *wlr_buffer_from_resource(struct wlr_renderer *renderer,
+/* struct wlr_buffer_resource_interface */
+static struct wl_array buffer_resource_interfaces = {0};
+
+void wlr_buffer_register_resource_interface(
+		const struct wlr_buffer_resource_interface *iface) {
+	assert(iface);
+	assert(iface->is_instance);
+	assert(iface->from_resource);
+
+	const struct wlr_buffer_resource_interface **iface_ptr;
+	wl_array_for_each(iface_ptr, &buffer_resource_interfaces) {
+		if (*iface_ptr == iface) {
+			wlr_log(WLR_DEBUG, "wlr_resource_buffer_interface %s has already"
+					"been registered", iface->name);
+			return;
+		}
+	}
+
+	iface_ptr = wl_array_add(&buffer_resource_interfaces, sizeof(iface));
+	*iface_ptr = iface;
+}
+
+static const struct wlr_buffer_resource_interface *get_buffer_resource_iface(
 		struct wl_resource *resource) {
+	struct wlr_buffer_resource_interface **iface_ptr;
+	wl_array_for_each(iface_ptr, &buffer_resource_interfaces) {
+		if ((*iface_ptr)->is_instance(resource)) {
+			return *iface_ptr;
+		}
+	}
+
+	return NULL;
+}
+
+struct wlr_buffer *wlr_buffer_from_resource(struct wl_resource *resource) {
 	assert(resource && wlr_resource_is_buffer(resource));
 
 	struct wlr_buffer *buffer;
 	if (wl_shm_buffer_get(resource) != NULL) {
 		struct wlr_shm_client_buffer *shm_client_buffer =
-			shm_client_buffer_create(resource);
+			shm_client_buffer_get_or_create(resource);
 		if (shm_client_buffer == NULL) {
 			wlr_log(WLR_ERROR, "Failed to create shm client buffer");
 			return NULL;
 		}
-
-		// Ensure the buffer will be released before being destroyed
 		buffer = wlr_buffer_lock(&shm_client_buffer->base);
-		wlr_buffer_drop(&shm_client_buffer->base);
 	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
 		struct wlr_dmabuf_v1_buffer *dmabuf =
 			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
@@ -182,19 +215,30 @@ struct wlr_buffer *wlr_buffer_from_resource(struct wlr_renderer *renderer,
 			wlr_drm_buffer_from_resource(resource);
 		buffer = wlr_buffer_lock(&drm_buffer->base);
 	} else {
-		wlr_log(WLR_ERROR, "Unknown buffer type");
-		return NULL;
+		const struct wlr_buffer_resource_interface *iface =
+				get_buffer_resource_iface(resource);
+		if (!iface) {
+			wlr_log(WLR_ERROR, "Unknown buffer type");
+			return NULL;
+		}
+
+		struct wlr_buffer *custom_buffer = iface->from_resource(resource);
+		if (!custom_buffer) {
+			wlr_log(WLR_ERROR, "Failed to create %s buffer", iface->name);
+			return NULL;
+		}
+
+		buffer = wlr_buffer_lock(custom_buffer);
 	}
 
 	return buffer;
 }
 
 struct wlr_client_buffer *wlr_client_buffer_create(struct wlr_buffer *buffer,
-		struct wlr_renderer *renderer, struct wl_resource *resource) {
+		struct wlr_renderer *renderer) {
 	struct wlr_texture *texture = wlr_texture_from_buffer(renderer, buffer);
 	if (texture == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create texture");
-		wl_buffer_send_release(resource);
 		return NULL;
 	}
 
@@ -202,7 +246,6 @@ struct wlr_client_buffer *wlr_client_buffer_create(struct wlr_buffer *buffer,
 		calloc(1, sizeof(struct wlr_client_buffer));
 	if (client_buffer == NULL) {
 		wlr_texture_destroy(texture);
-		wl_resource_post_no_memory(resource);
 		return NULL;
 	}
 	wlr_buffer_init(&client_buffer->base, &client_buffer_impl,
@@ -228,42 +271,36 @@ struct wlr_client_buffer *wlr_client_buffer_create(struct wlr_buffer *buffer,
 	return client_buffer;
 }
 
-struct wlr_client_buffer *wlr_client_buffer_apply_damage(
-		struct wlr_client_buffer *client_buffer, struct wl_resource *resource,
-		pixman_region32_t *damage) {
-	assert(wlr_resource_is_buffer(resource));
-
+bool wlr_client_buffer_apply_damage(struct wlr_client_buffer *client_buffer,
+		struct wlr_buffer *next, pixman_region32_t *damage) {
 	if (client_buffer->base.n_locks > 1) {
 		// Someone else still has a reference to the buffer
-		return NULL;
+		return false;
 	}
 
-	struct wl_shm_buffer *shm_buf = wl_shm_buffer_get(resource);
-	if (shm_buf == NULL ||
-			client_buffer->shm_source_format == DRM_FORMAT_INVALID) {
+	if ((uint32_t)next->width != client_buffer->texture->width ||
+			(uint32_t)next->height != client_buffer->texture->height) {
+		return false;
+	}
+
+	if (client_buffer->shm_source_format == DRM_FORMAT_INVALID) {
 		// Uploading only damaged regions only works for wl_shm buffers and
 		// mutable textures (created from wl_shm buffer)
-		return NULL;
+		return false;
 	}
 
-	enum wl_shm_format new_shm_fmt = wl_shm_buffer_get_format(shm_buf);
-	if (convert_wl_shm_format_to_drm(new_shm_fmt) !=
-			client_buffer->shm_source_format) {
+	void *data;
+	uint32_t format;
+	size_t stride;
+	if (!buffer_begin_data_ptr_access(next, &data, &format, &stride)) {
+		return false;
+	}
+
+	if (format != client_buffer->shm_source_format) {
 		// Uploading to textures can't change the format
-		return NULL;
+		buffer_end_data_ptr_access(next);
+		return false;
 	}
-
-	int32_t stride = wl_shm_buffer_get_stride(shm_buf);
-	int32_t width = wl_shm_buffer_get_width(shm_buf);
-	int32_t height = wl_shm_buffer_get_height(shm_buf);
-
-	if ((uint32_t)width != client_buffer->texture->width ||
-			(uint32_t)height != client_buffer->texture->height) {
-		return NULL;
-	}
-
-	wl_shm_buffer_begin_access(shm_buf);
-	void *data = wl_shm_buffer_get_data(shm_buf);
 
 	int n;
 	pixman_box32_t *rects = pixman_region32_rectangles(damage, &n);
@@ -272,14 +309,14 @@ struct wlr_client_buffer *wlr_client_buffer_apply_damage(
 		if (!wlr_texture_write_pixels(client_buffer->texture, stride,
 				r->x2 - r->x1, r->y2 - r->y1, r->x1, r->y1,
 				r->x1, r->y1, data)) {
-			wl_shm_buffer_end_access(shm_buf);
-			return NULL;
+			buffer_end_data_ptr_access(next);
+			return false;
 		}
 	}
 
-	wl_shm_buffer_end_access(shm_buf);
+	buffer_end_data_ptr_access(next);
 
-	return client_buffer;
+	return true;
 }
 
 static const struct wlr_buffer_impl shm_client_buffer_impl;
@@ -349,6 +386,9 @@ static void shm_client_buffer_resource_handle_destroy(
 	buffer->shm_buffer = NULL;
 	wl_list_remove(&buffer->resource_destroy.link);
 	wl_list_init(&buffer->resource_destroy.link);
+
+	// This might destroy the buffer
+	wlr_buffer_drop(&buffer->base);
 }
 
 static void shm_client_buffer_handle_release(struct wl_listener *listener,
@@ -360,10 +400,19 @@ static void shm_client_buffer_handle_release(struct wl_listener *listener,
 	}
 }
 
-struct wlr_shm_client_buffer *shm_client_buffer_create(
+static struct wlr_shm_client_buffer *shm_client_buffer_get_or_create(
 		struct wl_resource *resource) {
 	struct wl_shm_buffer *shm_buffer = wl_shm_buffer_get(resource);
 	assert(shm_buffer != NULL);
+
+	struct wl_listener *resource_destroy_listener =
+		wl_resource_get_destroy_listener(resource,
+		shm_client_buffer_resource_handle_destroy);
+	if (resource_destroy_listener != NULL) {
+		struct wlr_shm_client_buffer *buffer =
+			wl_container_of(resource_destroy_listener, buffer, resource_destroy);
+		return buffer;
+	}
 
 	int32_t width = wl_shm_buffer_get_width(shm_buffer);
 	int32_t height = wl_shm_buffer_get_height(shm_buffer);

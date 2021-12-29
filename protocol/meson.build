@@ -1,5 +1,9 @@
-wayland_protos = dependency('wayland-protocols', version: '>=1.21')
-wl_protocol_dir = wayland_protos.get_variable(pkgconfig: 'pkgdatadir')
+wayland_protos = dependency('wayland-protocols',
+	version: '>=1.22',
+	fallback: ['wayland-protocols', 'wayland_protocols'],
+	default_options: ['tests=false'],
+)
+wl_protocol_dir = wayland_protos.get_variable(pkgconfig: 'pkgdatadir', internal: 'pkgdatadir')
 
 wayland_scanner_dep = dependency('wayland-scanner', native: true)
 wayland_scanner = find_program(
@@ -12,6 +16,11 @@ protocols = {
 	'xdg-shell': wl_protocol_dir / 'stable/xdg-shell/xdg-shell.xml',
 	'presentation-time': wl_protocol_dir / 'stable/presentation-time/presentation-time.xml',
 	'viewporter': wl_protocol_dir / 'stable/viewporter/viewporter.xml',
+
+	# Staging upstream protocols
+	'xdg-activation-v1': wl_protocol_dir / 'staging/xdg-activation/xdg-activation-v1.xml',
+	'drm-lease-v1': wl_protocol_dir / 'staging/drm-lease/drm-lease-v1.xml',
+
 	# Unstable upstream protocols
 	'fullscreen-shell-unstable-v1': wl_protocol_dir / 'unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml',
 	'idle-inhibit-unstable-v1': wl_protocol_dir / 'unstable/idle-inhibit/idle-inhibit-unstable-v1.xml',
@@ -23,11 +32,11 @@ protocols = {
 	'relative-pointer-unstable-v1': wl_protocol_dir / 'unstable/relative-pointer/relative-pointer-unstable-v1.xml',
 	'tablet-unstable-v2': wl_protocol_dir / 'unstable/tablet/tablet-unstable-v2.xml',
 	'text-input-unstable-v3': wl_protocol_dir / 'unstable/text-input/text-input-unstable-v3.xml',
-	'xdg-activation-v1': wl_protocol_dir / 'staging/xdg-activation/xdg-activation-v1.xml',
 	'xdg-decoration-unstable-v1': wl_protocol_dir / 'unstable/xdg-decoration/xdg-decoration-unstable-v1.xml',
 	'xdg-foreign-unstable-v1': wl_protocol_dir / 'unstable/xdg-foreign/xdg-foreign-unstable-v1.xml',
 	'xdg-foreign-unstable-v2': wl_protocol_dir / 'unstable/xdg-foreign/xdg-foreign-unstable-v2.xml',
 	'xdg-output-unstable-v1': wl_protocol_dir / 'unstable/xdg-output/xdg-output-unstable-v1.xml',
+
 	# Other protocols
 	'drm': 'drm.xml',
 	'kde-idle': 'idle.xml',

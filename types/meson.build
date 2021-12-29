@@ -3,6 +3,8 @@ wlr_files += files(
 	'data_device/wlr_data_offer.c',
 	'data_device/wlr_data_source.c',
 	'data_device/wlr_drag.c',
+	'scene/wlr_scene.c',
+	'scene/output_layout.c',
 	'seat/wlr_seat_keyboard.c',
 	'seat/wlr_seat_pointer.c',
 	'seat/wlr_seat_touch.c',
@@ -68,3 +70,9 @@ wlr_files += files(
 	'wlr_xdg_foreign_registry.c',
 	'wlr_xdg_output_v1.c',
 )
+
+if features.get('drm-backend')
+	wlr_files += files(
+		'wlr_drm_lease_v1.c',
+	)
+endif

@@ -86,7 +86,9 @@ else
 endif
 
 features = {
+	'drm-backend': false,
 	'x11-backend': false,
+	'libinput-backend': false,
 	'xwayland': false,
 	'gles2-renderer': false,
 }
@@ -94,11 +96,19 @@ internal_features = {
 	'xcb-errors': false,
 }
 
-wayland_server = dependency('wayland-server', version: '>=1.19')
-wayland_client = dependency('wayland-client')
+wayland_project_options = ['tests=false', 'documentation=false']
+wayland_server = dependency('wayland-server',
+	version: '>=1.19',
+	fallback: ['wayland', 'wayland_server_dep'],
+	default_options: wayland_project_options,
+)
+wayland_client = dependency('wayland-client',
+	fallback: ['wayland', 'wayland_client_dep'],
+	default_options: wayland_project_options,
+)
+
 drm = dependency('libdrm', version: '>=2.4.105')
 gbm = dependency('gbm', version: '>=17.1.0')
-libinput = dependency('libinput', version: '>=1.14.0')
 xkbcommon = dependency('xkbcommon')
 udev = dependency('libudev')
 pixman = dependency('pixman-1')
@@ -111,7 +121,6 @@ wlr_deps = [
 	wayland_client,
 	drm,
 	gbm,
-	libinput,
 	xkbcommon,
 	udev,
 	pixman,
@@ -137,7 +146,7 @@ foreach name, have : internal_features
 	)
 endforeach
 
-wlr_inc = include_directories('.', 'include')
+wlr_inc = include_directories('include')
 proto_inc = include_directories('protocol')
 
 symbols_file = 'wlroots.syms'

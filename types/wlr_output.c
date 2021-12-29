@@ -17,7 +17,7 @@
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include "backend/backend.h"
-#include "render/allocator.h"
+#include "render/allocator/allocator.h"
 #include "render/drm_format_set.h"
 #include "render/swapchain.h"
 #include "render/wlr_renderer.h"
@@ -344,9 +344,6 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		const struct wlr_output_impl *impl, struct wl_display *display) {
 	assert(impl->commit);
-	if (impl->attach_render || impl->rollback_render) {
-		assert(impl->attach_render && impl->rollback_render);
-	}
 	if (impl->set_cursor || impl->move_cursor) {
 		assert(impl->set_cursor && impl->move_cursor);
 	}
@@ -379,6 +376,8 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 		output->software_cursor_locks = 1;
 	}
 
+	wlr_addon_set_init(&output->addons);
+
 	output->display_destroy.notify = handle_display_destroy;
 	wl_display_add_destroy_listener(display, &output->display_destroy);
 }
@@ -390,11 +389,15 @@ void wlr_output_destroy(struct wlr_output *output) {
 		return;
 	}
 
+	wlr_buffer_unlock(output->front_buffer);
+	output->front_buffer = NULL;
+
 	wl_list_remove(&output->display_destroy.link);
 	wlr_output_destroy_global(output);
 	output_clear_back_buffer(output);
 
 	wlr_signal_emit_safe(&output->events.destroy, output);
+	wlr_addon_set_finish(&output->addons);
 
 	// The backend is responsible for free-ing the list of modes
 
@@ -457,8 +460,8 @@ struct wlr_output_mode *wlr_output_preferred_mode(struct wlr_output *output) {
 		}
 	}
 
-	// No preferred mode, choose the last one
-	return wl_container_of(output->modes.prev, mode, link);
+	// No preferred mode, choose the first one
+	return wl_container_of(output->modes.next, mode, link);
 }
 
 static void output_state_clear_buffer(struct wlr_output_state *state) {
@@ -474,9 +477,24 @@ static void output_state_clear_buffer(struct wlr_output_state *state) {
 
 static struct wlr_drm_format *output_pick_format(struct wlr_output *output,
 		const struct wlr_drm_format_set *display_formats);
+static void output_pending_resolution(struct wlr_output *output, int *width,
+		int *height);
 
-static bool output_create_swapchain(struct wlr_output *output) {
-	if (output->swapchain != NULL) {
+/**
+ * Ensure the output has a suitable swapchain. The swapchain is re-created if
+ * necessary.
+ *
+ * If allow_modifiers is set to true, the swapchain's format may use modifiers.
+ * If set to false, the swapchain's format is guaranteed to not use modifiers.
+ */
+static bool output_create_swapchain(struct wlr_output *output,
+		bool allow_modifiers) {
+	int width, height;
+	output_pending_resolution(output, &width, &height);
+
+	if (output->swapchain != NULL && output->swapchain->width == width &&
+			output->swapchain->height == height &&
+			(allow_modifiers || output->swapchain->format->len == 0)) {
 		return true;
 	}
 
@@ -505,13 +523,20 @@ static bool output_create_swapchain(struct wlr_output *output) {
 	wlr_log(WLR_DEBUG, "Choosing primary buffer format 0x%"PRIX32" for output '%s'",
 		format->format, output->name);
 
-	output->swapchain = wlr_swapchain_create(allocator, output->width,
-		output->height, format);
+	if (!allow_modifiers && (format->len != 1 || format->modifiers[0] != DRM_FORMAT_MOD_LINEAR)) {
+		format->len = 0;
+	}
+
+	struct wlr_swapchain *swapchain =
+		wlr_swapchain_create(allocator, width, height, format);
 	free(format);
-	if (output->swapchain == NULL) {
+	if (swapchain == NULL) {
 		wlr_log(WLR_ERROR, "Failed to create output swapchain");
 		return false;
 	}
+
+	wlr_swapchain_destroy(output->swapchain);
+	output->swapchain = swapchain;
 
 	return true;
 }
@@ -520,7 +545,7 @@ static bool output_attach_back_buffer(struct wlr_output *output,
 		int *buffer_age) {
 	assert(output->back_buffer == NULL);
 
-	if (!output_create_swapchain(output)) {
+	if (!output_create_swapchain(output, true)) {
 		return false;
 	}
 
@@ -557,21 +582,10 @@ static void output_clear_back_buffer(struct wlr_output *output) {
 }
 
 bool wlr_output_attach_render(struct wlr_output *output, int *buffer_age) {
-	if (output->impl->attach_render) {
-		if (!output->impl->attach_render(output, buffer_age)) {
-			return false;
-		}
-
-		output_state_clear_buffer(&output->pending);
-		output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
-		output->pending.buffer_type = WLR_OUTPUT_STATE_BUFFER_RENDER;
-	} else {
-		if (!output_attach_back_buffer(output, buffer_age)) {
-			return false;
-		}
-		wlr_output_attach_buffer(output, output->back_buffer);
+	if (!output_attach_back_buffer(output, buffer_age)) {
+		return false;
 	}
-
+	wlr_output_attach_buffer(output, output->back_buffer);
 	return true;
 }
 
@@ -581,23 +595,13 @@ uint32_t wlr_output_preferred_read_format(struct wlr_output *output) {
 		return DRM_FORMAT_INVALID;
 	}
 
-	if (output->impl->attach_render) {
-		if (!output->impl->attach_render(output, NULL)) {
-			return false;
-		}
-	} else {
-		if (!output_attach_back_buffer(output, NULL)) {
-			return false;
-		}
+	if (!output_attach_back_buffer(output, NULL)) {
+		return false;
 	}
 
 	uint32_t fmt = renderer->impl->preferred_read_format(renderer);
 
-	if (output->impl->rollback_render) {
-		output->impl->rollback_render(output);
-	} else {
-		output_clear_back_buffer(output);
-	}
+	output_clear_back_buffer(output);
 
 	return fmt;
 }
@@ -642,6 +646,83 @@ static void output_pending_resolution(struct wlr_output *output, int *width,
 	}
 }
 
+static bool output_attach_empty_buffer(struct wlr_output *output) {
+	assert(!(output->pending.committed & WLR_OUTPUT_STATE_BUFFER));
+
+	if (!wlr_output_attach_render(output, NULL)) {
+		return false;
+	}
+
+	int width, height;
+	output_pending_resolution(output, &width, &height);
+
+	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	wlr_renderer_begin(renderer, width, height);
+	wlr_renderer_clear(renderer, (float[]){0, 0, 0, 0});
+	wlr_renderer_end(renderer);
+
+	return true;
+}
+
+static bool output_ensure_buffer(struct wlr_output *output) {
+	// If we're lighting up an output or changing its mode, make sure to
+	// provide a new buffer
+	bool needs_new_buffer = false;
+	if ((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) &&
+			output->pending.enabled) {
+		needs_new_buffer = true;
+	}
+	if (output->pending.committed & WLR_OUTPUT_STATE_MODE) {
+		needs_new_buffer = true;
+	}
+	if (!needs_new_buffer ||
+			(output->pending.committed & WLR_OUTPUT_STATE_BUFFER)) {
+		return true;
+	}
+
+	// If the backend doesn't necessarily need a new buffer on modeset, don't
+	// bother allocating one.
+	if (!output->impl->test || output->impl->test(output)) {
+		return true;
+	}
+
+	wlr_log(WLR_DEBUG, "Attaching empty buffer to output for modeset");
+
+	if (!output_attach_empty_buffer(output)) {
+		goto error;
+	}
+	if (!output->impl->test || output->impl->test(output)) {
+		return true;
+	}
+
+	output_clear_back_buffer(output);
+	output->pending.committed &= ~WLR_OUTPUT_STATE_BUFFER;
+
+	if (output->swapchain->format->len == 0) {
+		return false;
+	}
+
+	// The test failed for a buffer which has modifiers, try disabling
+	// modifiers to see if that makes a difference.
+	wlr_log(WLR_DEBUG, "Output modeset test failed, retrying without modifiers");
+
+	if (!output_create_swapchain(output, false)) {
+		return false;
+	}
+	if (!output_attach_empty_buffer(output)) {
+		goto error;
+	}
+	if (!output->impl->test(output)) {
+		goto error;
+	}
+	return true;
+
+error:
+	output_clear_back_buffer(output);
+	output->pending.committed &= ~WLR_OUTPUT_STATE_BUFFER;
+	return false;
+}
+
 static bool output_basic_test(struct wlr_output *output) {
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		if (output->frame_pending) {
@@ -649,8 +730,7 @@ static bool output_basic_test(struct wlr_output *output) {
 			return false;
 		}
 
-		if (output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_SCANOUT &&
-				output->back_buffer == NULL) {
+		if (output->back_buffer == NULL) {
 			if (output->attach_render_locks > 0) {
 				wlr_log(WLR_DEBUG, "Direct scan-out disabled by lock");
 				return false;
@@ -709,6 +789,9 @@ bool wlr_output_test(struct wlr_output *output) {
 	if (!output_basic_test(output)) {
 		return false;
 	}
+	if (!output_ensure_buffer(output)) {
+		return false;
+	}
 	if (!output->impl->test) {
 		return true;
 	}
@@ -718,6 +801,10 @@ bool wlr_output_test(struct wlr_output *output) {
 bool wlr_output_commit(struct wlr_output *output) {
 	if (!output_basic_test(output)) {
 		wlr_log(WLR_ERROR, "Basic output test failed for %s", output->name);
+		return false;
+	}
+
+	if (!output_ensure_buffer(output)) {
 		return false;
 	}
 
@@ -790,6 +877,15 @@ bool wlr_output_commit(struct wlr_output *output) {
 		wlr_output_schedule_done(output);
 	}
 
+	// Unset the front-buffer when a new buffer will replace it or when the
+	// output is getting disabled
+	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) ||
+			((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) &&
+				!output->pending.enabled)) {
+		wlr_buffer_unlock(output->front_buffer);
+		output->front_buffer = NULL;
+	}
+
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
 		output->frame_pending = true;
 		output->needs_frame = false;
@@ -797,7 +893,8 @@ bool wlr_output_commit(struct wlr_output *output) {
 
 	if (back_buffer != NULL) {
 		wlr_swapchain_set_buffer_submitted(output->swapchain, back_buffer);
-		wlr_buffer_unlock(back_buffer);
+		wlr_buffer_unlock(output->front_buffer);
+		output->front_buffer = back_buffer;
 	}
 
 	uint32_t committed = output->pending.committed;
@@ -814,13 +911,7 @@ bool wlr_output_commit(struct wlr_output *output) {
 }
 
 void wlr_output_rollback(struct wlr_output *output) {
-	if (output->impl->rollback_render &&
-			(output->pending.committed & WLR_OUTPUT_STATE_BUFFER) &&
-			output->pending.buffer_type == WLR_OUTPUT_STATE_BUFFER_RENDER) {
-		output->impl->rollback_render(output);
-	}
 	output_clear_back_buffer(output);
-
 	output_state_clear(&output->pending);
 }
 
@@ -828,13 +919,14 @@ void wlr_output_attach_buffer(struct wlr_output *output,
 		struct wlr_buffer *buffer) {
 	output_state_clear_buffer(&output->pending);
 	output->pending.committed |= WLR_OUTPUT_STATE_BUFFER;
-	output->pending.buffer_type = WLR_OUTPUT_STATE_BUFFER_SCANOUT;
 	output->pending.buffer = wlr_buffer_lock(buffer);
 }
 
 void wlr_output_send_frame(struct wlr_output *output) {
 	output->frame_pending = false;
-	wlr_signal_emit_safe(&output->events.frame, output);
+	if (output->enabled) {
+		wlr_signal_emit_safe(&output->events.frame, output);
+	}
 }
 
 static void schedule_frame_handle_idle_timer(void *data) {
@@ -913,10 +1005,15 @@ size_t wlr_output_get_gamma_size(struct wlr_output *output) {
 
 bool wlr_output_export_dmabuf(struct wlr_output *output,
 		struct wlr_dmabuf_attributes *attribs) {
-	if (!output->impl->export_dmabuf) {
+	if (output->front_buffer == NULL) {
 		return false;
 	}
-	return output->impl->export_dmabuf(output, attribs);
+
+	struct wlr_dmabuf_attributes buf_attribs = {0};
+	if (!wlr_buffer_get_dmabuf(output->front_buffer, &buf_attribs)) {
+		return false;
+	}
+	return wlr_dmabuf_attributes_copy(attribs, &buf_attribs);
 }
 
 void wlr_output_update_needs_frame(struct wlr_output *output) {
@@ -1160,32 +1257,41 @@ static struct wlr_drm_format *output_pick_format(struct wlr_output *output,
 		return NULL;
 	}
 
-	uint32_t fmt = DRM_FORMAT_ARGB8888;
+	struct wlr_drm_format *format = NULL;
+	const uint32_t candidates[] = { DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB8888 };
+	for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
+		uint32_t fmt = candidates[i];
 
-	const struct wlr_drm_format *render_format =
-		wlr_drm_format_set_get(render_formats, fmt);
-	if (render_format == NULL) {
-		wlr_log(WLR_DEBUG, "Renderer doesn't support format 0x%"PRIX32, fmt);
-		return NULL;
-	}
-
-	const struct wlr_drm_format *display_format;
-	if (display_formats != NULL) {
-		display_format = wlr_drm_format_set_get(display_formats, fmt);
-		if (display_format == NULL) {
-			wlr_log(WLR_DEBUG, "Output doesn't support format 0x%"PRIX32, fmt);
-			return NULL;
+		const struct wlr_drm_format *render_format =
+			wlr_drm_format_set_get(render_formats, fmt);
+		if (render_format == NULL) {
+			wlr_log(WLR_DEBUG, "Renderer doesn't support format 0x%"PRIX32, fmt);
+			continue;
 		}
-	} else {
-		// The output can display any format
-		display_format = render_format;
-	}
 
-	struct wlr_drm_format *format =
-		wlr_drm_format_intersect(display_format, render_format);
+		if (display_formats != NULL) {
+			const struct wlr_drm_format *display_format =
+				wlr_drm_format_set_get(display_formats, fmt);
+			if (display_format == NULL) {
+				wlr_log(WLR_DEBUG, "Output doesn't support format 0x%"PRIX32, fmt);
+				continue;
+			}
+			format = wlr_drm_format_intersect(display_format, render_format);
+		} else {
+			// The output can display any format
+			format = wlr_drm_format_dup(render_format);
+		}
+
+		if (format == NULL) {
+			wlr_log(WLR_DEBUG, "Failed to intersect display and render "
+				"modifiers for format 0x%"PRIX32, fmt);
+		} else {
+			break;
+		}
+	}
 	if (format == NULL) {
-		wlr_log(WLR_DEBUG, "Failed to intersect display and render "
-			"modifiers for format 0x%"PRIX32, fmt);
+		wlr_log(WLR_ERROR, "Failed to choose a format for output '%s'",
+			output->name);
 		return NULL;
 	}
 

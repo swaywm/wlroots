@@ -1,12 +1,15 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <fcntl.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include "backend/backend.h"
-#include "render/allocator.h"
-#include "render/gbm_allocator.h"
-#include "render/shm_allocator.h"
-#include "render/drm_dumb_allocator.h"
+#include "render/allocator/allocator.h"
+#include "render/allocator/drm_dumb.h"
+#include "render/allocator/gbm.h"
+#include "render/allocator/shm.h"
 #include "render/wlr_renderer.h"
 
 void wlr_allocator_init(struct wlr_allocator *alloc,
@@ -15,6 +18,49 @@ void wlr_allocator_init(struct wlr_allocator *alloc,
 	alloc->impl = impl;
 	alloc->buffer_caps = buffer_caps;
 	wl_signal_init(&alloc->events.destroy);
+}
+
+/* Re-open the DRM node to avoid GEM handle ref'counting issues. See:
+ * https://gitlab.freedesktop.org/mesa/drm/-/merge_requests/110
+ * TODO: don't assume we have the permission to just open the DRM node,
+ * find another way to re-open it.
+ */
+static int reopen_drm_node(int drm_fd) {
+	char *name = drmGetDeviceNameFromFd2(drm_fd);
+	if (name == NULL) {
+		wlr_log(WLR_ERROR, "drmGetDeviceNameFromFd2 failed");
+		return -1;
+	}
+
+	int new_fd = open(name, O_RDWR | O_CLOEXEC);
+	if (new_fd < 0) {
+		wlr_log_errno(WLR_ERROR, "Failed to open DRM node '%s'", name);
+		free(name);
+		return -1;
+	}
+
+	free(name);
+
+	// If we're using a DRM primary node (e.g. because we're running under the
+	// DRM backend, or because we're on split render/display machine), we need
+	// to use the legacy DRM authentication mechanism to have the permission to
+	// manipulate buffers.
+	if (drmGetNodeTypeFromFd(new_fd) == DRM_NODE_PRIMARY) {
+		drm_magic_t magic;
+		if (drmGetMagic(new_fd, &magic) < 0) {
+			wlr_log_errno(WLR_ERROR, "drmGetMagic failed");
+			close(new_fd);
+			return -1;
+		}
+
+		if (drmAuthMagic(drm_fd, magic) < 0) {
+			wlr_log_errno(WLR_ERROR, "drmAuthMagic failed");
+			close(new_fd);
+			return -1;
+		}
+	}
+
+	return new_fd;
 }
 
 struct wlr_allocator *allocator_autocreate_with_drm_fd(
@@ -26,11 +72,16 @@ struct wlr_allocator *allocator_autocreate_with_drm_fd(
 	struct wlr_allocator *alloc = NULL;
 	uint32_t gbm_caps = WLR_BUFFER_CAP_DMABUF;
 	if ((backend_caps & gbm_caps) && (renderer_caps & gbm_caps)
-			&& drm_fd != -1) {
+			&& drm_fd >= 0) {
 		wlr_log(WLR_DEBUG, "Trying to create gbm allocator");
-		if ((alloc = wlr_gbm_allocator_create(drm_fd)) != NULL) {
+		int gbm_fd = reopen_drm_node(drm_fd);
+		if (gbm_fd < 0) {
+			return NULL;
+		}
+		if ((alloc = wlr_gbm_allocator_create(gbm_fd)) != NULL) {
 			return alloc;
 		}
+		close(gbm_fd);
 		wlr_log(WLR_DEBUG, "Failed to create gbm allocator");
 	}
 
@@ -45,11 +96,16 @@ struct wlr_allocator *allocator_autocreate_with_drm_fd(
 
 	uint32_t drm_caps = WLR_BUFFER_CAP_DMABUF | WLR_BUFFER_CAP_DATA_PTR;
 	if ((backend_caps & drm_caps) && (renderer_caps & drm_caps)
-			&& drm_fd != -1) {
+			&& drm_fd >= 0 && drmIsMaster(drm_fd)) {
 		wlr_log(WLR_DEBUG, "Trying to create drm dumb allocator");
-		if ((alloc = wlr_drm_dumb_allocator_create(drm_fd)) != NULL) {
+		int dumb_fd = reopen_drm_node(drm_fd);
+		if (dumb_fd < 0) {
+			return NULL;
+		}
+		if ((alloc = wlr_drm_dumb_allocator_create(dumb_fd)) != NULL) {
 			return alloc;
 		}
+		close(dumb_fd);
 		wlr_log(WLR_DEBUG, "Failed to create drm dumb allocator");
 	}
 

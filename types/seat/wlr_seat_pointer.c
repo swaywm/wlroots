@@ -230,18 +230,21 @@ void wlr_seat_pointer_send_motion(struct wlr_seat *wlr_seat, uint32_t time,
 		return;
 	}
 
-	if (wlr_seat->pointer_state.sx == sx && wlr_seat->pointer_state.sy == sy) {
-		return;
-	}
+	// Ensure we don't send duplicate motion events. Instead of comparing with an
+	// epsilon, chop off some precision by converting to a `wl_fixed_t` first,
+	// since that is what a client receives.
+	wl_fixed_t sx_fixed = wl_fixed_from_double(sx);
+	wl_fixed_t sy_fixed = wl_fixed_from_double(sy);
+	if (wl_fixed_from_double(wlr_seat->pointer_state.sx) != sx_fixed ||
+			wl_fixed_from_double(wlr_seat->pointer_state.sy) != sy_fixed) {
+		struct wl_resource *resource;
+		wl_resource_for_each(resource, &client->pointers) {
+			if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
+				continue;
+			}
 
-	struct wl_resource *resource;
-	wl_resource_for_each(resource, &client->pointers) {
-		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
-			continue;
+			wl_pointer_send_motion(resource, time, sx_fixed, sy_fixed);
 		}
-
-		wl_pointer_send_motion(resource, time, wl_fixed_from_double(sx),
-			wl_fixed_from_double(sy));
 	}
 
 	wlr_seat_pointer_warp(wlr_seat, sx, sy);
@@ -274,6 +277,15 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 		return;
 	}
 
+	bool send_source = false;
+	if (wlr_seat->pointer_state.sent_axis_source) {
+		assert(wlr_seat->pointer_state.cached_axis_source == source);
+	} else {
+		wlr_seat->pointer_state.sent_axis_source = true;
+		wlr_seat->pointer_state.cached_axis_source = source;
+		send_source = true;
+	}
+
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->pointers) {
 		if (wlr_seat_client_from_pointer_resource(resource) == NULL) {
@@ -282,7 +294,7 @@ void wlr_seat_pointer_send_axis(struct wlr_seat *wlr_seat, uint32_t time,
 
 		uint32_t version = wl_resource_get_version(resource);
 
-		if (version >= WL_POINTER_AXIS_SOURCE_SINCE_VERSION) {
+		if (send_source && version >= WL_POINTER_AXIS_SOURCE_SINCE_VERSION) {
 			wl_pointer_send_axis_source(resource, source);
 		}
 		if (value) {
@@ -305,6 +317,8 @@ void wlr_seat_pointer_send_frame(struct wlr_seat *wlr_seat) {
 	if (client == NULL) {
 		return;
 	}
+
+	wlr_seat->pointer_state.sent_axis_source = false;
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &client->pointers) {

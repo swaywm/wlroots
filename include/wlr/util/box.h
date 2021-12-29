@@ -78,4 +78,9 @@ bool wlr_box_empty(const struct wlr_box *box);
 void wlr_box_transform(struct wlr_box *dest, const struct wlr_box *box,
 	enum wl_output_transform transform, int width, int height);
 
+/**
+ * Transforms a floating-point box inside a (0, 0, width, height) box.
+ */
+void wlr_fbox_transform(struct wlr_fbox *dest, const struct wlr_fbox *box,
+	enum wl_output_transform transform, double width, double height);
 #endif

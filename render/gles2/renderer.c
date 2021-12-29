@@ -12,9 +12,7 @@
 #include <wlr/render/egl.h>
 #include <wlr/render/interface.h>
 #include <wlr/render/wlr_renderer.h>
-#include <wlr/types/wlr_drm.h>
 #include <wlr/types/wlr_matrix.h>
-#include <wlr/types/wlr_linux_dmabuf_v1.h>
 #include <wlr/util/box.h>
 #include <wlr/util/log.h>
 #include "render/egl.h"
@@ -50,7 +48,7 @@ static struct wlr_gles2_renderer *gles2_get_renderer_in_context(
 
 static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
 	wl_list_remove(&buffer->link);
-	wl_list_remove(&buffer->buffer_destroy.link);
+	wlr_addon_finish(&buffer->addon);
 
 	struct wlr_egl_context prev_ctx;
 	wlr_egl_save_context(&prev_ctx);
@@ -70,21 +68,26 @@ static void destroy_buffer(struct wlr_gles2_buffer *buffer) {
 	free(buffer);
 }
 
-static struct wlr_gles2_buffer *get_buffer(struct wlr_gles2_renderer *renderer,
-		struct wlr_buffer *wlr_buffer) {
-	struct wlr_gles2_buffer *buffer;
-	wl_list_for_each(buffer, &renderer->buffers, link) {
-		if (buffer->buffer == wlr_buffer) {
-			return buffer;
-		}
-	}
-	return NULL;
+static void handle_buffer_destroy(struct wlr_addon *addon) {
+	struct wlr_gles2_buffer *buffer =
+		wl_container_of(addon, buffer, addon);
+	destroy_buffer(buffer);
 }
 
-static void handle_buffer_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_gles2_buffer *buffer =
-		wl_container_of(listener, buffer, buffer_destroy);
-	destroy_buffer(buffer);
+static const struct wlr_addon_interface buffer_addon_impl = {
+	.name = "wlr_gles2_buffer",
+	.destroy = handle_buffer_destroy,
+};
+
+static struct wlr_gles2_buffer *get_buffer(struct wlr_gles2_renderer *renderer,
+		struct wlr_buffer *wlr_buffer) {
+	struct wlr_addon *addon =
+		wlr_addon_find(&wlr_buffer->addons, renderer, &buffer_addon_impl);
+	if (addon == NULL) {
+		return NULL;
+	}
+	struct wlr_gles2_buffer *buffer = wl_container_of(addon, buffer, addon);
+	return buffer;
 }
 
 static struct wlr_gles2_buffer *create_buffer(struct wlr_gles2_renderer *renderer,
@@ -131,8 +134,8 @@ static struct wlr_gles2_buffer *create_buffer(struct wlr_gles2_renderer *rendere
 		goto error_image;
 	}
 
-	buffer->buffer_destroy.notify = handle_buffer_destroy;
-	wl_signal_add(&wlr_buffer->events.destroy, &buffer->buffer_destroy);
+	wlr_addon_init(&buffer->addon, &wlr_buffer->addons, renderer,
+		&buffer_addon_impl);
 
 	wl_list_insert(&renderer->buffers, &buffer->link);
 
@@ -204,8 +207,6 @@ static void gles2_begin(struct wlr_renderer *wlr_renderer, uint32_t width,
 	wlr_matrix_projection(renderer->projection, width, height,
 			WL_OUTPUT_TRANSFORM_NORMAL);
 
-	// enable transparency
-	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	// XXX: maybe we should save output projection and remove some of the need
@@ -274,7 +275,7 @@ static bool gles2_render_subtexture_with_matrix(
 	case GL_TEXTURE_EXTERNAL_OES:
 		shader = &renderer->shaders.tex_ext;
 
-		if (!renderer->exts.egl_image_external_oes) {
+		if (!renderer->exts.OES_egl_image_external) {
 			wlr_log(WLR_ERROR, "Failed to render texture: "
 				"GL_TEXTURE_EXTERNAL_OES not supported");
 			return false;
@@ -293,6 +294,12 @@ static bool gles2_render_subtexture_with_matrix(
 	wlr_matrix_transpose(gl_matrix, gl_matrix);
 
 	push_gles2_debug(renderer);
+
+	if (!texture->has_alpha && alpha == 1.0) {
+		glDisable(GL_BLEND);
+	} else {
+		glEnable(GL_BLEND);
+	}
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(texture->target, texture->tex);
@@ -348,6 +355,13 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 	wlr_matrix_transpose(gl_matrix, gl_matrix);
 
 	push_gles2_debug(renderer);
+
+	if (color[3] == 1.0) {
+		glDisable(GL_BLEND);
+	} else {
+		glEnable(GL_BLEND);
+	}
+
 	glUseProgram(renderer->shaders.quad.program);
 
 	glUniformMatrix3fv(renderer->shaders.quad.proj, 1, GL_FALSE, gl_matrix);
@@ -367,7 +381,8 @@ static void gles2_render_quad_with_matrix(struct wlr_renderer *wlr_renderer,
 
 static const uint32_t *gles2_get_shm_texture_formats(
 		struct wlr_renderer *wlr_renderer, size_t *len) {
-	return get_gles2_shm_formats(len);
+	struct wlr_gles2_renderer *renderer = gles2_get_renderer(wlr_renderer);
+	return get_gles2_shm_formats(renderer, len);
 }
 
 static const struct wlr_drm_format_set *gles2_get_dmabuf_texture_formats(
@@ -407,7 +422,7 @@ static uint32_t gles2_preferred_read_format(
 		return fmt->drm_format;
 	}
 
-	if (renderer->exts.read_format_bgra_ext) {
+	if (renderer->exts.EXT_read_format_bgra) {
 		return DRM_FORMAT_XRGB8888;
 	}
 	return DRM_FORMAT_XBGR8888;
@@ -422,14 +437,8 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 
 	const struct wlr_gles2_pixel_format *fmt =
 		get_gles2_format_from_drm(drm_format);
-	if (fmt == NULL) {
-		wlr_log(WLR_ERROR, "Cannot read pixels: unsupported pixel format");
-		return false;
-	}
-
-	if (fmt->gl_format == GL_BGRA_EXT && !renderer->exts.read_format_bgra_ext) {
-		wlr_log(WLR_ERROR,
-			"Cannot read pixels: missing GL_EXT_read_format_bgra extension");
+	if (fmt == NULL || !is_gles2_pixel_format_supported(renderer, fmt)) {
+		wlr_log(WLR_ERROR, "Cannot read pixels: unsupported pixel format 0x%"PRIX32, drm_format);
 		return false;
 	}
 
@@ -468,23 +477,6 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 	}
 
 	return glGetError() == GL_NO_ERROR;
-}
-
-static bool gles2_init_wl_display(struct wlr_renderer *wlr_renderer,
-		struct wl_display *wl_display) {
-	if (wlr_renderer_get_drm_fd(wlr_renderer) >= 0) {
-		if (wlr_drm_create(wl_display, wlr_renderer) == NULL) {
-			return false;
-		}
-	} else {
-		wlr_log(WLR_INFO, "Cannot get renderer DRM FD, disabling wl_drm");
-	}
-
-	if (wlr_linux_dmabuf_v1_create(wl_display, wlr_renderer) == NULL) {
-		return false;
-	}
-
-	return true;
 }
 
 static int gles2_get_drm_fd(struct wlr_renderer *wlr_renderer) {
@@ -530,7 +522,7 @@ static void gles2_destroy(struct wlr_renderer *wlr_renderer) {
 	glDeleteProgram(renderer->shaders.tex_ext.program);
 	pop_gles2_debug(renderer);
 
-	if (renderer->exts.debug_khr) {
+	if (renderer->exts.KHR_debug) {
 		glDisable(GL_DEBUG_OUTPUT_KHR);
 		renderer->procs.glDebugMessageCallbackKHR(NULL, NULL);
 	}
@@ -559,7 +551,6 @@ static const struct wlr_renderer_impl renderer_impl = {
 	.get_render_formats = gles2_get_render_formats,
 	.preferred_read_format = gles2_preferred_read_format,
 	.read_pixels = gles2_read_pixels,
-	.init_wl_display = gles2_init_wl_display,
 	.get_drm_fd = gles2_get_drm_fd,
 	.get_render_buffer_caps = gles2_get_render_buffer_caps,
 	.texture_from_buffer = gles2_texture_from_buffer,
@@ -744,7 +735,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	wlr_log(WLR_INFO, "GL renderer: %s", glGetString(GL_RENDERER));
 	wlr_log(WLR_INFO, "Supported GLES2 extensions: %s", exts_str);
 
-	if (!renderer->egl->exts.image_dmabuf_import_ext) {
+	if (!renderer->egl->exts.EXT_image_dma_buf_import) {
 		wlr_log(WLR_ERROR, "EGL_EXT_image_dma_buf_import not supported");
 		free(renderer);
 		return NULL;
@@ -760,11 +751,17 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 		return NULL;
 	}
 
-	renderer->exts.read_format_bgra_ext =
+	renderer->exts.EXT_read_format_bgra =
 		check_gl_ext(exts_str, "GL_EXT_read_format_bgra");
 
+	renderer->exts.EXT_texture_type_2_10_10_10_REV =
+		check_gl_ext(exts_str, "GL_EXT_texture_type_2_10_10_10_REV");
+
+	renderer->exts.OES_texture_half_float_linear =
+		check_gl_ext(exts_str, "GL_OES_texture_half_float_linear");
+
 	if (check_gl_ext(exts_str, "GL_KHR_debug")) {
-		renderer->exts.debug_khr = true;
+		renderer->exts.KHR_debug = true;
 		load_gl_proc(&renderer->procs.glDebugMessageCallbackKHR,
 			"glDebugMessageCallbackKHR");
 		load_gl_proc(&renderer->procs.glDebugMessageControlKHR,
@@ -772,18 +769,18 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	}
 
 	if (check_gl_ext(exts_str, "GL_OES_EGL_image_external")) {
-		renderer->exts.egl_image_external_oes = true;
+		renderer->exts.OES_egl_image_external = true;
 		load_gl_proc(&renderer->procs.glEGLImageTargetTexture2DOES,
 			"glEGLImageTargetTexture2DOES");
 	}
 
 	if (check_gl_ext(exts_str, "GL_OES_EGL_image")) {
-		renderer->exts.egl_image_oes = true;
+		renderer->exts.OES_egl_image = true;
 		load_gl_proc(&renderer->procs.glEGLImageTargetRenderbufferStorageOES,
 			"glEGLImageTargetRenderbufferStorageOES");
 	}
 
-	if (renderer->exts.debug_khr) {
+	if (renderer->exts.KHR_debug) {
 		glEnable(GL_DEBUG_OUTPUT_KHR);
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_KHR);
 		renderer->procs.glDebugMessageCallbackKHR(gles2_log, NULL);
@@ -831,7 +828,7 @@ struct wlr_renderer *wlr_gles2_renderer_create(struct wlr_egl *egl) {
 	renderer->shaders.tex_rgbx.pos_attrib = glGetAttribLocation(prog, "pos");
 	renderer->shaders.tex_rgbx.tex_attrib = glGetAttribLocation(prog, "texcoord");
 
-	if (renderer->exts.egl_image_external_oes) {
+	if (renderer->exts.OES_egl_image_external) {
 		renderer->shaders.tex_ext.program = prog =
 			link_program(renderer, tex_vertex_src, tex_fragment_src_external);
 		if (!renderer->shaders.tex_ext.program) {
@@ -859,7 +856,7 @@ error:
 
 	pop_gles2_debug(renderer);
 
-	if (renderer->exts.debug_khr) {
+	if (renderer->exts.KHR_debug) {
 		glDisable(GL_DEBUG_OUTPUT_KHR);
 		renderer->procs.glDebugMessageCallbackKHR(NULL, NULL);
 	}

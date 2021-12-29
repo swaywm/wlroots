@@ -1,6 +1,7 @@
 wlr_files += files(
 	'atomic.c',
 	'backend.c',
+	'bo_handle_table.c',
 	'cvt.c',
 	'drm.c',
 	'legacy.c',
@@ -8,3 +9,5 @@ wlr_files += files(
 	'renderer.c',
 	'util.c',
 )
+
+features += { 'drm-backend': true }

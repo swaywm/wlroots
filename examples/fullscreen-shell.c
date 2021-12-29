@@ -47,7 +47,6 @@ struct fullscreen_output {
 struct render_data {
 	struct wlr_output *output;
 	struct wlr_renderer *renderer;
-	struct tinywl_view *view;
 	struct timespec *when;
 };
 

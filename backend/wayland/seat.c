@@ -496,6 +496,18 @@ static void pointer_destroy(struct wlr_pointer *wlr_pointer) {
 		seat->active_pointer = NULL;
 	}
 
+	// pointer->wl_pointer belongs to the wlr_wl_seat
+
+	if (pointer->gesture_swipe != NULL) {
+		zwp_pointer_gesture_swipe_v1_destroy(pointer->gesture_swipe);
+	}
+	if (pointer->gesture_pinch != NULL) {
+		zwp_pointer_gesture_pinch_v1_destroy(pointer->gesture_pinch);
+	}
+	if (pointer->relative_pointer != NULL) {
+		zwp_relative_pointer_v1_destroy(pointer->relative_pointer);
+	}
+
 	wl_list_remove(&pointer->output_destroy.link);
 	free(pointer);
 }
@@ -637,9 +649,6 @@ static void pointer_handle_output_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_wl_pointer *pointer =
 		wl_container_of(listener, pointer, output_destroy);
-	if (pointer->relative_pointer) {
-		zwp_relative_pointer_v1_destroy(pointer->relative_pointer);
-	}
 	wlr_input_device_destroy(&pointer->input_device->wlr_input_device);
 }
 

@@ -31,7 +31,6 @@
 
 #include "backend/backend.h"
 #include "backend/x11.h"
-#include "render/allocator.h"
 #include "render/drm_format_set.h"
 #include "util/signal.h"
 
@@ -164,6 +163,8 @@ struct wlr_x11_backend *get_x11_backend_from_backend(
 static bool backend_start(struct wlr_backend *backend) {
 	struct wlr_x11_backend *x11 = get_x11_backend_from_backend(backend);
 	x11->started = true;
+
+	wlr_log(WLR_INFO, "Starting X11 backend");
 
 	wlr_signal_emit_safe(&x11->backend.events.new_input, &x11->keyboard_dev);
 

@@ -398,7 +398,7 @@ void handle_xdg_surface_precommit(struct wlr_surface *wlr_surface) {
 	}
 
 	if (wlr_surface->pending.committed & WLR_SURFACE_STATE_BUFFER &&
-			wlr_surface->pending.buffer_resource == NULL) {
+			wlr_surface->pending.buffer == NULL) {
 		// This is a NULL commit
 		if (surface->configured && surface->mapped) {
 			unmap_xdg_surface(surface);

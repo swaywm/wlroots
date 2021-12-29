@@ -1,9 +1,10 @@
-#ifndef RENDER_GBM_ALLOCATOR_H
-#define RENDER_GBM_ALLOCATOR_H
+#ifndef RENDER_ALLOCATOR_GBM_H
+#define RENDER_ALLOCATOR_GBM_H
 
 #include <gbm.h>
+#include <wlr/render/dmabuf.h>
 #include <wlr/types/wlr_buffer.h>
-#include "render/allocator.h"
+#include "render/allocator/allocator.h"
 
 struct wlr_gbm_buffer {
 	struct wlr_buffer base;
@@ -26,7 +27,7 @@ struct wlr_gbm_allocator {
 /**
  * Creates a new GBM allocator from a DRM FD.
  *
- * Does not take ownership over the FD.
+ * Takes ownership over the FD.
  */
 struct wlr_allocator *wlr_gbm_allocator_create(int drm_fd);
 
