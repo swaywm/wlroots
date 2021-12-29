@@ -4,6 +4,8 @@
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <sys/mman.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <drm_fourcc.h>
@@ -29,6 +31,21 @@
 #include "xdg-shell-client-protocol.h"
 #include "tablet-unstable-v2-client-protocol.h"
 #include "relative-pointer-unstable-v1-client-protocol.h"
+
+struct wlr_wl_linux_dmabuf_feedback_v1 {
+	struct wlr_wl_backend *backend;
+	dev_t main_device_id;
+	struct wlr_wl_linux_dmabuf_v1_table_entry *format_table;
+	size_t format_table_size;
+
+	dev_t tranche_target_device_id;
+};
+
+struct wlr_wl_linux_dmabuf_v1_table_entry {
+	uint32_t format;
+	uint32_t pad; /* unused */
+	uint64_t modifier;
+};
 
 struct wlr_wl_backend *get_wl_backend_from_backend(struct wlr_backend *backend) {
 	assert(wlr_backend_is_wl(backend));
@@ -75,6 +92,16 @@ static const struct xdg_wm_base_listener xdg_wm_base_listener = {
 	xdg_wm_base_handle_ping,
 };
 
+static void presentation_handle_clock_id(void *data,
+		struct wp_presentation *presentation, uint32_t clock) {
+	struct wlr_wl_backend *wl = data;
+	wl->presentation_clock = clock;
+}
+
+static const struct wp_presentation_listener presentation_listener = {
+	.clock_id = presentation_handle_clock_id,
+};
+
 static void linux_dmabuf_v1_handle_format(void *data,
 		struct zwp_linux_dmabuf_v1 *linux_dmabuf_v1, uint32_t format) {
 	// Note, this event is deprecated
@@ -96,6 +123,119 @@ static void linux_dmabuf_v1_handle_modifier(void *data,
 static const struct zwp_linux_dmabuf_v1_listener linux_dmabuf_v1_listener = {
 	.format = linux_dmabuf_v1_handle_format,
 	.modifier = linux_dmabuf_v1_handle_modifier,
+};
+
+static void linux_dmabuf_feedback_v1_handle_done(void *data,
+		struct zwp_linux_dmabuf_feedback_v1 *feedback) {
+	// This space is intentionally left blank
+}
+
+static void linux_dmabuf_feedback_v1_handle_format_table(void *data,
+		struct zwp_linux_dmabuf_feedback_v1 *feedback, int fd, uint32_t size) {
+	struct wlr_wl_linux_dmabuf_feedback_v1 *feedback_data = data;
+
+	feedback_data->format_table = NULL;
+
+	void *table_data = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (table_data == MAP_FAILED) {
+		wlr_log_errno(WLR_ERROR, "failed to mmap DMA-BUF format table");
+	} else {
+		feedback_data->format_table = table_data;
+		feedback_data->format_table_size = size;
+	}
+	close(fd);
+}
+
+static void linux_dmabuf_feedback_v1_handle_main_device(void *data,
+		struct zwp_linux_dmabuf_feedback_v1 *feedback,
+		struct wl_array *dev_id_arr) {
+	struct wlr_wl_linux_dmabuf_feedback_v1 *feedback_data = data;
+
+	dev_t dev_id;
+	assert(dev_id_arr->size == sizeof(dev_id));
+	memcpy(&dev_id, dev_id_arr->data, sizeof(dev_id));
+
+	feedback_data->main_device_id = dev_id;
+
+	drmDevice *device = NULL;
+	if (drmGetDeviceFromDevId(dev_id, 0, &device) != 0) {
+		wlr_log_errno(WLR_ERROR, "drmGetDeviceFromDevId failed");
+		return;
+	}
+
+	const char *name = NULL;
+	if (device->available_nodes & (1 << DRM_NODE_RENDER)) {
+		name = device->nodes[DRM_NODE_RENDER];
+	} else {
+		// Likely a split display/render setup. Pick the primary node and hope
+		// Mesa will open the right render node under-the-hood.
+		assert(device->available_nodes & (1 << DRM_NODE_PRIMARY));
+		name = device->nodes[DRM_NODE_PRIMARY];
+		wlr_log(WLR_DEBUG, "DRM device %s has no render node, "
+			"falling back to primary node", name);
+	}
+
+	feedback_data->backend->drm_render_name = strdup(name);
+
+	drmFreeDevice(&device);
+}
+
+static void linux_dmabuf_feedback_v1_handle_tranche_done(void *data,
+		struct zwp_linux_dmabuf_feedback_v1 *feedback) {
+	struct wlr_wl_linux_dmabuf_feedback_v1 *feedback_data = data;
+	feedback_data->tranche_target_device_id = 0;
+}
+
+static void linux_dmabuf_feedback_v1_handle_tranche_target_device(void *data,
+		struct zwp_linux_dmabuf_feedback_v1 *feedback,
+		struct wl_array *dev_id_arr) {
+	struct wlr_wl_linux_dmabuf_feedback_v1 *feedback_data = data;
+
+	dev_t dev_id;
+	assert(dev_id_arr->size == sizeof(dev_id));
+	memcpy(&dev_id, dev_id_arr->data, sizeof(dev_id));
+
+	feedback_data->tranche_target_device_id = dev_id;
+}
+
+static void linux_dmabuf_feedback_v1_handle_tranche_formats(void *data,
+		struct zwp_linux_dmabuf_feedback_v1 *feedback,
+		struct wl_array *indices_arr) {
+	struct wlr_wl_linux_dmabuf_feedback_v1 *feedback_data = data;
+
+	if (feedback_data->format_table == NULL) {
+		return;
+	}
+	if (feedback_data->tranche_target_device_id != feedback_data->main_device_id) {
+		return;
+	}
+
+	size_t table_cap = feedback_data->format_table_size /
+		sizeof(struct wlr_wl_linux_dmabuf_v1_table_entry);
+	uint16_t *index_ptr;
+	wl_array_for_each(index_ptr, indices_arr) {
+		assert(*index_ptr < table_cap);
+		const struct wlr_wl_linux_dmabuf_v1_table_entry *entry =
+			&feedback_data->format_table[*index_ptr];
+		wlr_drm_format_set_add(&feedback_data->backend->linux_dmabuf_v1_formats,
+			entry->format, entry->modifier);
+	}
+}
+
+static void linux_dmabuf_feedback_v1_handle_tranche_flags(void *data,
+		struct zwp_linux_dmabuf_feedback_v1 *feedback, uint32_t flags) {
+	// TODO: handle SCANOUT flag
+}
+
+static const struct zwp_linux_dmabuf_feedback_v1_listener
+		linux_dmabuf_feedback_v1_listener = {
+	.done = linux_dmabuf_feedback_v1_handle_done,
+	.format_table = linux_dmabuf_feedback_v1_handle_format_table,
+	.main_device = linux_dmabuf_feedback_v1_handle_main_device,
+	.tranche_done = linux_dmabuf_feedback_v1_handle_tranche_done,
+	.tranche_target_device = linux_dmabuf_feedback_v1_handle_tranche_target_device,
+	.tranche_formats = linux_dmabuf_feedback_v1_handle_tranche_formats,
+	.tranche_flags = linux_dmabuf_feedback_v1_handle_tranche_flags,
 };
 
 static bool device_has_name(const drmDevice *device, const char *name) {
@@ -162,8 +302,6 @@ static char *get_render_name(const char *name) {
 static void legacy_drm_handle_device(void *data, struct wl_drm *drm,
 		const char *name) {
 	struct wlr_wl_backend *wl = data;
-
-	// TODO: get FD from linux-dmabuf hints instead
 	wl->drm_render_name = get_render_name(name);
 }
 
@@ -227,13 +365,15 @@ static void registry_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(iface, wp_presentation_interface.name) == 0) {
 		wl->presentation = wl_registry_bind(registry, name,
 			&wp_presentation_interface, 1);
+		wp_presentation_add_listener(wl->presentation,
+			&presentation_listener, wl);
 	} else if (strcmp(iface, zwp_tablet_manager_v2_interface.name) == 0) {
 		wl->tablet_manager = wl_registry_bind(registry, name,
 			&zwp_tablet_manager_v2_interface, 1);
 	} else if (strcmp(iface, zwp_linux_dmabuf_v1_interface.name) == 0 &&
 			version >= 3) {
 		wl->zwp_linux_dmabuf_v1 = wl_registry_bind(registry, name,
-			&zwp_linux_dmabuf_v1_interface, 3);
+			&zwp_linux_dmabuf_v1_interface, version >= 4 ? 4 : version);
 		zwp_linux_dmabuf_v1_add_listener(wl->zwp_linux_dmabuf_v1,
 			&linux_dmabuf_v1_listener, wl);
 	} else if (strcmp(iface, zwp_relative_pointer_manager_v1_interface.name) == 0) {
@@ -302,9 +442,9 @@ static void backend_destroy(struct wlr_backend *backend) {
 		wlr_output_destroy(&output->wlr_output);
 	}
 
-	struct wlr_input_device *input_device, *tmp_input_device;
+	struct wlr_wl_input_device *input_device, *tmp_input_device;
 	wl_list_for_each_safe(input_device, tmp_input_device, &wl->devices, link) {
-		wlr_input_device_destroy(input_device);
+		wlr_input_device_destroy(&input_device->wlr_input_device);
 	}
 
 	struct wlr_wl_buffer *buffer, *tmp_buffer;
@@ -352,6 +492,11 @@ static void backend_destroy(struct wlr_backend *backend) {
 	free(wl);
 }
 
+static clockid_t backend_get_presentation_clock(struct wlr_backend *backend) {
+	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
+	return wl->presentation_clock;
+}
+
 static int backend_get_drm_fd(struct wlr_backend *backend) {
 	struct wlr_wl_backend *wl = get_wl_backend_from_backend(backend);
 	return wl->drm_fd;
@@ -366,6 +511,7 @@ static uint32_t get_buffer_caps(struct wlr_backend *backend) {
 static const struct wlr_backend_impl backend_impl = {
 	.start = backend_start,
 	.destroy = backend_destroy,
+	.get_presentation_clock = backend_get_presentation_clock,
 	.get_drm_fd = backend_get_drm_fd,
 	.get_buffer_caps = get_buffer_caps,
 };
@@ -397,6 +543,7 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 	wl_list_init(&wl->outputs);
 	wl_list_init(&wl->seats);
 	wl_list_init(&wl->buffers);
+	wl->presentation_clock = CLOCK_MONOTONIC;
 
 	wl->remote_display = wl_display_connect(remote);
 	if (!wl->remote_display) {
@@ -409,10 +556,9 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		wlr_log_errno(WLR_ERROR, "Could not obtain reference to remote registry");
 		goto error_display;
 	}
-
 	wl_registry_add_listener(wl->registry, &registry_listener, wl);
+
 	wl_display_roundtrip(wl->remote_display); // get globals
-	wl_display_roundtrip(wl->remote_display); // get linux-dmabuf formats
 
 	if (!wl->compositor) {
 		wlr_log(WLR_ERROR,
@@ -423,6 +569,35 @@ struct wlr_backend *wlr_wl_backend_create(struct wl_display *display,
 		wlr_log(WLR_ERROR,
 			"Remote Wayland compositor does not support xdg-shell");
 		goto error_registry;
+	}
+
+	struct zwp_linux_dmabuf_feedback_v1 *linux_dmabuf_feedback_v1 = NULL;
+	struct wlr_wl_linux_dmabuf_feedback_v1 feedback_data = { .backend = wl };
+	if (wl->zwp_linux_dmabuf_v1 != NULL &&
+			zwp_linux_dmabuf_v1_get_version(wl->zwp_linux_dmabuf_v1) >=
+			ZWP_LINUX_DMABUF_V1_GET_DEFAULT_FEEDBACK_SINCE_VERSION) {
+		linux_dmabuf_feedback_v1 =
+			zwp_linux_dmabuf_v1_get_default_feedback(wl->zwp_linux_dmabuf_v1);
+		if (linux_dmabuf_feedback_v1 == NULL) {
+			wlr_log(WLR_ERROR, "Allocation failed");
+			goto error_registry;
+		}
+		zwp_linux_dmabuf_feedback_v1_add_listener(linux_dmabuf_feedback_v1,
+			&linux_dmabuf_feedback_v1_listener, &feedback_data);
+
+		if (wl->legacy_drm != NULL) {
+			wl_drm_destroy(wl->legacy_drm);
+			wl->legacy_drm = NULL;
+		}
+	}
+
+	wl_display_roundtrip(wl->remote_display); // get linux-dmabuf formats
+
+	if (feedback_data.format_table != NULL) {
+		munmap(feedback_data.format_table, feedback_data.format_table_size);
+	}
+	if (linux_dmabuf_feedback_v1 != NULL) {
+		zwp_linux_dmabuf_feedback_v1_destroy(linux_dmabuf_feedback_v1);
 	}
 
 	struct wl_event_loop *loop = wl_display_get_event_loop(wl->local_display);

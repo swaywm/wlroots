@@ -34,16 +34,6 @@ struct wlr_texture *wlr_texture_from_pixels(struct wlr_renderer *renderer,
 	const void *data);
 
 /**
- * Create a new texture from a wl_drm resource. The returned texture is
- * immutable.
- *
- * Should not be called in a rendering block like renderer_begin()/end() or
- * between attaching a renderer to an output and committing it.
- */
-struct wlr_texture *wlr_texture_from_wl_drm(struct wlr_renderer *renderer,
-	struct wl_resource *data);
-
-/**
  * Create a new texture from a DMA-BUF. The returned texture is immutable.
  *
  * Should not be called in a rendering block like renderer_begin()/end() or

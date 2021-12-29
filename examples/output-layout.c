@@ -11,6 +11,7 @@
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_matrix.h>
@@ -27,6 +28,7 @@ struct sample_state {
 	struct wl_listener new_output;
 	struct wl_listener new_input;
 	struct wlr_renderer *renderer;
+	struct wlr_allocator *allocator;
 	struct wlr_texture *cat_texture;
 	struct wlr_output_layout *layout;
 	float x_offs, y_offs;
@@ -158,6 +160,9 @@ static void output_remove_notify(struct wl_listener *listener, void *data) {
 static void new_output_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct sample_state *sample = wl_container_of(listener, sample, new_output);
+
+	wlr_output_init_render(output, sample->allocator, sample->renderer);
+
 	struct sample_output *sample_output = calloc(1, sizeof(struct sample_output));
 	wlr_output_layout_add_auto(sample->layout, output);
 	sample_output->output = output;
@@ -273,10 +278,12 @@ int main(int argc, char *argv[]) {
 	wl_signal_add(&wlr->events.new_input, &state.new_input);
 	state.new_input.notify = new_input_notify;
 
-	state.renderer = wlr_backend_get_renderer(wlr);
+	state.renderer = wlr_renderer_autocreate(wlr);
 	state.cat_texture = wlr_texture_from_pixels(state.renderer,
 		DRM_FORMAT_ABGR8888, cat_tex.width * 4, cat_tex.width, cat_tex.height,
 		cat_tex.pixel_data);
+
+	state.allocator = wlr_allocator_autocreate(wlr, state.renderer);
 
 	if (!wlr_backend_start(wlr)) {
 		wlr_log(WLR_ERROR, "Failed to start backend");

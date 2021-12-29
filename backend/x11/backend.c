@@ -354,6 +354,7 @@ static bool query_formats(struct wlr_x11_backend *x11) {
 			}
 
 			if (x11->have_dri3) {
+				// X11 always supports implicit modifiers
 				wlr_drm_format_set_add(&x11->dri3_formats, format->drm,
 					DRM_FORMAT_MOD_INVALID);
 				if (!query_dri3_modifiers(x11, format)) {
@@ -572,9 +573,9 @@ struct wlr_backend *wlr_x11_backend_create(struct wl_display *display,
 		goto error_event;
 	}
 
-	x11->depth = get_depth(x11->screen, 32);
+	x11->depth = get_depth(x11->screen, 24);
 	if (!x11->depth) {
-		wlr_log(WLR_ERROR, "Failed to get 32-bit depth for X11 screen");
+		wlr_log(WLR_ERROR, "Failed to get 24-bit depth for X11 screen");
 		goto error_event;
 	}
 

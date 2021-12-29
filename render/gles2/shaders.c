@@ -28,18 +28,13 @@ const GLchar quad_fragment_src[] =
 // Textured quads
 const GLchar tex_vertex_src[] =
 "uniform mat3 proj;\n"
-"uniform bool invert_y;\n"
 "attribute vec2 pos;\n"
 "attribute vec2 texcoord;\n"
 "varying vec2 v_texcoord;\n"
 "\n"
 "void main() {\n"
 "	gl_Position = vec4(proj * vec3(pos, 1.0), 1.0);\n"
-"	if (invert_y) {\n"
-"		v_texcoord = vec2(texcoord.x, 1.0 - texcoord.y);\n"
-"	} else {\n"
-"		v_texcoord = texcoord;\n"
-"	}\n"
+"	v_texcoord = texcoord;\n"
 "}\n";
 
 const GLchar tex_fragment_src_rgba[] =

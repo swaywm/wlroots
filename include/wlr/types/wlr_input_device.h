@@ -53,8 +53,6 @@ struct wlr_input_device {
 	} events;
 
 	void *data;
-
-	struct wl_list link;
 };
 
 #endif

@@ -138,15 +138,19 @@ static void drag_destroy(struct wlr_drag *drag) {
 		}
 	}
 
-	// We issue destroy after ending the grab to allow focus changes.
-	wlr_signal_emit_safe(&drag->events.destroy, drag);
-
 	if (drag->started) {
 		drag_set_focus(drag, NULL, 0, 0);
 
 		assert(drag->seat->drag == drag);
 		drag->seat->drag = NULL;
 	}
+
+	// We issue destroy after ending the grab to allow focus changes.
+	// Furthermore, we wait until after clearing the drag focus in order
+	// to ensure that the wl_data_device.leave is sent before emitting the
+	// signal. This allows e.g. wl_pointer.enter to be sent in the destroy
+	// signal handler.
+	wlr_signal_emit_safe(&drag->events.destroy, drag);
 
 	if (drag->source) {
 		wl_list_remove(&drag->source_destroy.link);

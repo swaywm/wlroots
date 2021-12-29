@@ -1,7 +1,7 @@
 project(
 	'wlroots',
 	'c',
-	version: '0.15.0',
+	version: '0.16.0',
 	license: 'MIT',
 	meson_version: '>=0.58.1',
 	default_options: [
@@ -15,7 +15,7 @@ project(
 # necessary for bugfix releases. Increasing soversion is required because
 # wlroots never guarantees ABI stability -- only API stability is guaranteed
 # between minor releases.
-soversion = 10
+soversion = 11
 
 little_endian = host_machine.endian() == 'little'
 big_endian = host_machine.endian() == 'big'
@@ -99,16 +99,32 @@ internal_features = {
 
 wayland_project_options = ['tests=false', 'documentation=false']
 wayland_server = dependency('wayland-server',
-	version: '>=1.19',
-	fallback: ['wayland', 'wayland_server_dep'],
-	default_options: wayland_project_options,
-)
-wayland_client = dependency('wayland-client',
-	fallback: ['wayland', 'wayland_client_dep'],
+	version: '>=1.20',
+	fallback: 'wayland',
 	default_options: wayland_project_options,
 )
 
-drm = dependency('libdrm', version: '>=2.4.105')
+drm = dependency('libdrm',
+	version: '>=2.4.109',
+	fallback: 'libdrm',
+	default_options: [
+		'libkms=false',
+		'intel=false',
+		'radeon=false',
+		'amdgpu=false',
+		'nouveau=false',
+		'vmwgfx=false',
+		'omap=false',
+		'exynos=false',
+		'freedreno=false',
+		'tegra=false',
+		'vc4=false',
+		'etnaviv=false',
+		'cairo-tests=false',
+		'man-pages=false',
+		'valgrind=false',
+	],
+)
 gbm = dependency('gbm', version: '>=17.1.0')
 xkbcommon = dependency('xkbcommon')
 udev = dependency('libudev')
@@ -119,7 +135,6 @@ rt = cc.find_library('rt')
 wlr_files = []
 wlr_deps = [
 	wayland_server,
-	wayland_client,
 	drm,
 	gbm,
 	xkbcommon,
@@ -180,6 +195,7 @@ summary(features + internal_features, bool_yn: true)
 
 if get_option('examples')
 	subdir('examples')
+	subdir('tinywl')
 endif
 
 pkgconfig = import('pkgconfig')

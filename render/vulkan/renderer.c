@@ -433,15 +433,6 @@ static struct wlr_vk_render_buffer *create_render_buffer(
 	wlr_log(WLR_DEBUG, "vulkan create_render_buffer: %.4s, %dx%d",
 		(const char*) &dmabuf.format, dmabuf.width, dmabuf.height);
 
-	// NOTE: we could at least support WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT
-	// if it is needed by anyone. Can be implemented using negative viewport
-	// height or flipping matrix.
-	if (dmabuf.flags != 0) {
-		wlr_log(WLR_ERROR, "dmabuf flags %x not supported/implemented on vulkan",
-			dmabuf.flags);
-		goto error_buffer;
-	}
-
 	buffer->image = vulkan_import_dmabuf(renderer, &dmabuf,
 		buffer->memories, &buffer->mem_count, true);
 	if (!buffer->image) {
@@ -788,11 +779,6 @@ static bool vulkan_render_subtexture_with_matrix(struct wlr_renderer *wlr_render
 	vert_pcr_data.uv_off[1] = box->y / wlr_texture->height;
 	vert_pcr_data.uv_size[0] = box->width / wlr_texture->width;
 	vert_pcr_data.uv_size[1] = box->height / wlr_texture->height;
-
-	if (texture->invert_y) {
-		vert_pcr_data.uv_off[1] += vert_pcr_data.uv_size[1];
-		vert_pcr_data.uv_size[1] = -vert_pcr_data.uv_size[1];
-	}
 
 	vkCmdPushConstants(cb, renderer->pipe_layout,
 		VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vert_pcr_data), &vert_pcr_data);

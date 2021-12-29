@@ -11,7 +11,16 @@
 #include "backend/headless.h"
 #include "util/signal.h"
 
-static const struct wlr_input_device_impl input_device_impl = { 0 };
+static void input_device_destroy(struct wlr_input_device *wlr_dev) {
+	struct wlr_headless_input_device *dev =
+		wl_container_of(wlr_dev, dev, wlr_input_device);
+	wl_list_remove(&dev->link);
+	free(dev);
+}
+
+static const struct wlr_input_device_impl input_device_impl = {
+	.destroy = input_device_destroy,
+};
 
 bool wlr_input_device_is_headless(struct wlr_input_device *wlr_dev) {
 	return wlr_dev->impl == &input_device_impl;
@@ -86,7 +95,7 @@ struct wlr_input_device *wlr_headless_add_input_device(
 		wlr_switch_init(wlr_device->switch_device, NULL);
 	}
 
-	wl_list_insert(&backend->input_devices, &wlr_device->link);
+	wl_list_insert(&backend->input_devices, &device->link);
 
 	if (backend->started) {
 		wlr_signal_emit_safe(&backend->backend.events.new_input, wlr_device);

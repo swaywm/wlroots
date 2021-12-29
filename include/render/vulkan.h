@@ -246,7 +246,6 @@ struct wlr_vk_texture {
 	bool dmabuf_imported;
 	bool owned; // if dmabuf_imported: whether we have ownership of the image
 	bool transitioned; // if dma_imported: whether we transitioned it away from preinit
-	bool invert_y; // if dma_imported: whether we must flip y
 	struct wl_list foreign_link;
 	struct wl_list destroy_link;
 	struct wl_list link; // wlr_gles2_renderer.textures

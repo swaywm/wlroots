@@ -23,10 +23,10 @@ struct wlr_input_device *get_appropriate_device(
 	if (!wlr_devices) {
 		return NULL;
 	}
-	struct wlr_input_device *dev;
+	struct wlr_libinput_input_device *dev;
 	wl_list_for_each(dev, wlr_devices, link) {
-		if (dev->type == desired_type) {
-			return dev;
+		if (dev->wlr_input_device.type == desired_type) {
+			return &dev->wlr_input_device;
 		}
 	}
 	return NULL;
@@ -36,7 +36,7 @@ static void input_device_destroy(struct wlr_input_device *wlr_dev) {
 	struct wlr_libinput_input_device *dev =
 		get_libinput_device_from_device(wlr_dev);
 	libinput_device_unref(dev->handle);
-	wl_list_remove(&dev->wlr_input_device.link);
+	wl_list_remove(&dev->link);
 	free(dev);
 }
 
@@ -63,7 +63,7 @@ static struct wlr_input_device *allocate_device(
 	if (output_name != NULL) {
 		wlr_dev->output_name = strdup(output_name);
 	}
-	wl_list_insert(wlr_devices, &wlr_dev->link);
+	wl_list_insert(wlr_devices, &dev->link);
 	dev->handle = libinput_dev;
 	libinput_device_ref(libinput_dev);
 	wlr_input_device_init(wlr_dev, type, &input_device_impl,
@@ -198,7 +198,7 @@ static void handle_device_added(struct wlr_libinput_backend *backend,
 
 fail:
 	wlr_log(WLR_ERROR, "Could not allocate new device");
-	struct wlr_input_device *dev, *tmp_dev;
+	struct wlr_libinput_input_device *dev, *tmp_dev;
 	wl_list_for_each_safe(dev, tmp_dev, wlr_devices, link) {
 		free(dev);
 	}
@@ -215,9 +215,9 @@ static void handle_device_removed(struct wlr_libinput_backend *backend,
 	if (!wlr_devices) {
 		return;
 	}
-	struct wlr_input_device *dev, *tmp_dev;
+	struct wlr_libinput_input_device *dev, *tmp_dev;
 	wl_list_for_each_safe(dev, tmp_dev, wlr_devices, link) {
-		wlr_input_device_destroy(dev);
+		wlr_input_device_destroy(&dev->wlr_input_device);
 	}
 	size_t i = 0;
 	struct wl_list **ptr;

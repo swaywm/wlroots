@@ -151,9 +151,13 @@ static bool legacy_crtc_commit(struct wlr_drm_connector *conn,
 
 		int ret = drmModeSetCursor(drm->fd, crtc->id, cursor_handle,
 			cursor_width, cursor_height);
-		close_bo_handle(drm->fd, cursor_handle);
+		int set_cursor_errno = errno;
+		if (drmCloseBufferHandle(drm->fd, cursor_handle) != 0) {
+			wlr_log_errno(WLR_ERROR, "drmCloseBufferHandle failed");
+		}
 		if (ret != 0) {
-			wlr_drm_conn_log_errno(conn, WLR_DEBUG, "drmModeSetCursor failed");
+			wlr_drm_conn_log(conn, WLR_DEBUG, "drmModeSetCursor failed: %s",
+				strerror(set_cursor_errno));
 			return false;
 		}
 

@@ -166,18 +166,8 @@ static struct wl_buffer *import_dmabuf(struct wlr_wl_backend *wl,
 			dmabuf->offset[i], dmabuf->stride[i], modifier_hi, modifier_lo);
 	}
 
-	uint32_t flags = 0;
-	if (dmabuf->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) {
-		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_Y_INVERT;
-	}
-	if (dmabuf->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_INTERLACED) {
-		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_INTERLACED;
-	}
-	if (dmabuf->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_BOTTOM_FIRST) {
-		flags |= ZWP_LINUX_BUFFER_PARAMS_V1_FLAGS_BOTTOM_FIRST;
-	}
 	struct wl_buffer *wl_buffer = zwp_linux_buffer_params_v1_create_immed(
-		params, dmabuf->width, dmabuf->height, dmabuf->format, flags);
+		params, dmabuf->width, dmabuf->height, dmabuf->format, 0);
 	// TODO: handle create() errors
 	return wl_buffer;
 }
@@ -530,12 +520,14 @@ struct wlr_output *wlr_wl_output_create(struct wlr_backend *wlr_backend) {
 	wlr_output_update_custom_mode(wlr_output, 1280, 720, 0);
 	strncpy(wlr_output->make, "wayland", sizeof(wlr_output->make));
 	strncpy(wlr_output->model, "wayland", sizeof(wlr_output->model));
-	snprintf(wlr_output->name, sizeof(wlr_output->name), "WL-%zd",
-		++backend->last_output_num);
+
+	char name[64];
+	snprintf(name, sizeof(name), "WL-%zu", ++backend->last_output_num);
+	wlr_output_set_name(wlr_output, name);
 
 	char description[128];
 	snprintf(description, sizeof(description),
-		"Wayland output %zd", backend->last_output_num);
+		"Wayland output %zu", backend->last_output_num);
 	wlr_output_set_description(wlr_output, description);
 
 	output->backend = backend;

@@ -8,14 +8,11 @@
 
 struct wlr_headless_backend {
 	struct wlr_backend backend;
-	int drm_fd;
 	struct wl_display *display;
 	struct wl_list outputs;
 	size_t last_output_num;
 	struct wl_list input_devices;
 	struct wl_listener display_destroy;
-	struct wlr_renderer *parent_renderer;
-	struct wl_listener parent_renderer_destroy;
 	bool started;
 };
 
@@ -31,7 +28,7 @@ struct wlr_headless_output {
 
 struct wlr_headless_input_device {
 	struct wlr_input_device wlr_input_device;
-
+	struct wl_list link;
 	struct wlr_headless_backend *backend;
 };
 

@@ -17,6 +17,7 @@ union wlr_drm_connector_props {
 		uint32_t link_status; // not guaranteed to exist
 		uint32_t path;
 		uint32_t vrr_capable; // not guaranteed to exist
+		uint32_t broadcast_rgb; // not guaranteed to exist
 		uint32_t subconnector; // not guaranteed to exist
 		uint32_t non_desktop;
 		uint32_t panel_orientation; // not guaranteed to exist

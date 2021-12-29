@@ -446,7 +446,7 @@ void seat_client_create_pointer(struct wlr_seat_client *seat_client,
 		seat_client->seat->pointer_state.focused_surface;
 
 	// Send an enter event if there is a focused client/surface stored
-	if (focused_client != NULL && focused_surface != NULL) {
+	if (focused_client == seat_client && focused_surface != NULL) {
 		double sx = seat_client->seat->pointer_state.sx;
 		double sy = seat_client->seat->pointer_state.sy;
 

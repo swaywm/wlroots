@@ -8,6 +8,7 @@
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_output.h>
@@ -22,6 +23,7 @@
 struct sample_state {
 	struct wl_display *display;
 	struct wlr_renderer *renderer;
+	struct wlr_allocator *allocator;
 	bool proximity, tap, button;
 	double distance;
 	double pressure;
@@ -237,6 +239,9 @@ static void output_remove_notify(struct wl_listener *listener, void *data) {
 static void new_output_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct sample_state *sample = wl_container_of(listener, sample, new_output);
+
+	wlr_output_init_render(output, sample->allocator, sample->renderer);
+
 	struct sample_output *sample_output = calloc(1, sizeof(struct sample_output));
 	sample_output->output = output;
 	sample_output->sample = sample;
@@ -361,11 +366,14 @@ int main(int argc, char *argv[]) {
 	state.new_input.notify = new_input_notify;
 	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
 
-	state.renderer = wlr_backend_get_renderer(wlr);
+	state.renderer = wlr_renderer_autocreate(wlr);
 	if (!state.renderer) {
 		wlr_log(WLR_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);
 	}
+
+	state.allocator = wlr_allocator_autocreate(wlr, state.renderer);
+
 	if (!wlr_backend_start(wlr)) {
 		wlr_log(WLR_ERROR, "Failed to start backend");
 		wlr_backend_destroy(wlr);

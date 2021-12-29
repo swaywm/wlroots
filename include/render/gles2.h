@@ -24,7 +24,6 @@ struct wlr_gles2_pixel_format {
 struct wlr_gles2_tex_shader {
 	GLuint program;
 	GLint proj;
-	GLint invert_y;
 	GLint tex;
 	GLint alpha;
 	GLint pos_attrib;
@@ -101,7 +100,6 @@ struct wlr_gles2_texture {
 
 	EGLImageKHR image;
 
-	bool inverted_y;
 	bool has_alpha;
 
 	// Only affects target == GL_TEXTURE_2D
