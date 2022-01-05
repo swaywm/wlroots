@@ -441,6 +441,12 @@ static bool gles2_read_pixels(struct wlr_renderer *wlr_renderer,
 		return false;
 	}
 
+	if (fmt->gl_format == GL_BGRA_EXT && !renderer->exts.EXT_read_format_bgra) {
+		wlr_log(WLR_ERROR,
+			"Cannot read pixels: missing GL_EXT_read_format_bgra extension");
+		return false;
+	}
+
 	const struct wlr_pixel_format_info *drm_fmt =
 		drm_get_pixel_format_info(fmt->drm_format);
 	assert(drm_fmt);

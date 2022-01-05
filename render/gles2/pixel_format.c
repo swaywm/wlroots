@@ -98,6 +98,10 @@ static const struct wlr_gles2_pixel_format formats[] = {
 
 // TODO: more pixel formats
 
+/*
+ * Return true if supported for texturing, even if other operations like
+ * reading aren't supported.
+ */
 bool is_gles2_pixel_format_supported(const struct wlr_gles2_renderer *renderer,
 		const struct wlr_gles2_pixel_format *format) {
 	if (format->gl_type == GL_UNSIGNED_INT_2_10_10_10_REV_EXT
@@ -108,10 +112,12 @@ bool is_gles2_pixel_format_supported(const struct wlr_gles2_renderer *renderer,
 			&& !renderer->exts.OES_texture_half_float_linear) {
 		return false;
 	}
-	if (format->gl_format == GL_BGRA_EXT
-			&& !renderer->exts.EXT_read_format_bgra) {
-		return false;
-	}
+	/*
+	 * Note that we don't need to check for GL_EXT_texture_format_BGRA8888
+	 * here, since we've already checked if we have it at renderer creation
+	 * time and bailed out if not. We do the check there because Wayland
+	 * requires all compositors to support SHM buffers in that format.
+	 */
 	return true;
 }
 
