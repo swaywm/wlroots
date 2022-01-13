@@ -520,31 +520,12 @@ static void subsurface_parent_commit(struct wlr_subsurface *subsurface) {
 	}
 }
 
-static void subsurface_commit(struct wlr_subsurface *subsurface) {
-	struct wlr_surface *surface = subsurface->surface;
-
-	if (subsurface_is_synchronized(subsurface)) {
-		if (subsurface->has_cache) {
-			// We already lock a previous commit. The prevents any future
-			// commit to be applied before we release the previous commit.
-			return;
-		}
-		subsurface->has_cache = true;
-		subsurface->cached_seq = wlr_surface_lock_pending(surface);
-	}
-}
-
 static void surface_handle_commit(struct wl_client *client,
 		struct wl_resource *resource) {
 	struct wlr_surface *surface = wlr_surface_from_resource(resource);
-
-	struct wlr_subsurface *subsurface = wlr_surface_is_subsurface(surface) ?
-		wlr_subsurface_from_wlr_surface(surface) : NULL;
-	if (subsurface != NULL) {
-		subsurface_commit(subsurface);
-	}
-
 	surface_finalize_pending(surface);
+
+	wlr_signal_emit_safe(&surface->events.client_commit, NULL);
 
 	if (surface->role && surface->role->precommit) {
 		surface->role->precommit(surface);
@@ -668,6 +649,7 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 	wlr_signal_emit_safe(&subsurface->events.destroy, subsurface);
 
 	wl_list_remove(&subsurface->surface_destroy.link);
+	wl_list_remove(&subsurface->surface_client_commit.link);
 
 	if (subsurface->parent) {
 		wl_list_remove(&subsurface->current.link);
@@ -747,6 +729,7 @@ struct wlr_surface *surface_create(struct wl_client *client,
 	surface_state_init(&surface->pending);
 	surface->pending.seq = 1;
 
+	wl_signal_init(&surface->events.client_commit);
 	wl_signal_init(&surface->events.commit);
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.new_subsurface);
@@ -1108,6 +1091,23 @@ static void subsurface_handle_surface_destroy(struct wl_listener *listener,
 	subsurface_destroy(subsurface);
 }
 
+static void subsurface_handle_surface_client_commit(
+		struct wl_listener *listener, void *data) {
+	struct wlr_subsurface *subsurface =
+		wl_container_of(listener, subsurface, surface_client_commit);
+	struct wlr_surface *surface = subsurface->surface;
+
+	if (subsurface_is_synchronized(subsurface)) {
+		if (subsurface->has_cache) {
+			// We already lock a previous commit. The prevents any future
+			// commit to be applied before we release the previous commit.
+			return;
+		}
+		subsurface->has_cache = true;
+		subsurface->cached_seq = wlr_surface_lock_pending(surface);
+	}
+}
+
 struct wlr_subsurface *subsurface_create(struct wlr_surface *surface,
 		struct wlr_surface *parent, uint32_t version, uint32_t id) {
 	struct wl_client *client = wl_resource_get_client(surface->resource);
@@ -1136,6 +1136,10 @@ struct wlr_subsurface *subsurface_create(struct wlr_surface *surface,
 
 	wl_signal_add(&surface->events.destroy, &subsurface->surface_destroy);
 	subsurface->surface_destroy.notify = subsurface_handle_surface_destroy;
+	wl_signal_add(&surface->events.client_commit,
+		&subsurface->surface_client_commit);
+	subsurface->surface_client_commit.notify =
+		subsurface_handle_surface_client_commit;
 
 	// link parent
 	subsurface->parent = parent;

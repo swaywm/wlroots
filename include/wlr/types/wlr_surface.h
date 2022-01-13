@@ -140,6 +140,7 @@ struct wlr_surface {
 	void *role_data; // role-specific data
 
 	struct {
+		struct wl_signal client_commit;
 		struct wl_signal commit;
 		struct wl_signal new_subsurface;
 		struct wl_signal destroy;
@@ -188,6 +189,7 @@ struct wlr_subsurface {
 	bool added;
 
 	struct wl_listener surface_destroy;
+	struct wl_listener surface_client_commit;
 	struct wl_listener parent_destroy;
 
 	struct {
