@@ -21,7 +21,7 @@
 
 #include <pixman.h>
 #include <wayland-server-core.h>
-#include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_compositor.h>
 
 struct wlr_output;
 struct wlr_output_layout;

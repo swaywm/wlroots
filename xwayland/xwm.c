@@ -5,9 +5,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <wlr/config.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_primary_selection.h>
-#include <wlr/types/wlr_surface.h>
 #include <wlr/util/edges.h>
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>

@@ -6,8 +6,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <wayland-util.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_input_method_v2.h>
-#include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "input-method-unstable-v2-protocol.h"

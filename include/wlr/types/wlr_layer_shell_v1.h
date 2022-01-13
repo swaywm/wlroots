@@ -12,7 +12,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
-#include <wlr/types/wlr_surface.h>
+#include <wlr/types/wlr_compositor.h>
 #include "wlr-layer-shell-unstable-v1-protocol.h"
 
 /**
