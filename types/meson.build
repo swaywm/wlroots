@@ -58,6 +58,7 @@ wlr_files += files(
 	'wlr_relative_pointer_v1.c',
 	'wlr_screencopy_v1.c',
 	'wlr_server_decoration.c',
+	'wlr_subcompositor.c',
 	'wlr_surface.c',
 	'wlr_switch.c',
 	'wlr_tablet_pad.c',

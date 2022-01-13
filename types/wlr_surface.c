@@ -6,6 +6,7 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_region.h>
+#include <wlr/types/wlr_subcompositor.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>

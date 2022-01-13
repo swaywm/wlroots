@@ -20,6 +20,7 @@
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_seat.h>
+#include <wlr/types/wlr_subcompositor.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
@@ -756,12 +757,14 @@ int main(int argc, char *argv[]) {
 		server.renderer);
 
 	/* This creates some hands-off wlroots interfaces. The compositor is
-	 * necessary for clients to allocate surfaces and the data device manager
+	 * necessary for clients to allocate surfaces, the subcompositor allows to
+	 * assign the role of subsurfaces to surfaces and the data device manager
 	 * handles the clipboard. Each of these wlroots interfaces has room for you
 	 * to dig your fingers in and play with their behavior if you want. Note that
 	 * the clients cannot set the selection directly without compositor approval,
 	 * see the handling of the request_set_selection event below.*/
 	wlr_compositor_create(server.wl_display, server.renderer);
+	wlr_subcompositor_create(server.wl_display);
 	wlr_data_device_manager_create(server.wl_display);
 
 	/* Creates an output layout, which a wlroots utility for working with an
