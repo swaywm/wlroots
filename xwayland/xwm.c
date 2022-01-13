@@ -852,15 +852,15 @@ static void xwayland_surface_role_commit(struct wlr_surface *wlr_surface) {
 	}
 }
 
-static void xwayland_surface_role_precommit(struct wlr_surface *wlr_surface) {
+static void xwayland_surface_role_precommit(struct wlr_surface *wlr_surface,
+		const struct wlr_surface_state *state) {
 	assert(wlr_surface->role == &xwayland_surface_role);
 	struct wlr_xwayland_surface *surface = wlr_surface->role_data;
 	if (surface == NULL) {
 		return;
 	}
 
-	if (wlr_surface->pending.committed & WLR_SURFACE_STATE_BUFFER &&
-			wlr_surface->pending.buffer == NULL) {
+	if (state->committed & WLR_SURFACE_STATE_BUFFER && state->buffer == NULL) {
 		// This is a NULL commit
 		if (surface->mapped) {
 			wlr_signal_emit_safe(&surface->events.unmap, surface);

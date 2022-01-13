@@ -399,6 +399,10 @@ static void surface_commit_state(struct wlr_surface *surface,
 		struct wlr_surface_state *next) {
 	assert(next->cached_state_locks == 0);
 
+	if (surface->role && surface->role->precommit) {
+		surface->role->precommit(surface, next);
+	}
+
 	bool invalid_buffer = next->committed & WLR_SURFACE_STATE_BUFFER;
 
 	surface->sx += next->dx;
@@ -508,10 +512,6 @@ static void surface_handle_commit(struct wl_client *client,
 	surface_finalize_pending(surface);
 
 	wlr_signal_emit_safe(&surface->events.client_commit, NULL);
-
-	if (surface->role && surface->role->precommit) {
-		surface->role->precommit(surface);
-	}
 
 	if (surface->pending.cached_state_locks > 0 || !wl_list_empty(&surface->cached)) {
 		surface_cache_pending(surface);

@@ -73,7 +73,8 @@ struct wlr_surface_state {
 struct wlr_surface_role {
 	const char *name;
 	void (*commit)(struct wlr_surface *surface);
-	void (*precommit)(struct wlr_surface *surface);
+	void (*precommit)(struct wlr_surface *surface,
+		const struct wlr_surface_state *state);
 };
 
 struct wlr_surface_output {

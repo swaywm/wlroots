@@ -280,15 +280,15 @@ static void subsurface_role_commit(struct wlr_surface *surface) {
 	subsurface_consider_map(subsurface, true);
 }
 
-static void subsurface_role_precommit(struct wlr_surface *surface) {
+static void subsurface_role_precommit(struct wlr_surface *surface,
+		const struct wlr_surface_state *state) {
 	struct wlr_subsurface *subsurface =
 		wlr_subsurface_from_wlr_surface(surface);
 	if (subsurface == NULL) {
 		return;
 	}
 
-	if (surface->pending.committed & WLR_SURFACE_STATE_BUFFER &&
-			surface->pending.buffer == NULL) {
+	if (state->committed & WLR_SURFACE_STATE_BUFFER && state->buffer == NULL) {
 		// This is a NULL commit
 		subsurface_unmap(subsurface);
 	}
