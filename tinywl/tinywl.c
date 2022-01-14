@@ -612,7 +612,8 @@ static void begin_interactive(struct tinywl_view *view,
 	struct tinywl_server *server = view->server;
 	struct wlr_surface *focused_surface =
 		server->seat->pointer_state.focused_surface;
-	if (view->xdg_surface->surface != focused_surface) {
+	if (view->xdg_surface->surface !=
+			wlr_surface_get_root_surface(focused_surface)) {
 		/* Deny move/resize requests from unfocused clients. */
 		return;
 	}
