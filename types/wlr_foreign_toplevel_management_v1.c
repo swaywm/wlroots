@@ -257,6 +257,23 @@ static void toplevel_send_output(struct wlr_foreign_toplevel_handle_v1 *toplevel
 	toplevel_update_idle_source(toplevel);
 }
 
+static void toplevel_handle_output_bind(struct wl_listener *listener,
+		void *data) {
+	struct wlr_foreign_toplevel_handle_v1_output *toplevel_output =
+		wl_container_of(listener, toplevel_output, output_bind);
+	struct wlr_output_event_bind *event = data;
+	struct wl_client *client = wl_resource_get_client(event->resource);
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &toplevel_output->toplevel->resources) {
+		if (wl_resource_get_client(resource) == client) {
+		    send_output_to_resource(resource, toplevel_output->output, true);
+		}
+	}
+
+	toplevel_update_idle_source(toplevel_output->toplevel);
+}
+
 static void toplevel_handle_output_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_foreign_toplevel_handle_v1_output *toplevel_output =
@@ -286,6 +303,9 @@ void wlr_foreign_toplevel_handle_v1_output_enter(
 	toplevel_output->toplevel = toplevel;
 	wl_list_insert(&toplevel->outputs, &toplevel_output->link);
 
+	toplevel_output->output_bind.notify = toplevel_handle_output_bind;
+	wl_signal_add(&output->events.bind, &toplevel_output->output_bind);
+
 	toplevel_output->output_destroy.notify = toplevel_handle_output_destroy;
 	wl_signal_add(&output->events.destroy, &toplevel_output->output_destroy);
 
@@ -295,6 +315,7 @@ void wlr_foreign_toplevel_handle_v1_output_enter(
 static void toplevel_output_destroy(
 		struct wlr_foreign_toplevel_handle_v1_output *toplevel_output) {
 	wl_list_remove(&toplevel_output->link);
+	wl_list_remove(&toplevel_output->output_bind.link);
 	wl_list_remove(&toplevel_output->output_destroy.link);
 	free(toplevel_output);
 }
