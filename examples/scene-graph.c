@@ -64,11 +64,7 @@ static void output_handle_frame(struct wl_listener *listener, void *data) {
 
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
-
-	struct surface *surface;
-	wl_list_for_each(surface, &output->server->surfaces, link) {
-		wlr_surface_send_frame_done(surface->wlr, &now);
-	}
+	wlr_scene_output_send_frame_done(output->scene_output, &now);
 }
 
 static void server_handle_new_output(struct wl_listener *listener, void *data) {
