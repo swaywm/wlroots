@@ -29,7 +29,7 @@ struct server {
 	struct wlr_allocator *allocator;
 	struct wlr_scene *scene;
 
-	struct wl_list surfaces;
+	uint32_t surface_offset;
 
 	struct wl_listener new_output;
 	struct wl_listener new_surface;
@@ -111,7 +111,8 @@ static void server_handle_new_surface(struct wl_listener *listener,
 	struct server *server = wl_container_of(listener, server, new_surface);
 	struct wlr_surface *wlr_surface = data;
 
-	int pos = 50 * wl_list_length(&server->surfaces);
+	int pos = server->surface_offset;
+	server->surface_offset += 50;
 
 	struct surface *surface = calloc(1, sizeof(struct surface));
 	surface->wlr = wlr_surface;
@@ -127,7 +128,6 @@ static void server_handle_new_surface(struct wl_listener *listener,
 
 	surface->scene_surface =
 		wlr_scene_surface_create(&server->scene->node, wlr_surface);
-	wl_list_insert(server->surfaces.prev, &surface->link);
 
 	wlr_scene_node_set_position(&surface->scene_surface->node,
 			pos + border_width, pos + border_width);
@@ -155,6 +155,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	struct server server = {0};
+	server.surface_offset = 0;
 	server.display = wl_display_create();
 	server.backend = wlr_backend_autocreate(server.display);
 	server.scene = wlr_scene_create();
@@ -169,8 +170,6 @@ int main(int argc, char *argv[]) {
 		wlr_compositor_create(server.display, server.renderer);
 
 	wlr_xdg_shell_create(server.display);
-
-	wl_list_init(&server.surfaces);
 
 	server.new_output.notify = server_handle_new_output;
 	wl_signal_add(&server.backend->events.new_output, &server.new_output);
