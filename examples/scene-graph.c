@@ -29,7 +29,6 @@ struct server {
 	struct wlr_allocator *allocator;
 	struct wlr_scene *scene;
 
-	struct wl_list outputs;
 	struct wl_list surfaces;
 
 	struct wl_listener new_output;
@@ -79,7 +78,6 @@ static void server_handle_new_output(struct wl_listener *listener, void *data) {
 	output->server = server;
 	output->frame.notify = output_handle_frame;
 	wl_signal_add(&wlr_output->events.frame, &output->frame);
-	wl_list_insert(&server->outputs, &output->link);
 
 	output->scene_output = wlr_scene_output_create(server->scene, wlr_output);
 
@@ -172,7 +170,6 @@ int main(int argc, char *argv[]) {
 
 	wlr_xdg_shell_create(server.display);
 
-	wl_list_init(&server.outputs);
 	wl_list_init(&server.surfaces);
 
 	server.new_output.notify = server_handle_new_output;
