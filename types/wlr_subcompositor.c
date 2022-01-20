@@ -61,6 +61,12 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 
 static const struct wl_subsurface_interface subsurface_implementation;
 
+/**
+ * Get a wlr_subsurface from a wl_subsurface resource.
+ *
+ * Returns NULL if the subsurface is inert (e.g. the wl_surface object got
+ * destroyed).
+ */
 static struct wlr_subsurface *subsurface_from_resource(
 		struct wl_resource *resource) {
 	assert(wl_resource_instance_of(resource, &wl_subsurface_interface,
