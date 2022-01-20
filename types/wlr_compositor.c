@@ -478,7 +478,7 @@ static void collect_subsurface_damage_iter(struct wlr_surface *surface,
 // TODO: untangle from wlr_surface
 static void subsurface_parent_commit(struct wlr_subsurface *subsurface) {
 	struct wlr_surface *surface = subsurface->surface;
-	
+
 	bool moved = subsurface->current.x != subsurface->pending.x ||
 		subsurface->current.y != subsurface->pending.y;
 	if (subsurface->mapped && moved) {
@@ -788,9 +788,6 @@ struct wlr_surface *wlr_surface_get_root_surface(struct wlr_surface *surface) {
 			wlr_subsurface_from_wlr_surface(surface);
 		if (subsurface == NULL) {
 			break;
-		}
-		if (subsurface->parent == NULL) {
-			return NULL;
 		}
 		surface = subsurface->parent;
 	}

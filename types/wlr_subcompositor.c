@@ -14,10 +14,6 @@ static bool subsurface_is_synchronized(struct wlr_subsurface *subsurface) {
 			return true;
 		}
 
-		if (!subsurface->parent) {
-			return false;
-		}
-
 		if (!wlr_surface_is_subsurface(subsurface->parent)) {
 			break;
 		}
@@ -45,12 +41,9 @@ static void subsurface_destroy(struct wlr_subsurface *subsurface) {
 
 	wl_list_remove(&subsurface->surface_destroy.link);
 	wl_list_remove(&subsurface->surface_client_commit.link);
-
-	if (subsurface->parent) {
-		wl_list_remove(&subsurface->current.link);
-		wl_list_remove(&subsurface->pending.link);
-		wl_list_remove(&subsurface->parent_destroy.link);
-	}
+	wl_list_remove(&subsurface->current.link);
+	wl_list_remove(&subsurface->pending.link);
+	wl_list_remove(&subsurface->parent_destroy.link);
 
 	wl_resource_set_user_data(subsurface->resource, NULL);
 	if (subsurface->surface) {
@@ -64,8 +57,8 @@ static const struct wl_subsurface_interface subsurface_implementation;
 /**
  * Get a wlr_subsurface from a wl_subsurface resource.
  *
- * Returns NULL if the subsurface is inert (e.g. the wl_surface object got
- * destroyed).
+ * Returns NULL if the subsurface is inert (e.g. the wl_surface object or the
+ * parent surface got destroyed).
  */
 static struct wlr_subsurface *subsurface_from_resource(
 		struct wl_resource *resource) {
@@ -227,16 +220,11 @@ static void subsurface_consider_map(struct wlr_subsurface *subsurface,
 		return;
 	}
 
-	if (check_parent) {
-		if (subsurface->parent == NULL) {
+	if (check_parent && wlr_surface_is_subsurface(subsurface->parent)) {
+		struct wlr_subsurface *parent =
+			wlr_subsurface_from_wlr_surface(subsurface->parent);
+		if (parent == NULL || !parent->mapped) {
 			return;
-		}
-		if (wlr_surface_is_subsurface(subsurface->parent)) {
-			struct wlr_subsurface *parent =
-				wlr_subsurface_from_wlr_surface(subsurface->parent);
-			if (parent == NULL || !parent->mapped) {
-				return;
-			}
 		}
 	}
 
@@ -310,11 +298,9 @@ static void subsurface_handle_parent_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_subsurface *subsurface =
 		wl_container_of(listener, subsurface, parent_destroy);
-	subsurface_unmap(subsurface);
-	wl_list_remove(&subsurface->current.link);
-	wl_list_remove(&subsurface->pending.link);
-	wl_list_remove(&subsurface->parent_destroy.link);
-	subsurface->parent = NULL;
+	// Once the parent is destroyed, the client has no way to use the
+	// wl_subsurface object anymore, so we can destroy it.
+	subsurface_destroy(subsurface);
 }
 
 static void subsurface_handle_surface_destroy(struct wl_listener *listener,
