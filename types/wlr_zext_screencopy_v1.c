@@ -377,7 +377,7 @@ static void surface_handle_output_commit_formats(
 		return;
 	}
 
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 
 	struct wlr_buffer *buffer = event->buffer;
 	assert(buffer);
@@ -478,7 +478,7 @@ static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 		struct wlr_buffer *dst_buffer, struct wlr_shm_attributes *attr,
 		struct wlr_buffer *src_buffer, uint32_t wl_shm_format) {
 	struct wlr_output *output = surface->output;
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 
 	if (dst_buffer->width != src_buffer->width ||
 			dst_buffer->height != src_buffer->height) {
@@ -550,7 +550,7 @@ static bool surface_copy_dmabuf(struct wlr_zext_screencopy_surface_v1 *surface,
 		struct wlr_buffer *dst_buffer, struct wlr_dmabuf_attributes *attr,
 		struct wlr_buffer *src_buffer, uint32_t format) {
 	struct wlr_output *output = surface->output;
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(output->backend);
+	struct wlr_renderer *renderer = output->renderer;
 
 	if (dst_buffer->width != src_buffer->width ||
 			dst_buffer->height != src_buffer->height) {
