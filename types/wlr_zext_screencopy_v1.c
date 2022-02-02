@@ -4,6 +4,7 @@
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/interface.h>
+#include <wlr/util/box.h>
 
 #include "util/signal.h"
 #include "render/wlr_renderer.h"
@@ -503,6 +504,7 @@ static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 		return false;
 	}
 
+	// TODO: Only copy damaged region
 	uint32_t renderer_flags = 0;
 	bool ok;
 	ok = wlr_renderer_begin_with_buffer(renderer, src_buffer);
@@ -518,7 +520,7 @@ static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 
 static bool blit_dmabuf(struct wlr_renderer *renderer,
 		struct wlr_buffer *dst_buffer,
-		struct wlr_buffer *src_buffer) {
+		struct wlr_buffer *src_buffer, struct wlr_box *clip_box) {
 	struct wlr_texture *src_tex =
 		wlr_texture_from_buffer(renderer, src_buffer);
 	if (!src_tex) {
@@ -533,8 +535,9 @@ static bool blit_dmabuf(struct wlr_renderer *renderer,
 		goto error_renderer_begin;
 	}
 
-	wlr_renderer_clear(renderer, (float[]){ 0.0, 0.0, 0.0, 0.0 });
+	wlr_renderer_scissor(renderer, clip_box);
 	wlr_render_texture_with_matrix(renderer, src_tex, mat, 1.0f);
+	wlr_renderer_scissor(renderer, NULL);
 
 	wlr_renderer_end(renderer);
 
@@ -560,7 +563,24 @@ static bool surface_copy_dmabuf(struct wlr_zext_screencopy_surface_v1 *surface,
 	if (attr->format != format)
 		return false;
 
-	return blit_dmabuf(renderer, dst_buffer, src_buffer);
+	// TODO: More fine grained damage regions
+	struct pixman_region32 damage;
+
+	pixman_region32_init(&damage);
+	pixman_region32_union(&damage, &surface->frame_damage,
+			&surface->current_buffer.damage);
+
+	pixman_box32_t *extents = pixman_region32_extents(&damage);
+	struct wlr_box clip_box = {
+		.x = extents->x1,
+		.y = extents->y1,
+		.width = extents->x2 - extents->x1,
+		.height = extents->y2 - extents->y1,
+	};
+
+	pixman_region32_fini(&damage);
+
+	return blit_dmabuf(renderer, dst_buffer, src_buffer, &clip_box);
 }
 
 static bool surface_copy(struct wlr_zext_screencopy_surface_v1 *surface,
