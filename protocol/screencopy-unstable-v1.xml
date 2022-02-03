@@ -135,6 +135,13 @@
       </description>
     </event>
 
+    <event name="reconfig">
+      <description summary="buffer attributes changed">
+        Signals that some buffer attributes have changed. This event will be
+        followed by buffer info events and "init_done".
+      </description>
+    </event>
+
     <request name="attach_buffer">
       <description summary="attach buffer to surface">
         Attach a buffer to the surface.
@@ -223,6 +230,23 @@
       <arg name="y" type="uint" summary="damaged y coordinates"/>
       <arg name="width" type="uint" summary="current width"/>
       <arg name="height" type="uint" summary="current height"/>
+    </event>
+
+    <event name="cursor_enter">
+      <description summary="cursor entered surface">
+        Sent when a cursor enters the captured surface. It shall be generated
+        before the "cursor_info" event when and only when a cursor enters the
+        surface.
+      </description>
+      <arg name="seat_name" type="string" summary="seat name"/>
+    </event>
+
+    <event name="cursor_leave">
+      <description summary="cursor left surface">
+        Sent when a cursor leaves the captured surface. No "cursor_info" event
+        is generated for for the given cursor.
+      </description>
+      <arg name="seat_name" type="string" summary="seat name"/>
     </event>
 
     <event name="cursor_info">

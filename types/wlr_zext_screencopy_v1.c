@@ -370,18 +370,85 @@ static void surface_handle_output_precommit(struct wl_listener *listener,
 	}
 }
 
-static void surface_handle_output_commit_formats(
+static bool surface_check_cursor_formats(
+		struct wlr_zext_screencopy_surface_v1 *surface) {
+	struct wlr_output *output = surface_check_output(surface);
+	if (!output) {
+		return false;
+	}
+
+	struct wlr_buffer *buffer = output->cursor_front_buffer;
+	if (!buffer) {
+		return false;
+	}
+
+	uint32_t dmabuf_format = get_dmabuf_format(buffer);
+
+	return buffer->width != surface->cursor_width ||
+			buffer->height != surface->cursor_height ||
+			surface->cursor_dmabuf_format != dmabuf_format;
+}
+
+static void surface_advertise_cursor_formats(
+		struct wlr_zext_screencopy_surface_v1 *surface) {
+	struct wlr_output *output = surface_check_output(surface);
+	if (!output) {
+		return;
+	}
+
+	struct wlr_buffer *buffer = output->cursor_front_buffer;
+	if (!buffer) {
+		return;
+	}
+
+	struct wlr_renderer *renderer = output->renderer;
+
+	surface->cursor_wl_shm_format =
+		get_buffer_preferred_read_format(buffer, renderer);
+	surface->cursor_wl_shm_stride =
+		buffer->width * 4; // TODO: This assumes things...
+	surface->cursor_dmabuf_format = get_dmabuf_format(buffer);
+
+	surface->cursor_width = buffer->width;
+	surface->cursor_height = buffer->height;
+
+	if (surface->cursor_wl_shm_format != DRM_FORMAT_INVALID) {
+		assert(surface->cursor_wl_shm_stride);
+
+		zext_screencopy_surface_v1_send_cursor_buffer_info(
+				surface->resource, "default",
+				ZEXT_SCREENCOPY_SURFACE_V1_BUFFER_TYPE_WL_SHM,
+				surface->cursor_wl_shm_format,
+				buffer->width, buffer->height,
+				surface->cursor_wl_shm_stride);
+	}
+
+	if (surface->cursor_dmabuf_format != DRM_FORMAT_INVALID) {
+		zext_screencopy_surface_v1_send_cursor_buffer_info(
+				surface->resource, "default",
+				ZEXT_SCREENCOPY_SURFACE_V1_BUFFER_TYPE_DMABUF,
+				surface->cursor_dmabuf_format,
+				buffer->width, buffer->height, 0);
+	}
+
+	zext_screencopy_surface_v1_send_init_done(surface->resource);
+
+	if (output->cursor_front_buffer) {
+		zext_screencopy_surface_v1_send_cursor_enter(surface->resource,
+				"default");
+		surface->have_cursor = true;
+	}
+}
+
+static void surface_advertise_buffer_formats(
 		struct wlr_zext_screencopy_surface_v1 *surface,
-		struct wlr_output_event_commit *event) {
+		struct wlr_buffer *buffer) {
 	struct wlr_output *output = surface_check_output(surface);
 	if (!output) {
 		return;
 	}
 
 	struct wlr_renderer *renderer = output->renderer;
-
-	struct wlr_buffer *buffer = event->buffer;
-	assert(buffer);
 
 	surface->wl_shm_format =
 		get_buffer_preferred_read_format(buffer, renderer);
@@ -405,49 +472,13 @@ static void surface_handle_output_commit_formats(
 				output->height, 0);
 	}
 
-	// TODO: If hardware cursors are not enabled, don't advertise cursor
-	// formats.
-	bool have_dummy_buffer = false;
-	struct wlr_buffer *cursor_buffer = output->cursor_front_buffer;
-	if (!cursor_buffer) {
-		// This is a hack so that we can get a cursor buffer when no
-		// cursor is set.
-		cursor_buffer = wlr_swapchain_acquire(output->cursor_swapchain,
-				NULL);
-		have_dummy_buffer = true;
-	}
+	surface_advertise_cursor_formats(surface);
+}
 
-	surface->cursor_wl_shm_format =
-		get_buffer_preferred_read_format(cursor_buffer, renderer);
-	surface->cursor_wl_shm_stride =
-		cursor_buffer->width * 4; // TODO: This assumes things...
-
-	surface->cursor_dmabuf_format = get_dmabuf_format(cursor_buffer);
-
-	if (have_dummy_buffer) {
-		wlr_buffer_unlock(cursor_buffer);
-	}
-
-	if (surface->cursor_wl_shm_format != DRM_FORMAT_INVALID) {
-		assert(surface->cursor_wl_shm_stride);
-
-		zext_screencopy_surface_v1_send_cursor_buffer_info(
-				surface->resource, "default",
-				ZEXT_SCREENCOPY_SURFACE_V1_BUFFER_TYPE_WL_SHM,
-				surface->cursor_wl_shm_format,
-				cursor_buffer->width, cursor_buffer->height,
-				surface->cursor_wl_shm_stride);
-	}
-
-	if (surface->cursor_dmabuf_format != DRM_FORMAT_INVALID) {
-		zext_screencopy_surface_v1_send_cursor_buffer_info(
-				surface->resource, "default",
-				ZEXT_SCREENCOPY_SURFACE_V1_BUFFER_TYPE_DMABUF,
-				surface->cursor_dmabuf_format,
-				cursor_buffer->width, cursor_buffer->height, 0);
-	}
-
-	zext_screencopy_surface_v1_send_init_done(surface->resource);
+static void surface_handle_output_commit_formats(
+		struct wlr_zext_screencopy_surface_v1 *surface,
+		struct wlr_output_event_commit *event) {
+	surface_advertise_buffer_formats(surface, event->buffer);
 	surface->state = WLR_ZEXT_SCREENCOPY_SURFACE_V1_STATE_READY;
 }
 
@@ -655,6 +686,26 @@ static void surface_handle_output_commit_ready(
 	if (!(event->committed & WLR_OUTPUT_STATE_BUFFER)) {
 		return;
 	}
+
+	if (surface_check_cursor_formats(surface)) {
+		zext_screencopy_surface_v1_send_cursor_leave(surface->resource,
+				"default");
+		zext_screencopy_surface_v1_send_reconfig(surface->resource);
+		surface_advertise_buffer_formats(surface, event->buffer);
+		// TODO: Reset staged buffers?
+		return;
+	}
+
+	if (surface->have_cursor && !output->cursor_front_buffer) {
+		zext_screencopy_surface_v1_send_cursor_leave(surface->resource,
+				"default");
+		surface->have_cursor = false;
+	} else if (!surface->have_cursor && output->cursor_front_buffer) {
+		zext_screencopy_surface_v1_send_cursor_enter(surface->resource,
+				"default");
+		surface->have_cursor = true;
+	}
+
 
 	if (!surface->current_buffer.resource) {
 		return;

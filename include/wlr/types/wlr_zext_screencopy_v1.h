@@ -28,7 +28,7 @@ struct wlr_zext_screencopy_manager_v1 {
 };
 
 enum wlr_zext_screencopy_surface_v1_state {
-	WLR_ZEXT_SCREENCOPY_SURFACE_V1_STATE_WAITING_FOR_BUFFER_FORMATS,
+	WLR_ZEXT_SCREENCOPY_SURFACE_V1_STATE_WAITING_FOR_BUFFER_FORMATS = 0,
 	WLR_ZEXT_SCREENCOPY_SURFACE_V1_STATE_READY,
 };
 
@@ -43,6 +43,8 @@ struct wlr_zext_screencopy_surface_v1 {
 
 	enum wlr_zext_screencopy_surface_v1_state state;
 
+        struct wlr_buffer *buffer;
+
 	uint32_t wl_shm_format;
 	int wl_shm_stride;
 	uint32_t dmabuf_format;
@@ -50,6 +52,10 @@ struct wlr_zext_screencopy_surface_v1 {
 	uint32_t cursor_wl_shm_format;
 	int cursor_wl_shm_stride;
 	uint32_t cursor_dmabuf_format;
+
+        int cursor_width;
+        int cursor_height;
+        bool have_cursor;
 
 	uint32_t options;
 	struct wlr_zext_screencopy_surface_v1_buffer staged_buffer;
