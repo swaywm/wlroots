@@ -44,6 +44,7 @@ struct wlr_zext_screencopy_surface_v1 {
 	enum wlr_zext_screencopy_surface_v1_state state;
 
         struct wlr_buffer *buffer;
+        struct wlr_surface *output_cursor_surface;
 
 	uint32_t wl_shm_format;
 	int wl_shm_stride;
@@ -73,6 +74,8 @@ struct wlr_zext_screencopy_surface_v1 {
 	struct wl_listener output_precommit;
 	struct wl_listener output_commit;
 	struct wl_listener output_destroy;
+        struct wl_listener output_cursor_surface_commit;
+        struct wl_listener output_cursor_surface_destroy;
 
 	void *data;
 };
