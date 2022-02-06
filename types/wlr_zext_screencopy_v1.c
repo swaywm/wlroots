@@ -158,12 +158,15 @@ static void surface_attach_buffer(struct wl_client *client,
 		return;
 	}
 
+	assert(buffer_resource);
+
 	if (surface->staged_buffer.resource) {
 		wl_list_remove(&surface->staged_buffer.destroy.link);
 	}
 
 	surface->staged_buffer.resource = buffer_resource;
 	if (buffer_resource) {
+		wl_list_init(&surface->staged_buffer.destroy.link);
 		wl_resource_add_destroy_listener(buffer_resource,
 				&surface->staged_buffer.destroy);
 		surface->staged_buffer.destroy.notify =
@@ -221,7 +224,7 @@ static void surface_damage_cursor_buffer(struct wl_client *client,
 
 	pixman_region32_union_rect(&surface->staged_cursor_buffer.damage,
 			&surface->staged_cursor_buffer.damage, 0, 0,
-			UINT32_MAX, UINT32_MAX);
+			surface->cursor_width, surface->cursor_height);
 }
 
 static void surface_commit(struct wl_client *client,
@@ -238,6 +241,10 @@ static void surface_commit(struct wl_client *client,
 	}
 
 	// Main buffer
+	if (surface->current_buffer.resource) {
+		wl_list_remove(&surface->current_buffer.destroy.link);
+	}
+
 	surface->current_buffer.resource = surface->staged_buffer.resource;
 	surface->staged_buffer.resource = NULL;
 
@@ -258,6 +265,10 @@ static void surface_commit(struct wl_client *client,
 			output->height);
 
 	// Cursor buffer
+	if (surface->current_cursor_buffer.resource) {
+		wl_list_remove(&surface->current_cursor_buffer.destroy.link);
+	}
+
 	surface->current_cursor_buffer.resource =
 		surface->staged_cursor_buffer.resource;
 	surface->staged_cursor_buffer.resource = NULL;
@@ -379,12 +390,16 @@ static void surface_accumulate_cursor_damage(
 		pixman_region32_union(region, region, &state->surface_damage);
 		pixman_region32_intersect_rect(region, region, 0, 0,
 			state->width, state->height);
+
+		wlr_log(WLR_DEBUG, "Got cursor commit event with damage");
 	} else if (state->committed & WLR_SURFACE_STATE_BUFFER) {
 		// If the compositor did not submit damage but did submit a
 		// buffer damage everything
 		pixman_region32_union_rect(region, region, 0, 0, state->width,
 				state->height);
+		wlr_log(WLR_DEBUG, "Got cursor commit event with buffer");
 	}
+
 }
 
 static void surface_handle_output_precommit_ready(
@@ -427,7 +442,7 @@ static bool surface_check_cursor_formats(
 	}
 
 	struct wlr_buffer *buffer = output->cursor_front_buffer;
-	if (!buffer) {
+	if (!buffer || buffer->width == 0 || buffer->height == 0) {
 		return false;
 	}
 
@@ -457,9 +472,12 @@ static void surface_handle_output_cursor_surface_destroy(
 		return;
 	}
 
+	wlr_log(WLR_DEBUG, "Lost a cursor surface");
+
 	// The cursor surface is gone, so something must have taken its place:
 	pixman_region32_union_rect(&surface->cursor_damage,
-			&surface->cursor_damage, 0, 0, UINT32_MAX, UINT32_MAX);
+			&surface->cursor_damage, 0, 0, surface->cursor_width,
+			surface->cursor_height);
 
 	wl_list_remove(&surface->output_cursor_surface_commit.link);
 	wl_list_remove(&surface->output_cursor_surface_destroy.link);
@@ -470,6 +488,8 @@ static void surface_handle_output_cursor_surface_commit(
 		struct wl_listener *listener, void *data) {
 	struct wlr_zext_screencopy_surface_v1 *surface =
 		wl_container_of(listener, surface, output_cursor_surface_commit);
+
+	wlr_log(WLR_DEBUG, "Got cursor commit event!");
 
 	if (!surface->output_cursor_surface) {
 		return;
@@ -506,6 +526,13 @@ static void surface_init_output_cursor_surface(
 		surface_handle_output_cursor_surface_commit;
 
 	surface->output_cursor_surface = cursor_surface;
+
+	// We have a new cursor surface, so there's probably damage
+	pixman_region32_union_rect(&surface->cursor_damage,
+			&surface->cursor_damage, 0, 0, surface->cursor_width,
+			surface->cursor_height);
+
+	wlr_log(WLR_DEBUG, "There's a new cursor surface");
 }
 
 static void surface_advertise_cursor_formats(
@@ -550,6 +577,9 @@ static void surface_advertise_cursor_formats(
 				buffer->width, buffer->height, 0);
 	}
 
+	pixman_region32_union_rect(&surface->staged_cursor_buffer.damage,
+			&surface->staged_cursor_buffer.damage, 0, 0,
+			surface->cursor_width, surface->cursor_height);
 }
 
 static void surface_advertise_buffer_formats(
@@ -860,9 +890,6 @@ static void surface_handle_output_commit_ready(
 		if (!ok) {
 			// TODO: Raise some error
 		}
-
-		wl_list_remove(&surface->current_buffer.destroy.link);
-		surface->current_buffer.resource = NULL;
 	}
 
 	if (surface->current_cursor_buffer.resource &&
@@ -881,9 +908,6 @@ static void surface_handle_output_commit_ready(
 		if (!ok) {
 			// TODO: Raise some error
 		}
-
-		wl_list_remove(&surface->current_cursor_buffer.destroy.link);
-		surface->current_cursor_buffer.resource = NULL;
 	}
 
 	surface_send_transform(surface);
@@ -896,6 +920,17 @@ static void surface_handle_output_commit_ready(
 	pixman_region32_clear(&surface->cursor_damage);
 	pixman_region32_clear(&surface->current_buffer.damage);
 	pixman_region32_clear(&surface->current_cursor_buffer.damage);
+
+	if (surface->current_buffer.resource) {
+		wl_list_remove(&surface->current_buffer.destroy.link);
+	}
+
+	if (surface->current_cursor_buffer.resource) {
+		wl_list_remove(&surface->current_cursor_buffer.destroy.link);
+	}
+
+	surface->current_buffer.resource = NULL;
+	surface->current_cursor_buffer.resource = NULL;
 }
 
 static void surface_handle_output_commit(struct wl_listener *listener,
