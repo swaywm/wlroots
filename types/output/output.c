@@ -401,6 +401,8 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.mode);
 	wl_signal_init(&output->events.description);
+	wl_signal_init(&output->events.set_cursor);
+	wl_signal_init(&output->events.move_cursor);
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->pending.damage);
 

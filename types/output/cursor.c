@@ -28,6 +28,14 @@ static bool output_set_hardware_cursor(struct wlr_output *output,
 		output->cursor_front_buffer = wlr_buffer_lock(buffer);
 	}
 
+	struct wlr_output_event_set_cursor event = {
+		.output = output,
+		.buffer = buffer,
+		.hotspot_x = hotspot_x,
+		.hotspot_y = hotspot_y,
+	};
+	wlr_signal_emit_safe(&output->events.set_cursor, &event);
+
 	return true;
 }
 
@@ -347,6 +355,13 @@ static bool output_cursor_attempt_hardware(struct wlr_output_cursor *cursor) {
 	output->impl->move_cursor(cursor->output,
 		(int)cursor->x, (int)cursor->y);
 
+	struct wlr_output_event_move_cursor event = {
+		.output = cursor->output,
+		.x = (int)cursor->x,
+		.y = (int)cursor->y,
+	};
+	wlr_signal_emit_safe(&cursor->output->events.move_cursor, &event);
+
 	struct wlr_buffer *buffer = NULL;
 	if (texture != NULL) {
 		buffer = render_cursor_buffer(cursor);
@@ -537,7 +552,18 @@ bool wlr_output_cursor_move(struct wlr_output_cursor *cursor,
 	}
 
 	assert(cursor->output->impl->move_cursor);
-	return cursor->output->impl->move_cursor(cursor->output, (int)x, (int)y);
+	if (!cursor->output->impl->move_cursor(cursor->output, (int)x, (int)y)) {
+		return false;
+	}
+
+	struct wlr_output_event_move_cursor event = {
+		.output = cursor->output,
+		.x = (int)x,
+		.y = (int)y,
+	};
+	wlr_signal_emit_safe(&cursor->output->events.move_cursor, &event);
+
+	return true;
 }
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output) {
