@@ -114,6 +114,9 @@ struct wlr_xdg_toplevel_configure {
 };
 
 struct wlr_xdg_toplevel_requested {
+	// Note that the client has no means to unset minimization
+	// of a surface, so `minimized` can only be set to `true` and
+	// is supposed to be read on surface map.
 	bool maximized, minimized, fullscreen;
 	struct wlr_output *fullscreen_output;
 	struct wl_listener fullscreen_output_destroy;
@@ -133,8 +136,7 @@ struct wlr_xdg_toplevel {
 	struct wlr_xdg_toplevel_configure scheduled;
 
 	// Properties that the client has requested. Intended to be checked
-	// by the compositor on surface map and handled accordingly
-	// (e.g. a client might want to start already in a fullscreen state).
+	// by the compositor and handled accordingly.
 	struct wlr_xdg_toplevel_requested requested;
 
 	char *title;
@@ -240,12 +242,6 @@ struct wlr_xdg_toplevel_resize_event {
 	struct wlr_seat_client *seat;
 	uint32_t serial;
 	uint32_t edges;
-};
-
-struct wlr_xdg_toplevel_set_fullscreen_event {
-	struct wlr_xdg_surface *surface;
-	bool fullscreen;
-	struct wlr_output *output;
 };
 
 struct wlr_xdg_toplevel_show_window_menu_event {

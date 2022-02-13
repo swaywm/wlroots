@@ -378,13 +378,7 @@ static void xdg_toplevel_handle_set_fullscreen(struct wl_client *client,
 
 	store_fullscreen_requested(surface, true, output);
 
-	struct wlr_xdg_toplevel_set_fullscreen_event event = {
-		.surface = surface,
-		.fullscreen = true,
-		.output = output,
-	};
-
-	wlr_signal_emit_safe(&surface->toplevel->events.request_fullscreen, &event);
+	wlr_signal_emit_safe(&surface->toplevel->events.request_fullscreen, surface);
 	wlr_xdg_surface_schedule_configure(surface);
 }
 
@@ -395,13 +389,7 @@ static void xdg_toplevel_handle_unset_fullscreen(struct wl_client *client,
 
 	store_fullscreen_requested(surface, false, NULL);
 
-	struct wlr_xdg_toplevel_set_fullscreen_event event = {
-		.surface = surface,
-		.fullscreen = false,
-		.output = NULL,
-	};
-
-	wlr_signal_emit_safe(&surface->toplevel->events.request_fullscreen, &event);
+	wlr_signal_emit_safe(&surface->toplevel->events.request_fullscreen, surface);
 	wlr_xdg_surface_schedule_configure(surface);
 }
 
