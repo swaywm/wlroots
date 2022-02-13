@@ -285,9 +285,9 @@ static void surface_commit(struct wl_client *client,
 
 	surface->options = options;
 
-//	if (options & ZEXT_SCREENCOPY_SURFACE_V1_OPTIONS_IMMEDIATE) {
+	if (options & ZEXT_SCREENCOPY_SURFACE_V1_OPTIONS_IMMEDIATE) {
 		wlr_output_schedule_frame(output);
-//	}
+	}
 }
 
 static void surface_handle_destroy(struct wl_client *client,
@@ -405,25 +405,6 @@ static void surface_handle_output_precommit(struct wl_listener *listener,
 		abort();
 		break;
 	}
-}
-
-static bool surface_check_cursor_formats(
-		struct wlr_zext_screencopy_surface_v1 *surface) {
-	struct wlr_output *output = surface_check_output(surface);
-	if (!output) {
-		return false;
-	}
-
-	struct wlr_buffer *buffer = output->cursor_front_buffer;
-	if (!buffer || buffer->width == 0 || buffer->height == 0) {
-		return false;
-	}
-
-	uint32_t dmabuf_format = get_dmabuf_format(buffer);
-
-	return buffer->width != surface->cursor_width ||
-			buffer->height != surface->cursor_height ||
-			surface->cursor_dmabuf_format != dmabuf_format;
 }
 
 static bool surface_is_cursor_visible(
@@ -549,7 +530,8 @@ static void surface_send_cursor_info(
 
 	zext_screencopy_surface_v1_send_cursor_info(surface->resource,
 			"default", have_damage, cursor->x, cursor->y,
-			cursor->hotspot_x, cursor->hotspot_y);
+			cursor->width, cursor->height, cursor->hotspot_x,
+			cursor->hotspot_y);
 }
 
 static void surface_send_transform(struct wlr_zext_screencopy_surface_v1 *surface) {
@@ -564,8 +546,8 @@ static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 	struct wlr_output *output = surface->output;
 	struct wlr_renderer *renderer = output->renderer;
 
-	if (dst_buffer->width != src_buffer->width ||
-			dst_buffer->height != src_buffer->height) {
+	if (dst_buffer->width < src_buffer->width ||
+			dst_buffer->height < src_buffer->height) {
 		return false;
 	}
 
@@ -575,16 +557,27 @@ static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 		return false;
 	}
 
-	int32_t width = dst_buffer->width;
-	int32_t height = dst_buffer->height;
-	void *data = NULL;
+	int32_t width = src_buffer->width;
+	int32_t height = src_buffer->height;
+	uint8_t *dst_data = NULL;
+	uint8_t *data = NULL;
 	uint32_t format = DRM_FORMAT_INVALID;
+	size_t dst_stride = 0;
 	size_t stride = 0;
 
 	if (!wlr_buffer_begin_data_ptr_access(dst_buffer,
-			WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format,
-			&stride)) {
+			WLR_BUFFER_DATA_PTR_ACCESS_WRITE, (void**)&dst_data,
+			&format, &dst_stride)) {
 		return false;
+	}
+
+	bool use_scratch_buffer = dst_buffer->width != src_buffer->width;
+	if (use_scratch_buffer) {
+		stride = width * 4; // TODO: This assumes things
+		data = malloc(height * stride);
+	} else {
+		data = dst_data;
+		stride = dst_stride;
 	}
 
 	// TODO: Only copy damaged region
@@ -596,6 +589,15 @@ static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 	wlr_renderer_end(renderer);
 	// TODO: if renderer_flags & WLR_RENDERER_READ_PIXELS_Y_INVERT:
 	//    add vertical flip to transform
+
+	if (use_scratch_buffer) {
+		for (size_t y = 0; y < (size_t)height; ++y) {
+			memcpy(dst_data + y * dst_stride, data + y * stride,
+					stride);
+		}
+		free(data);
+	}
+
 	wlr_buffer_end_data_ptr_access(dst_buffer);
 
 	return ok;
@@ -612,13 +614,15 @@ static bool blit_dmabuf(struct wlr_renderer *renderer,
 
 	float mat[9];
 	wlr_matrix_identity(mat);
-	wlr_matrix_scale(mat, dst_buffer->width, dst_buffer->height);
+	wlr_matrix_translate(mat, -1.0, 1.0);
+	wlr_matrix_scale(mat, src_buffer->width, src_buffer->height);
 
 	if (!wlr_renderer_begin_with_buffer(renderer, dst_buffer)) {
 		goto error_renderer_begin;
 	}
 
 	wlr_renderer_scissor(renderer, clip_box);
+	wlr_renderer_clear(renderer,  (float[]){ 0.0, 0.0, 0.0, 0.0 });
 	wlr_render_texture_with_matrix(renderer, src_tex, mat, 1.0f);
 	wlr_renderer_scissor(renderer, NULL);
 
@@ -639,8 +643,8 @@ static bool surface_copy_dmabuf(struct wlr_zext_screencopy_surface_v1 *surface,
 	struct wlr_output *output = surface->output;
 	struct wlr_renderer *renderer = output->renderer;
 
-	if (dst_buffer->width != src_buffer->width ||
-			dst_buffer->height != src_buffer->height) {
+	if (dst_buffer->width < src_buffer->width ||
+			dst_buffer->height < src_buffer->height) {
 		return false;
 	}
 
@@ -693,9 +697,13 @@ static bool surface_copy(struct wlr_zext_screencopy_surface_v1 *surface,
 	return true;
 
 failure:
-	zext_screencopy_surface_v1_send_failed(surface->resource,
-			ZEXT_SCREENCOPY_SURFACE_V1_FAILURE_REASON_INVALID_BUFFER);
-	surface_destroy(surface);
+	if (surface->output && src_buffer == surface->output->cursor_front_buffer) {
+		zext_screencopy_surface_v1_send_failed(surface->resource,
+				ZEXT_SCREENCOPY_SURFACE_V1_FAILURE_REASON_INVALID_CURSOR_BUFFER);
+	} else {
+		zext_screencopy_surface_v1_send_failed(surface->resource,
+				ZEXT_SCREENCOPY_SURFACE_V1_FAILURE_REASON_INVALID_MAIN_BUFFER);
+	}
 	return false;
 }
 
@@ -738,35 +746,6 @@ static void surface_handle_output_commit_ready(
 		return;
 	}
 
-	if (surface_check_cursor_formats(surface)) {
-		if (surface->staged_buffer.resource) {
-			wl_list_remove(&surface->staged_buffer.destroy.link);
-		}
-
-		if (surface->current_buffer.resource) {
-			wl_list_remove(&surface->current_buffer.destroy.link);
-		}
-
-		if (surface->staged_cursor_buffer.resource) {
-			wl_list_remove(&surface->staged_cursor_buffer.destroy.link);
-		}
-
-		if (surface->current_cursor_buffer.resource) {
-			wl_list_remove(&surface->current_cursor_buffer.destroy.link);
-		}
-
-		surface->current_buffer.resource = NULL;
-		surface->staged_buffer.resource = NULL;
-		surface->current_cursor_buffer.resource = NULL;
-		surface->staged_cursor_buffer.resource = NULL;
-
-		zext_screencopy_surface_v1_send_cursor_leave(surface->resource,
-				"default");
-		zext_screencopy_surface_v1_send_reconfig(surface->resource);
-		surface_advertise_buffer_formats(surface, event->buffer);
-		return;
-	}
-
 	if (surface->have_cursor && !surface_is_cursor_visible(surface)) {
 		zext_screencopy_surface_v1_send_cursor_leave(surface->resource,
 				"default");
@@ -788,7 +767,7 @@ static void surface_handle_output_commit_ready(
 				surface->dmabuf_format, &damage);
 		pixman_region32_fini(&damage);
 		if (!ok) {
-			// TODO: Raise some error
+			// TODO: Raise some error, and destroy surface
 		}
 	}
 
@@ -800,13 +779,12 @@ static void surface_handle_output_commit_ready(
 				&surface->current_cursor_buffer.damage);
 
 		bool ok = surface_copy(surface, &surface->current_cursor_buffer,
-					output->cursor_front_buffer,
-					surface->cursor_wl_shm_format,
-					surface->cursor_dmabuf_format,
-					&damage);
+				output->cursor_front_buffer,
+				surface->cursor_wl_shm_format,
+				surface->cursor_dmabuf_format, &damage);
 		pixman_region32_fini(&damage);
 		if (!ok) {
-			// TODO: Raise some error
+			// TODO: Raise some error, and destroy surface
 		}
 	}
 

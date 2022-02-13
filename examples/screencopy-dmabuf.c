@@ -192,7 +192,8 @@ static void surface_handle_damage(void *data,
 static void surface_handle_cursor_info(void *data,
 		struct zext_screencopy_surface_v1 *surface,
 		const char *name, int damaged, int32_t pos_x, int32_t pos_y,
-		int32_t hotspot_x, int32_t hotspot_y) {
+		int32_t width, int32_t height, int32_t hotspot_x,
+		int32_t hotspot_y) {
 }
 
 static void surface_handle_transform(void *data,

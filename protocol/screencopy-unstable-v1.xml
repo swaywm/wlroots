@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <protocol name="screencopy_unstable_v1">
   <copyright>
-    Copyright © 2021 Andri Yngvason
+    Copyright © 2021-2022 Andri Yngvason
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the "Software"),
@@ -78,10 +78,11 @@
 
     <enum name="failure_reason">
       <entry name="unspec" value="0"/>
-      <entry name="invalid_buffer" value="1"/>
-      <entry name="output_missing" value="2"/>
-      <entry name="output_disabled" value="3"/>
-      <entry name="unknown_seat" value="4"/>
+      <entry name="invalid_main_buffer" value="1"/>
+      <entry name="invalid_cursor_buffer" value="2"/>
+      <entry name="output_missing" value="3"/>
+      <entry name="output_disabled" value="4"/>
+      <entry name="unknown_seat" value="5"/>
     </enum>
 
     <enum name="options" bitfield="true">
@@ -124,21 +125,14 @@
       <arg name="seat_name" type="string" summary="seat name"/>
       <arg name="type" type="uint" enum="buffer_type" summary="buffer type"/>
       <arg name="format" type="uint" summary="buffer drm format"/>
-      <arg name="width" type="uint" summary="buffer width"/>
-      <arg name="height" type="uint" summary="buffer height"/>
-      <arg name="stride" type="uint" summary="buffer stride"/>
+      <arg name="width" type="uint" summary="minimum buffer width"/>
+      <arg name="height" type="uint" summary="minimum buffer height"/>
+      <arg name="stride" type="uint" summary="minimum buffer stride"/>
     </event>
 
     <event name="init_done">
       <description summary="surface initialisation done">
         This event is sent once when all buffer info events have been sent.
-      </description>
-    </event>
-
-    <event name="reconfig">
-      <description summary="buffer attributes changed">
-        Signals that some buffer attributes have changed. This event will be
-        followed by buffer info events and "init_done".
       </description>
     </event>
 
@@ -170,6 +164,10 @@
     <request name="attach_cursor_buffer">
       <description summary="attach cursor buffer to surface">
         Attach a named cursor buffer to the surface.
+
+        The cursor buffer may exceed the dimensions specified in the
+        "cursor_buffer_info" event. The cursor image will be drawn in the top,
+        left corner of the buffer.
       </description>
       <arg name="buffer" type="object" interface="wl_buffer"/>
       <arg name="seat_name" type="string"/>
@@ -267,6 +265,8 @@
       <arg name="has_damage" type="int" summary="buffer has changes"/>
       <arg name="position_x" type="int" summary="position x coordinates"/>
       <arg name="position_y" type="int" summary="position y coordinates"/>
+      <arg name="width" type="int" summary="width of the cursor image"/>
+      <arg name="height" type="int" summary="height of the cursor image"/>
       <arg name="hotspot_x" type="int" summary="hotspot x coordinates"/>
       <arg name="hotspot_y" type="int" summary="hotspot y coordinates"/>
     </event>
