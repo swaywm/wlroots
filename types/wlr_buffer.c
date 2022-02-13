@@ -160,6 +160,25 @@ static bool buffer_is_shm_client_buffer(struct wlr_buffer *buffer);
 static struct wlr_shm_client_buffer *shm_client_buffer_from_buffer(
 	struct wlr_buffer *buffer);
 
+static bool shm_resource_is_instance(struct wl_resource *resource) {
+	return wl_shm_buffer_get(resource) != NULL;
+}
+
+static struct wlr_buffer *shm_resource_from_resource(struct wl_resource *resource) {
+	struct wlr_shm_client_buffer *shm_client_buffer =
+		shm_client_buffer_get_or_create(resource);
+	if (shm_client_buffer == NULL) {
+		wlr_log(WLR_ERROR, "Failed to create shm client buffer");
+		return NULL;
+	}
+	return &shm_client_buffer->base;
+}
+
+static const struct wlr_buffer_resource_interface shm_resource_impl = {
+	.is_instance = shm_resource_is_instance,
+	.from_resource = shm_resource_from_resource,
+};
+
 /* struct wlr_buffer_resource_interface */
 static struct wl_array buffer_resource_interfaces = {0};
 
@@ -184,6 +203,10 @@ void wlr_buffer_register_resource_interface(
 
 static const struct wlr_buffer_resource_interface *get_buffer_resource_iface(
 		struct wl_resource *resource) {
+	if (shm_resource_impl.is_instance(resource)) {
+		return &shm_resource_impl;
+	}
+
 	struct wlr_buffer_resource_interface **iface_ptr;
 	wl_array_for_each(iface_ptr, &buffer_resource_interfaces) {
 		if ((*iface_ptr)->is_instance(resource)) {
@@ -198,15 +221,7 @@ struct wlr_buffer *wlr_buffer_from_resource(struct wl_resource *resource) {
 	assert(resource && wlr_resource_is_buffer(resource));
 
 	struct wlr_buffer *buffer;
-	if (wl_shm_buffer_get(resource) != NULL) {
-		struct wlr_shm_client_buffer *shm_client_buffer =
-			shm_client_buffer_get_or_create(resource);
-		if (shm_client_buffer == NULL) {
-			wlr_log(WLR_ERROR, "Failed to create shm client buffer");
-			return NULL;
-		}
-		buffer = wlr_buffer_lock(&shm_client_buffer->base);
-	} else if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
+	if (wlr_dmabuf_v1_resource_is_buffer(resource)) {
 		struct wlr_dmabuf_v1_buffer *dmabuf =
 			wlr_dmabuf_v1_buffer_from_buffer_resource(resource);
 		buffer = wlr_buffer_lock(&dmabuf->base);
