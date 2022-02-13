@@ -22,6 +22,7 @@
 struct sample_state {
 	struct wl_display *display;
 	struct wlr_xcursor *xcursor;
+	struct wlr_renderer *renderer;
 	float default_color[4];
 	float clear_color[4];
 	struct wlr_output_layout *layout;
@@ -90,7 +91,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 	struct sample_output *output = wl_container_of(listener, output, frame);
 	struct sample_state *sample = output->sample;
 	struct wlr_output *wlr_output = output->output;
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
+	struct wlr_renderer *renderer = sample->renderer;
 
 	wlr_output_attach_render(wlr_output, NULL);
 
@@ -269,6 +270,9 @@ int main(int argc, char *argv[]) {
 	if (!wlr) {
 		exit(1);
 	}
+
+	state.renderer = wlr_renderer_autocreate(wlr);
+
 	wl_list_init(&state.cursors);
 	wl_list_init(&state.pointers);
 	wl_list_init(&state.outputs);

@@ -361,7 +361,7 @@ int main(int argc, char *argv[]) {
 	state.new_input.notify = new_input_notify;
 	clock_gettime(CLOCK_MONOTONIC, &state.last_frame);
 
-	state.renderer = wlr_backend_get_renderer(wlr);
+	state.renderer = wlr_renderer_autocreate(wlr);
 	if (!state.renderer) {
 		wlr_log(WLR_ERROR, "Could not start compositor, OOM");
 		exit(EXIT_FAILURE);

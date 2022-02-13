@@ -273,7 +273,7 @@ int main(int argc, char *argv[]) {
 	wl_signal_add(&wlr->events.new_input, &state.new_input);
 	state.new_input.notify = new_input_notify;
 
-	state.renderer = wlr_backend_get_renderer(wlr);
+	state.renderer = wlr_renderer_autocreate(wlr);
 	state.cat_texture = wlr_texture_from_pixels(state.renderer,
 		DRM_FORMAT_ABGR8888, cat_tex.width * 4, cat_tex.width, cat_tex.height,
 		cat_tex.pixel_data);
