@@ -43,18 +43,7 @@ bool wlr_drm_format_set_has(const struct wlr_drm_format_set *set,
 	if (!fmt) {
 		return false;
 	}
-
-	if (modifier == DRM_FORMAT_MOD_INVALID) {
-		return true;
-	}
-
-	for (size_t i = 0; i < fmt->len; ++i) {
-		if (fmt->modifiers[i] == modifier) {
-			return true;
-		}
-	}
-
-	return false;
+	return wlr_drm_format_has(fmt, modifier);
 }
 
 bool wlr_drm_format_set_add(struct wlr_drm_format_set *set, uint32_t format,
@@ -106,17 +95,20 @@ struct wlr_drm_format *wlr_drm_format_create(uint32_t format) {
 	return fmt;
 }
 
-bool wlr_drm_format_add(struct wlr_drm_format **fmt_ptr, uint64_t modifier) {
-	struct wlr_drm_format *fmt = *fmt_ptr;
-
-	if (modifier == DRM_FORMAT_MOD_INVALID) {
-		return true;
-	}
-
+bool wlr_drm_format_has(const struct wlr_drm_format *fmt, uint64_t modifier) {
 	for (size_t i = 0; i < fmt->len; ++i) {
 		if (fmt->modifiers[i] == modifier) {
 			return true;
 		}
+	}
+	return false;
+}
+
+bool wlr_drm_format_add(struct wlr_drm_format **fmt_ptr, uint64_t modifier) {
+	struct wlr_drm_format *fmt = *fmt_ptr;
+
+	if (wlr_drm_format_has(fmt, modifier)) {
+		return true;
 	}
 
 	if (fmt->len == fmt->cap) {
@@ -152,16 +144,6 @@ struct wlr_drm_format *wlr_drm_format_intersect(
 		const struct wlr_drm_format *a, const struct wlr_drm_format *b) {
 	assert(a->format == b->format);
 
-	// Special case: if a format only supports LINEAR and the other doesn't
-	// support any modifier, force LINEAR. This will force the allocator to
-	// create a buffer with a LINEAR layout instead of an implicit modifier.
-	if (a->len == 0 && b->len == 1 && b->modifiers[0] == DRM_FORMAT_MOD_LINEAR) {
-		return wlr_drm_format_dup(b);
-	}
-	if (b->len == 0 && a->len == 1 && a->modifiers[0] == DRM_FORMAT_MOD_LINEAR) {
-		return wlr_drm_format_dup(a);
-	}
-
 	size_t format_cap = a->len < b->len ? a->len : b->len;
 	size_t format_size = sizeof(struct wlr_drm_format) +
 		format_cap * sizeof(a->modifiers[0]);
@@ -184,9 +166,9 @@ struct wlr_drm_format *wlr_drm_format_intersect(
 		}
 	}
 
-	// If both formats support modifiers, but the intersection is empty, then
-	// the formats aren't compatible with each other
-	if (format->len == 0 && a->len > 0 && b->len > 0) {
+	// If the intersection is empty, then the formats aren't compatible with
+	// each other.
+	if (format->len == 0) {
 		free(format);
 		return NULL;
 	}
