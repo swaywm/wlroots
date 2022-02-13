@@ -285,7 +285,9 @@ static void surface_commit(struct wl_client *client,
 
 	surface->options = options;
 
-	if (options & ZEXT_SCREENCOPY_SURFACE_V1_OPTIONS_IMMEDIATE) {
+	if (options & ZEXT_SCREENCOPY_SURFACE_V1_OPTIONS_IMMEDIATE ||
+			pixman_region32_not_empty(&surface->frame_damage) ||
+			pixman_region32_not_empty(&surface->cursor_damage)) {
 		wlr_output_schedule_frame(output);
 	}
 }
@@ -462,8 +464,8 @@ static void surface_advertise_cursor_formats(
 	}
 
 	pixman_region32_union_rect(&surface->cursor_damage,
-			&surface->staged_cursor_buffer.damage, 0, 0,
-			surface->cursor_width, surface->cursor_height);
+			&surface->cursor_damage, 0, 0, surface->cursor_width,
+			surface->cursor_height);
 }
 
 static void surface_advertise_buffer_formats(
