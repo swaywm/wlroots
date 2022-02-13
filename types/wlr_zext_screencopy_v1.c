@@ -596,8 +596,15 @@ static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 		for (size_t y = 0; y < (size_t)height; ++y) {
 			memcpy(dst_data + y * dst_stride, data + y * stride,
 					stride);
+			memset(dst_data + y * dst_stride + stride, 0,
+					dst_stride - stride);
 		}
 		free(data);
+
+		// Clear the rest of the destination buffer
+		// TODO: Only do this if the rest is marked damaged
+		memset(dst_data + height * dst_stride, 0,
+				dst_stride * (dst_buffer->height - height));
 	}
 
 	wlr_buffer_end_data_ptr_access(dst_buffer);
