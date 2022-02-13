@@ -144,6 +144,13 @@ static void text_input_set_content_type(struct wl_client *client,
 	text_input->pending.features |= WLR_TEXT_INPUT_V3_FEATURE_CONTENT_TYPE;
 	text_input->pending.content_type.hint = hint;
 	text_input->pending.content_type.purpose = purpose;
+	if (wl_resource_get_version(resource)
+			< ZWP_TEXT_INPUT_V3_CONTENT_HINT_PREEDIT_SHOWN_SINCE_VERSION) {
+		// Since most clients show the preedit, set this flag for all clients
+		// unable to communicate that fact.
+		text_input->pending.content_type.hint &=
+			ZWP_TEXT_INPUT_V3_CONTENT_HINT_PREEDIT_SHOWN;
+	}
 }
 
 static void text_input_set_cursor_rectangle(struct wl_client *client,
@@ -321,7 +328,7 @@ struct wlr_text_input_manager_v3 *wlr_text_input_manager_v3_create(
 	wl_signal_init(&manager->events.destroy);
 
 	manager->global = wl_global_create(display,
-		&zwp_text_input_manager_v3_interface, 1, manager,
+		&zwp_text_input_manager_v3_interface, 2, manager,
 		text_input_manager_bind);
 	if (!manager->global) {
 		free(manager);
