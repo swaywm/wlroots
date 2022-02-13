@@ -73,7 +73,8 @@ struct wlr_surface_state {
 struct wlr_surface_role {
 	const char *name;
 	void (*commit)(struct wlr_surface *surface);
-	void (*precommit)(struct wlr_surface *surface);
+	void (*precommit)(struct wlr_surface *surface,
+		struct wlr_surface_state *state);
 };
 
 struct wlr_surface_output {
@@ -135,7 +136,10 @@ struct wlr_surface {
 	void *role_data; // role-specific data
 
 	struct {
+		// Fired on the current state update
 		struct wl_signal commit;
+		// Fired on wl_surface.commit request
+		struct wl_signal commit_request;
 		struct wl_signal new_subsurface;
 		struct wl_signal destroy;
 	} events;
@@ -182,6 +186,7 @@ struct wlr_subsurface {
 	bool mapped;
 
 	struct wl_listener surface_destroy;
+	struct wl_listener surface_commit_request;
 	struct wl_listener parent_destroy;
 
 	struct {
