@@ -171,6 +171,14 @@ clients = {
 			'xdg-shell',
 		],
 	},
+	'ext-foreign-toplevel': {
+		'src': 'ext-foreign-toplevel.c',
+		'dep': [],
+		'proto': [
+			'foreign-toplevel-info-unstable-v1',
+			'foreign-toplevel-management-unstable-v1',
+		],
+	},
 	'foreign-toplevel': {
 		'src': 'foreign-toplevel.c',
 		'dep': [wlroots],
