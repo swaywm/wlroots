@@ -86,7 +86,7 @@ struct wlr_surface_output {
 };
 
 struct wlr_surface {
-	struct wl_resource *resource;
+	struct wl_resource *resource; // can be NULL if destroyed by the client
 	struct wlr_renderer *renderer;
 	/**
 	 * The surface's buffer, if any. A surface has an attached buffer when it
