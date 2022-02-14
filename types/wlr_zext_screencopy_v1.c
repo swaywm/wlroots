@@ -290,6 +290,8 @@ static void surface_commit(struct wl_client *client,
 			pixman_region32_not_empty(&surface->cursor_damage)) {
 		wlr_output_schedule_frame(output);
 	}
+
+	surface->committed = true;
 }
 
 static void surface_handle_destroy(struct wl_client *client,
@@ -755,6 +757,10 @@ static void surface_handle_output_commit_ready(
 		return;
 	}
 
+	if (!surface->committed) {
+		return;
+	}
+
 	if (surface->have_cursor && !surface_is_cursor_visible(surface)) {
 		zext_screencopy_surface_v1_send_cursor_leave(surface->resource,
 				"default");
@@ -803,21 +809,22 @@ static void surface_handle_output_commit_ready(
 	surface_send_commit_time(surface, event->when);
 	zext_screencopy_surface_v1_send_ready(surface->resource);
 
-	pixman_region32_clear(&surface->frame_damage);
-	pixman_region32_clear(&surface->cursor_damage);
 	pixman_region32_clear(&surface->current_buffer.damage);
 	pixman_region32_clear(&surface->current_cursor_buffer.damage);
 
 	if (surface->current_buffer.resource) {
 		wl_list_remove(&surface->current_buffer.destroy.link);
+		pixman_region32_clear(&surface->frame_damage);
 	}
 
 	if (surface->current_cursor_buffer.resource) {
 		wl_list_remove(&surface->current_cursor_buffer.destroy.link);
+		pixman_region32_clear(&surface->cursor_damage);
 	}
 
 	surface->current_buffer.resource = NULL;
 	surface->current_cursor_buffer.resource = NULL;
+	surface->committed = false;
 }
 
 static void surface_handle_output_commit(struct wl_listener *listener,

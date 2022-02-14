@@ -53,9 +53,9 @@ struct wlr_zext_screencopy_surface_v1 {
 	int cursor_wl_shm_stride;
 	uint32_t cursor_dmabuf_format;
 
-        int cursor_width;
-        int cursor_height;
-        bool have_cursor;
+	int cursor_width;
+	int cursor_height;
+	bool have_cursor;
 
 	uint32_t options;
 	struct wlr_zext_screencopy_surface_v1_buffer staged_buffer;
@@ -63,6 +63,8 @@ struct wlr_zext_screencopy_surface_v1 {
 
 	struct wlr_zext_screencopy_surface_v1_buffer staged_cursor_buffer;
 	struct wlr_zext_screencopy_surface_v1_buffer current_cursor_buffer;
+
+	bool committed;
 
 	/* Accumulated damage for the surface */
 	struct pixman_region32 frame_damage;
