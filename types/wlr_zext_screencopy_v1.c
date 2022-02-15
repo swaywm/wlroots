@@ -575,6 +575,12 @@ static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 		return false;
 	}
 
+	// TODO: More fine grained damage regions
+	pixman_region32_intersect_rect(damage, damage, 0, 0, width, height);
+	pixman_box32_t *extents = pixman_region32_extents(damage);
+	int32_t y_offset = extents->y1;
+	int32_t damage_height = extents->y2 - extents->y1;
+
 	bool use_scratch_buffer = dst_buffer->width != src_buffer->width;
 	if (use_scratch_buffer) {
 		stride = width * 4; // TODO: This assumes things
@@ -584,29 +590,31 @@ static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 		stride = dst_stride;
 	}
 
-	// TODO: Only copy damaged region
 	uint32_t renderer_flags = 0;
 	bool ok;
 	ok = wlr_renderer_begin_with_buffer(renderer, src_buffer);
 	ok = ok && wlr_renderer_read_pixels(renderer, format, &renderer_flags,
-			stride, width, height, 0, 0, 0, 0, data);
+			stride, width, damage_height, 0, y_offset, 0, 0,
+			(uint8_t*)data + stride * y_offset);
 	wlr_renderer_end(renderer);
 	// TODO: if renderer_flags & WLR_RENDERER_READ_PIXELS_Y_INVERT:
 	//    add vertical flip to transform
 
 	if (use_scratch_buffer) {
-		for (size_t y = 0; y < (size_t)height; ++y) {
-			memcpy(dst_data + y * dst_stride, data + y * stride,
-					stride);
-			memset(dst_data + y * dst_stride + stride, 0,
-					dst_stride - stride);
+		memset(dst_data, 0, y_offset * dst_stride);
+
+		for (size_t y = 0; y < (size_t)damage_height; ++y) {
+			memcpy(dst_data + (y + y_offset) * dst_stride,
+					data + (y + y_offset) * stride, stride);
+			memset(dst_data + (y + y_offset) * dst_stride + stride,
+					0, dst_stride - stride);
 		}
 		free(data);
 
 		// Clear the rest of the destination buffer
 		// TODO: Only do this if the rest is marked damaged
-		memset(dst_data + height * dst_stride, 0,
-				dst_stride * (dst_buffer->height - height));
+		memset(dst_data + damage_height * dst_stride, 0,
+				dst_stride * (dst_buffer->height - damage_height));
 	}
 
 	wlr_buffer_end_data_ptr_access(dst_buffer);
