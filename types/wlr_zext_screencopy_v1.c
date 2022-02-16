@@ -11,6 +11,7 @@
 #include "util/signal.h"
 #include "render/wlr_renderer.h"
 #include "render/swapchain.h"
+#include "render/pixman.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -543,6 +544,66 @@ static void surface_send_transform(struct wlr_zext_screencopy_surface_v1 *surfac
 	zext_screencopy_surface_v1_send_transform(surface->resource, transform);
 }
 
+// TODO: Handle output transforms and such?
+static bool surface_composite_cursor_buffer(
+		struct wlr_zext_screencopy_surface_v1 *surface,
+		struct wlr_buffer *buffer, void *data, uint32_t drm_format,
+		size_t stride) {
+	struct wlr_output *output = surface->output;
+	struct wlr_renderer *renderer = output->renderer;
+	struct wlr_output_cursor *cursor = output->hardware_cursor;
+	struct wlr_buffer *cursor_buffer = output->cursor_front_buffer;
+
+	pixman_format_code_t dst_format = get_pixman_format_from_drm(drm_format);
+	assert(dst_format);
+
+	pixman_image_t *dst_image =
+		pixman_image_create_bits_no_clear(dst_format, buffer->width,
+				buffer->height, data, stride);
+	if (!dst_image)
+		return false;
+
+	uint32_t cursor_drm_format =
+		get_buffer_preferred_read_format(cursor_buffer, renderer);
+	pixman_format_code_t cursor_format =
+		get_pixman_format_from_drm(cursor_drm_format);
+	assert(cursor_format);
+
+	size_t cursor_stride = cursor_buffer->width * 4;
+
+	void *scratch_buffer = malloc(cursor_buffer->height * cursor_stride);
+	assert(scratch_buffer);
+
+	pixman_image_t *src_image =
+		pixman_image_create_bits(cursor_format, cursor_buffer->width,
+				cursor_buffer->height, scratch_buffer,
+				cursor_stride);
+
+	uint32_t renderer_flags = 0;
+	bool ok;
+	ok = wlr_renderer_begin_with_buffer(renderer, cursor_buffer);
+	ok = ok && wlr_renderer_read_pixels(renderer, cursor_drm_format,
+			&renderer_flags, cursor_stride, cursor_buffer->width,
+			cursor_buffer->height, 0, 0, 0, 0, scratch_buffer);
+	wlr_renderer_end(renderer);
+	if (!ok) {
+		goto fail;
+	}
+
+	pixman_image_composite32(PIXMAN_OP_OVER, src_image, NULL, dst_image,
+			0, 0, // src x,y
+			0, 0, // mask x,y
+			cursor->x, cursor->y, // dst x,y
+			cursor->width, cursor->height);
+
+fail:
+	pixman_image_unref(src_image);
+	free(scratch_buffer);
+	pixman_image_unref(dst_image);
+
+	return ok;
+}
+
 static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 		struct wlr_buffer *dst_buffer, struct wlr_shm_attributes *attr,
 		struct wlr_buffer *src_buffer, uint32_t wl_shm_format,
@@ -615,6 +676,12 @@ static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 		// TODO: Only do this if the rest is marked damaged
 		memset(dst_data + damage_height * dst_stride, 0,
 				dst_stride * (dst_buffer->height - damage_height));
+	}
+
+	if (surface->options & ZEXT_SCREENCOPY_SURFACE_V1_OPTIONS_RENDER_CURSORS
+			&& src_buffer != output->cursor_front_buffer) {
+		surface_composite_cursor_buffer(surface, dst_buffer, dst_data,
+				format, dst_stride);
 	}
 
 	wlr_buffer_end_data_ptr_access(dst_buffer);
