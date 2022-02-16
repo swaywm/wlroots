@@ -14,8 +14,45 @@
 
 struct wlr_backend_impl;
 
+enum wlr_backend_capability {
+	/*
+	 * This backend supports input devices.
+	 * New input devices are advertised with the 'new_input' event.
+	 */
+	WLR_BACKEND_CAP_INPUT = 1 << 0,
+	/*
+	 * This backend supports graphical outputs.
+	 * New outputs are advertised with the 'new_output' event.
+	 */
+	WLR_BACKEND_CAP_OUTPUT = 1 << 1,
+	/*
+	 * This backend takes control of the login session or 'seat'.
+	 * See the wlr_session type for more details.
+	 */
+	WLR_BACKEND_CAP_SESSION = 1 << 2,
+	/*
+	 * This backend is capable of setting an output's mode (resolution) to
+	 * an arbitrary value. If this is not supported, you must use a mode
+	 * listed by the wlr_output.
+	 */
+	WLR_BACKEND_CAP_ARBITRARY_MODES = 1 << 3,
+	/*
+	 * This backend supports setting cursors without requiring them to be
+	 * composited to the main framebuffer. Some backends may have extra
+	 * restrictions for what it can accept as a valid hardware cursor.
+	 */
+	WLR_BACKEND_CAP_HARDWARE_CURSOR = 1 << 4,
+	/*
+	 * This backend supports accurate feedback for when a frame is
+	 * presented to an output. This is relevant to the wp_presentation
+	 * protocol.
+	 */
+	WLR_BACKEND_CAP_PRESENTATION_TIME = 1 << 5,
+};
+
 struct wlr_backend {
 	const struct wlr_backend_impl *impl;
+	uint32_t capabilities; // Bitmask of enum wlr_backend_capability
 
 	struct {
 		/** Raised when destroyed, passed the wlr_backend reference */
