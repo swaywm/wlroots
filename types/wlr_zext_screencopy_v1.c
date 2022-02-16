@@ -622,31 +622,64 @@ static bool surface_copy_wl_shm(struct wlr_zext_screencopy_surface_v1 *surface,
 	return ok;
 }
 
-static bool blit_dmabuf(struct wlr_renderer *renderer,
-		struct wlr_buffer *dst_buffer,
-		struct wlr_buffer *src_buffer, struct wlr_box *clip_box) {
+static bool blit_dmabuf(struct wlr_zext_screencopy_surface_v1 *surface,
+		struct wlr_buffer *dst_buffer, struct wlr_buffer *src_buffer,
+		struct wlr_buffer *cursor_buffer, struct wlr_box *clip_box) {
+	struct wlr_output *output = surface->output;
+	struct wlr_renderer *renderer = output->renderer;
+
 	struct wlr_texture *src_tex =
 		wlr_texture_from_buffer(renderer, src_buffer);
 	if (!src_tex) {
 		return false;
 	}
 
-	float mat[9];
-	wlr_matrix_identity(mat);
-	wlr_matrix_translate(mat, -1.0, 1.0);
-	wlr_matrix_scale(mat, src_buffer->width, src_buffer->height);
+	struct wlr_texture *cursor_tex = NULL;
+	if (cursor_buffer) {
+		cursor_tex = wlr_texture_from_buffer(renderer, cursor_buffer);
+		if (!cursor_tex) {
+			return false;
+		}
+	}
 
 	if (!wlr_renderer_begin_with_buffer(renderer, dst_buffer)) {
 		goto error_renderer_begin;
 	}
 
+	float main_matrix[9];
+	wlr_matrix_identity(main_matrix);
+	wlr_matrix_translate(main_matrix, -1.0, 1.0);
+	wlr_matrix_scale(main_matrix, src_buffer->width, src_buffer->height);
+
 	wlr_renderer_scissor(renderer, clip_box);
 	wlr_renderer_clear(renderer,  (float[]){ 0.0, 0.0, 0.0, 0.0 });
-	wlr_render_texture_with_matrix(renderer, src_tex, mat, 1.0f);
+	wlr_render_texture_with_matrix(renderer, src_tex, main_matrix, 1.0f);
 	wlr_renderer_scissor(renderer, NULL);
+
+	if (cursor_buffer) {
+		// TODO: Transforms, scaling, and more
+		struct wlr_box cursor_box = {
+			.x = output->hardware_cursor->x,
+			.y = output->hardware_cursor->y,
+			.width = cursor_buffer->width,
+			.height = cursor_buffer->height,
+		};
+
+		float identity_matrix[9];
+		wlr_matrix_identity(identity_matrix);
+
+		float cursor_matrix[9];
+		wlr_matrix_project_box(cursor_matrix, &cursor_box,
+				WL_OUTPUT_TRANSFORM_NORMAL, 0, identity_matrix);
+
+
+		wlr_render_texture_with_matrix(renderer, cursor_tex,
+				cursor_matrix, 1.0);
+	}
 
 	wlr_renderer_end(renderer);
 
+	wlr_texture_destroy(cursor_tex);
 	wlr_texture_destroy(src_tex);
 	return true;
 
@@ -660,7 +693,6 @@ static bool surface_copy_dmabuf(struct wlr_zext_screencopy_surface_v1 *surface,
 		struct wlr_buffer *src_buffer, uint32_t format,
 		struct pixman_region32 *damage) {
 	struct wlr_output *output = surface->output;
-	struct wlr_renderer *renderer = output->renderer;
 
 	if (dst_buffer->width < src_buffer->width ||
 			dst_buffer->height < src_buffer->height) {
@@ -679,7 +711,16 @@ static bool surface_copy_dmabuf(struct wlr_zext_screencopy_surface_v1 *surface,
 		.height = extents->y2 - extents->y1,
 	};
 
-	return blit_dmabuf(renderer, dst_buffer, src_buffer, &clip_box);
+	struct wlr_buffer *cursor_buffer =
+		surface->options & ZEXT_SCREENCOPY_SURFACE_V1_OPTIONS_RENDER_CURSORS ?
+		output->cursor_front_buffer : NULL;
+
+	if (src_buffer == cursor_buffer) {
+		cursor_buffer = NULL;
+	}
+
+	return blit_dmabuf(surface, dst_buffer, src_buffer, cursor_buffer,
+			&clip_box);
 }
 
 static bool surface_copy(struct wlr_zext_screencopy_surface_v1 *surface,
@@ -819,15 +860,15 @@ static void surface_handle_output_commit_ready(
 
 	pixman_region32_clear(&surface->current_buffer.damage);
 	pixman_region32_clear(&surface->current_cursor_buffer.damage);
+	pixman_region32_clear(&surface->frame_damage);
+	pixman_region32_clear(&surface->cursor_damage);
 
 	if (surface->current_buffer.resource) {
 		wl_list_remove(&surface->current_buffer.destroy.link);
-		pixman_region32_clear(&surface->frame_damage);
 	}
 
 	if (surface->current_cursor_buffer.resource) {
 		wl_list_remove(&surface->current_cursor_buffer.destroy.link);
-		pixman_region32_clear(&surface->cursor_damage);
 	}
 
 	surface->current_buffer.resource = NULL;
@@ -856,6 +897,21 @@ static void surface_handle_output_commit(struct wl_listener *listener,
 	}
 }
 
+static void surface_save_cursor_coords(
+		struct wlr_zext_screencopy_surface_v1 *surface)
+{
+	struct wlr_output *output = surface->output;
+	struct wlr_output_cursor *cursor = output->hardware_cursor;
+	if (!cursor) {
+		return;
+	}
+
+	surface->last_cursor.x = cursor->x;
+	surface->last_cursor.y = cursor->y;
+	surface->last_cursor.width = cursor->width;
+	surface->last_cursor.height = cursor->height;
+}
+
 static void surface_handle_output_set_cursor(struct wl_listener *listener,
 		void *data) {
 	struct wlr_zext_screencopy_surface_v1 *surface =
@@ -866,12 +922,33 @@ static void surface_handle_output_set_cursor(struct wl_listener *listener,
 			surface->cursor_width, surface->cursor_height);
 
 	wlr_output_schedule_frame(surface->output);
+
+	surface_save_cursor_coords(surface);
 }
 
 static void surface_handle_output_move_cursor(struct wl_listener *listener,
 		void *data) {
 	struct wlr_zext_screencopy_surface_v1 *surface =
 		wl_container_of(listener, surface, output_move_cursor);
+	struct wlr_output *output = surface->output;
+	struct wlr_output_cursor *cursor = output->hardware_cursor;
+
+	// TODO: These options might need to be set for the surface rather than
+	// per surface commit
+	if ((surface->options & ZEXT_SCREENCOPY_SURFACE_V1_OPTIONS_RENDER_CURSORS)
+			&& cursor) {
+		struct pixman_region32 *region = &surface->frame_damage;
+		pixman_region32_union_rect(region, region, cursor->x, cursor->y,
+				cursor->width, cursor->height);
+		pixman_region32_union_rect(region, region,
+				surface->last_cursor.x, surface->last_cursor.y,
+				surface->last_cursor.width,
+				surface->last_cursor.height);
+		pixman_region32_intersect_rect(region, region, 0, 0,
+			output->width, output->height);
+	}
+
+	surface_save_cursor_coords(surface);
 
 	wlr_output_schedule_frame(surface->output);
 }

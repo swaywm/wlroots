@@ -57,6 +57,10 @@ struct wlr_zext_screencopy_surface_v1 {
 	int cursor_height;
 	bool have_cursor;
 
+        struct {
+                int x, y, width, height;
+        } last_cursor;
+
 	uint32_t options;
 	struct wlr_zext_screencopy_surface_v1_buffer staged_buffer;
 	struct wlr_zext_screencopy_surface_v1_buffer current_buffer;
