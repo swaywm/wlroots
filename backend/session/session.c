@@ -139,6 +139,35 @@ static bool is_drm_card(const char *sysname) {
 	return true;
 }
 
+static void read_udev_change_event(struct wlr_device_change_event *event,
+		struct udev_device *udev_dev) {
+	const char *hotplug = udev_device_get_property_value(udev_dev, "HOTPLUG");
+	if (hotplug != NULL && strcmp(hotplug, "1") == 0) {
+		event->type = WLR_DEVICE_HOTPLUG;
+		struct wlr_device_hotplug_event *hotplug = &event->hotplug;
+
+		const char *connector =
+			udev_device_get_property_value(udev_dev, "CONNECTOR");
+		if (connector != NULL) {
+			hotplug->connector_id = strtoul(connector, NULL, 10);
+		}
+
+		const char *prop =
+			udev_device_get_property_value(udev_dev, "PROPERTY");
+		if (prop != NULL) {
+			hotplug->prop_id = strtoul(prop, NULL, 10);
+		}
+
+		return;
+	}
+
+	const char *lease = udev_device_get_property_value(udev_dev, "LEASE");
+	if (lease != NULL && strcmp(lease, "1") == 0) {
+		event->type = WLR_DEVICE_LEASE;
+		return;
+	}
+}
+
 static int handle_udev_event(int fd, uint32_t mask, void *data) {
 	struct wlr_session *session = data;
 
@@ -180,7 +209,9 @@ static int handle_udev_event(int fd, uint32_t mask, void *data) {
 
 			if (strcmp(action, "change") == 0) {
 				wlr_log(WLR_DEBUG, "DRM device %s changed", sysname);
-				wlr_signal_emit_safe(&dev->events.change, NULL);
+				struct wlr_device_change_event event = {0};
+				read_udev_change_event(&event, udev_dev);
+				wlr_signal_emit_safe(&dev->events.change, &event);
 			} else if (strcmp(action, "remove") == 0) {
 				wlr_log(WLR_DEBUG, "DRM device %s removed", sysname);
 				wlr_signal_emit_safe(&dev->events.remove, NULL);
@@ -339,7 +370,7 @@ bool wlr_session_change_vt(struct wlr_session *session, unsigned vt) {
 
 /* Tests if 'path' is KMS compatible by trying to open it. Returns the opened
  * device on success. */
-static struct wlr_device *open_if_kms(struct wlr_session *restrict session,
+struct wlr_device *session_open_if_kms(struct wlr_session *restrict session,
 		const char *restrict path) {
 	if (!path) {
 		return NULL;
@@ -375,7 +406,7 @@ static ssize_t explicit_find_gpus(struct wlr_session *session,
 			break;
 		}
 
-		ret[i] = open_if_kms(session, ptr);
+		ret[i] = session_open_if_kms(session, ptr);
 		if (!ret[i]) {
 			wlr_log(WLR_ERROR, "Unable to open %s as DRM device", ptr);
 		} else {
@@ -511,7 +542,7 @@ ssize_t wlr_session_find_gpus(struct wlr_session *session,
 		}
 
 		struct wlr_device *wlr_dev =
-			open_if_kms(session, udev_device_get_devnode(dev));
+			session_open_if_kms(session, udev_device_get_devnode(dev));
 		if (!wlr_dev) {
 			udev_device_unref(dev);
 			continue;

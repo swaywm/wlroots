@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <wayland-server-core.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/util/log.h>
@@ -415,7 +416,7 @@ void seat_client_create_keyboard(struct wlr_seat_client *seat_client,
 		seat_client->seat->keyboard_state.focused_surface;
 
 	// Send an enter event if there is a focused client/surface stored
-	if (focused_client != NULL && focused_surface != NULL) {
+	if (focused_client == seat_client && focused_surface != NULL) {
 		uint32_t *keycodes = keyboard->keycodes;
 		size_t num_keycodes = keyboard->num_keycodes;
 

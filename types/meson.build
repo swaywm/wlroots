@@ -10,6 +10,7 @@ wlr_files += files(
 	'scene/subsurface_tree.c',
 	'scene/wlr_scene.c',
 	'scene/output_layout.c',
+	'scene/xdg_shell.c',
 	'seat/wlr_seat_keyboard.c',
 	'seat/wlr_seat_pointer.c',
 	'seat/wlr_seat_touch.c',
@@ -57,7 +58,7 @@ wlr_files += files(
 	'wlr_relative_pointer_v1.c',
 	'wlr_screencopy_v1.c',
 	'wlr_server_decoration.c',
-	'wlr_surface.c',
+	'wlr_subcompositor.c',
 	'wlr_switch.c',
 	'wlr_tablet_pad.c',
 	'wlr_tablet_tool.c',
@@ -73,6 +74,7 @@ wlr_files += files(
 	'wlr_xdg_foreign_v2.c',
 	'wlr_xdg_foreign_registry.c',
 	'wlr_xdg_output_v1.c',
+	'wlr_zext_screencopy_v1.c',
 )
 
 if features.get('drm-backend')

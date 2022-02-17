@@ -250,8 +250,6 @@ static struct wlr_texture *gles2_texture_from_dmabuf(
 		return NULL;
 	}
 	texture->drm_format = DRM_FORMAT_INVALID; // texture can't be written anyways
-	texture->inverted_y =
-		(attribs->flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) != 0;
 
 	const struct wlr_pixel_format_info *drm_fmt =
 		drm_get_pixel_format_info(attribs->format);
@@ -363,6 +361,5 @@ void wlr_gles2_texture_get_attribs(struct wlr_texture *wlr_texture,
 	memset(attribs, 0, sizeof(*attribs));
 	attribs->target = texture->target;
 	attribs->tex = texture->tex;
-	attribs->inverted_y = texture->inverted_y;
 	attribs->has_alpha = texture->has_alpha;
 }

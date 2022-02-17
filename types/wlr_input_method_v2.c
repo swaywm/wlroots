@@ -6,8 +6,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <wayland-util.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_input_method_v2.h>
-#include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "input-method-unstable-v2-protocol.h"
@@ -88,6 +88,10 @@ static void im_commit_string(struct wl_client *client,
 	}
 	free(input_method->pending.commit_text);
 	input_method->pending.commit_text = strdup(text);
+	if (input_method->pending.commit_text == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
 }
 
 static void im_set_preedit_string(struct wl_client *client,
@@ -102,6 +106,10 @@ static void im_set_preedit_string(struct wl_client *client,
 	input_method->pending.preedit.cursor_end = cursor_end;
 	free(input_method->pending.preedit.text);
 	input_method->pending.preedit.text = strdup(text);
+	if (input_method->pending.preedit.text == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
 }
 
 static void im_delete_surrounding_text(struct wl_client *client,
@@ -149,9 +157,22 @@ static void popup_surface_surface_role_commit(struct wlr_surface *surface) {
 		&& popup_surface->input_method->client_active);
 }
 
+static void popup_surface_surface_role_precommit(struct wlr_surface *surface,
+		const struct wlr_surface_state *state) {
+	struct wlr_input_popup_surface_v2 *popup_surface = surface->role_data;
+	if (popup_surface == NULL) {
+		return;
+	}
+	if (state->committed & WLR_SURFACE_STATE_BUFFER && state->buffer == NULL) {
+		// This is a NULL commit
+		popup_surface_set_mapped(popup_surface, false);
+	}
+}
+
 static const struct wlr_surface_role input_popup_surface_v2_role = {
 	.name = "zwp_input_popup_surface_v2",
 	.commit = popup_surface_surface_role_commit,
+	.precommit = popup_surface_surface_role_precommit,
 };
 
 bool wlr_surface_is_input_popup_surface_v2(struct wlr_surface *surface) {

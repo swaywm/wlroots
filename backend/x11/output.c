@@ -140,10 +140,6 @@ static xcb_pixmap_t import_dmabuf(struct wlr_x11_output *output,
 		return XCB_PIXMAP_NONE;
 	}
 
-	if (dmabuf->flags != 0) {
-		return XCB_PIXMAP_NONE;
-	}
-
 	// xcb closes the FDs after sending them, so we need to dup them here
 	struct wlr_dmabuf_attributes dup_attrs = {0};
 	if (!wlr_dmabuf_attributes_copy(&dup_attrs, dmabuf)) {
@@ -380,7 +376,7 @@ static void update_x11_output_cursor(struct wlr_x11_output *output,
 static bool output_cursor_to_picture(struct wlr_x11_output *output,
 		struct wlr_buffer *buffer) {
 	struct wlr_x11_backend *x11 = output->x11;
-	struct wlr_renderer *renderer = wlr_backend_get_renderer(&x11->backend);
+	struct wlr_renderer *renderer = output->wlr_output.renderer;
 
 	if (output->cursor.pic != XCB_NONE) {
 		xcb_render_free_picture(x11->xcb, output->cursor.pic);
@@ -516,13 +512,15 @@ struct wlr_output *wlr_x11_output_create(struct wlr_backend *backend) {
 
 	wlr_output_update_custom_mode(wlr_output, 1024, 768, 0);
 
-	snprintf(wlr_output->name, sizeof(wlr_output->name), "X11-%zd",
-		++x11->last_output_num);
+	char name[64];
+	snprintf(name, sizeof(name), "X11-%zu", ++x11->last_output_num);
+	wlr_output_set_name(wlr_output, name);
+
 	parse_xcb_setup(wlr_output, x11->xcb);
 
 	char description[128];
 	snprintf(description, sizeof(description),
-		"X11 output %zd", x11->last_output_num);
+		"X11 output %zu", x11->last_output_num);
 	wlr_output_set_description(wlr_output, description);
 
 	// The X11 protocol requires us to set a colormap and border pixel if the

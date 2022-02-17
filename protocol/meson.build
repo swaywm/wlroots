@@ -1,6 +1,6 @@
 wayland_protos = dependency('wayland-protocols',
-	version: '>=1.23',
-	fallback: ['wayland-protocols', 'wayland_protocols'],
+	version: '>=1.24',
+	fallback: 'wayland-protocols',
 	default_options: ['tests=false'],
 )
 wl_protocol_dir = wayland_protos.get_variable('pkgdatadir')
@@ -53,6 +53,7 @@ protocols = {
 	'wlr-output-power-management-unstable-v1': 'wlr-output-power-management-unstable-v1.xml',
 	'wlr-screencopy-unstable-v1': 'wlr-screencopy-unstable-v1.xml',
 	'wlr-virtual-pointer-unstable-v1': 'wlr-virtual-pointer-unstable-v1.xml',
+	'screencopy-unstable-v1': 'screencopy-unstable-v1.xml',
 }
 
 protocols_code = {}

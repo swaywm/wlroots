@@ -11,4 +11,7 @@ bool libseat_change_vt(struct wlr_session *base, unsigned vt);
 
 void session_init(struct wlr_session *session);
 
+struct wlr_device *session_open_if_kms(struct wlr_session *restrict session,
+	const char *restrict path);
+
 #endif

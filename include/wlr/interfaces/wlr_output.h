@@ -21,6 +21,7 @@
 	(WLR_OUTPUT_STATE_DAMAGE | \
 	WLR_OUTPUT_STATE_SCALE | \
 	WLR_OUTPUT_STATE_TRANSFORM | \
+	WLR_OUTPUT_STATE_RENDER_FORMAT | \
 	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED)
 
 /**
@@ -85,7 +86,7 @@ struct wlr_output_impl {
 	 */
 	void (*get_cursor_size)(struct wlr_output *output, int *width, int *height);
 	/**
-	 * Get the list of DMA-BUF formats suitable for the primary buffer,
+	 * Get the list of DRM formats suitable for the primary buffer,
 	 * assuming a buffer with the specified capabilities.
 	 *
 	 * If unimplemented, the primary buffer has no format constraint. If NULL

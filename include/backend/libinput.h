@@ -26,7 +26,7 @@ struct wlr_libinput_backend {
 
 struct wlr_libinput_input_device {
 	struct wlr_input_device wlr_input_device;
-
+	struct wl_list link;
 	struct libinput_device *handle;
 };
 

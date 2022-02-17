@@ -4,6 +4,7 @@ wlr_files += files(
 	'cvt.c',
 	'drm.c',
 	'legacy.c',
+	'monitor.c',
 	'properties.c',
 	'renderer.c',
 	'util.c',

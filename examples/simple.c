@@ -7,6 +7,7 @@
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
+#include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_input_device.h>
@@ -18,6 +19,8 @@ struct sample_state {
 	struct wl_display *display;
 	struct wl_listener new_output;
 	struct wl_listener new_input;
+	struct wlr_renderer *renderer;
+	struct wlr_allocator *allocator;
 	struct timespec last_frame;
 	float color[4];
 	int dec;
@@ -61,8 +64,7 @@ static void output_frame_notify(struct wl_listener *listener, void *data) {
 
 	wlr_output_attach_render(wlr_output, NULL);
 
-	struct wlr_renderer *renderer =
-		wlr_backend_get_renderer(wlr_output->backend);
+	struct wlr_renderer *renderer = sample->renderer;
 	wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
 	wlr_renderer_clear(renderer, sample->color);
 	wlr_renderer_end(renderer);
@@ -84,6 +86,9 @@ static void new_output_notify(struct wl_listener *listener, void *data) {
 	struct wlr_output *output = data;
 	struct sample_state *sample =
 		wl_container_of(listener, sample, new_output);
+
+	wlr_output_init_render(output, sample->allocator, sample->renderer);
+
 	struct sample_output *sample_output =
 		calloc(1, sizeof(struct sample_output));
 	sample_output->output = output;
@@ -171,6 +176,10 @@ int main(void) {
 	if (!backend) {
 		exit(1);
 	}
+
+	state.renderer = wlr_renderer_autocreate(backend);
+	state.allocator = wlr_allocator_autocreate(backend, state.renderer);
+
 	wl_signal_add(&backend->events.new_output, &state.new_output);
 	state.new_output.notify = new_output_notify;
 	wl_signal_add(&backend->events.new_input, &state.new_input);

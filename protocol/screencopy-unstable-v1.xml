@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="screencopy_unstable_v1">
+  <copyright>
+    Copyright © 2021-2022 Andri Yngvason
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice (including the next
+    paragraph) shall be included in all copies or substantial portions of the
+    Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+  </copyright>
+
+  <description summary="screen content capturing on client buffers">
+    This protocol allows clients to ask the compositor to copy part of the
+    screen content to a client buffer.
+
+    Warning! The protocol described in this file is experimental and
+    backward incompatible changes may be made. Backward compatible changes
+    may be added together with the corresponding interface version bump.
+    Backward incompatible changes are done by bumping the version number in
+    the protocol and interface names and resetting the interface version.
+    Once the protocol is to be declared stable, the 'z' prefix and the
+    version number in the protocol and interface names are removed and the
+    interface version number is reset.
+  </description>
+
+  <interface name="zext_screencopy_manager_v1" version="1">
+    <description summary="manager to inform clients and begin capturing">
+      This object is a manager which offers requests to start capturing from a
+      source.
+    </description>
+
+    <request name="capture_output">
+      <description summary="capture an output">
+        Create a capturing surface for an output
+      </description>
+      <arg name="surface" type="new_id" interface="zext_screencopy_surface_v1"/>
+      <arg name="output" type="object" interface="wl_output"/>
+    </request>
+  </interface>
+
+  <interface name="zext_screencopy_surface_v1" version="1">
+    <description summary="a frame ready for copy">
+      This object represents a surface that's being captured.
+
+      After a screencopy surface is created, buffer_info events will be emitted
+      from the compositor to tell the client which buffer types and formats are
+      supported for reading from the surface.
+
+      When the client knows all the buffer attributes, it can create a buffer,
+      attach it to the screencopy surface using the "attach_buffer" request,
+      set the buffer damage using the "damage_buffer" request and then call
+      the "commit" request.
+
+      After "commit" has been called, the next time that a buffer is committed
+      by the compositor, the contents of that buffer will be copied to the one
+      committed to the screencopy surface. A series of events will be generated,
+      ending with the "ready" event, which means that the buffer is ready to be
+      used and a buffer may be committed to the surface again.
+
+      The "failed" event may be sent at any time. When this happens, the client
+      must destroy the surface. Depending on the failure reason, the client can
+      create a new surface to replace it.
+    </description>
+
+    <enum name="failure_reason">
+      <entry name="unspec" value="0"/>
+      <entry name="invalid_main_buffer" value="1"/>
+      <entry name="invalid_cursor_buffer" value="2"/>
+      <entry name="output_missing" value="3"/>
+      <entry name="output_disabled" value="4"/>
+      <entry name="unknown_seat" value="5"/>
+    </enum>
+
+    <enum name="options" bitfield="true">
+      <entry name="none" value="0"/>
+      <entry name="immediate" value="1"/>
+      <entry name="render_cursors" value="2"/>
+    </enum>
+
+    <enum name="buffer_type">
+      <entry name="wl_shm" value="0"/>
+      <entry name="dmabuf" value="1"/>
+    </enum>
+
+    <event name="buffer_info">
+      <description summary="buffer information">
+        Provides information about buffer parameters that need to be used for
+        the main image. This event is sent for every supported buffer type
+        after the surface is created.
+
+        The stride parameter is invalid for dmabuf and may be set to 0.
+      </description>
+      <arg name="type" type="uint" enum="buffer_type" summary="buffer type"/>
+      <arg name="format" type="uint" summary="buffer drm format"/>
+      <arg name="width" type="uint" summary="buffer width"/>
+      <arg name="height" type="uint" summary="buffer height"/>
+      <arg name="stride" type="uint" summary="buffer stride"/>
+    </event>
+
+    <event name="cursor_buffer_info">
+      <description summary="cursor buffer information">
+        Provides information about buffer parameters that need to be used for
+        the cursor image. This event is sent for every supported buffer type
+        after the surface is created, and it may be different for each seat.
+
+        The default seat will be referred to as "default" within this protocol,
+        whether it be named so by the compositor or not.
+
+        The stride parameter is invalid for dmabuf and may be set to 0.
+      </description>
+      <arg name="seat_name" type="string" summary="seat name"/>
+      <arg name="type" type="uint" enum="buffer_type" summary="buffer type"/>
+      <arg name="format" type="uint" summary="buffer drm format"/>
+      <arg name="width" type="uint" summary="minimum buffer width"/>
+      <arg name="height" type="uint" summary="minimum buffer height"/>
+      <arg name="stride" type="uint" summary="minimum buffer stride"/>
+    </event>
+
+    <event name="init_done">
+      <description summary="surface initialisation done">
+        This event is sent once when all buffer info events have been sent.
+      </description>
+    </event>
+
+    <request name="attach_buffer">
+      <description summary="attach buffer to surface">
+        Attach a buffer to the surface.
+      </description>
+      <arg name="buffer" type="object" interface="wl_buffer"/>
+    </request>
+
+    <request name="damage_buffer">
+      <description summary="damage buffer">
+        Apply damage to the buffer which is to be committed next.
+
+        This is for optimisation purposes. The compositor may use this
+        information to reduce copying.
+
+        The client must submit damage if it's using multiple buffers. Otherwise,
+        the server might not copy into damaged regions of the buffer.
+
+        These coordinates originate in the upper left corner of the buffer.
+      </description>
+      <arg name="x" type="uint" summary="region x coordinates"/>
+      <arg name="y" type="uint" summary="region y coordinates"/>
+      <arg name="width" type="uint" summary="region width"/>
+      <arg name="height" type="uint" summary="region height"/>
+    </request>
+
+    <request name="attach_cursor_buffer">
+      <description summary="attach cursor buffer to surface">
+        Attach a named cursor buffer to the surface.
+
+        The cursor buffer may exceed the dimensions specified in the
+        "cursor_buffer_info" event. The cursor image will be drawn in the top,
+        left corner of the buffer.
+      </description>
+      <arg name="buffer" type="object" interface="wl_buffer"/>
+      <arg name="seat_name" type="string"/>
+    </request>
+
+    <request name="damage_cursor_buffer">
+      <description summary="damage cursor buffer">
+        Apply damage to a named cursor buffer which is to be committed next.
+
+        The whole cursor buffer will be considered damaged.
+      </description>
+      <arg name="seat_name" type="string"/>
+    </request>
+
+    <request name="commit">
+      <description summary="commit surface">
+        Commit the screencopy surface.
+
+        The frame will be copied to the surface on next output commit. A ready
+        event is generated when the buffer is ready.
+
+        If the "immediate" flag is set, the compositor must present a frame to
+        the client as soon as possible.
+
+        If the "render_cursors" flag is set, cursors shall be composited onto the
+        main surface. Otherwise, the compositor should try to leave them out, if
+        possible.
+      </description>
+      <arg name="options" type="uint" enum="options"/>
+    </request>
+
+    <request name="destroy" type="destructor">
+      <description summary="delete this object">
+        Destroys the surface. This request can be sent at any time by the
+        client.
+      </description>
+    </request>
+
+    <event name="transform">
+      <description summary="carries the output transform">
+        This event is sent before the ready event and holds the output transform
+        of the source buffer.
+      </description>
+      <arg name="transform" type="int" enum="wl_output.transform"/>
+    </event>
+
+    <event name="damage">
+      <description summary="carries the coordinates of the damaged region">
+        This event is sent before the ready event. It may be generated multiple
+        times for each commit.
+
+        The arguments describe a box around an area that has changed since the
+        last ready event.
+
+        These coordinates originate in the upper left corner of the buffer.
+      </description>
+      <arg name="x" type="uint" summary="damaged x coordinates"/>
+      <arg name="y" type="uint" summary="damaged y coordinates"/>
+      <arg name="width" type="uint" summary="current width"/>
+      <arg name="height" type="uint" summary="current height"/>
+    </event>
+
+    <event name="cursor_enter">
+      <description summary="cursor entered surface">
+        Sent when a cursor enters the captured surface. It shall be generated
+        before the "cursor_info" event when and only when a cursor enters the
+        surface.
+      </description>
+      <arg name="seat_name" type="string" summary="seat name"/>
+    </event>
+
+    <event name="cursor_leave">
+      <description summary="cursor left surface">
+        Sent when a cursor leaves the captured surface. No "cursor_info" event
+        is generated for for the given cursor.
+      </description>
+      <arg name="seat_name" type="string" summary="seat name"/>
+    </event>
+
+    <event name="cursor_info">
+      <description summary="cursor specific information">
+        This event is generated for each cursor buffer that was attached to the
+        surface and for which the cursor is currently focused on the surface.
+        It is generated once for each cursor buffer before the ready event.
+
+        Cursors outside the surface do not get captured and no event will be
+        generated for them.
+
+        If the cursor image has changed, the cursor buffer will have been
+        updated and the "has_damage" argument will be set to 1; otherwise 0.
+
+        The hotspot position is relative to the cursor buffer.
+      </description>
+      <arg name="seat_name" type="string" summary="seat name"/>
+      <arg name="has_damage" type="int" summary="buffer has changes"/>
+      <arg name="position_x" type="int" summary="position x coordinates"/>
+      <arg name="position_y" type="int" summary="position y coordinates"/>
+      <arg name="width" type="int" summary="width of the cursor image"/>
+      <arg name="height" type="int" summary="height of the cursor image"/>
+      <arg name="hotspot_x" type="int" summary="hotspot x coordinates"/>
+      <arg name="hotspot_y" type="int" summary="hotspot y coordinates"/>
+    </event>
+
+    <event name="failed">
+      <description summary="commit failed">
+        This event indicates that the attempted frame copy has failed.
+
+        After receiving this event, the client should destroy the object.
+      </description>
+      <arg name="reason" type="uint" enum="failure_reason"/>
+    </event>
+
+    <event name="commit_time">
+      <description summary="indicates the commit time of the frame">
+        This event indicates the time at which the frame is committed to be
+        scanned out in system monotonic time.
+
+        The timestamp is expressed as tv_sec_hi, tv_sec_lo, tv_nsec triples,
+        each component being an unsigned 32-bit value. Whole seconds are in
+        tv_sec which is a 64-bit value combined from tv_sec_hi and tv_sec_lo,
+        and the additional fractional part in tv_nsec as nanoseconds. Hence,
+        for valid timestamps tv_nsec must be in [0, 999999999]. The seconds part
+        may have an arbitrary offset at start.
+      </description>
+      <arg name="tv_sec_hi" type="uint"
+           summary="high 32 bits of the seconds part of the timestamp"/>
+      <arg name="tv_sec_lo" type="uint"
+           summary="low 32 bits of the seconds part of the timestamp"/>
+      <arg name="tv_nsec" type="uint"
+           summary="nanoseconds part of the timestamp"/>
+    </event>
+
+    <event name="ready">
+      <description summary="indicates frame is available for reading">
+        Called as soon as the frame is copied, indicating it is available
+        for reading.
+      </description>
+    </event>
+  </interface>
+</protocol>

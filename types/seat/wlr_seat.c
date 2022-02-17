@@ -191,7 +191,7 @@ void wlr_seat_destroy(struct wlr_seat *seat) {
 		}
 	}
 
-	wlr_global_destroy_safe(seat->global, seat->display);
+	wlr_global_destroy_safe(seat->global);
 	free(seat->pointer_state.default_grab);
 	free(seat->keyboard_state.default_grab);
 	free(seat->touch_state.default_grab);

@@ -1,16 +1,19 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <backend/backend.h>
+#include <drm_fourcc.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_matrix.h>
-#include <wlr/types/wlr_surface.h>
 #include <wlr/util/log.h>
+#include "render/allocator/allocator.h"
 #include "render/swapchain.h"
 #include "types/wlr_output.h"
 #include "util/global.h"
 #include "util/signal.h"
 
-#define OUTPUT_VERSION 3
+#define OUTPUT_VERSION 4
 
 static void send_geometry(struct wl_resource *resource) {
 	struct wlr_output *output = wlr_output_from_resource(resource);
@@ -37,6 +40,23 @@ static void send_scale(struct wl_resource *resource) {
 	uint32_t version = wl_resource_get_version(resource);
 	if (version >= WL_OUTPUT_SCALE_SINCE_VERSION) {
 		wl_output_send_scale(resource, (uint32_t)ceil(output->scale));
+	}
+}
+
+static void send_name(struct wl_resource *resource) {
+	struct wlr_output *output = wlr_output_from_resource(resource);
+	uint32_t version = wl_resource_get_version(resource);
+	if (version >= WL_OUTPUT_NAME_SINCE_VERSION) {
+		wl_output_send_name(resource, output->name);
+	}
+}
+
+static void send_description(struct wl_resource *resource) {
+	struct wlr_output *output = wlr_output_from_resource(resource);
+	uint32_t version = wl_resource_get_version(resource);
+	if (output->description != NULL &&
+			version >= WL_OUTPUT_DESCRIPTION_SINCE_VERSION) {
+		wl_output_send_description(resource, output->description);
 	}
 }
 
@@ -84,6 +104,8 @@ static void output_bind(struct wl_client *wl_client, void *data,
 	send_geometry(resource);
 	send_current_mode(resource);
 	send_scale(resource);
+	send_name(resource);
+	send_description(resource);
 	send_done(resource);
 
 	struct wlr_output_event_bind evt = {
@@ -118,7 +140,7 @@ void wlr_output_destroy_global(struct wlr_output *output) {
 		wl_list_init(wl_resource_get_link(resource));
 	}
 
-	wlr_global_destroy_safe(output->global, output->display);
+	wlr_global_destroy_safe(output->global);
 	output->global = NULL;
 }
 
@@ -128,10 +150,7 @@ static void schedule_done_handle_idle_timer(void *data) {
 
 	struct wl_resource *resource;
 	wl_resource_for_each(resource, &output->resources) {
-		uint32_t version = wl_resource_get_version(resource);
-		if (version >= WL_OUTPUT_DONE_SINCE_VERSION) {
-			wl_output_send_done(resource);
-		}
+		send_done(resource);
 	}
 }
 
@@ -296,6 +315,16 @@ void wlr_output_enable_adaptive_sync(struct wlr_output *output, bool enabled) {
 	output->pending.adaptive_sync_enabled = enabled;
 }
 
+void wlr_output_set_render_format(struct wlr_output *output, uint32_t format) {
+	if (output->render_format == format) {
+		output->pending.committed &= ~WLR_OUTPUT_STATE_RENDER_FORMAT;
+		return;
+	}
+
+	output->pending.committed |= WLR_OUTPUT_STATE_RENDER_FORMAT;
+	output->pending.render_format = format;
+}
+
 void wlr_output_set_subpixel(struct wlr_output *output,
 		enum wl_output_subpixel subpixel) {
 	if (output->subpixel == subpixel) {
@@ -311,6 +340,13 @@ void wlr_output_set_subpixel(struct wlr_output *output,
 	wlr_output_schedule_done(output);
 }
 
+void wlr_output_set_name(struct wlr_output *output, const char *name) {
+	assert(output->global == NULL);
+
+	free(output->name);
+	output->name = strdup(name);
+}
+
 void wlr_output_set_description(struct wlr_output *output, const char *desc) {
 	if (output->description != NULL && desc != NULL &&
 			strcmp(output->description, desc) == 0) {
@@ -323,6 +359,12 @@ void wlr_output_set_description(struct wlr_output *output, const char *desc) {
 	} else {
 		output->description = NULL;
 	}
+
+	struct wl_resource *resource;
+	wl_resource_for_each(resource, &output->resources) {
+		send_description(resource);
+	}
+	wlr_output_schedule_done(output);
 
 	wlr_signal_emit_safe(&output->events.description, output);
 }
@@ -343,6 +385,7 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	output->impl = impl;
 	output->display = display;
 	wl_list_init(&output->modes);
+	output->render_format = DRM_FORMAT_XRGB8888;
 	output->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	output->scale = 1;
 	output->commit_seq = 0;
@@ -358,6 +401,8 @@ void wlr_output_init(struct wlr_output *output, struct wlr_backend *backend,
 	wl_signal_init(&output->events.enable);
 	wl_signal_init(&output->events.mode);
 	wl_signal_init(&output->events.description);
+	wl_signal_init(&output->events.set_cursor);
+	wl_signal_init(&output->events.move_cursor);
 	wl_signal_init(&output->events.destroy);
 	pixman_region32_init(&output->pending.damage);
 
@@ -378,9 +423,6 @@ void wlr_output_destroy(struct wlr_output *output) {
 	if (!output) {
 		return;
 	}
-
-	wlr_buffer_unlock(output->front_buffer);
-	output->front_buffer = NULL;
 
 	wl_list_remove(&output->display_destroy.link);
 	wlr_output_destroy_global(output);
@@ -409,6 +451,7 @@ void wlr_output_destroy(struct wlr_output *output) {
 		wl_event_source_remove(output->idle_done);
 	}
 
+	free(output->name);
 	free(output->description);
 
 	pixman_region32_fini(&output->pending.damage);
@@ -542,6 +585,22 @@ static bool output_basic_test(struct wlr_output *output) {
 		}
 	}
 
+	if (output->pending.committed & WLR_OUTPUT_STATE_RENDER_FORMAT) {
+		struct wlr_allocator *allocator = output->allocator;
+		assert(allocator != NULL);
+
+		const struct wlr_drm_format_set *display_formats =
+			wlr_output_get_primary_formats(output, allocator->buffer_caps);
+		struct wlr_drm_format *format = output_pick_format(output, display_formats,
+			output->pending.render_format);
+		if (format == NULL) {
+			wlr_log(WLR_ERROR, "Failed to pick primary buffer format for output");
+			return false;
+		}
+
+		free(format);
+	}
+
 	bool enabled = output->enabled;
 	if (output->pending.committed & WLR_OUTPUT_STATE_ENABLED) {
 		enabled = output->pending.enabled;
@@ -567,6 +626,10 @@ static bool output_basic_test(struct wlr_output *output) {
 	}
 	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) {
 		wlr_log(WLR_DEBUG, "Tried to enable adaptive sync on a disabled output");
+		return false;
+	}
+	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_RENDER_FORMAT) {
+		wlr_log(WLR_DEBUG, "Tried to set format for a disabled output");
 		return false;
 	}
 	if (!enabled && output->pending.committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
@@ -642,6 +705,10 @@ bool wlr_output_commit(struct wlr_output *output) {
 		}
 	}
 
+	if (output->pending.committed & WLR_OUTPUT_STATE_RENDER_FORMAT) {
+		output->render_format = output->pending.render_format;
+	}
+
 	output->commit_seq++;
 
 	bool scale_updated = output->pending.committed & WLR_OUTPUT_STATE_SCALE;
@@ -669,13 +736,13 @@ bool wlr_output_commit(struct wlr_output *output) {
 		wlr_output_schedule_done(output);
 	}
 
-	// Unset the front-buffer when a new buffer will replace it or when the
-	// output is getting disabled
-	if ((output->pending.committed & WLR_OUTPUT_STATE_BUFFER) ||
-			((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) &&
-				!output->pending.enabled)) {
-		wlr_buffer_unlock(output->front_buffer);
-		output->front_buffer = NULL;
+	// Destroy the swapchains when an output is disabled
+	if ((output->pending.committed & WLR_OUTPUT_STATE_ENABLED) &&
+			!output->pending.enabled) {
+		wlr_swapchain_destroy(output->swapchain);
+		output->swapchain = NULL;
+		wlr_swapchain_destroy(output->cursor_swapchain);
+		output->cursor_swapchain = NULL;
 	}
 
 	if (output->pending.committed & WLR_OUTPUT_STATE_BUFFER) {
@@ -685,8 +752,6 @@ bool wlr_output_commit(struct wlr_output *output) {
 
 	if (back_buffer != NULL) {
 		wlr_swapchain_set_buffer_submitted(output->swapchain, back_buffer);
-		wlr_buffer_unlock(output->front_buffer);
-		output->front_buffer = back_buffer;
 	}
 
 	uint32_t committed = output->pending.committed;
@@ -696,8 +761,13 @@ bool wlr_output_commit(struct wlr_output *output) {
 		.output = output,
 		.committed = committed,
 		.when = &now,
+		.buffer = back_buffer,
 	};
 	wlr_signal_emit_safe(&output->events.commit, &event);
+
+	if (back_buffer != NULL) {
+		wlr_buffer_unlock(back_buffer);
+	}
 
 	return true;
 }
@@ -790,19 +860,6 @@ size_t wlr_output_get_gamma_size(struct wlr_output *output) {
 	return output->impl->get_gamma_size(output);
 }
 
-bool wlr_output_export_dmabuf(struct wlr_output *output,
-		struct wlr_dmabuf_attributes *attribs) {
-	if (output->front_buffer == NULL) {
-		return false;
-	}
-
-	struct wlr_dmabuf_attributes buf_attribs = {0};
-	if (!wlr_buffer_get_dmabuf(output->front_buffer, &buf_attribs)) {
-		return false;
-	}
-	return wlr_dmabuf_attributes_copy(attribs, &buf_attribs);
-}
-
 void wlr_output_update_needs_frame(struct wlr_output *output) {
 	if (output->needs_frame) {
 		return;
@@ -825,4 +882,22 @@ void wlr_output_damage_whole(struct wlr_output *output) {
 	wlr_signal_emit_safe(&output->events.damage, &event);
 
 	pixman_region32_fini(&damage);
+}
+
+const struct wlr_drm_format_set *wlr_output_get_primary_formats(
+		struct wlr_output *output, uint32_t buffer_caps) {
+	if (!output->impl->get_primary_formats) {
+		return NULL;
+	}
+
+	const struct wlr_drm_format_set *formats =
+		output->impl->get_primary_formats(output, buffer_caps);
+	if (formats == NULL) {
+		wlr_log(WLR_ERROR, "Failed to get primary display formats");
+
+		static const struct wlr_drm_format_set empty_format_set = {0};
+		return &empty_format_set;
+	}
+
+	return formats;
 }

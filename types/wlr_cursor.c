@@ -854,7 +854,7 @@ void wlr_cursor_map_input_to_output(struct wlr_cursor *cur,
 	struct wlr_cursor_device *c_device = get_cursor_device(cur, dev);
 	if (!c_device) {
 		wlr_log(WLR_ERROR, "Cannot map device \"%s\" to output"
-			"(not found in this cursor)", dev->name);
+			" (not found in this cursor)", dev->name);
 		return;
 	}
 

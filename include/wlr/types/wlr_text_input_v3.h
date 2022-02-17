@@ -11,8 +11,9 @@
 
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
-#include <wlr/types/wlr_surface.h>
 #include <wlr/util/box.h>
+
+struct wlr_surface;
 
 enum wlr_text_input_v3_features {
 	WLR_TEXT_INPUT_V3_FEATURE_SURROUNDING_TEXT = 1 << 0,
@@ -87,7 +88,7 @@ void wlr_text_input_v3_send_enter(struct wlr_text_input_v3 *text_input,
 // Sends leave to the currently focused surface and clears it
 void wlr_text_input_v3_send_leave(struct wlr_text_input_v3 *text_input);
 void wlr_text_input_v3_send_preedit_string(struct wlr_text_input_v3 *text_input,
-	const char *text, uint32_t cursor_begin, uint32_t cursor_end);
+	const char *text, int32_t cursor_begin, int32_t cursor_end);
 void wlr_text_input_v3_send_commit_string(struct wlr_text_input_v3 *text_input,
 	const char *text);
 void wlr_text_input_v3_send_delete_surrounding_text(

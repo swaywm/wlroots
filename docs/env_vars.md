@@ -3,14 +3,15 @@ wlroots reads these environment variables
 # wlroots specific
 
 * *WLR_BACKENDS*: comma-separated list of backends to use (available backends:
-  libinput, drm, wayland, x11, headless, noop)
+  libinput, drm, wayland, x11, headless)
 * *WLR_NO_HARDWARE_CURSORS*: set to 1 to use software cursors instead of
   hardware cursors
-* *WLR_DIRECT_TTY*: specifies the tty to be used (instead of using /dev/tty)
 * *WLR_XWAYLAND*: specifies the path to an Xwayland binary to be used (instead
   of following shell search semantics for "Xwayland")
 * *WLR_RENDERER*: forces the creation of a specified renderer (available
-  renderers: gles2, pixman)
+  renderers: gles2, pixman, vulkan)
+* *WLR_RENDER_DRM_DEVICE*: specifies the DRM node to use for
+  hardware-accelerated renderers.
 
 ## DRM backend
 

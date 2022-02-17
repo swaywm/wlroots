@@ -185,7 +185,12 @@ static struct wlr_output_layout_output *output_layout_output_create(
 	l_output->state->layout = layout;
 	l_output->output = output;
 	wl_signal_init(&l_output->events.destroy);
-	wl_list_insert(&layout->outputs, &l_output->link);
+
+	/*
+	 * Insert at the end of the list so that auto-configuring the
+	 * new output doesn't change the layout of other outputs
+	 */
+	wl_list_insert(layout->outputs.prev, &l_output->link);
 
 	wl_signal_add(&output->events.mode, &l_output->state->mode);
 	l_output->state->mode.notify = handle_output_mode;

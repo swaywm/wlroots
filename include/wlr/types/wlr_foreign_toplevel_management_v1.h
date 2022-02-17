@@ -36,10 +36,13 @@ enum wlr_foreign_toplevel_handle_v1_state {
 
 struct wlr_foreign_toplevel_handle_v1_output {
 	struct wl_list link; // wlr_foreign_toplevel_handle_v1::outputs
-	struct wl_listener output_destroy;
 	struct wlr_output *output;
-
 	struct wlr_foreign_toplevel_handle_v1 *toplevel;
+
+	// private state
+
+	struct wl_listener output_bind;
+	struct wl_listener output_destroy;
 };
 
 struct wlr_foreign_toplevel_handle_v1 {

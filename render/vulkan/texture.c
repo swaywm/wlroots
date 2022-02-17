@@ -438,7 +438,7 @@ VkImage vulkan_import_dmabuf(struct wlr_vk_renderer *renderer,
 	img_info.arrayLayers = 1;
 	img_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	img_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	img_info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+	img_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	img_info.extent = (VkExtent3D) { attribs->width, attribs->height, 1 };
 	img_info.usage = for_render ?
 		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT :
@@ -603,19 +603,6 @@ static struct wlr_texture *vulkan_texture_from_dmabuf(struct wlr_renderer *wlr_r
 		texture->memories, &texture->mem_count, false);
 	if (!texture->image) {
 		goto error;
-	}
-
-	uint32_t flags = attribs->flags;
-	if (flags & WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT) {
-		texture->invert_y = true;
-		flags &= ~WLR_DMABUF_ATTRIBUTES_FLAGS_Y_INVERT;
-	}
-
-	if (flags != 0) {
-		wlr_log(WLR_ERROR, "dmabuf flags %x not supported/implemented on vulkan",
-			attribs->flags);
-		// NOTE: should probably make this a critical error in future
-		// return VK_NULL_HANDLE;
 	}
 
 	const struct wlr_pixel_format_info *format_info = drm_get_pixel_format_info(attribs->format);

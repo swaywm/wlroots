@@ -143,9 +143,9 @@ static void backend_destroy(struct wlr_backend *wlr_backend) {
 
 	struct wl_list **wlr_devices_ptr;
 	wl_array_for_each(wlr_devices_ptr, &backend->wlr_device_lists) {
-		struct wlr_input_device *wlr_dev, *next;
-		wl_list_for_each_safe(wlr_dev, next, *wlr_devices_ptr, link) {
-			wlr_input_device_destroy(wlr_dev);
+		struct wlr_libinput_input_device *dev, *tmp;
+		wl_list_for_each_safe(dev, tmp, *wlr_devices_ptr, link) {
+			wlr_input_device_destroy(&dev->wlr_input_device);
 		}
 		free(*wlr_devices_ptr);
 	}

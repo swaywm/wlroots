@@ -14,7 +14,6 @@
 #include <time.h>
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
-#include <wlr/render/dmabuf.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/util/addon.h>
 
@@ -62,6 +61,7 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_TRANSFORM = 1 << 5,
 	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED = 1 << 6,
 	WLR_OUTPUT_STATE_GAMMA_LUT = 1 << 7,
+	WLR_OUTPUT_STATE_RENDER_FORMAT = 1 << 8,
 };
 
 enum wlr_output_state_mode_type {
@@ -79,6 +79,7 @@ struct wlr_output_state {
 	float scale;
 	enum wl_output_transform transform;
 	bool adaptive_sync_enabled;
+	uint32_t render_format;
 
 	// only valid if WLR_OUTPUT_STATE_BUFFER
 	struct wlr_buffer *buffer;
@@ -117,7 +118,7 @@ struct wlr_output {
 	struct wl_global *global;
 	struct wl_list resources;
 
-	char name[24];
+	char *name;
 	char *description; // may be NULL
 	char make[56];
 	char model[16];
@@ -135,6 +136,7 @@ struct wlr_output {
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;
 	enum wlr_output_adaptive_sync_status adaptive_sync_status;
+	uint32_t render_format;
 
 	bool needs_frame;
 	// damage for cursors and fullscreen surface, in output-local coordinates
@@ -169,6 +171,8 @@ struct wlr_output {
 		struct wl_signal enable;
 		struct wl_signal mode;
 		struct wl_signal description;
+		struct wl_signal set_cursor;
+		struct wl_signal move_cursor;
 		struct wl_signal destroy;
 	} events;
 
@@ -183,8 +187,10 @@ struct wlr_output {
 	struct wlr_buffer *cursor_front_buffer;
 	int software_cursor_locks; // number of locks forcing software cursors
 
+	struct wlr_allocator *allocator;
+	struct wlr_renderer *renderer;
 	struct wlr_swapchain *swapchain;
-	struct wlr_buffer *back_buffer, *front_buffer;
+	struct wlr_buffer *back_buffer;
 
 	struct wl_listener display_destroy;
 
@@ -207,6 +213,7 @@ struct wlr_output_event_commit {
 	struct wlr_output *output;
 	uint32_t committed; // bitmask of enum wlr_output_state_field
 	struct timespec *when;
+	struct wlr_buffer *buffer; // NULL if no buffer is committed
 };
 
 enum wlr_output_present_flag {
@@ -245,6 +252,18 @@ struct wlr_output_event_bind {
 	struct wl_resource *resource;
 };
 
+struct wlr_output_event_set_cursor {
+	struct wlr_output *output;
+	struct wlr_buffer *buffer;
+	int hotspot_x;
+	int hotspot_y;
+};
+
+struct wlr_output_event_move_cursor {
+	struct wlr_output* output;
+	int x, y;
+};
+
 struct wlr_surface;
 
 /**
@@ -257,6 +276,18 @@ struct wlr_surface;
 void wlr_output_enable(struct wlr_output *output, bool enable);
 void wlr_output_create_global(struct wlr_output *output);
 void wlr_output_destroy_global(struct wlr_output *output);
+/**
+ * Initialize the output's rendering subsystem with the provided allocator and
+ * renderer. Can only be called once.
+ *
+ * Call this function prior to any call to wlr_output_attach_render,
+ * wlr_output_commit or wlr_output_cursor_create.
+ *
+ * The buffer capabilities of the provided must match the capabilities of the
+ * output's backend. Returns false otherwise.
+ */
+bool wlr_output_init_render(struct wlr_output *output,
+	struct wlr_allocator *allocator, struct wlr_renderer *renderer);
 /**
  * Returns the preferred mode for this output. If the output doesn't support
  * modes, returns NULL.
@@ -296,6 +327,22 @@ void wlr_output_set_transform(struct wlr_output *output,
  */
 void wlr_output_enable_adaptive_sync(struct wlr_output *output, bool enabled);
 /**
+ * Set the output buffer render format. Default value: DRM_FORMAT_XRGB8888
+ *
+ * While high bit depth render formats are necessary for a monitor to receive
+ * useful high bit data, they do not guarantee it; a DRM_FORMAT_XBGR2101010
+ * buffer will only lead to sending 10-bpc image data to the monitor if
+ * hardware and software permit this.
+ *
+ * This only affects the format of the output buffer used when rendering,
+ * as with `wlr_output_attach_render`. It has no impact on the cursor buffer
+ * format, or on the formats supported for direct scan-out (see also
+ * `wlr_output_attach_buffer`).
+ *
+ * This format is double-buffered state, see `wlr_output_commit`.
+ */
+void wlr_output_set_render_format(struct wlr_output *output, uint32_t format);
+/**
  * Sets a scale for the output.
  *
  * Scale is double-buffered state, see `wlr_output_commit`.
@@ -303,6 +350,17 @@ void wlr_output_enable_adaptive_sync(struct wlr_output *output, bool enabled);
 void wlr_output_set_scale(struct wlr_output *output, float scale);
 void wlr_output_set_subpixel(struct wlr_output *output,
 	enum wl_output_subpixel subpixel);
+/**
+ * Set the output name.
+ *
+ * Output names are subject to the following rules:
+ *
+ * - Each output name must be unique.
+ * - The name cannot change after the output has been advertised to clients.
+ *
+ * For more details, see the protocol documentation for wl_output.name.
+ */
+void wlr_output_set_name(struct wlr_output *output, const char *name);
 void wlr_output_set_description(struct wlr_output *output, const char *desc);
 /**
  * Schedule a done event.
@@ -402,13 +460,6 @@ size_t wlr_output_get_gamma_size(struct wlr_output *output);
 void wlr_output_set_gamma(struct wlr_output *output, size_t size,
 	const uint16_t *r, const uint16_t *g, const uint16_t *b);
 /**
- * Exports the last committed buffer as a DMA-BUF.
- *
- * The caller is responsible for cleaning up the DMA-BUF attributes.
- */
-bool wlr_output_export_dmabuf(struct wlr_output *output,
-	struct wlr_dmabuf_attributes *attribs);
-/**
  * Returns the wlr_output matching the provided wl_output resource. If the
  * resource isn't a wl_output, it aborts. If the resource is inert (because the
  * wlr_output has been destroyed), NULL is returned.
@@ -435,6 +486,16 @@ void wlr_output_lock_software_cursors(struct wlr_output *output, bool lock);
  */
 void wlr_output_render_software_cursors(struct wlr_output *output,
 	pixman_region32_t *damage);
+/**
+ * Get the set of DRM formats suitable for the primary buffer, assuming a
+ * buffer with the specified capabilities.
+ *
+ * NULL is returned if the backend doesn't have any format constraint, ie. all
+ * formats are supported. An empty set is returned if the backend doesn't
+ * support any format.
+ */
+const struct wlr_drm_format_set *wlr_output_get_primary_formats(
+	struct wlr_output *output, uint32_t buffer_caps);
 
 
 struct wlr_output_cursor *wlr_output_cursor_create(struct wlr_output *output);
